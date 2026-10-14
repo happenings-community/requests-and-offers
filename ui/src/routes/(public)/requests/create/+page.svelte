@@ -14,7 +14,7 @@
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import type { UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
-  import AfterPublish from '$lib/components/messaging/AfterPublish.svelte';
+  import AfterPublish from '$lib/components/exchanges/AfterPublish.svelte';
 
   // State
   let isLoading = $state(true);

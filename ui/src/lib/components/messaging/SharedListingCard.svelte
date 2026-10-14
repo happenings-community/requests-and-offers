@@ -4,7 +4,10 @@
   import offersStore from '$lib/stores/offers.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
-  import ShowInterestButton from '$lib/components/messaging/ShowInterestButton.svelte';
+  // View listing and Withdraw interest are the exchange's actions; the card is a view of
+  // the same record (R80), so it reads their wording from where it lives.
+  import { EXCHANGE_STRINGS as E } from '$lib/strings/exchanges.strings';
+  import ShowInterestButton from '$lib/components/exchanges/ShowInterestButton.svelte';
   import type { ListingType } from '$lib/types/holochain';
 
   type Props = {
@@ -72,7 +75,7 @@
       <a
         class="variant-ghost btn btn-sm"
         href="/{kind === 'Offer' ? 'offers' : 'requests'}/{encodeHashToBase64(listing)}"
-        >{S.card.interest.view}</a
+        >{E.interest.view}</a
       >
       <!-- Show interest hides itself for the author, so the sharer sees only View. -->
       <ShowInterestButton {listing} listingType={kind} {author} />

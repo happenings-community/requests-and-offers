@@ -2,12 +2,12 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import type { ActionHash } from '@holochain/client';
-  import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
+  import { EXCHANGE_STRINGS as S, fill } from '$lib/strings/exchanges.strings';
   import { readOrigin, routeAfterPublish } from '$lib/paths';
   import messagingStore from '$lib/stores/messaging.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { runEffect } from '$lib/utils/effect';
-  import BackToConversation from './BackToConversation.svelte';
+  import BackToConversation from '$lib/components/messaging/BackToConversation.svelte';
 
   /**
    * What a member is offered once a listing is published.

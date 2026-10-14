@@ -8,7 +8,10 @@
   import messagingStore from '$lib/stores/messaging.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { threadKeyOf } from '$lib/utils/messaging-threads';
-  import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
+  import { EXCHANGE_STRINGS as S, fill } from '$lib/strings/exchanges.strings';
+  // The unread count and Go to chat are messaging's wording, and H4 takes both over with
+  // the one component for reaching the other person. It removes them from here.
+  import { MESSAGING_STRINGS as M } from '$lib/strings/messaging.strings';
   import { statusLabel } from '$lib/utils/exchange-ui';
   import { ListingStatus } from '$lib/types/holochain';
   import type { UIInterest } from '$lib/types/ui';
@@ -118,11 +121,11 @@
           <div class="flex flex-wrap items-center gap-2">
             {#if row.author}
               <a class="variant-ghost btn btn-sm" href={paths.conversation(row.author)}
-                >{S.exchanges.goToChat}</a
+                >{M.exchanges.goToChat}</a
               >
               {#if unreadWith(row.author) > 0}
                 <span class="variant-filled-primary badge"
-                  >{fill(S.hub.unread, { count: unreadWith(row.author) })}</span
+                  >{fill(M.hub.unread, { count: unreadWith(row.author) })}</span
                 >
               {/if}
             {/if}
@@ -130,13 +133,12 @@
               class="variant-ghost btn btn-sm"
               href="/{row.interest.listing_type === 'Offer'
                 ? 'offers'
-                : 'requests'}/{encodeHashToBase64(row.interest.listing)}">{S.card.interest.view}</a
+                : 'requests'}/{encodeHashToBase64(row.interest.listing)}">{S.interest.view}</a
             >
             <button
               type="button"
               class="variant-ghost btn btn-sm"
-              onclick={() => withdraw(row.interest.interest_hash)}
-              >{S.card.interest.withdraw}</button
+              onclick={() => withdraw(row.interest.interest_hash)}>{S.interest.withdraw}</button
             >
           </div>
         </li>

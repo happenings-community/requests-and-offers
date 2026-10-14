@@ -1,6 +1,9 @@
 <script lang="ts">
   import { encodeHashToBase64, type ActionHash } from '@holochain/client';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
+  // View listing and Withdraw interest are the exchange's actions; the card is a view of
+  // the same record (R80), so it reads their wording from where it lives.
+  import { EXCHANGE_STRINGS as E } from '$lib/strings/exchanges.strings';
   import type { UIInterest } from '$lib/types/ui';
 
   type Props = {
@@ -44,14 +47,14 @@
     <span class="font-semibold">{heading}</span>
   </div>
   <div class="flex flex-wrap gap-2 pt-3">
-    <a class="btn btn-sm variant-ghost" href={listingHref}>{S.card.interest.view}</a>
+    <a class="btn btn-sm variant-ghost" href={listingHref}>{E.interest.view}</a>
     {#if mine}
       <button
         type="button"
         class="btn btn-sm variant-ghost"
         onclick={() => onWithdraw(interest.interest_hash)}
       >
-        {S.card.interest.withdraw}
+        {E.interest.withdraw}
       </button>
     {/if}
   </div>

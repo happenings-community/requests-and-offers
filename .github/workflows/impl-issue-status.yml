@@ -1,0 +1,210 @@
+# impl-issue-status.yml
+# Board: https://github.com/orgs/happenings-community/projects/2
+#
+# When a pull request merges, every issue its body names with an `Impl #N`
+# marker moves to the "In Review" Status on the board. `Impl #N` means the
+# code landed but the issue stays open for its tests or documentation;
+# "In Review" is the board option described as "PR open, awaiting review,
+# tests or docs". `Closes #N` is unaffected: GitHub closes the issue and the
+# board's own workflow moves it to Done. A marker naming a closed issue is
+# skipped, so quoting an old issue never pulls its card back out of Done.
+#
+# REQUIRED SECRET: PROJECT_TOKEN
+#   PAT scopes: project (read/write) + repo (read)
+#   Add at: Settings -> Secrets and variables -> Actions -> New repository secret
+#   The default GITHUB_TOKEN cannot write to an organisation project.
+#
+# Guide: documentation/guides/project-board-automation.md
+
+name: Move Impl issues to In Review
+
+on:
+  pull_request:
+    types: [closed]
+
+# Every call goes through PROJECT_TOKEN and nothing checks out the
+# repository, so the default GITHUB_TOKEN needs no scope at all.
+permissions: {}
+
+jobs:
+  move-impl-issues:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Parse Impl issue numbers from PR body
+        id: parse
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Actions runs this under bash -eo pipefail, where a grep with no
+          # match would fail the step on every merged PR without a marker.
+          ISSUE_NUMBERS=$(echo "$PR_BODY" \
+            | { grep -oiE 'impl\s*#[0-9]+' | grep -oE '[0-9]+' || true; } \
+            | sort -u \
+            | tr '\n' ' ' \
+            | xargs)
+          echo "Found issue numbers: ${ISSUE_NUMBERS:-none}"
+          echo "issue_numbers=${ISSUE_NUMBERS}" >> "$GITHUB_OUTPUT"
+
+      - name: Move each Impl issue to In Review
+        if: steps.parse.outputs.issue_numbers != ''
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ORG_LOGIN: happenings-community
+          PROJECT_NUMBER: 2
+          STATUS_OPTION_NAME: In Review
+          ISSUE_NUMBERS: ${{ steps.parse.outputs.issue_numbers }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "ERROR: the PROJECT_TOKEN secret is not set, so the board cannot be written."
+            echo "Add a PAT with project (read/write) and repo (read) scopes as PROJECT_TOKEN."
+            exit 1
+          fi
+
+          echo "Fetching project metadata for ${ORG_LOGIN} project #${PROJECT_NUMBER}..."
+
+          # shellcheck disable=SC2016 # GraphQL $variables stay unexpanded on purpose
+          PROJECT_META=$(gh api graphql -f query='
+            query($org: String!, $number: Int!) {
+              organization(login: $org) {
+                projectV2(number: $number) {
+                  id
+                  fields(first: 30) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f org="$ORG_LOGIN" -F number="$PROJECT_NUMBER")
+
+          PROJECT_ID=$(echo "$PROJECT_META" | jq -r '.data.organization.projectV2.id')
+          if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "null" ]; then
+            echo "ERROR: Project ${PROJECT_NUMBER} not found in org ${ORG_LOGIN}."
+            exit 1
+          fi
+          echo "Project ID: $PROJECT_ID"
+
+          STATUS_FIELD_ID=$(echo "$PROJECT_META" \
+            | jq -r '.data.organization.projectV2.fields.nodes[] | select(.name == "Status") | .id')
+          TARGET_OPTION_ID=$(echo "$PROJECT_META" \
+            | jq -r --arg name "$STATUS_OPTION_NAME" \
+              '.data.organization.projectV2.fields.nodes[]
+                | select(.name == "Status") | .options[] | select(.name == $name) | .id')
+
+          if [ -z "$STATUS_FIELD_ID" ] || [ "$STATUS_FIELD_ID" = "null" ]; then
+            echo "ERROR: Status field not found."
+            exit 1
+          fi
+          if [ -z "$TARGET_OPTION_ID" ] || [ "$TARGET_OPTION_ID" = "null" ]; then
+            echo "ERROR: Status option '${STATUS_OPTION_NAME}' not found. Available options:"
+            echo "$PROJECT_META" | jq -r \
+              '.data.organization.projectV2.fields.nodes[] | select(.name == "Status") | .options[].name'
+            exit 1
+          fi
+
+          echo "Status field ID: $STATUS_FIELD_ID"
+          echo "Target option '${STATUS_OPTION_NAME}' ID: $TARGET_OPTION_ID"
+
+          for ISSUE_NUM in $ISSUE_NUMBERS; do
+            echo ""
+            echo "Processing issue #${ISSUE_NUM}..."
+
+            # Ask the issue for its own project items rather than paging the
+            # board: the board holds more than 100 items, so a first-100 scan
+            # silently misses every recent issue.
+            # gh exits 1 on any GraphQL error but still prints the response,
+            # so only a NOT_FOUND (a pull request number or a missing issue)
+            # is skipped; a rate limit, network or token error fails the run.
+            LOOKUP_STATUS=0
+            # shellcheck disable=SC2016 # GraphQL $variables stay unexpanded on purpose
+            ISSUE_DATA=$(gh api graphql -f query='
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $number) {
+                    id
+                    state
+                    title
+                    projectItems(first: 50, includeArchived: true) {
+                      nodes { id project { id } }
+                    }
+                  }
+                }
+              }
+            ' -f owner="$REPO_OWNER" -f repo="$REPO_NAME" -F number="$ISSUE_NUM") \
+              || LOOKUP_STATUS=$?
+
+            if [ "$LOOKUP_STATUS" -ne 0 ]; then
+              if echo "$ISSUE_DATA" \
+                | jq -e '[.errors[]? | select(.type == "NOT_FOUND")] | length > 0' >/dev/null 2>&1; then
+                echo "  SKIP: #${ISSUE_NUM} is not an issue in this repository (a pull request or a missing number)."
+                continue
+              fi
+              echo "  ERROR: looking up #${ISSUE_NUM} failed (exit ${LOOKUP_STATUS}). Response: ${ISSUE_DATA}"
+              exit 1
+            fi
+
+            ISSUE_NODE_ID=$(echo "$ISSUE_DATA" | jq -r '.data.repository.issue.id // empty')
+            ISSUE_STATE=$(echo "$ISSUE_DATA" | jq -r '.data.repository.issue.state // empty')
+            ISSUE_TITLE=$(echo "$ISSUE_DATA" | jq -r '.data.repository.issue.title // empty')
+
+            if [ -z "$ISSUE_NODE_ID" ]; then
+              echo "  SKIP: Issue #${ISSUE_NUM} not found."
+              continue
+            fi
+            echo "  Title: ${ISSUE_TITLE}"
+
+            if [ "$ISSUE_STATE" = "CLOSED" ]; then
+              echo "  SKIP: Issue #${ISSUE_NUM} is closed; its board card is left where it is."
+              continue
+            fi
+
+            ITEM_ID=$(echo "$ISSUE_DATA" \
+              | jq -r --arg projectId "$PROJECT_ID" \
+                '.data.repository.issue.projectItems.nodes[] | select(.project.id == $projectId) | .id' \
+              | head -n 1)
+
+            if [ -z "$ITEM_ID" ]; then
+              echo "  SKIP: Issue #${ISSUE_NUM} not on board #${PROJECT_NUMBER}."
+              continue
+            fi
+            echo "  Project item ID: $ITEM_ID"
+
+            # shellcheck disable=SC2016 # GraphQL $variables stay unexpanded on purpose
+            UPDATE_RESULT=$(gh api graphql -f query='
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $projectId
+                  itemId: $itemId
+                  fieldId: $fieldId
+                  value: { singleSelectOptionId: $optionId }
+                }) {
+                  projectV2Item { id }
+                }
+              }
+            ' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" \
+              -f fieldId="$STATUS_FIELD_ID" -f optionId="$TARGET_OPTION_ID")
+
+            UPDATED=$(echo "$UPDATE_RESULT" \
+              | jq -r '.data.updateProjectV2ItemFieldValue.projectV2Item.id // empty')
+
+            if [ -n "$UPDATED" ]; then
+              echo "  OK: Issue #${ISSUE_NUM} -> '${STATUS_OPTION_NAME}'"
+            else
+              echo "  ERROR: Mutation failed. Response: $UPDATE_RESULT"
+              exit 1
+            fi
+          done
+
+          echo ""
+          echo "Done."

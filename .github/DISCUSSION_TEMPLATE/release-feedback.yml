@@ -1,0 +1,62 @@
+title: "[vX.Y.Z] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying a release. A short report with the context below is worth more than a long one without it: we cannot fix what we cannot reproduce. Replace `vX.Y.Z` in the title with the version you tested.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release you installed, as shown on the download page (for example v0.6.0-alpha.1).
+      placeholder: v0.6.0-alpha.1
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Machine
+      options:
+        - Linux (.deb)
+        - Linux (AppImage)
+        - macOS, Apple Silicon (M1 or later)
+        - macOS, Intel
+        - Windows
+        - Other (say which below)
+    validations:
+      required: true
+  - type: input
+    id: screen
+    attributes:
+      label: Screen
+      description: The page or screen you were on, for example "Create a request" or "Exchange details".
+    validations:
+      required: true
+  - type: textarea
+    id: what-you-did
+    attributes:
+      label: What you did
+      description: The steps, in order. If you pressed Return or clicked a button, say which.
+      placeholder: |
+        1. Opened Create a request
+        2. Typed a website address in Links
+        3. Clicked Save
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Drag the image files into this box. Check that each one shows before you submit; a pasted link to a local file does not.
+  - type: textarea
+    id: network
+    attributes:
+      label: Network details (optional)
+      description: Useful when you cannot see another member. Click the connection status dot in the app and copy the network seed and DNA hash it shows.
+      render: text

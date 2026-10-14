@@ -1,0 +1,902 @@
+import type { ActionHash, Record } from '@holochain/client';
+import { isListingOfType } from '$lib/utils/listing-record';
+import { type RequestsService } from '$lib/services/zomes/requests.service';
+import type { UIRequest } from '$lib/types/ui';
+import type { RequestInDHT, RequestInput } from '$lib/types/holochain';
+import { actionHashToSchemaType } from '$lib/utils/type-bridges';
+import {
+  HolochainClientServiceTag,
+  HolochainClientServiceLive
+} from '$lib/services/HolochainClientService.svelte';
+import { RequestsServiceTag, RequestsServiceLive } from '$lib/services/zomes/requests.service';
+import usersStore from '$lib/stores/users.store.svelte';
+import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
+import {
+  CacheServiceTag,
+  CacheServiceLive,
+  type EntityCacheService
+} from '$lib/utils/cache.svelte';
+import { Effect as E, pipe } from 'effect';
+import { CacheNotFoundError } from '$lib/errors';
+import { RequestError } from '$lib/errors/requests.errors';
+import { CACHE_EXPIRY } from '$lib/utils/constants';
+import { REQUEST_CONTEXTS } from '$lib/errors/error-contexts';
+
+// Import standardized store helpers
+import {
+  withLoadingState,
+  createErrorHandler,
+  createGenericCacheSyncHelper,
+  createEntityFetcher,
+  createStandardEventEmitters,
+  createUIEntityFromRecord,
+  type LoadingStateSetter
+} from '$lib/utils/store-helpers';
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const CACHE_EXPIRY_MS = CACHE_EXPIRY.REQUESTS;
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+/**
+ * Standardized error handler for Request operations
+ */
+const handleRequestError = createErrorHandler(RequestError.fromError, 'Request operation failed');
+
+/**
+ * Create standardized event emitters for Request entities
+ */
+const requestEventEmitters = createStandardEventEmitters<UIRequest>('request');
+
+/**
+ * Create standardized entity fetcher for Requests
+ */
+const requestEntityFetcher = createEntityFetcher<UIRequest, RequestError>(handleRequestError);
+
+/**
+ * Cache lookup function for requests
+ */
+const requestCacheLookup = (key: string): E.Effect<UIRequest, CacheNotFoundError, never> => {
+  return E.fail(new CacheNotFoundError({ key }));
+};
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+// Define a proper Entry type to avoid using 'any'
+type HolochainEntry = {
+  Present: {
+    entry: Uint8Array;
+  };
+};
+
+export type RequestsStore = {
+  readonly requests: UIRequest[];
+  readonly activeRequests: UIRequest[];
+  readonly archivedRequests: UIRequest[];
+  readonly loading: boolean;
+  readonly error: string | null;
+  readonly cache: EntityCacheService<UIRequest>;
+
+  // Search-related state
+  readonly searchResults: UIRequest[];
+
+  getRequest: (requestHash: ActionHash) => E.Effect<UIRequest | null, RequestError, never>;
+  getActiveRequests: () => E.Effect<UIRequest[], RequestError, never>;
+  getArchivedRequests: () => E.Effect<UIRequest[], RequestError, never>;
+  createRequest: (
+    request: RequestInput,
+    organizationHash?: ActionHash
+  ) => E.Effect<Record, RequestError, never>;
+  updateRequest: (
+    originalActionHash: ActionHash,
+    previousActionHash: ActionHash,
+    updatedRequest: RequestInput
+  ) => E.Effect<Record, RequestError, never>;
+  deleteRequest: (requestHash: ActionHash) => E.Effect<void, RequestError, never>;
+  archiveRequest: (requestHash: ActionHash) => E.Effect<void, RequestError, never>;
+  getMyListings: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError, never>;
+  hasActiveRequests: () => E.Effect<boolean, RequestError, never>;
+  getUserRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError, never>;
+  getUserActiveRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError, never>;
+  getUserArchivedRequests: (userHash: ActionHash) => E.Effect<UIRequest[], RequestError, never>;
+  getOrganizationRequests: (
+    organizationHash: ActionHash
+  ) => E.Effect<UIRequest[], RequestError, never>;
+  getLatestRequest: (
+    originalActionHash: ActionHash
+  ) => E.Effect<UIRequest | null, RequestError, never>;
+  getRequestsByTag: (tag: string) => E.Effect<UIRequest[], RequestError, never>;
+  invalidateCache: () => void;
+};
+
+// ============================================================================
+// ENTITY CREATION HELPERS
+// ============================================================================
+
+/**
+ * Creates a complete UIRequest from a record using standardized helper pattern
+ * This demonstrates the use of createUIEntityFromRecord from store-helpers
+ */
+const createUIRequest = createUIEntityFromRecord<RequestInDHT, UIRequest>(
+  (entry, actionHash, timestamp, additionalData) => {
+    const serviceTypeHashes = (additionalData?.serviceTypeHashes as ActionHash[]) || [];
+    const mediumOfExchangeHashes = (additionalData?.mediumOfExchangeHashes as ActionHash[]) || [];
+    const creator = additionalData?.creator as ActionHash; // Only ActionHash, no fallback
+    const authorPubKey = additionalData?.authorPubKey as Uint8Array | undefined;
+    const organization = additionalData?.organization as ActionHash;
+
+    return {
+      ...entry,
+      original_action_hash: actionHash,
+      previous_action_hash: actionHash,
+      creator,
+      organization,
+      // Holochain action timestamps are microseconds; UI dates are milliseconds.
+      created_at: Math.floor(timestamp / 1000),
+      updated_at: Math.floor(timestamp / 1000),
+      service_type_hashes: serviceTypeHashes,
+      medium_of_exchange_hashes: mediumOfExchangeHashes,
+      // Absent unless the enhanced path set it, which is what marks a listing whose
+      // links nobody has read yet.
+      terms_load: additionalData?.termsLoad as 'ok' | 'failed' | undefined,
+      // Field for permission checking fallback
+      authorPubKey
+    };
+  }
+);
+
+/**
+ * Asynchronously processes a Holochain record to create a UIRequest.
+ * Fetches the creator, organization ActionHashes, service types, and medium of exchange hashes.
+ */
+const processRecord = (
+  record: Record,
+  requestsService: RequestsService
+): E.Effect<UIRequest, RequestError, never> => {
+  const requestHash = record.signed_action.hashed.hash;
+  const authorPubKey = record.signed_action.hashed.content.header.author;
+
+  return pipe(
+    E.all({
+      userProfile: pipe(
+        usersStore.getUserByAgentPubKey(authorPubKey),
+        E.catchAll(() => E.succeed(null))
+      ),
+      serviceTypeHashes: pipe(
+        serviceTypesStore.getServiceTypesForEntity({
+          original_action_hash: actionHashToSchemaType(requestHash),
+          entity: 'request'
+        }),
+        // A read that worked, said so. A failed one is marked rather than flattened
+        // to [], which is indistinguishable from a listing that names none: that is
+        // what made the detail pages say "No service types specified" for both.
+        E.map((hashes) => ({ hashes, ok: true })),
+        E.orElse(() => E.succeed({ hashes: [] as ActionHash[], ok: false }))
+      ),
+      mediumOfExchangeHashes: pipe(
+        requestsService.getMediumsOfExchangeForRequest(requestHash),
+        // A read that worked, said so. A failed one is marked rather than flattened
+        // to [], which is indistinguishable from a listing that names none: that is
+        // what made the detail pages say "No service types specified" for both.
+        E.map((hashes) => ({ hashes, ok: true })),
+        E.orElse(() => E.succeed({ hashes: [] as ActionHash[], ok: false }))
+      ),
+      // A failed read shows as no organization, matching the fallbacks above.
+      // Deliberate on this read path: the listing still renders without it.
+      organization: pipe(
+        requestsService.getRequestOrganization(requestHash),
+        E.orElse(() => E.succeed(null))
+      )
+    }),
+    E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes, organization }) =>
+      E.succeed({
+        userProfile: userProfile,
+        serviceTypeHashes,
+        mediumOfExchangeHashes,
+        organization
+      })
+    ),
+    E.flatMap(({ userProfile, serviceTypeHashes, mediumOfExchangeHashes, organization }) => {
+      const additionalData = {
+        termsLoad: serviceTypeHashes.ok && mediumOfExchangeHashes.ok ? 'ok' : 'failed',
+        serviceTypeHashes: serviceTypeHashes.hashes,
+        mediumOfExchangeHashes: mediumOfExchangeHashes.hashes,
+        creator: userProfile?.original_action_hash, // Only set if user profile exists
+        authorPubKey, // Keep AgentPubKey separately for fallback comparison
+        organization: organization ?? undefined
+      };
+
+      const entity = createUIRequest(record, additionalData);
+      return entity
+        ? E.succeed(entity)
+        : E.fail(
+            RequestError.fromError(
+              new Error('Failed to create UI entity'),
+              REQUEST_CONTEXTS.DECODE_REQUESTS
+            )
+          );
+    }),
+    E.mapError((error) => RequestError.fromError(error, REQUEST_CONTEXTS.DECODE_REQUESTS))
+  );
+};
+
+/**
+ * Creates enhanced UIRequest from record with additional processing
+ * This handles service types and medium of exchange relationships
+ */
+const createEnhancedUIRequest = (
+  record: Record,
+  requestsService: RequestsService
+): E.Effect<UIRequest, RequestError, never> => {
+  return processRecord(record, requestsService);
+};
+
+/**
+ * Converts UI RequestInput to compatible format for service calls
+ * This resolves the type bridge issue between UI types (Uint8Array) and service types (string)
+ */
+const convertRequestInputForService = (input: RequestInput): RequestInput => ({
+  ...input,
+  service_type_hashes: input.service_type_hashes.map((hash) =>
+    typeof hash === 'string' ? hash : actionHashToSchemaType(hash)
+  ),
+  medium_of_exchange_hashes: input.medium_of_exchange_hashes.map((hash) =>
+    typeof hash === 'string' ? hash : actionHashToSchemaType(hash)
+  )
+});
+
+/**
+ * REQUESTS STORE - USING STANDARDIZED STORE HELPER PATTERNS
+ *
+ * This store demonstrates the integration of standardized helper functions following the Service Types template:
+ *
+ * 1. createUIEntityFromRecord - Entity creation from Holochain records
+ * 2. createGenericCacheSyncHelper - Cache-to-state synchronization
+ * 3. createStandardEventEmitters - Type-safe event emission
+ * 4. withLoadingState - Consistent loading/error state management
+ * 5. createEntityCreationHelper - Standardized entity creation with validation
+ * 6. createErrorHandler - Domain-specific error handling
+ * 7. createEntityFetcher - Data fetching with loading state and error handling
+ * 8. createCacheLookupFunction - Cache miss handling with service fallback
+ *
+ * This implementation focuses on consistent patterns for CRUD operations with
+ * proper error handling, caching, and event emission.
+ *
+ * @returns An Effect that creates a requests store with state and methods
+ */
+export const createRequestsStore = (): E.Effect<
+  RequestsStore,
+  never,
+  HolochainClientServiceTag | RequestsServiceTag | CacheServiceTag
+> =>
+  E.gen(function* () {
+    const requestsService = yield* RequestsServiceTag;
+    const cacheService = yield* CacheServiceTag;
+
+    // ========================================================================
+    // STATE INITIALIZATION
+    // ========================================================================
+    const requests: UIRequest[] = $state([]);
+    const activeRequests: UIRequest[] = $state([]);
+    const archivedRequests: UIRequest[] = $state([]);
+    const searchResults: UIRequest[] = $state([]);
+    let loading: boolean = $state(false);
+    let error: string | null = $state(null);
+
+    // ===== HELPER FUNCTIONS =====
+
+    // 1. LOADING STATE MANAGEMENT - Using LoadingStateSetter interface
+    const setters: LoadingStateSetter = {
+      setLoading: (value) => {
+        loading = value;
+      },
+      setError: (value) => {
+        error = value;
+      }
+    };
+
+    // 2. CACHE SYNCHRONIZATION - Using createGenericCacheSyncHelper
+    const { syncCacheToState } = createGenericCacheSyncHelper({
+      all: requests,
+      active: activeRequests,
+      archived: archivedRequests,
+      searchResults: searchResults
+    });
+
+    // 3. EVENT EMITTERS - Using createStandardEventEmitters
+    const eventEmitters = requestEventEmitters;
+
+    // 4. CACHE MANAGEMENT - Using standardized cache lookup pattern
+    const cache = yield* cacheService.createEntityCache<UIRequest>(
+      {
+        expiryMs: CACHE_EXPIRY_MS,
+        debug: false
+      },
+      requestCacheLookup
+    );
+
+    // ===== STATE MANAGEMENT FUNCTIONS =====
+
+    const invalidateCache = (): void => {
+      // keep operations pure where possible; executing synchronously is acceptable at boundary
+      E.runSync(cache.clear());
+      requests.length = 0;
+      activeRequests.length = 0;
+      archivedRequests.length = 0;
+      searchResults.length = 0;
+      setters.setError(null);
+      setters.setLoading(false);
+    };
+
+    // ===== CORE CRUD OPERATIONS =====
+
+    const createRequest = (
+      request: RequestInput,
+      organizationHash?: ActionHash
+    ): E.Effect<Record, RequestError, never> =>
+      withLoadingState(() =>
+        pipe(
+          E.succeed(convertRequestInputForService(request)),
+          E.flatMap((serviceRequest) =>
+            requestsService.createRequest(serviceRequest, organizationHash)
+          ),
+          E.tap((record) =>
+            E.sync(() => {
+              const authorPubKey = record.signed_action.hashed.content.header.author;
+              const creator = usersStore.currentUser?.original_action_hash;
+              const entity = createUIRequest(record, {
+                authorPubKey,
+                creator,
+                serviceTypeHashes: request.service_type_hashes,
+                mediumOfExchangeHashes: request.medium_of_exchange_hashes
+              });
+              if (entity) {
+                E.runSync(cache.set(record.signed_action.hashed.hash.toString(), entity));
+                syncCacheToState(entity, 'add');
+                eventEmitters.emitCreated(entity);
+              }
+            })
+          ),
+          E.catchAll((error) =>
+            E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.CREATE_REQUEST))
+          )
+        )
+      )(setters);
+
+    const getActiveRequests = (): E.Effect<UIRequest[], RequestError, never> =>
+      requestEntityFetcher(
+        () =>
+          pipe(
+            requestsService.getActiveRequestsRecords(),
+            E.flatMap((records) =>
+              E.all(
+                records
+                  .filter(
+                    (record) =>
+                      record &&
+                      record.signed_action &&
+                      record.signed_action.hashed &&
+                      record.entry &&
+                      (record.entry as HolochainEntry).Present &&
+                      (record.entry as HolochainEntry).Present.entry
+                  )
+                  .map((record) => createEnhancedUIRequest(record, requestsService))
+              )
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                // Clear and replace active requests
+                activeRequests.length = 0;
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    activeRequests.push(uiRequest);
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) => {
+              const errorMessage = String(error);
+              if (errorMessage.includes('Client not connected')) {
+                console.warn('Holochain client not connected, returning empty requests array');
+                return E.succeed([]);
+              }
+              return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_ALL_REQUESTS));
+            })
+          ),
+        {
+          targetArray: activeRequests,
+          errorContext: REQUEST_CONTEXTS.GET_ALL_REQUESTS,
+          setters
+        }
+      );
+
+    const getArchivedRequests = (): E.Effect<UIRequest[], RequestError, never> =>
+      requestEntityFetcher(
+        () =>
+          pipe(
+            requestsService.getArchivedRequestsRecords(),
+            E.flatMap((records) =>
+              E.all(
+                records
+                  .filter(
+                    (record) =>
+                      record &&
+                      record.signed_action &&
+                      record.signed_action.hashed &&
+                      record.entry &&
+                      (record.entry as HolochainEntry).Present &&
+                      (record.entry as HolochainEntry).Present.entry
+                  )
+                  .map((record) => createEnhancedUIRequest(record, requestsService))
+              )
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                // Clear and replace archived requests
+                archivedRequests.length = 0;
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    archivedRequests.push(uiRequest);
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) => {
+              const errorMessage = String(error);
+              if (errorMessage.includes('Client not connected')) {
+                console.warn(
+                  'Holochain client not connected, returning empty archived requests array'
+                );
+                return E.succeed([]);
+              }
+              return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_ALL_REQUESTS));
+            })
+          ),
+        {
+          targetArray: archivedRequests,
+          errorContext: REQUEST_CONTEXTS.GET_ALL_REQUESTS,
+          setters
+        }
+      );
+
+    const getRequest = (requestHash: ActionHash): E.Effect<UIRequest | null, RequestError, never> =>
+      withLoadingState(() =>
+        pipe(
+          cache.get(requestHash.toString()),
+          E.catchTag('CacheNotFoundError', () => {
+            // Cache miss is expected on page refresh, continue to fetch from service
+            return E.succeed(null);
+          }),
+          E.flatMap((cachedRequest) => {
+            if (cachedRequest) {
+              return E.succeed(cachedRequest);
+            }
+
+            return pipe(
+              requestsService.getLatestRequestRecord(requestHash),
+              E.flatMap((record) => {
+                if (!record) return E.succeed(null);
+                // A read by hash does not check the entry type, so a listing of the
+                // other kind arrives here looking like a request. Refused, and
+                // deliberately not cached: a wrong entity in the cache would be
+                // returned to every later reader.
+                if (!isListingOfType(record, 'Request')) return E.succeed(null);
+
+                // Use enhanced creation to fetch related data (service types, medium of exchange)
+                return pipe(
+                  createEnhancedUIRequest(record, requestsService),
+                  E.tap((request) =>
+                    E.sync(() => {
+                      if (request) {
+                        E.runSync(cache.set(requestHash.toString(), request));
+                        syncCacheToState(request, 'add');
+                      }
+                    })
+                  )
+                );
+              }),
+              E.catchAll((error) => {
+                const errorMessage = String(error);
+                if (errorMessage.includes('Client not connected')) {
+                  console.warn('Holochain client not connected, returning null');
+                  return E.succeed(null);
+                }
+                // Preserve original error context for debugging
+                console.error('Failed to fetch request from service:', error);
+                return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_REQUEST));
+              })
+            );
+          }),
+          E.catchAll((error) => {
+            // Log the error for debugging while still providing a user-friendly message
+            console.error('Unexpected error in getRequest:', error);
+            return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_REQUEST));
+          })
+        )
+      )(setters);
+
+    const updateRequest = (
+      originalActionHash: ActionHash,
+      previousActionHash: ActionHash,
+      updatedRequest: RequestInput
+    ): E.Effect<Record, RequestError, never> =>
+      withLoadingState(() =>
+        pipe(
+          requestsService.updateRequest(originalActionHash, previousActionHash, updatedRequest),
+          E.flatMap((record) =>
+            pipe(
+              createEnhancedUIRequest(record, requestsService),
+              E.map((updatedUIRequest) => {
+                // CRITICAL: Preserve the original creation hash to match list entities
+                // The list contains entities with original_action_hash pointing to the creation hash
+                // (from get_all_requests which returns original records, not updates)
+                updatedUIRequest.original_action_hash = originalActionHash;
+                updatedUIRequest.updated_at = Date.now();
+
+                // Cache with the original creation hash (same key used by list entities)
+                E.runSync(cache.set(originalActionHash.toString(), updatedUIRequest));
+                syncCacheToState(updatedUIRequest, 'update');
+                eventEmitters.emitUpdated(updatedUIRequest);
+
+                return { record, updatedRequest: updatedUIRequest };
+              })
+            )
+          ),
+          E.map(({ record }) => record),
+          E.catchAll((error) =>
+            E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.UPDATE_REQUEST))
+          )
+        )
+      )(setters);
+
+    const deleteRequest = (requestHash: ActionHash): E.Effect<void, RequestError, never> =>
+      withLoadingState(() =>
+        pipe(
+          requestsService.deleteRequest(requestHash),
+          E.tap(() =>
+            E.sync(() => {
+              E.runSync(cache.invalidate(requestHash.toString()));
+              const dummyRequest = { original_action_hash: requestHash } as UIRequest;
+              syncCacheToState(dummyRequest, 'remove');
+            })
+          ),
+          E.tap(() => E.sync(() => eventEmitters.emitDeleted(requestHash))),
+          E.asVoid,
+          E.catchAll((error) =>
+            E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.DELETE_REQUEST))
+          )
+        )
+      )(setters);
+
+    const archiveRequest = (requestHash: ActionHash): E.Effect<void, RequestError, never> =>
+      withLoadingState(() =>
+        pipe(
+          requestsService.archiveRequest(requestHash),
+          E.tap(() =>
+            E.sync(() => {
+              // Remove from activeRequests array explicitly
+              const activeIndex = activeRequests.findIndex(
+                (r) =>
+                  r.original_action_hash &&
+                  r.original_action_hash.toString() === requestHash.toString()
+              );
+              if (activeIndex !== -1) {
+                activeRequests.splice(activeIndex, 1);
+              }
+
+              // Also remove from the general requests array
+              const dummyRequest = { original_action_hash: requestHash } as UIRequest;
+              syncCacheToState(dummyRequest, 'remove');
+
+              // Invalidate the cache to ensure fresh data on next load
+              E.runSync(cache.invalidate(requestHash.toString()));
+            })
+          ),
+          E.tap(() => E.sync(() => eventEmitters.emitDeleted(requestHash))),
+          E.asVoid,
+          E.catchAll((error) =>
+            E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.ARCHIVE_REQUEST))
+          )
+        )
+      )(setters);
+
+    // ===== SPECIALIZED QUERY OPERATIONS =====
+
+    const getUserRequests = (userHash: ActionHash): E.Effect<UIRequest[], RequestError, never> =>
+      requestEntityFetcher(
+        () =>
+          pipe(
+            requestsService.getUserRequestsRecords(userHash),
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    syncCacheToState(uiRequest, 'add');
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_USER_REQUESTS))
+            )
+          ),
+        {
+          targetArray: searchResults,
+          errorContext: REQUEST_CONTEXTS.GET_USER_REQUESTS,
+          setters
+        }
+      );
+
+    const getUserActiveRequests = (
+      userHash: ActionHash
+    ): E.Effect<UIRequest[], RequestError, never> =>
+      requestEntityFetcher(
+        () =>
+          pipe(
+            requestsService.getUserActiveRequestsRecords(userHash),
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                // Clear and replace active requests
+                activeRequests.length = 0;
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    activeRequests.push(uiRequest);
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_USER_ACTIVE_REQUESTS))
+            )
+          ),
+        {
+          targetArray: activeRequests,
+          errorContext: REQUEST_CONTEXTS.GET_USER_ACTIVE_REQUESTS,
+          setters
+        }
+      );
+
+    const getUserArchivedRequests = (
+      userHash: ActionHash
+    ): E.Effect<UIRequest[], RequestError, never> =>
+      requestEntityFetcher(
+        () =>
+          pipe(
+            requestsService.getUserArchivedRequestsRecords(userHash),
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                // Clear and replace archived requests
+                archivedRequests.length = 0;
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    archivedRequests.push(uiRequest);
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_USER_ARCHIVED_REQUESTS))
+            )
+          ),
+        {
+          targetArray: archivedRequests,
+          errorContext: REQUEST_CONTEXTS.GET_USER_ARCHIVED_REQUESTS,
+          setters
+        }
+      );
+
+    const getOrganizationRequests = (
+      organizationHash: ActionHash
+    ): E.Effect<UIRequest[], RequestError, never> =>
+      requestEntityFetcher(
+        () =>
+          pipe(
+            requestsService.getOrganizationRequestsRecords(organizationHash),
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    syncCacheToState(uiRequest, 'add');
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_ORGANIZATION_REQUESTS))
+            )
+          ),
+        {
+          targetArray: searchResults,
+          errorContext: REQUEST_CONTEXTS.GET_ORGANIZATION_REQUESTS,
+          setters
+        }
+      );
+
+    const getMyListings = (userHash: ActionHash): E.Effect<UIRequest[], RequestError, never> =>
+      requestEntityFetcher(
+        () =>
+          pipe(
+            requestsService.getMyListings(userHash),
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    syncCacheToState(uiRequest, 'add');
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_MY_LISTINGS))
+            )
+          ),
+        {
+          targetArray: searchResults,
+          errorContext: REQUEST_CONTEXTS.GET_MY_LISTINGS,
+          setters
+        }
+      );
+
+    const getLatestRequest = (
+      originalActionHash: ActionHash
+    ): E.Effect<UIRequest | null, RequestError, never> =>
+      withLoadingState(() =>
+        pipe(
+          requestsService.getLatestRequestRecord(originalActionHash),
+          E.flatMap((record) => {
+            if (!record) return E.succeed(null);
+            // Use enhanced creation to fetch related data (service types, medium of exchange, creator)
+            return pipe(
+              createEnhancedUIRequest(record, requestsService),
+              E.map((entity) => {
+                // The record returned by getLatestRequestRecord may be an update record whose
+                // hash differs from the original creation hash. Preserve the original hash so
+                // the edit page passes the correct original_action_hash to updateRequest, and
+                // so cache lookups by original hash continue to work after repeated edits.
+                entity.original_action_hash = originalActionHash;
+                return entity;
+              })
+            );
+          }),
+          E.catchAll((error) =>
+            E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_LATEST_REQUEST))
+          )
+        )
+      )(setters);
+
+    const getRequestsByTag = (tag: string): E.Effect<UIRequest[], RequestError, never> =>
+      requestEntityFetcher(
+        () =>
+          pipe(
+            requestsService.getRequestsByTag(tag),
+            E.flatMap((records) =>
+              E.all(records.map((record) => createEnhancedUIRequest(record, requestsService)))
+            ),
+            E.tap((uiRequests) =>
+              E.sync(() => {
+                uiRequests.forEach((uiRequest) => {
+                  const requestHash = uiRequest.original_action_hash;
+                  if (requestHash) {
+                    E.runSync(cache.set(requestHash.toString(), uiRequest));
+                    syncCacheToState(uiRequest, 'add');
+                  }
+                });
+              })
+            ),
+            E.catchAll((error) =>
+              E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.GET_REQUESTS_BY_TAG))
+            )
+          ),
+        {
+          targetArray: searchResults,
+          errorContext: REQUEST_CONTEXTS.GET_REQUESTS_BY_TAG,
+          setters
+        }
+      );
+
+    const hasActiveRequests = (): E.Effect<boolean, RequestError, never> =>
+      pipe(
+        getActiveRequests(),
+        E.map((requests) => requests.length > 0),
+        E.catchAll((error) => {
+          const errorMessage = String(error);
+          if (errorMessage.includes('Client not connected')) {
+            console.warn('Holochain client not connected, assuming no requests exist');
+            return E.succeed(false);
+          }
+          return E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.CHECK_REQUESTS_EXIST));
+        })
+      );
+
+    // ===== STORE INTERFACE =====
+
+    return {
+      get requests() {
+        return requests;
+      },
+      get activeRequests() {
+        return activeRequests;
+      },
+      get archivedRequests() {
+        return archivedRequests;
+      },
+      get loading() {
+        return loading;
+      },
+      get error() {
+        return error;
+      },
+      get cache() {
+        return cache;
+      },
+      get searchResults() {
+        return searchResults;
+      },
+      getRequest,
+      getActiveRequests,
+      getArchivedRequests,
+      createRequest,
+      updateRequest,
+      deleteRequest,
+      archiveRequest,
+      getMyListings,
+      hasActiveRequests,
+      getUserRequests,
+      getUserActiveRequests,
+      getUserArchivedRequests,
+      getOrganizationRequests,
+      getLatestRequest,
+      getRequestsByTag,
+      invalidateCache
+    };
+  });
+
+// ============================================================================
+// STORE INSTANCE MANAGEMENT
+// ============================================================================
+
+const requestsStore: RequestsStore = pipe(
+  createRequestsStore(),
+  E.provide(RequestsServiceLive),
+  E.provide(CacheServiceLive),
+  E.provide(HolochainClientServiceLive),
+  E.runSync
+);
+
+export default requestsStore;

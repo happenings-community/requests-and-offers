@@ -1,0 +1,231 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import {
+    getConnectionStatusContext,
+    type ConnectionStatus
+  } from '$lib/context/connection-status.context.svelte';
+
+  // Kangaroo API interface for desktop app
+  interface KangarooAPI {
+    getConfig(): Promise<{
+      bootstrapUrl?: string;
+      relayUrl?: string;
+    }>;
+  }
+
+  // Type guard function to check if Kangaroo API is available
+  function hasKangarooAPI(window: Window): window is Window & { __KANGAROO__: KangarooAPI } {
+    return '__KANGAROO__' in window && typeof (window as any).__KANGAROO__ === 'object';
+  }
+
+  // Props for connection status
+  type Props = {
+    connectionStatus?: ConnectionStatus;
+    lastPingTime?: Date | null;
+    pingError?: string | null;
+    networkSeed?: string | null;
+    networkInfo?: { dnaHash: string; roleName: string } | null;
+  };
+
+  const { connectionStatus, lastPingTime, pingError, networkSeed, networkInfo }: Props = $props();
+
+  // Get connection status from context as fallback
+  const connectionContext = getConnectionStatusContext();
+
+  // Use props first, then context, then default
+  const finalConnectionStatus = $derived(
+    connectionStatus ?? connectionContext?.connectionStatus() ?? 'checking'
+  );
+  const finalLastPingTime = $derived(lastPingTime ?? connectionContext?.lastPingTime() ?? null);
+  const finalPingError = $derived(pingError ?? connectionContext?.pingError?.() ?? null);
+  const conductorStatus = $derived(connectionContext?.conductorStatus?.() ?? 'connected');
+  const peersReachable = $derived(connectionContext?.peersReachable?.() ?? 0);
+  const peersKnown = $derived(connectionContext?.peersKnown?.() ?? null);
+  const finalNetworkSeed = $derived(networkSeed ?? connectionContext?.networkSeed?.() ?? null);
+  const finalNetworkInfo = $derived(networkInfo ?? connectionContext?.networkInfo?.() ?? null);
+
+  // Bootstrap server status type
+  type BootstrapStatus =
+    | 'checking'
+    | 'connected'
+    | 'disconnected'
+    | 'error'
+    | 'unknown'
+    | 'unavailable';
+
+  // Network configuration state (will be populated dynamically)
+  let networkConfig = $state({
+    bootstrapUrl: 'Loading...',
+    relayUrl: 'Loading...',
+    bootstrapStatus: 'checking' as BootstrapStatus
+  });
+
+  function getConnectionText(status: typeof finalConnectionStatus): string {
+    switch (status) {
+      case 'connected':
+        return 'Connected';
+      case 'checking':
+        return 'Checking...';
+      case 'disconnected':
+        return 'Disconnected';
+      case 'alone':
+        return 'Online, no peers';
+      case 'offline':
+        return 'Offline';
+      case 'error':
+        return 'Error';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  async function fetchNetworkConfig() {
+    try {
+      // Since this is a Kangaroo desktop app, get config from the IPC bridge
+      let kangarooConfig = null;
+
+      // Try to get the real config from the Kangaroo desktop app
+      if (hasKangarooAPI(window)) {
+        try {
+          kangarooConfig = await window.__KANGAROO__.getConfig();
+        } catch (error) {
+          console.warn('Failed to get kangaroo config from IPC:', error);
+        }
+      }
+
+      if (kangarooConfig) {
+        networkConfig.bootstrapUrl = kangarooConfig.bootstrapUrl || 'Unknown';
+        networkConfig.relayUrl = kangarooConfig.relayUrl || 'Unknown';
+        networkConfig.bootstrapStatus = 'unknown';
+      } else {
+        // No kangaroo config available - cannot determine actual bootstrap server
+        networkConfig.bootstrapUrl = 'Not available';
+        networkConfig.relayUrl = 'Not available';
+        networkConfig.bootstrapStatus = 'unknown';
+      }
+    } catch (error) {
+      networkConfig.bootstrapStatus = 'error';
+      networkConfig.bootstrapUrl = 'Error';
+      networkConfig.relayUrl = 'Error';
+      console.warn('Failed to fetch network config:', error);
+    }
+  }
+
+  // The seed, DNA and role are read from the local conductor at startup, so they are
+  // known whatever the peer state. They matter most when no peers are visible: two
+  // members who cannot see each other compare them first.
+  function networkIdentityLines(): string[] {
+    if (!finalNetworkSeed) return [];
+    const lines = [`🌐 Network Seed: ${finalNetworkSeed}`];
+    if (finalNetworkInfo) {
+      lines.push(`🔬 DNA: ${finalNetworkInfo.dnaHash.slice(0, 8)}...`);
+      lines.push(`🎭 Role: ${finalNetworkInfo.roleName}`);
+    }
+    lines.push(`💡 Compare seeds with other users to verify network`);
+    return lines;
+  }
+
+  function networkServerLines(): string[] {
+    return [
+      `🌐 Bootstrap Server: ${networkConfig.bootstrapUrl}`,
+      `📡 Relay Server: ${networkConfig.relayUrl}`
+    ];
+  }
+
+  function statusLines(status: typeof finalConnectionStatus): string[] {
+    const baseText = `Connection Status: ${getConnectionText(status)}`;
+
+    if (status === 'connected' && finalLastPingTime) {
+      return [
+        `${baseText} (verified at ${finalLastPingTime.toLocaleTimeString()})`,
+        peersKnown === null
+          ? `Peers: ${peersReachable} reachable`
+          : `Peers: ${peersReachable} of ${peersKnown} reachable`,
+        `Conductor: ${conductorStatus}`
+      ];
+    }
+
+    if (status === 'alone') {
+      return [
+        baseText,
+        `You can reach the network, but no other peers are online right now.`,
+        `Conductor: ${conductorStatus}`
+      ];
+    }
+
+    if (status === 'offline') {
+      return [
+        baseText,
+        `No route to the network. Your local data is still available.`,
+        `Conductor: ${conductorStatus}`
+      ];
+    }
+
+    if ((status === 'disconnected' || status === 'error') && finalPingError) {
+      return [`${baseText} - ${finalPingError}`];
+    }
+
+    return [baseText];
+  }
+
+  function getTooltipLines(status: typeof finalConnectionStatus): string[] {
+    return [...statusLines(status), ...networkIdentityLines(), ...networkServerLines()];
+  }
+
+  // Fetch network configuration when component mounts
+  onMount(() => {
+    fetchNetworkConfig();
+
+    // Refresh network status every 30 seconds
+    const interval = setInterval(fetchNetworkConfig, 30000);
+
+    return () => clearInterval(interval);
+  });
+</script>
+
+<div
+  class="z-20 max-w-md rounded-lg border border-surface-700 bg-surface-800 p-4 text-white"
+  data-popup="popupStatus"
+>
+  <div class="space-y-2">
+    {#each getTooltipLines(finalConnectionStatus) as line}
+      {#if line.includes('Connected')}
+        <div class="font-semibold text-success-400">{line}</div>
+      {:else if line.includes('Network Seed:')}
+        <div class="text-sm">
+          <span class="font-medium">🌐 Network Seed:</span>
+          <span class="ml-2 break-all font-mono text-xs">{line.split('Network Seed: ')[1]}</span>
+        </div>
+      {:else if line.includes('DNA:')}
+        <div class="text-sm">
+          <span class="font-medium">🔬 DNA:</span>
+          <span class="ml-2 break-all font-mono text-xs">{finalNetworkInfo?.dnaHash}</span>
+        </div>
+      {:else if line.includes('Role:')}
+        <div class="text-sm">
+          <span class="font-medium">🎭 Role:</span>
+          <span class="ml-2">{line.split('Role: ')[1]}</span>
+        </div>
+      {:else if line.includes('Bootstrap Server:')}
+        <div class="text-sm">
+          <span class="font-medium">🌐 Bootstrap Server:</span>
+          <span class="ml-2 break-all font-mono text-xs">{line.split('Bootstrap Server: ')[1]}</span
+          >
+        </div>
+      {:else if line.includes('Relay Server:')}
+        <div class="text-sm">
+          <span class="font-medium">📡 Relay Server:</span>
+          <span class="ml-2 break-all font-mono text-xs">{line.split('Relay Server: ')[1]}</span>
+        </div>
+      {:else if line.includes('Tip:') || line.includes('Compare seeds')}
+        <div class="text-info-300 mt-2 border-t border-surface-600 pt-2 text-sm">
+          💡 {line.split('Tip: ')[1] || line.split('💡 ')[1] || line}
+        </div>
+      {:else if line.includes('Error:')}
+        <div class="text-sm text-error-400">❌ {line}</div>
+      {:else if line.trim().length > 0}
+        <div class="text-sm text-surface-300">{line}</div>
+      {/if}
+    {/each}
+  </div>
+</div>

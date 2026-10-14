@@ -1,0 +1,56 @@
+
+**/node_modules/
+**/dist/
+**/target/
+/book/
+.cargo/
+*.happ
+*.webhapp
+*.zip
+*.dna
+.hc*
+.hc
+.running
+.vscode
+.idea
+.zed
+.windsurf
+.cursor
+.augment
+.crush
+
+# Temporary files for work in progress
+wip.md
+
+# .github is NOT ignored. A blanket ignore here silently swallowed every
+# workflow added after 2025-07-13: impl-issue-status.yml sat on disk
+# untracked until #254 committed it, which is why no Impl marker had ever
+# moved an issue. The issue and pull-request templates are still held back:
+# both change contributor-facing behaviour and deserve their own review.
+.github/ISSUE_TEMPLATE/
+.github/pull_request_template.md
+
+# local aliases
+**/*.local.*
+.local
+
+# Environment files (use .env.example as template)
+.env*
+!.env.example
+!.env.production
+
+# Mac OS
+**/.DS_Store
+
+# Holochain bootstrap
+.kitsune2_bootstrap_srv
+
+# E2E test conductor workdir (created and cleaned by global-setup/teardown)
+test-e2e-workdir/
+
+# PAI
+Plans
+MEMORY
+
+# PAI worktrees
+.worktrees/

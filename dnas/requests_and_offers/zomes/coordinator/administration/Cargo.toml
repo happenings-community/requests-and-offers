@@ -1,0 +1,15 @@
+[package]
+name = "administration"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "administration"
+
+[dependencies]
+utils = { workspace = true }
+hdk = { workspace = true }
+serde = { workspace = true }
+administration_integrity = { workspace = true }
+chrono = { workspace = true }

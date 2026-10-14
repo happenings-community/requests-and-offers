@@ -1,0 +1,370 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { ProgressBar } from '@skeletonlabs/skeleton';
+  import { getToastStore } from '@skeletonlabs/skeleton';
+  import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
+  import administrationStore from '$lib/stores/administration.store.svelte';
+  import type { ServiceTypeInDHT } from '$lib/schemas/service-types.schemas';
+  import { runEffect } from '$lib/utils/effect';
+  import { initializationLock } from '$lib/utils/initialization-lock';
+  import { waitForHolochainConnection } from '$lib/utils/holochain-client.utils';
+
+  const toastStore = getToastStore();
+
+  let isInitializing = $state(false);
+  let initializationProgress = $state(0);
+  let initializationStatus = $state('');
+  let hasExistingServiceTypes = $state<boolean | null>(null); // null = loading, boolean = result
+  let isCheckingExistence = $state(true);
+
+  // Check if other initializations are running
+  const isOtherInitializationRunning = $derived(
+    initializationLock.isLocked && !initializationLock.lockedDomains.includes('service-types')
+  );
+
+  const {
+    createServiceType,
+    getPendingServiceTypes,
+    getApprovedServiceTypes,
+    getRejectedServiceTypes
+  } = serviceTypesStore;
+
+  const { agentIsAdministrator } = $derived(administrationStore);
+
+  // Predefined Service Types based on user requirements
+  const predefinedServiceTypes: ServiceTypeInDHT[] = [
+    {
+      name: 'Testing',
+      description:
+        'Quality assurance, test automation, manual testing, and comprehensive testing strategies for software applications and systems.',
+      technical: true
+    },
+    {
+      name: 'Editing',
+      description:
+        'Content editing, proofreading, technical writing, documentation review, and editorial services for various types of content.',
+      technical: false
+    },
+    {
+      name: 'Rust Developer',
+      description:
+        'Systems programming in Rust, performance optimization, memory safety, and building robust backend applications and libraries.',
+      technical: true
+    },
+    {
+      name: 'Holochain Developer',
+      description:
+        'Decentralized application development on Holochain, zome creation, hApp architecture, and peer-to-peer system design.',
+      technical: true
+    },
+    {
+      name: 'Full Stack Developer',
+      description:
+        'End-to-end application development covering frontend, backend, database design, API development, and system architecture.',
+      technical: true
+    },
+    {
+      name: 'UI/Front End Developer',
+      description:
+        'User interface development, responsive design, modern frontend frameworks, user experience optimization, and interactive web applications.',
+      technical: true
+    },
+    {
+      name: 'Backend Developer',
+      description:
+        'Server-side development, API design, database architecture, microservices, cloud infrastructure, and scalable system development.',
+      technical: true
+    },
+    {
+      name: 'Mentor',
+      description:
+        'Technical mentoring, career guidance, skill development, knowledge transfer, and educational support for developers and professionals.',
+      technical: false
+    },
+    {
+      name: 'Fundraising',
+      description:
+        'Investment strategy, grant writing, investor relations, pitch deck creation, and financial planning for startups and projects.',
+      technical: false
+    },
+    {
+      name: 'Community Management',
+      description:
+        'Building and managing online communities, engagement strategies, moderation, event organization, and community growth.',
+      technical: false
+    },
+    {
+      name: 'Social Media Marketing',
+      description:
+        'Social media strategy, content creation, audience engagement, brand building, and digital marketing campaigns across platforms.',
+      technical: false
+    },
+    {
+      name: 'Content Creation',
+      description:
+        'Creating engaging content including writing, video production, graphic design, podcasting, and multimedia content development.',
+      technical: false
+    },
+    {
+      name: 'Website Review',
+      description:
+        'Comprehensive website analysis, usability testing, performance evaluation, SEO audit, and recommendations for improvement.',
+      technical: true
+    }
+  ];
+
+  // Check if there are existing service types
+  const checkExistingServiceTypes = async () => {
+    try {
+      isCheckingExistence = true;
+
+      const [pendingServiceTypes, approvedServiceTypes, rejectedServiceTypes] = await Promise.all([
+        runEffect(getPendingServiceTypes()),
+        runEffect(getApprovedServiceTypes()),
+        runEffect(getRejectedServiceTypes())
+      ]);
+
+      // Only consider approved service types for determining if initialization is needed
+      hasExistingServiceTypes = approvedServiceTypes.length > 0;
+    } catch (error) {
+      console.error('Failed to check existing service types:', error);
+      hasExistingServiceTypes = false; // Assume no service types on error to allow initialization
+    } finally {
+      isCheckingExistence = false;
+    }
+  };
+
+  // Create service type with retry logic
+  const createServiceTypeWithRetry = async (serviceType: ServiceTypeInDHT, maxRetries = 3) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await waitForHolochainConnection();
+        const record = await runEffect(createServiceType(serviceType));
+        const actionHash = record.signed_action.hashed.hash;
+
+        console.log(`✅ Service type created: ${serviceType.name} (attempt ${attempt})`);
+        return actionHash;
+      } catch (error) {
+        console.warn(`Attempt ${attempt} failed for ${serviceType.name}:`, error);
+
+        if (attempt === maxRetries) {
+          console.error(
+            `❌ Failed to create service type ${serviceType.name} after ${maxRetries} attempts`
+          );
+          throw error;
+        }
+
+        // Simple retry delay (1 second)
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  };
+
+  // Check for existing service types after a small delay to allow store initialization
+  onMount(() => {
+    // Small delay to ensure the admin page's store initialization has started
+    setTimeout(() => {
+      checkExistingServiceTypes();
+    }, 100);
+  });
+
+  const initializeBasicServiceTypes = async () => {
+    if (isInitializing) return;
+
+    // Double-check admin permissions
+    if (!agentIsAdministrator) {
+      toastStore.trigger({
+        message: 'Only administrators can initialize service types',
+        background: 'variant-filled-error'
+      });
+      return;
+    }
+
+    // Use the initialization lock to prevent race conditions
+    await initializationLock.withLock('service-types', async () => {
+      try {
+        isInitializing = true;
+        initializationProgress = 0;
+        initializationStatus = 'Starting initialization...';
+
+        // First, check what already exists
+        initializationStatus = 'Checking existing service types...';
+        const [pendingServiceTypes, approvedServiceTypes, rejectedServiceTypes] = await Promise.all(
+          [
+            runEffect(getPendingServiceTypes()),
+            runEffect(getApprovedServiceTypes()),
+            runEffect(getRejectedServiceTypes())
+          ]
+        );
+
+        // Get all existing service types and extract their names
+        const allExistingServiceTypes = [
+          ...pendingServiceTypes,
+          ...approvedServiceTypes,
+          ...rejectedServiceTypes
+        ];
+
+        // Extract names from the UI service types (already decoded)
+        const existingNames = new Set(allExistingServiceTypes.map((st) => st.name));
+
+        const serviceTypesToCreate = predefinedServiceTypes.filter(
+          (st) => !existingNames.has(st.name)
+        );
+
+        if (serviceTypesToCreate.length === 0) {
+          toastStore.trigger({
+            message: 'All predefined service types already exist!',
+            background: 'variant-filled-warning'
+          });
+          return;
+        }
+
+        initializationStatus = `Creating ${serviceTypesToCreate.length} new service types...`;
+
+        // Create and approve each service type
+        const createdHashes: any[] = [];
+
+        for (let i = 0; i < serviceTypesToCreate.length; i++) {
+          const serviceType = serviceTypesToCreate[i];
+          initializationStatus = `Creating: ${serviceType.name}`;
+
+          try {
+            // Create the service type with retry logic
+            const actionHash = await createServiceTypeWithRetry(serviceType);
+            createdHashes.push(actionHash);
+
+            initializationProgress = ((i + 1) / serviceTypesToCreate.length) * 100;
+          } catch (error) {
+            console.error(`Failed to create service type ${serviceType.name}:`, error);
+            toastStore.trigger({
+              message: `Failed to create ${serviceType.name}: ${error}`,
+              background: 'variant-filled-error'
+            });
+          }
+        }
+
+        initializationStatus = 'Refreshing data...';
+        await Promise.all([
+          runEffect(getPendingServiceTypes()),
+          runEffect(getApprovedServiceTypes()),
+          runEffect(getRejectedServiceTypes())
+        ]);
+
+        toastStore.trigger({
+          message: `Successfully initialized ${serviceTypesToCreate.length} service types!`,
+          background: 'variant-filled-success'
+        });
+
+        initializationStatus = 'Completed!';
+      } catch (error) {
+        console.error('Initialization failed:', error);
+        toastStore.trigger({
+          message: `Initialization failed: ${error}`,
+          background: 'variant-filled-error'
+        });
+        initializationStatus = 'Failed';
+      } finally {
+        isInitializing = false;
+        // Reset progress after a delay
+        setTimeout(() => {
+          initializationProgress = 0;
+          initializationStatus = '';
+        }, 3000);
+      }
+    });
+  };
+</script>
+
+{#if isCheckingExistence}
+  <div class="card p-4">
+    <div class="flex items-center justify-center space-x-2">
+      <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-500"></div>
+      <span class="text-sm">Checking existing service types...</span>
+    </div>
+  </div>
+{:else if !agentIsAdministrator}
+  <!-- Don't show anything if not admin -->
+{:else if hasExistingServiceTypes}
+  <!-- Don't show initializer if service types already exist -->
+{:else}
+  <div class="card p-4">
+    <h4 class="h4 mb-4">Initialize Basic Service Types</h4>
+
+    <div class="mb-4">
+      <p class="text-surface-600-300-token mb-2 text-sm">
+        No approved service types exist yet. Click the button below to automatically create and
+        approve the basic set:
+      </p>
+
+      <div class="grid grid-cols-1 gap-2 text-sm md:grid-cols-2 lg:grid-cols-3">
+        <div>
+          <strong>Development:</strong>
+          <ul class="ml-2 list-inside list-disc text-xs">
+            <li>Rust Developer</li>
+            <li>Holochain Developer</li>
+            <li>Full Stack Developer</li>
+            <li>UI/Front End Developer</li>
+            <li>Backend Developer</li>
+          </ul>
+        </div>
+
+        <div>
+          <strong>Quality & Content:</strong>
+          <ul class="ml-2 list-inside list-disc text-xs">
+            <li>Testing</li>
+            <li>Editing</li>
+            <li>Content Creation</li>
+            <li>Website Review</li>
+          </ul>
+        </div>
+
+        <div>
+          <strong>Business & Community:</strong>
+          <ul class="ml-2 list-inside list-disc text-xs">
+            <li>Mentor</li>
+            <li>Fundraising</li>
+            <li>Community Management</li>
+            <li>Social Media Marketing</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    {#if isInitializing}
+      <div class="space-y-3">
+        <div class="text-sm font-medium">{initializationStatus}</div>
+        <ProgressBar
+          value={initializationProgress}
+          max={100}
+          meter="bg-primary-500"
+          track="bg-surface-200-700-token"
+        />
+        <div class="text-surface-500-400-token text-xs">
+          {Math.round(initializationProgress)}% complete
+        </div>
+      </div>
+    {:else}
+      <button
+        class="variant-filled-primary btn"
+        onclick={initializeBasicServiceTypes}
+        disabled={isOtherInitializationRunning}
+      >
+        {#if isOtherInitializationRunning}
+          <div class="flex items-center space-x-2">
+            <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+            <span>Waiting for other initialization...</span>
+          </div>
+        {:else}
+          Initialize Basic Service Types
+        {/if}
+      </button>
+    {/if}
+
+    <div class="bg-surface-100-800-token mt-4 p-3 rounded-container-token">
+      <p class="text-surface-600-300-token text-xs">
+        <strong>Note:</strong> This will only create service types that don't already exist. All created
+        service types will be automatically approved and ready for use in offers and requests.
+      </p>
+    </div>
+  </div>
+{/if}

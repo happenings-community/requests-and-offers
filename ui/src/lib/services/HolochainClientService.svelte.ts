@@ -1,0 +1,609 @@
+import {
+  AdminWebsocket,
+  type AppClient,
+  type AppInfoResponse,
+  AppWebsocket,
+  type PeerMetaInfoResponse,
+  type Signal,
+  SignalType
+} from '@holochain/client';
+import { countKnownPeers } from '$lib/utils/network-status';
+import { HolochainClientError } from '$lib/errors/holochain-client.errors';
+import { HOLOCHAIN_CLIENT_CONTEXTS } from '$lib/errors/error-contexts';
+import { Context, Layer } from 'effect';
+import weaveStore from '$lib/stores/weave.store.svelte';
+
+export type ZomeName =
+  | 'users_organizations'
+  | 'requests'
+  | 'offers'
+  | 'administration'
+  | 'service_types'
+  | 'mediums_of_exchange'
+  | 'exchanges'
+  | 'messaging'
+  | 'misc'
+  | 'hrea_economic_event'
+  | 'hrea_observation';
+export type RoleName = 'requests_and_offers' | 'hrea';
+
+export interface NetworkInfo {
+  networkSeed: string;
+  dnaHash: string;
+  roleName: string;
+}
+
+/**
+ * What the conductor can see of the network right now.
+ *
+ * reachable: live transport connections to other peers.
+ * known: distinct other agents this node has heard of via gossip. Null when
+ *   the client is not an AppWebsocket, since agentInfo is not on AppClient.
+ *
+ * Whether the machine has a network at all is not the conductor's to say: its
+ * view of its own reachable addresses is cached, not live. Callers should read
+ * navigator.onLine for that.
+ */
+export interface NetworkPeerStatus {
+  reachable: number;
+  known: number | null;
+}
+
+export interface HolochainClientService {
+  readonly appId: string;
+  readonly client: AppClient | null;
+  readonly isConnected: boolean;
+  readonly isConnecting: boolean;
+
+  connectClient(): Promise<void>;
+  waitForConnection(timeoutMs?: number): Promise<void>;
+
+  getAppInfo(): Promise<AppInfoResponse>;
+  getPeerMetaInfo(): Promise<PeerMetaInfoResponse>;
+  getNetworkPeerStatus(): Promise<NetworkPeerStatus>;
+
+  callZome(
+    zomeName: ZomeName,
+    fnName: string,
+    payload: unknown,
+    capSecret?: Uint8Array | undefined,
+    roleName?: RoleName
+  ): Promise<unknown>;
+
+  /**
+   * Listen to app signals emitted by one zome. Returns an unsubscribe function.
+   *
+   * Registering goes through the service rather than through `client.on` directly,
+   * because `client` is replaced on every reconnect (and nulled in between): a listener
+   * attached to one instance would stop firing after a reconnect without saying so.
+   * Handlers registered here are re-attached each time a connection is established, and
+   * may be registered before the first connection exists.
+   *
+   * The handler receives the signal's raw payload. Decoding it is the caller's job,
+   * since only the caller knows its zome's shape.
+   */
+  onZomeSignal(zomeName: ZomeName, handler: (payload: unknown) => void): () => void;
+
+  verifyConnection(): Promise<boolean>;
+
+  getNetworkSeed(roleName?: RoleName): Promise<string>;
+  getNetworkInfo(roleName?: RoleName): Promise<NetworkInfo>;
+  getNetworkPeers(): Promise<string[]>;
+}
+
+/**
+ * Creates a Holochain client service that manages the connection to the Holochain conductor
+ * and provides methods to interact with it.
+ *
+ * @returns An object with methods to interact with the Holochain conductor
+ */
+function createHolochainClientService(): HolochainClientService {
+  // State
+  const appId: string = 'requests_and_offers';
+  let client: AppClient | null = $state(null);
+  let isConnected: boolean = $state(false);
+  let isConnecting: boolean = $state(false);
+
+  // Zome-signal subscribers, kept across reconnects. See `onZomeSignal`.
+  const signalSubscribers = new Set<{ zomeName: ZomeName; handler: (payload: unknown) => void }>();
+  // `client.on` returns emittery's UnsubscribeFunction, which @holochain/client does
+  // not re-export, so this is typed structurally rather than pulling in emittery.
+  let detachSignalListener: (() => void) | null = null;
+
+  /**
+   * Point the one signal listener at the current client.
+   *
+   * Exactly one listener is attached per client, and it fans out to the subscribers.
+   * Attaching one per subscriber would mean re-attaching each of them on reconnect and
+   * leaking any that were missed.
+   */
+  function attachSignalListener(): void {
+    if (!client) return;
+    // Never let the subscription break connecting. A signal is only timeliness: losing
+    // it costs a later read, whereas a throw here would fail the whole connection and
+    // take every zome call with it.
+    if (typeof client.on !== 'function') {
+      console.warn('Holochain client exposes no `on`; zome signals will not be delivered');
+      return;
+    }
+    detachSignalListener?.();
+    detachSignalListener = client.on('signal', (signal: Signal) => {
+      if (signal.type !== SignalType.App) return;
+      const { zome_name, payload } = signal.value;
+      for (const subscriber of signalSubscribers) {
+        if (subscriber.zomeName !== zome_name) continue;
+        try {
+          subscriber.handler(payload);
+        } catch (error) {
+          // One bad handler must not stop the others, and a signal is never the
+          // delivery guarantee, so there is nothing to retry here.
+          console.error(`Signal handler for zome ${zome_name} threw:`, error);
+        }
+      }
+    });
+  }
+
+  function onZomeSignal(zomeName: ZomeName, handler: (payload: unknown) => void): () => void {
+    const subscriber = { zomeName, handler };
+    signalSubscribers.add(subscriber);
+    // Attach now if a client already exists; otherwise connectClient does it.
+    if (client && !detachSignalListener) attachSignalListener();
+    return () => {
+      signalSubscribers.delete(subscriber);
+    };
+  }
+
+  /**
+   * Connects the client to the Host backend with retry logic.
+   * Automatically detects Weave/Moss context and uses appropriate connection method.
+   */
+  async function connectClient(): Promise<void> {
+    // If already connected or connecting, handle appropriately
+    if (isConnected) return;
+    if (isConnecting) {
+      // Wait for existing connection to complete
+      while (isConnecting) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      if (isConnected) return;
+    }
+
+    // Reset connection state
+    isConnected = false;
+    client = null;
+    isConnecting = true;
+
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        console.log(`Attempting to connect to Holochain (attempt ${retryCount + 1}/${maxRetries})`);
+
+        // Check if running in Weave/Moss context
+        if (weaveStore.isWeaveContext) {
+          console.log('🧶 Detected Weave context, connecting via WeaveClient...');
+          const result = await weaveStore.connect();
+          client = result.appClient;
+          console.log('✅ Successfully connected via WeaveClient');
+        } else {
+          // Check for start:progenitor dev launcher URL params
+          const urlParams = new URLSearchParams(window.location.search);
+          const hcPort = urlParams.get('hcPort');
+          const hcToken = urlParams.get('hcToken');
+
+          if (hcPort && hcToken) {
+            console.log(`📡 Dev progenitor mode, connecting to conductor on port ${hcPort}...`);
+            const token = Array.from(atob(hcToken), (c) => c.charCodeAt(0));
+            client = await AppWebsocket.connect({
+              url: new URL(`ws://localhost:${hcPort}`),
+              token,
+            });
+            console.log('✅ Successfully connected to Holochain (dev progenitor mode)');
+
+            // E2E ONLY: a plain browser (Playwright) has no host zome-call
+            // signer, unlike hc-spin/launcher which sign natively. Without
+            // signing credentials every zome call fails with
+            // NoSigningCredentialsForCell. When the e2e harness passes an
+            // hcAdminPort param we authorize signing credentials for every
+            // cell via the admin interface, populating the client's in-memory
+            // signing store. This branch never runs in production/dev (no
+            // hcAdminPort is ever injected there — hc-spin provides the host
+            // signer instead), so it cannot weaken the real security model.
+            const hcAdminPort = urlParams.get('hcAdminPort');
+            if (hcAdminPort) {
+              console.log(`🔑 E2E mode: authorizing signing credentials via admin port ${hcAdminPort}...`);
+              const admin = await AdminWebsocket.connect({
+                url: new URL(`ws://localhost:${hcAdminPort}`),
+              });
+              try {
+                const cellIds = await admin.listCellIds();
+                for (const cellId of cellIds) {
+                  await admin.authorizeSigningCredentials(cellId);
+                }
+                console.log(`🔑 E2E mode: authorized ${cellIds.length} cell(s) for zome-call signing`);
+              } finally {
+                await admin.client.close();
+              }
+            }
+          } else {
+            console.log('📡 Standalone mode, connecting via AppWebsocket...');
+            client = await AppWebsocket.connect();
+            console.log('✅ Successfully connected to Holochain');
+          }
+        }
+
+        isConnected = true;
+        isConnecting = false;
+        // Re-point the signal listener at the new client; see attachSignalListener.
+        // Guarded for the same reason the function is: the connection matters more
+        // than the subscription, so a failure here is logged, not thrown.
+        try {
+          attachSignalListener();
+        } catch (error) {
+          console.error('Failed to attach the zome signal listener:', error);
+        }
+
+        return;
+      } catch (error) {
+        retryCount++;
+        console.warn(`❌ Connection attempt ${retryCount} failed:`, error);
+
+        if (retryCount === maxRetries) {
+          console.error('Failed to connect to Holochain after', maxRetries, 'attempts');
+          isConnected = false;
+          isConnecting = false;
+          client = null;
+          throw error;
+        }
+
+        // Wait before retrying (exponential backoff)
+        const delay = Math.pow(2, retryCount) * 1000;
+        console.log(`⏳ Retrying in ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  /**
+   * Waits for the client to be connected, starting a connection if none is in
+   * flight. Rejects with a HolochainClientError whose context is
+   * CONNECTION_TIMEOUT once timeoutMs has elapsed, or CONNECTION_FAILED when an
+   * attempt ends without a connection, so a caller can tell slow from failed.
+   */
+  async function waitForConnection(timeoutMs = 60_000): Promise<void> {
+    if (isConnected) return;
+
+    const deadline = Date.now() + timeoutMs;
+    const timeoutError = () =>
+      HolochainClientError.create(
+        HOLOCHAIN_CLIENT_CONTEXTS.CONNECTION_TIMEOUT,
+        HOLOCHAIN_CLIENT_CONTEXTS.CONNECTION_TIMEOUT,
+        'waitForConnection'
+      );
+
+    if (isConnecting) {
+      while (isConnecting) {
+        if (Date.now() >= deadline) throw timeoutError();
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      if (isConnected) return;
+      throw HolochainClientError.create(
+        HOLOCHAIN_CLIENT_CONTEXTS.CONNECTION_FAILED,
+        HOLOCHAIN_CLIENT_CONTEXTS.CONNECTION_FAILED,
+        'waitForConnection'
+      );
+    }
+
+    // If the deadline wins, the attempt keeps running in the background and
+    // the next caller reads its outcome from the state flags.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const expiry = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(timeoutError()), Math.max(0, deadline - Date.now()));
+    });
+    const attempt = connectClient();
+    attempt.catch(() => undefined);
+    try {
+      await Promise.race([attempt, expiry]);
+    } catch (error) {
+      if (error instanceof HolochainClientError) throw error;
+      throw HolochainClientError.fromError(
+        error,
+        HOLOCHAIN_CLIENT_CONTEXTS.CONNECTION_FAILED,
+        'waitForConnection'
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /**
+   * Retrieves application information from the Holochain client.
+   * @returns {Promise<AppInfoResponse>} - The application information.
+   */
+  async function getAppInfo(): Promise<AppInfoResponse> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+    return await client.appInfo();
+  }
+
+  /**
+   * Verifies if the client is truly connected and working
+   */
+  async function verifyConnection(): Promise<boolean> {
+    if (!client || !isConnected) {
+      return false;
+    }
+
+    try {
+      // Try to get app info as a connectivity test
+      await client.appInfo();
+      return true;
+    } catch (error) {
+      console.warn('Connection verification failed:', error);
+      isConnected = false;
+      client = null;
+      return false;
+    }
+  }
+
+  /**
+   * Gets the network seed for the specified role
+   * @param roleName The role name to get the network seed for. Defaults to 'requests_and_offers'
+   * @returns Promise<string> The network seed string
+   */
+  async function getNetworkSeed(roleName: RoleName = 'requests_and_offers'): Promise<string> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+
+    return (await client.callZome({
+      zome_name: 'misc',
+      fn_name: 'get_network_seed',
+      payload: null,
+      role_name: roleName
+    })) as string;
+  }
+
+  /**
+   * Gets comprehensive network information for the specified role
+   * @param roleName The role name to get network info for. Defaults to 'requests_and_offers'
+   * @returns Promise<NetworkInfo> Network information including seed, DNA hash, and role name
+   */
+  async function getNetworkInfo(roleName: RoleName = 'requests_and_offers'): Promise<NetworkInfo> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+
+    return (await client.callZome({
+      zome_name: 'misc',
+      fn_name: 'get_network_info',
+      payload: null,
+      role_name: roleName
+    })) as NetworkInfo;
+  }
+
+  async function getNetworkPeerStatus(): Promise<NetworkPeerStatus> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+
+    const stats = await client.dumpNetworkStats();
+    const reachable = stats.transport_stats.connections.length;
+
+    // agentInfo is only on AppWebsocket, not the generic AppClient interface.
+    // In Weave the frame shows network state itself, so unknown is acceptable.
+    let known: number | null = null;
+    if (client instanceof AppWebsocket) {
+      const agentInfos = await client.agentInfo({ dna_hashes: null });
+      known = countKnownPeers(agentInfos);
+    }
+
+    return { reachable, known };
+  }
+
+  async function getPeerMetaInfo(): Promise<PeerMetaInfoResponse> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+
+    // agentInfo/peerMetaInfo are only available on AppWebsocket, not the generic AppClient interface
+    if (!(client instanceof AppWebsocket)) {
+      return {};
+    }
+
+    const agentInfos = await client.agentInfo({ dna_hashes: null });
+
+    if (!agentInfos || agentInfos.length === 0) {
+      return {};
+    }
+
+    // Collect peer meta info from all agents
+    const allPeerMetaInfo: PeerMetaInfoResponse = {};
+
+    for (const agentInfoStr of agentInfos) {
+      try {
+        const agentInfo = JSON.parse(agentInfoStr);
+        if (agentInfo.agentInfo) {
+          const parsedAgentInfo = JSON.parse(agentInfo.agentInfo);
+          if (parsedAgentInfo.url) {
+            const peerMetaInfo = await client.peerMetaInfo({ url: parsedAgentInfo.url });
+            // Merge peer info, avoiding duplicates
+            for (const [key, value] of Object.entries(peerMetaInfo)) {
+              if (!allPeerMetaInfo[key]) {
+                allPeerMetaInfo[key] = value as PeerMetaInfoResponse[string];
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to parse agent info:', error);
+      }
+    }
+
+    return allPeerMetaInfo;
+  }
+
+  // Define interfaces for agent info response
+  interface AgentInfo {
+    agent_pub_key?: string;
+    agentInfo?: string | { agent?: string };
+  }
+
+  interface ParsedAgentInfo {
+    agent?: string;
+    space?: string;
+    createdAt?: string;
+    expiresAt?: string;
+    isTombstone?: boolean;
+    url?: string;
+    storageArc?: [number, number];
+  }
+
+  async function getNetworkPeers(): Promise<string[]> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+
+    try {
+      // agentInfo is only available on AppWebsocket, not the generic AppClient interface
+      if (!(client instanceof AppWebsocket)) {
+        return [];
+      }
+
+      // Get all agent infos and extract agent pub keys
+      const agentInfos = await client.agentInfo({ dna_hashes: null });
+      const peerKeys: string[] = [];
+
+      // Handle different response formats
+      if (Array.isArray(agentInfos)) {
+        for (const agentInfoItem of agentInfos) {
+          try {
+            // Approach 1: If it's already an object with agent_pub_key
+            if (
+              typeof agentInfoItem === 'object' &&
+              agentInfoItem !== null &&
+              'agent_pub_key' in agentInfoItem
+            ) {
+              const agentInfo = agentInfoItem as AgentInfo;
+              const agentPubKey = agentInfo.agent_pub_key;
+              if (agentPubKey && typeof agentPubKey === 'string') {
+                peerKeys.push(agentPubKey);
+              }
+            }
+            // Approach 2: If it's a string that needs parsing
+            else if (typeof agentInfoItem === 'string') {
+              const agentInfo = JSON.parse(agentInfoItem) as AgentInfo;
+
+              // Check nested structure - the agent key is in agentInfo.agent
+              if (agentInfo.agentInfo && typeof agentInfo.agentInfo === 'string') {
+                const parsedAgentInfo = JSON.parse(agentInfo.agentInfo) as ParsedAgentInfo;
+                if (parsedAgentInfo.agent && typeof parsedAgentInfo.agent === 'string') {
+                  peerKeys.push(parsedAgentInfo.agent);
+                }
+              }
+            }
+          } catch (error) {
+            console.warn(`Failed to parse agent info:`, error);
+          }
+        }
+      } else if (
+        typeof agentInfos === 'object' &&
+        agentInfos !== null &&
+        'agent_pub_key' in agentInfos
+      ) {
+        // Try treating agentInfos as a single object
+        const agentInfo = agentInfos as AgentInfo;
+        const agentPubKey = agentInfo.agent_pub_key;
+        if (agentPubKey && typeof agentPubKey === 'string') {
+          peerKeys.push(agentPubKey);
+        }
+      }
+
+      // Remove duplicates while preserving order
+      const uniquePeerKeys = [...new Set(peerKeys)];
+      return uniquePeerKeys;
+    } catch (error) {
+      console.error('Failed to get network peers:', error);
+      return [];
+    }
+  }
+
+  async function callZome(
+    zomeName: ZomeName,
+    fnName: string,
+    payload: unknown,
+    capSecret: Uint8Array | undefined = undefined,
+    roleName: RoleName = 'requests_and_offers'
+  ): Promise<unknown> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+
+    try {
+      return await client.callZome({
+        cap_secret: capSecret,
+        zome_name: zomeName,
+        fn_name: fnName,
+        payload,
+        role_name: roleName
+      });
+    } catch (error) {
+      console.error(`Error calling zome function ${zomeName}.${fnName}:`, error);
+
+      // Check if this is a connection error
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('WebSocket') || errorMessage.includes('connection')) {
+        console.warn('Detected connection error, marking as disconnected');
+        isConnected = false;
+        client = null;
+      }
+
+      throw error;
+    }
+  }
+
+  return {
+    // Getters
+    get appId() {
+      return appId;
+    },
+    get client() {
+      return client;
+    },
+    get isConnected() {
+      return isConnected;
+    },
+    get isConnecting() {
+      return isConnecting;
+    },
+
+    // Methods
+    connectClient,
+    waitForConnection,
+    getAppInfo,
+    getPeerMetaInfo,
+    getNetworkPeerStatus,
+    callZome,
+    onZomeSignal,
+    verifyConnection,
+    getNetworkSeed,
+    getNetworkInfo,
+    getNetworkPeers
+  };
+}
+
+const holochainClientService = createHolochainClientService();
+export default holochainClientService;
+
+export class HolochainClientServiceTag extends Context.Tag('HolochainClientService')<
+  HolochainClientServiceTag,
+  HolochainClientService
+>() {}
+
+// Layer for the Svelte service
+export const HolochainClientServiceLive: Layer.Layer<HolochainClientServiceTag> = Layer.succeed(
+  HolochainClientServiceTag,
+  holochainClientService
+);

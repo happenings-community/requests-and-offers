@@ -1,0 +1,90 @@
+[profile.dev]
+opt-level = "z"
+
+[profile.release]
+opt-level = "z"
+
+[workspace]
+members = [
+  "dnas/requests_and_offers/utils",
+  "dnas/*/zomes/coordinator/*",
+  "dnas/*/zomes/integrity/*",
+  "tests/sweettest",
+]
+# Exclude sweettest from the default workspace build.
+# It has native-only deps (holochain, tokio) that cannot compile to wasm32.
+# Build with: CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest
+default-members = [
+  "dnas/requests_and_offers/utils",
+  "dnas/*/zomes/coordinator/*",
+  "dnas/*/zomes/integrity/*",
+]
+resolver = "2"
+
+[workspace.dependencies]
+hdi = "=0.8.0"
+hdk = "=0.7.0"
+holochain_serialized_bytes = "*"
+thiserror = "^2.0"
+serde = "^1.0"
+chrono = "^0.3"
+getrandom = { version = "^0.3", features = ["wasm_js"] }
+
+# Test-only deps — NOT compiled to WASM, only used by requests_and_offers_sweettest
+holochain = { version = "=0.7.0", features = ["test_utils"] }
+tokio = { version = "1", features = ["full"] }
+
+
+[workspace.dependencies.utils]
+path = "dnas/requests_and_offers/utils"
+
+[workspace.dependencies.misc]
+path = "dnas/requests_and_offers/zomes/coordinator/misc"
+
+[workspace.dependencies.administration]
+path = "dnas/requests_and_offers/zomes/coordinator/administration"
+
+[workspace.dependencies.administration_integrity]
+path = "dnas/requests_and_offers/zomes/integrity/administration"
+
+[workspace.dependencies.users_organizations]
+path = "dnas/requests_and_offers/zomes/coordinator/users_organizations"
+
+[workspace.dependencies.users_organizations_integrity]
+path = "dnas/requests_and_offers/zomes/integrity/users_organizations"
+
+[workspace.dependencies.requests]
+path = "dnas/requests_and_offers/zomes/coordinator/requests"
+
+[workspace.dependencies.requests_integrity]
+path = "dnas/requests_and_offers/zomes/integrity/requests"
+
+[workspace.dependencies.offers]
+path = "dnas/requests_and_offers/zomes/coordinator/offers"
+
+[workspace.dependencies.offers_integrity]
+path = "dnas/requests_and_offers/zomes/integrity/offers"
+
+[workspace.dependencies.service_types]
+path = "dnas/requests_and_offers/zomes/coordinator/service_types"
+
+[workspace.dependencies.service_types_integrity]
+path = "dnas/requests_and_offers/zomes/integrity/service_types"
+
+[workspace.dependencies.mediums_of_exchange]
+path = "dnas/requests_and_offers/zomes/coordinator/mediums_of_exchange"
+
+[workspace.dependencies.mediums_of_exchange_integrity]
+path = "dnas/requests_and_offers/zomes/integrity/mediums_of_exchange"
+
+[workspace.dependencies.exchanges]
+path = "dnas/requests_and_offers/zomes/coordinator/exchanges"
+
+[workspace.dependencies.exchanges_integrity]
+path = "dnas/requests_and_offers/zomes/integrity/exchanges"
+
+[workspace.dependencies.messaging]
+path = "dnas/requests_and_offers/zomes/coordinator/messaging"
+
+[workspace.dependencies.messaging_integrity]
+path = "dnas/requests_and_offers/zomes/integrity/messaging"

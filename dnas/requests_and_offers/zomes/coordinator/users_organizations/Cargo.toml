@@ -1,0 +1,14 @@
+[package]
+name = "users_organizations"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "users_organizations"
+
+[dependencies]
+utils = { workspace = true }
+hdk = { workspace = true }
+users_organizations_integrity = { workspace = true }
+serde = { workspace = true }

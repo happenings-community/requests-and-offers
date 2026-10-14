@@ -1,0 +1,50 @@
+{
+  description = "Flake for Holochain app development";
+
+  inputs = {
+    holonix.url = "github:holochain/holonix?ref=main-0.7";
+
+    # Pin older holonix that includes hc-playground (not available in main-0.6 or main-0.7)
+    holonix-playground.url = "github:holochain/holonix/2fec8bf3772bf0df6f37734da3e063b9aa285aca";
+
+    nixpkgs.follows = "holonix/nixpkgs";
+    flake-parts.follows = "holonix/flake-parts";
+  };
+
+  outputs = inputs@{ flake-parts, ... }: flake-parts.lib.mkFlake { inherit inputs; } {
+    systems = builtins.attrNames inputs.holonix.devShells;
+    perSystem = { inputs', pkgs, ... }: {
+      formatter = pkgs.nixpkgs-fmt;
+
+      devShells.default = pkgs.mkShell {
+        inputsFrom = [ inputs'.holonix.devShells.default ];
+
+        packages = (with pkgs; [
+          nodejs_24
+          binaryen
+          bun
+          # Required by bindgen (datachannel-sys) when running Sweettest natively
+          llvmPackages.libclang
+          cmake
+          pkg-config
+          # Provides a system OpenSSL so openssl-sys does not vendor/build it
+          # from source during native Sweettest builds.
+          openssl
+        ]) ++ [
+          inputs'.holonix-playground.packages.hc-playground
+          inputs'.holonix.packages.bootstrap-srv
+        ];
+
+        shellHook = ''
+          export PS1='\[\033[1;34m\][holonix:\w]\$\[\033[0m\] '
+          # Required by bindgen (datachannel-sys) when building Sweettest tests natively
+          export LIBCLANG_PATH="${pkgs.llvmPackages.libclang.lib}/lib"
+          # Force openssl-sys to link the system OpenSSL above rather than
+          # vendoring it (the vendored build needs make and fails in-shell).
+          export OPENSSL_NO_VENDOR=1
+          export BINDGEN_EXTRA_CLANG_ARGS="-isystem ${pkgs.llvmPackages.libclang.lib}/lib/clang/$(ls ${pkgs.llvmPackages.libclang.lib}/lib/clang/)/include${pkgs.lib.optionalString pkgs.stdenv.isLinux " -isystem ${pkgs.glibc.dev}/include"}"
+        '';
+      };
+    };
+  };
+}

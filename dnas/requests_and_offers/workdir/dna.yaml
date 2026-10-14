@@ -1,0 +1,85 @@
+---
+manifest_version: "0"
+name: requests_and_offers
+integrity:
+  network_seed: ~
+  properties: ~
+  zomes:
+    - name: administration_integrity
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/administration_integrity.wasm"
+      dependencies: ~
+    - name: offers_integrity
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/offers_integrity.wasm"
+      dependencies: ~
+    - name: requests_integrity
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/requests_integrity.wasm"
+      dependencies: ~
+    - name: service_types_integrity
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/service_types_integrity.wasm"
+      dependencies: ~
+    - name: users_organizations_integrity
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/users_organizations_integrity.wasm"
+      dependencies: ~
+    - name: mediums_of_exchange_integrity
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/mediums_of_exchange_integrity.wasm"
+      dependencies: ~
+    - name: exchanges_integrity
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/exchanges_integrity.wasm"
+      dependencies: ~
+    - name: messaging_integrity
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/messaging_integrity.wasm"
+      dependencies: ~
+coordinator:
+  zomes:
+    - name: users_organizations
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/users_organizations.wasm"
+      dependencies:
+        - name: users_organizations_integrity
+    - name: administration
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/administration.wasm"
+      dependencies:
+        - name: administration_integrity
+    - name: requests
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/requests.wasm"
+      dependencies:
+        - name: requests_integrity
+    - name: offers
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/offers.wasm"
+      dependencies:
+        - name: offers_integrity
+    - name: service_types
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/service_types.wasm"
+      dependencies:
+        - name: service_types_integrity
+    - name: misc
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/misc.wasm"
+      dependencies: []
+    - name: mediums_of_exchange
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/mediums_of_exchange.wasm"
+      dependencies:
+        - name: mediums_of_exchange_integrity
+    - name: exchanges
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/exchanges.wasm"
+      dependencies:
+        - name: exchanges_integrity
+    - name: messaging
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/messaging.wasm"
+      dependencies:
+        - name: messaging_integrity

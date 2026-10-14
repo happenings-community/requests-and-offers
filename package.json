@@ -1,0 +1,52 @@
+{
+  "name": "requests_and_offers",
+  "version": "0.6.0-alpha.1",
+  "license": "CAL-1.0",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "private": true,
+  "scripts": {
+    "postinstall": "bun scripts/download-hrea.ts --soft",
+    "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network",
+    "applet-dev": "AGENTS=${AGENTS:-2} ./weave/applet-dev.sh",
+    "network": "hc sandbox clean && bun run build:happ && UI_PORT=${UI_PORT:-8880} AGENTS=${AGENTS:-2} concurrently \"bun run --filter ui start\" \"bun run launch:happ\" \"hc playground\"",
+    "test": "bun run test:sweettest && bun t -w ui",
+    "test:sweettest": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest -- --test-threads=1",
+    "test:sweettest:verbose": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest -- --nocapture --test-threads=1",
+    "test:sweettest:misc": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test misc -- --test-threads=1",
+    "test:sweettest:users": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test users -- --test-threads=1",
+    "test:sweettest:administration": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test administration_administrator_management --test administration_progenitor --test administration_status_management --test administration_profile_status_consistency --test administration_successive_profile_updates -- --test-threads=1",
+    "test:sweettest:organizations": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test organizations -- --test-threads=1",
+    "test:sweettest:service-types": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test service_types -- --test-threads=1",
+    "test:sweettest:service-types-status": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test service_types_status -- --test-threads=1",
+    "test:sweettest:requests": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test requests -- --test-threads=1",
+    "test:sweettest:offers": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test offers -- --test-threads=1",
+    "test:sweettest:mediums-of-exchange": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test mediums_of_exchange -- --test-threads=1",
+    "test:sweettest:exchanges": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test exchanges -- --test-threads=1",
+    "test:ui": "bun t -w ui",
+    "test:unit": "cd ui && npm run test:unit",
+    "test:integration": "cd ui && npm run test:integration",
+    "test:status": "cargo test --package administration_integrity --lib -- tests::status::status_tests --show-output",
+    "launch:happ": "npx hc-spin -n ${AGENTS:-2} --ui-port ${UI_PORT:-8880} workdir/requests_and_offers.happ",
+    "package": "bun run build:happ && VITE_MOCK_BUTTONS_ENABLED=false VITE_PEERS_DISPLAY_ENABLED=false bun --filter ui package && hc web-app pack workdir --recursive",
+    "build:happ": "bun run build:zomes && hc app pack workdir --recursive",
+    "build:zomes": "RUSTFLAGS='--cfg getrandom_backend=\"custom\"' cargo build --release --target wasm32-unknown-unknown",
+    "download-hrea": "bun scripts/download-hrea.ts",
+    "clean:hrea": "rimraf workdir/hrea.dna",
+    "check": "cd ui && bun run check && bun run lint",
+    "build:ui": "cd ui && bun run build"
+  },
+  "devDependencies": {
+    "@holochain/hc-spin": "^0.700.0",
+    "@theweave/cli": "0.15.10",
+    "caniuse-lite": "^1.0.30001735",
+    "concurrently": "^6.5.1",
+    "get-port-cli": "^3.0.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.9.2"
+  },
+  "workspaces": [
+    "ui"
+  ]
+}

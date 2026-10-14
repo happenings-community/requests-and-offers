@@ -1,0 +1,28 @@
+---
+manifest_version: "0"
+name: requests_and_offers
+description: "Requests and offers distributed marketplace."
+roles:
+  - name: requests_and_offers
+    provisioning:
+      strategy: create
+      deferred: false
+    dna:
+      path: "../dnas/requests_and_offers/workdir/requests_and_offers.dna"
+      modifiers:
+        network_seed: "requests_and_offers_alpha"
+        properties:
+          progenitor_pubkey: ~
+      installed_hash: ~
+      clone_limit: 0
+  - name: hrea
+    provisioning:
+      strategy: create
+      deferred: false
+    dna:
+      path: "./hrea.dna"
+      modifiers:
+        network_seed: "hrea_requests_and_offers_alpha"
+        properties: ~
+      installed_hash: ~
+      clone_limit: 0

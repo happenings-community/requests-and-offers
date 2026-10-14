@@ -1,0 +1,5 @@
+# Language detection for PostCSS files
+*.postcss linguist-language=CSS
+
+# Help IDEs understand PostCSS syntax
+*.postcss text css

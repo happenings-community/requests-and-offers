@@ -1,0 +1,17 @@
+[package]
+name = "utils"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "utils"
+
+[dependencies]
+hdk = { workspace = true }
+holochain_serialized_bytes = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+chrono = { workspace = true }
+getrandom = { workspace = true }
+image = "^0.24"                                   # 0.25 non stable for rustc 1.75

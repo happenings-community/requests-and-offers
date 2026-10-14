@@ -1,0 +1,5 @@
+# [lints.clippy]
+# unwrap_used = "deny"
+# expect_used = "deny"
+# unwrap_unchecked_used = "deny"
+# expect_unchecked_used = "deny"

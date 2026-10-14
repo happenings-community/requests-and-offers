@@ -1,0 +1,602 @@
+<script lang="ts">
+  import { getToastStore, getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
+  import { InputChip } from '@skeletonlabs/skeleton';
+  import type { ActionHash } from '@holochain/client';
+  // import { Effect as E } from 'effect';
+  import { runEffect } from '$lib/utils/effect';
+  import type { UIOrganization, UIOffer } from '$lib/types/ui';
+  import type { OfferInput } from '$lib/types/holochain';
+  import {
+    type TimePreference,
+    TimePreferenceHelpers,
+    InteractionType,
+    ListingStatus
+  } from '$lib/types/holochain';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import organizationsStore from '$lib/stores/organizations.store.svelte';
+  import { createMockedOffers } from '$lib/utils/mocks';
+  import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
+  import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
+  import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
+  import MediumOfExchangeSelector from '@/lib/components/mediums-of-exchange/MediumOfExchangeSelector.svelte';
+  import MediumOfExchangeSuggestionForm from '@/lib/components/mediums-of-exchange/MediumOfExchangeSuggestionForm.svelte';
+  import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
+  import MarkdownToolbar from '$lib/components/shared/MarkdownToolbar.svelte';
+
+  type Props = {
+    offer?: UIOffer;
+    organizations?: UIOrganization[];
+    mode: 'create' | 'edit';
+    onSubmit: (offer: OfferInput, organizationHash?: ActionHash) => Promise<void>;
+    preselectedOrganization?: ActionHash;
+  };
+
+  const { offer, mode = 'create', onSubmit, preselectedOrganization }: Props = $props();
+
+  // Toast store for notifications
+  const toastStore = getToastStore();
+  const modalStore = getModalStore();
+
+  // Form state
+  let title = $state(offer?.title ?? '');
+  let description = $state(offer?.description ?? '');
+  let descriptionTextarea: HTMLTextAreaElement | undefined = $state(undefined);
+  let serviceTypeHashes = $state<ActionHash[]>(offer?.service_type_hashes ?? []);
+
+  // Time preference handling
+  let timePreferenceType = $state<'Morning' | 'Afternoon' | 'Evening' | 'NoPreference' | 'Other'>(
+    offer?.time_preference
+      ? TimePreferenceHelpers.isOther(offer.time_preference)
+        ? 'Other'
+        : (offer.time_preference as 'Morning' | 'Afternoon' | 'Evening' | 'NoPreference')
+      : 'NoPreference'
+  );
+  let timePreferenceOther = $state<string>(
+    offer?.time_preference && TimePreferenceHelpers.isOther(offer.time_preference)
+      ? TimePreferenceHelpers.getValue(offer.time_preference)
+      : ''
+  );
+
+  let timeZone = $state<string | undefined>(offer?.time_zone ?? undefined);
+  let selectedMediumOfExchange = $state<ActionHash[]>(offer?.medium_of_exchange_hashes ?? []);
+  let interactionType = $state<InteractionType>(offer?.interaction_type ?? InteractionType.Virtual);
+  let links = $state<string[]>(offer?.links ?? []);
+  let selectedOrganizationHash = $state<ActionHash | undefined>(
+    preselectedOrganization || offer?.organization
+  );
+  let submitting = $state(false);
+  let serviceTypesError = $state('');
+  let linksError = $state('');
+  let linksWarning = $state('');
+  let pendingLink = $state('');
+  let linksField: HTMLLabelElement | undefined = $state();
+  let userCoordinatedOrganizations = $state<UIOrganization[]>([]);
+  let publishedOrganization = $state<UIOrganization | null>(null);
+  let isLoadingPublishedOrganization = $state(mode === 'edit');
+  let isLoadingOrganizations = $state(true);
+  let moesInitialized = $state(false);
+
+  const publishedOrganizationName = $derived(publishedOrganization?.name);
+
+  // Handle timezone change
+  function handleTimezoneChange(value: string | undefined) {
+    timeZone = value;
+  }
+
+  // Handle medium of exchange selection change
+  function handleMediumOfExchangeChange(selectedHashes: ActionHash[]) {
+    selectedMediumOfExchange = selectedHashes;
+  }
+
+  // Load user's coordinated organizations and MoEs immediately
+  $effect(() => {
+    loadCoordinatedOrganizations();
+    loadPublishedOrganization();
+    loadMediumsOfExchange();
+  });
+
+  // Update service types and mediums of exchange when offer is loaded (for edit mode)
+  $effect(() => {
+    if (offer && mode === 'edit') {
+      // Update service types and mediums of exchange from the offer
+      console.log('Updating service types and mediums of exchange from the offer', offer);
+      if (offer.service_type_hashes) {
+        serviceTypeHashes = [...offer.service_type_hashes];
+      }
+      if (offer.medium_of_exchange_hashes) {
+        selectedMediumOfExchange = [...offer.medium_of_exchange_hashes];
+      }
+    }
+  });
+
+  // Check if there are any currency-type MoEs available
+  const hasCurrencyMoEs = $derived(() => {
+    if (!moesInitialized) return false;
+    return mediumsOfExchangeStore.approvedMediumsOfExchange.some(
+      (moe) => moe.exchange_type === 'currency'
+    );
+  });
+
+  // In edit mode the listing may belong to an organization the viewer does
+  // not coordinate, so resolve it by hash rather than from the coordinated list.
+  async function loadPublishedOrganization() {
+    try {
+      if (mode !== 'edit' || !selectedOrganizationHash) return;
+      publishedOrganization = await runEffect(
+        organizationsStore.getOrganizationByActionHash(selectedOrganizationHash)
+      );
+    } catch (error) {
+      console.error('Error loading published organization:', error);
+    } finally {
+      isLoadingPublishedOrganization = false;
+    }
+  }
+
+  async function loadCoordinatedOrganizations() {
+    try {
+      if (!usersStore.currentUser?.original_action_hash) return;
+
+      isLoadingOrganizations = true;
+      userCoordinatedOrganizations = await runEffect(
+        organizationsStore.getUserOrganizations(usersStore.currentUser.original_action_hash)
+      );
+      // Filter to only keep accepted organizations
+      userCoordinatedOrganizations = userCoordinatedOrganizations.filter(
+        (org) => org.status?.status_type === 'accepted'
+      );
+    } catch (error) {
+      console.error('Error loading coordinated organizations:', error);
+    } finally {
+      isLoadingOrganizations = false;
+    }
+  }
+
+  async function loadMediumsOfExchange() {
+    if (moesInitialized) return;
+
+    try {
+      await runEffect(mediumsOfExchangeStore.getApprovedMediumsOfExchange());
+      moesInitialized = true;
+    } catch (error) {
+      console.error('Error loading mediums of exchange:', error);
+      // Don't prevent form usage if MoEs fail to load
+      moesInitialized = true;
+    }
+  }
+
+  // Form validation
+  const isValid = $derived(
+    title.trim().length > 0 &&
+      description.trim().length > 0 &&
+      serviceTypeHashes.length > 0 &&
+      timePreferenceType !== undefined &&
+      (timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0) &&
+      timeZone !== undefined &&
+      interactionType !== undefined
+  );
+
+  async function mockOffer() {
+    submitting = true;
+
+    try {
+      // For mocked data, auto-create service types if none are selected
+      let finalServiceTypeHashes = [...serviceTypeHashes];
+      if (finalServiceTypeHashes.length === 0) {
+        toastStore.trigger({
+          message: 'Auto-generating service type for mocked offer',
+          background: 'variant-filled-info'
+        });
+      }
+
+      const mockedOffer = (await createMockedOffers())[0];
+      // Convert to OfferInput and use the selected service types
+      const offerInput: OfferInput = {
+        ...mockedOffer,
+        service_type_hashes: finalServiceTypeHashes,
+        medium_of_exchange_hashes: [...selectedMediumOfExchange]
+      };
+      await onSubmit(offerInput, selectedOrganizationHash);
+
+      toastStore.trigger({
+        message: 'Mocked offer created successfully',
+        background: 'variant-filled-success'
+      });
+
+      // Reset form
+      title = '';
+      description = '';
+      serviceTypeHashes = [];
+      timePreferenceType = 'NoPreference';
+      timePreferenceOther = '';
+      timeZone = undefined;
+      selectedMediumOfExchange = [];
+      interactionType = InteractionType.Virtual;
+      links = [];
+      selectedOrganizationHash = undefined;
+    } catch (error) {
+      toastStore.trigger({
+        message: `Error creating mocked offer: ${error}`,
+        background: 'variant-filled-error'
+      });
+    } finally {
+      submitting = false;
+    }
+  }
+
+  // Handle form submission
+  async function handleSubmit(event: Event) {
+    event.preventDefault();
+
+    if (!isValid) {
+      toastStore.trigger({
+        message: 'Please fill in all required fields',
+        background: 'variant-filled-error'
+      });
+      return;
+    }
+
+    submitting = true;
+    linksError = '';
+    linksWarning = '';
+
+    try {
+      // Validate service types before submission
+      if (serviceTypeHashes.length === 0) {
+        serviceTypesError = 'At least one service type is required';
+        submitting = false;
+        return;
+      }
+
+      // Refuse to save with a link typed but not added. Silently committing it
+      // guesses at intent; silently dropping it loses their work.
+      if (pendingLink.trim()) {
+        linksWarning = 'A link has been typed but not added. Go back to the Links field and add it, or clear it, before saving.';
+        // Skeleton InputChip does not expose its input, so reach it through the label.
+        (linksField?.querySelector('input.input-chip-field') as HTMLElement | null)?.focus();
+        submitting = false;
+        return;
+      }
+
+      // Validate links before submission
+      if (links.some((link) => !link.trim())) {
+        linksError = 'Links cannot be empty';
+        submitting = false;
+        return;
+      }
+
+      // Prepare time preference
+      const finalTimePreference: TimePreference =
+        timePreferenceType === 'Other'
+          ? TimePreferenceHelpers.createOther(timePreferenceOther)
+          : timePreferenceType;
+
+      const offerData: OfferInput = {
+        title: title.trim(),
+        description: description.trim(),
+        time_preference: finalTimePreference,
+        time_zone: timeZone,
+        interaction_type: interactionType,
+        links: [...links],
+        service_type_hashes: [...serviceTypeHashes],
+        medium_of_exchange_hashes: [...selectedMediumOfExchange],
+        status: ListingStatus.Active
+      };
+
+      await onSubmit(offerData, selectedOrganizationHash);
+
+      toastStore.trigger({
+        message: `Offer ${mode === 'create' ? 'created' : 'updated'} successfully`,
+        background: 'variant-filled-success'
+      });
+
+      // Reset form if creating
+      if (mode === 'create') {
+        title = '';
+        description = '';
+        serviceTypeHashes = [];
+        timePreferenceType = 'NoPreference';
+        timePreferenceOther = '';
+        timeZone = undefined;
+        selectedMediumOfExchange = [];
+        interactionType = InteractionType.Virtual;
+        links = [];
+        selectedOrganizationHash = undefined;
+      }
+    } catch (error) {
+      toastStore.trigger({
+        message: `Error ${mode === 'create' ? 'creating' : 'updating'} offer: ${error}`,
+        background: 'variant-filled-error'
+      });
+    } finally {
+      submitting = false;
+    }
+  }
+
+  // Function to open the suggest medium of exchange modal
+  function openSuggestMediumModal() {
+    const modalComponent: ModalComponent = {
+      ref: MediumOfExchangeSuggestionForm,
+      props: {
+        onSubmitSuccess: () => {
+          modalStore.close();
+          toastStore.trigger({
+            message: 'Thank you for your suggestion! It will be reviewed by administrators.',
+            background: 'variant-filled-success'
+          });
+        },
+        onCancel: () => {
+          modalStore.close();
+        }
+      }
+    };
+
+    modalStore.trigger({
+      type: 'component',
+      component: modalComponent,
+      title: 'Suggest New Medium of Exchange'
+    });
+  }
+</script>
+
+<form class="space-y-4" onsubmit={handleSubmit}>
+  <!-- Title -->
+  <label class="label">
+    <span>Title <span class="text-error-500">*</span></span>
+    <input
+      type="text"
+      class="input"
+      placeholder="What are you offering?"
+      bind:value={title}
+      required
+    />
+  </label>
+
+  <!-- Description -->
+  <label class="label">
+    <span
+      >Description <span class="text-error-500">*</span>
+      <span class="text-sm">({description.length}/1000 characters)</span></span
+    >
+    <MarkdownToolbar
+      textarea={descriptionTextarea}
+      value={description}
+      onchange={(v) => (description = v)}
+    />
+    <textarea
+      class="textarea rounded-t-none"
+      placeholder="Describe your offer in detail (Markdown supported)"
+      rows="4"
+      bind:this={descriptionTextarea}
+      bind:value={description}
+      maxlength="1000"
+      required
+    ></textarea>
+  </label>
+
+  <!-- Service Types -->
+  <div class="space-y-2">
+    <ServiceTypeSelector
+      selectedServiceTypes={serviceTypeHashes}
+      onSelectionChange={(selected) => (serviceTypeHashes = selected)}
+      label="Service Types"
+      placeholder="Search and select service types..."
+      required={true}
+      name="serviceTypes"
+      id="offer-service-types"
+    />
+    {#if serviceTypesError}
+      <p class="mt-1 text-sm text-error-500">{serviceTypesError}</p>
+    {/if}
+  </div>
+
+  <!-- Medium of Exchange Section -->
+  <div class="card variant-ghost-surface p-4">
+    <div class="mb-2 flex items-center justify-between">
+      <h3 class="h3">{hasCurrencyMoEs() ? 'Additional Currencies' : 'Medium of Exchange'}</h3>
+      <button
+        type="button"
+        class="variant-ghost-primary btn btn-sm"
+        onclick={openSuggestMediumModal}
+        title="Suggest a new medium of exchange for administrator review"
+      >
+        💡 Suggest New
+      </button>
+    </div>
+    <MediumOfExchangeSelector
+      selectedMediums={selectedMediumOfExchange}
+      onSelectionChange={handleMediumOfExchangeChange}
+      label={hasCurrencyMoEs() ? 'Additional Currencies' : 'Medium of Exchange'}
+      placeholder="Select how you'd like to be compensated..."
+      required={false}
+      name="mediumOfExchange"
+      id="offer-medium-of-exchange"
+      mode="multiple"
+    />
+  </div>
+
+  <div class="grid grid-cols-1 gap-4">
+    <!-- Interaction Type -->
+    <div class="card variant-ghost-surface p-4">
+      <h3 class="h3 mb-2">Interaction Type <span class="text-error-500">*</span></h3>
+      <div class="flex flex-col space-y-2">
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="interactionType"
+            value={InteractionType.Virtual}
+            bind:group={interactionType}
+          />
+          <span>Virtual</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="interactionType"
+            value={InteractionType.InPerson}
+            bind:group={interactionType}
+          />
+          <span>In-Person</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Time and Contact Preferences -->
+  <div class="grid grid-cols-1 gap-4">
+    <!-- Time Preference -->
+    <div class="card variant-ghost-surface p-4">
+      <h3 class="h3 mb-2">Time Preference <span class="text-error-500">*</span></h3>
+      <div class="flex flex-col space-y-2">
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="timePreference"
+            value="Morning"
+            bind:group={timePreferenceType}
+          />
+          <span>Morning</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="timePreference"
+            value="Afternoon"
+            bind:group={timePreferenceType}
+          />
+          <span>Afternoon</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="timePreference"
+            value="Evening"
+            bind:group={timePreferenceType}
+          />
+          <span>Evening</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="timePreference"
+            value="NoPreference"
+            bind:group={timePreferenceType}
+          />
+          <span>No Preference</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input
+            type="radio"
+            class="radio"
+            name="timePreference"
+            value="Other"
+            bind:group={timePreferenceType}
+          />
+          <span>Other</span>
+        </label>
+        {#if timePreferenceType === 'Other'}
+          <input
+            type="text"
+            class="input mt-2"
+            placeholder="e.g., Weekends only, Late night, etc."
+            bind:value={timePreferenceOther}
+            required
+          />
+        {/if}
+      </div>
+    </div>
+  </div>
+
+  <!-- Time Zone -->
+  <TimeZoneSelect
+    bind:value={timeZone}
+    required={true}
+    name="timezone"
+    id="offer-timezone"
+    onchange={handleTimezoneChange}
+  />
+
+  <!-- Links -->
+  <label class="label" bind:this={linksField}>
+    <span>Links (optional)</span>
+    <p class="text-sm text-surface-600 dark:text-surface-400">Type a link and press Enter to add it.</p>
+    <InputChip
+      bind:value={links}
+      bind:input={pendingLink}
+      name="links"
+      placeholder="https://"
+      validation={(link) => link.trim().length > 0}
+    />
+    {#if linksError}
+      <p class="mt-1 text-sm text-error-500">{linksError}</p>
+    {/if}
+    {#if linksWarning}
+      <aside class="alert variant-soft-warning mt-2 text-sm" role="alert">{linksWarning}</aside>
+    {/if}
+  </label>
+
+  <!-- Organization selection -->
+  <label class="label">
+    <span>Organization (optional)</span>
+    {#if mode === 'edit'}
+      {#if isLoadingPublishedOrganization}
+        <div class="flex items-center gap-2">
+          <span class="loading loading-spinner loading-sm"></span>
+          <span class="text-sm">Loading organizations...</span>
+        </div>
+      {:else}
+        <p class="text-sm">
+          {publishedOrganizationName ?? 'No organization'}
+        </p>
+      {/if}
+      <p class="text-surface-500 text-xs">
+        This cannot be changed after a listing is published.
+      </p>
+    {:else if isLoadingOrganizations}
+      <div class="flex items-center gap-2">
+        <span class="loading loading-spinner loading-sm"></span>
+        <span class="text-sm">Loading organizations...</span>
+      </div>
+    {:else if userCoordinatedOrganizations.length > 0}
+      <select class="select" bind:value={selectedOrganizationHash}>
+        <option value={undefined}>No organization</option>
+        {#each userCoordinatedOrganizations as org}
+          <option value={org.original_action_hash}>
+            {org.name}
+          </option>
+        {/each}
+      </select>
+    {/if}
+  </label>
+
+  <!-- Submit buttons -->
+  <div class="flex gap-4">
+    <button type="submit" class="variant-filled-primary btn" disabled={!isValid || submitting}>
+      {#if submitting}
+        <span class="loading loading-spinner loading-sm"></span>
+      {/if}
+      {mode === 'create' ? 'Create Offer' : 'Update Offer'}
+    </button>
+
+    {#if mode === 'create' && shouldShowMockButtons()}
+      <button
+        type="button"
+        class="variant-filled-tertiary btn"
+        onclick={mockOffer}
+        disabled={submitting}
+        title="Generate a mocked offer with sample data"
+      >
+        {#if submitting}
+          Creating...
+        {:else}
+          Create Mocked Offer
+        {/if}
+      </button>
+    {/if}
+  </div>
+</form>

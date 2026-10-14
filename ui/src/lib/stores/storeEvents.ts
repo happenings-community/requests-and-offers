@@ -1,0 +1,162 @@
+import type { UIRequest, UIOffer, UIServiceType, UIUser, UIOrganization, UIExchange } from '$lib/types/ui';
+import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
+import type { ActionHash } from '@holochain/client';
+
+/**
+ * Defines the map of events used for communication between stores.
+ */
+export type StoreEvents = {
+  // Users
+  'user:created': { user: UIUser };
+  'user:updated': { user: UIUser }; // Only for actual profile updates
+  'user:loaded': { user: UIUser }; // For caching/loading user data from DHT
+  'user:synced': { user: UIUser }; // For current user state synchronization
+  'user:deleted': { userHash: ActionHash };
+  'user:status:updated': { user: UIUser }; // For administration status updates
+  'user:accepted': { user: UIUser }; // For conditional hREA agent creation
+
+  // Organizations
+  'organization:created': { organization: UIOrganization };
+  'organization:updated': { organization: UIOrganization };
+  'organization:deleted': { organizationHash: ActionHash };
+  'organization:status:updated': { organization: UIOrganization }; // For administration status updates
+  'organization:accepted': { organization: UIOrganization }; // For conditional hREA agent creation
+
+  // Administration
+  'administrator:added': { administrator: UIUser };
+  'administrator:removed': { administratorHash: ActionHash };
+
+  // Requests
+  'request:created': { request: UIRequest };
+  'request:updated': { request: UIRequest };
+  'request:deleted': { requestHash: ActionHash };
+
+  // Offers
+  'offer:created': { offer: UIOffer };
+  'offer:updated': { offer: UIOffer };
+  'offer:deleted': { offerHash: ActionHash };
+
+  // Exchanges
+  'exchange:accepted': { exchange: UIExchange };
+  'exchange:completed': { exchange: UIExchange };
+
+  // Service Types
+  'serviceType:created': { serviceType: UIServiceType };
+  'serviceType:updated': { serviceType: UIServiceType };
+  'serviceType:deleted': { serviceTypeHash: ActionHash };
+  'serviceType:suggested': { serviceType: UIServiceType };
+  'serviceType:approved': { serviceType: UIServiceType };
+  'serviceType:rejected': { serviceType: UIServiceType };
+
+  // Mediums of Exchange
+  'mediumOfExchange:suggested': { mediumOfExchange: UIMediumOfExchange };
+  'mediumOfExchange:approved': { mediumOfExchange: UIMediumOfExchange };
+  'mediumOfExchange:rejected': { mediumOfExchange: UIMediumOfExchange };
+  'mediumOfExchange:updated': { mediumOfExchange: UIMediumOfExchange };
+  'mediumOfExchange:deleted': { mediumOfExchangeHash: ActionHash };
+};
+
+/**
+ * Event handler function type
+ */
+export type EventHandler<T extends keyof StoreEvents> = (payload: StoreEvents[T]) => void;
+
+/**
+ * Simple, clean event bus for inter-store communication.
+ * Uses a singleton pattern for global accessibility.
+ */
+class StoreEventBus {
+  private handlers = new Map<keyof StoreEvents, Set<EventHandler<keyof StoreEvents>>>();
+
+  /**
+   * Subscribe to an event
+   */
+  on<K extends keyof StoreEvents>(event: K, handler: EventHandler<K>): () => void {
+    if (!this.handlers.has(event)) {
+      this.handlers.set(event, new Set());
+    }
+
+    const eventHandlers = this.handlers.get(event)!;
+    eventHandlers.add(handler as EventHandler<keyof StoreEvents>);
+
+    // Return unsubscribe function
+    return () => {
+      eventHandlers.delete(handler as EventHandler<keyof StoreEvents>);
+      if (eventHandlers.size === 0) {
+        this.handlers.delete(event);
+      }
+    };
+  }
+
+  /**
+   * Emit an event to all subscribers
+   */
+  emit<K extends keyof StoreEvents>(event: K, payload: StoreEvents[K]): void {
+    const eventHandlers = this.handlers.get(event);
+    if (eventHandlers) {
+      eventHandlers.forEach((handler) => {
+        try {
+          handler(payload);
+        } catch (error) {
+          console.error(`Error in event handler for ${String(event)}:`, error);
+        }
+      });
+    }
+  }
+
+  /**
+   * Remove a specific handler
+   */
+  off<K extends keyof StoreEvents>(event: K, handler: EventHandler<K>): void {
+    const eventHandlers = this.handlers.get(event);
+    if (eventHandlers) {
+      eventHandlers.delete(handler as EventHandler<keyof StoreEvents>);
+      if (eventHandlers.size === 0) {
+        this.handlers.delete(event);
+      }
+    }
+  }
+
+  /**
+   * Clear all handlers for an event
+   */
+  clear<K extends keyof StoreEvents>(event: K): void {
+    this.handlers.delete(event);
+  }
+
+  /**
+   * Clear all handlers for all events
+   */
+  clearAll(): void {
+    this.handlers.clear();
+  }
+
+  /**
+   * Get debug info about current subscriptions
+   */
+  getDebugInfo(): Record<string, number> {
+    const info: Record<string, number> = {};
+    this.handlers.forEach((handlers, event) => {
+      info[String(event)] = handlers.size;
+    });
+    return info;
+  }
+
+  /**
+   * Emit an event with enhanced debugging for status updates
+   */
+  emitStatusUpdate<K extends 'user:status:updated' | 'organization:status:updated'>(
+    event: K,
+    payload: StoreEvents[K],
+    source: string = 'unknown'
+  ): void {
+    console.log(`🚀 Emitting status update event: ${String(event)} from ${source}`, payload);
+    this.emit(event, payload);
+  }
+}
+
+// Create and export the singleton instance
+export const storeEventBus = new StoreEventBus();
+
+// Export the type for dependency injection in tests if needed
+export type StoreEventBusType = typeof storeEventBus;

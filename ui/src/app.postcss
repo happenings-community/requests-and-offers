@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@tailwind variants;
+
+@layer base {
+}
+
+@layer components {
+}
+
+@layer utilities {
+}
+
+td {
+  @apply !align-middle;
+}
+
+.center {
+  @apply grid place-content-center;
+}
+
+.hcron-modal {
+  @apply z-50 flex max-h-[90vh] w-11/12 flex-col gap-4 overflow-auto rounded-lg bg-surface-500 p-10 text-white shadow-xl dark:bg-surface-800 md:w-4/5;
+}

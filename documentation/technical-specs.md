@@ -1,0 +1,17 @@
+# Technical Specifications Overview
+
+This document outlines the technical foundation of the project, including technologies used, development setup, dependencies, and specific implementation details.
+
+## Key Sections
+
+- **[General Specs](./technical-specs/general.md)**: Overall technical requirements and constraints.
+- **[UI Structure](./technical-specs/ui-structure.md)**: Frontend architecture, components, and state management details.
+- **[Development Features System](./technical-specs/development-features-system.md)**: Centralized development tools, mock data, and environment management.
+- **[Medium of Exchanges](./technical-specs/medium-of-exchanges.md)**: Technical implementation of currency and payment method system.
+- **[Event Bus Pattern](./technical-specs/event-bus-pattern.md)**: Event-based communication using Effect TS.
+- **[Zome Details](./technical-specs/zomes/README.md)**: Detailed documentation for each Holochain zome.
+
+## Implementation Patterns
+
+- **Services (`ui/src/lib/services`):** All services are implemented as **Effect Services**. They define a service interface, a `Context.Tag`, and provide the implementation via an Effect `Layer`. This pattern facilitates dependency injection and composition within Effect workflows across all domains.
+- **Stores (`ui/src/lib/stores`):** All stores are implemented using **Svelte Factory Functions**. These factories use Svelte 5 Runes (`$state`, `$derived`, etc.) internally to manage reactive UI state. Store methods orchestrate actions by creating and running `Effect` pipelines, which consume the Effect Services.

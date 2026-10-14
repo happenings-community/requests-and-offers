@@ -34,17 +34,23 @@ concurrency:
   group: release-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
+# Read-only by default. Each job asks for exactly what it uses, so the build
+# job, which installs third-party packages and runs their scripts, never holds a
+# token that can write to this repository.
 permissions:
-  contents: write
-  # Only so the called heavy-tests workflow can drop its own trigger label; the
-  # steps that use it never run on this path.
-  pull-requests: write
+  contents: read
 
 jobs:
   # The gate. `inputs.skip_tests` is only settable from the Actions tab, so a
   # tag push always pays for it.
   heavy-tests:
     if: ${{ !inputs.skip_tests }}
+    # A called workflow can only narrow what its caller grants. tests-manual.yml
+    # declares pull-requests: write (to drop its trigger label, a step that never
+    # runs on this path), and a caller granting less fails the call at startup.
+    permissions:
+      contents: read
+      pull-requests: write
     uses: ./.github/workflows/tests-manual.yml
     with:
       suite: both
@@ -64,6 +70,10 @@ jobs:
       webhapp_sha256: ${{ steps.describe.outputs.webhapp_sha256 }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Nothing here pushes, so the token is not left in .git/config for
+          # the install and build steps to find.
+          persist-credentials: false
 
       - uses: cachix/install-nix-action@v27
         with:
@@ -82,9 +92,14 @@ jobs:
         with:
           bun-version: '1.4.2'
 
+      # Through env, never interpolated into the script: a tag or a dispatch
+      # input is text someone typed, and an expression inside `run` is pasted into
+      # the shell before it parses.
       - name: Resolve the tag
         id: tag
-        run: echo "value=${{ inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: echo "value=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -112,9 +127,11 @@ jobs:
             "https://raw.githubusercontent.com/happenings-community/requests-and-offers-kangaroo-electron/release/kangaroo.config.ts"
 
       - name: Write the release manifest
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
         run: |
           nix develop --command bun scripts/release-manifest.ts \
-            --tag "${{ steps.tag.outputs.value }}" \
+            --tag "$TAG" \
             --happ workdir/requests_and_offers.happ \
             --webhapp workdir/requests_and_offers.webhapp \
             --dna dnas/requests_and_offers/workdir/requests_and_offers.dna \
@@ -161,6 +178,8 @@ jobs:
     # Dispatch builds and describes; only a tag publishes.
     if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v7
         with:
@@ -169,12 +188,16 @@ jobs:
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease == 'true' && '--prerelease' || '' }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            --repo "${{ github.repository }}" \
-            --title "v${{ needs.build.outputs.version }}" \
+          # PRERELEASE is unquoted on purpose: empty must vanish, not become "".
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "v$VERSION" \
             --notes-file release-notes.md \
-            ${{ needs.build.outputs.prerelease == 'true' && '--prerelease' || '' }} \
+            $PRERELEASE \
             workdir/requests_and_offers.happ \
             workdir/requests_and_offers.webhapp \
             release-manifest.json
@@ -184,6 +207,8 @@ jobs:
     needs: [build, publish]
     if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-24.04
+    # Pushes with KANGAROO_PAT, not the workflow token, which needs nothing here.
+    permissions: {}
     steps:
       # One commit, no binary. The wrapper's own `publish` workflow triggers on a
       # push to `release`, and its `yarn setup` step already runs `fetch:webhapp`,
@@ -201,10 +226,11 @@ jobs:
           GH_TOKEN: ${{ secrets.KANGAROO_PAT }}
           VERSION: ${{ needs.build.outputs.version }}
           SHA256: ${{ needs.build.outputs.webhapp_sha256 }}
+          TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           WRAPPER=happenings-community/requests-and-offers-kangaroo-electron
-          export URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/requests_and_offers.webhapp"
+          export URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/requests_and_offers.webhapp"
 
           git clone --depth 1 --branch release \
             "https://x-access-token:${GH_TOKEN}@github.com/${WRAPPER}.git" wrapper

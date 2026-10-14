@@ -5,6 +5,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
+  import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
 
   /**
    * The way back to a conversation a member left.
@@ -30,7 +31,7 @@
   };
   const { counterparty: given, classes = 'variant-filled-primary btn' }: Props = $props();
 
-  let name = $state('a member');
+  let name = $state(C.someoneInSentence);
 
   const counterparty = $derived(given ?? readFrom($page.url));
 
@@ -39,7 +40,7 @@
     if (!hash) return;
     (async () => {
       const user = await runEffect(usersStore.getUserByActionHash(hash));
-      name = user?.name ?? 'a member';
+      name = user?.name ?? C.someoneInSentence;
     })();
   });
 </script>

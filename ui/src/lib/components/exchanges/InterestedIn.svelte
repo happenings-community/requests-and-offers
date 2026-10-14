@@ -10,6 +10,7 @@
   import { statusLabel } from '$lib/utils/exchange-ui';
   import { ListingStatus } from '$lib/types/holochain';
   import type { UIInterest } from '$lib/types/ui';
+  import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
 
   /** One row: the interest, plus what we had to fetch to describe it. */
   type Row = {
@@ -36,9 +37,9 @@
       const user = author ? await runEffect(usersStore.getUserByActionHash(author)) : null;
       built.push({
         interest,
-        title: listing?.title ?? 'A listing',
+        title: listing?.title ?? C.something,
         author,
-        authorName: user?.name ?? 'A member',
+        authorName: user?.name ?? C.someone,
         // Shown rather than hidden: a member should know why nothing is happening on a
         // listing they are still interested in.
         archivedByAuthor: listing?.status === ListingStatus.Archived
@@ -80,7 +81,7 @@
   </div>
 
   {#if loading}
-    <p class="text-surface-500">Loading…</p>
+    <p class="text-surface-500">{C.loading}</p>
   {:else if rows.length === 0}
     <div class="card p-6 text-center">
       <p class="text-surface-500">{S.interested.empty}</p>
@@ -96,7 +97,7 @@
                 ? 'variant-soft-warning'
                 : 'variant-soft-secondary'}"
             >
-              {row.interest.listing_type === 'Offer' ? '💡 Offer' : '📝 Request'}
+              {row.interest.listing_type === 'Offer' ? C.listingType.offer : C.listingType.request}
             </span>
             <span class="font-semibold">{row.title}</span>
             {#if row.archivedByAuthor}

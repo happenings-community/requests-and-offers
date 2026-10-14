@@ -9,6 +9,7 @@
   import { EXCHANGE_STRINGS as E } from '$lib/strings/exchanges.strings';
   import ShowInterestButton from '$lib/components/exchanges/ShowInterestButton.svelte';
   import type { ListingType } from '$lib/types/holochain';
+  import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
 
   type Props = {
     listing: ActionHash;
@@ -18,7 +19,7 @@
   };
   const { listing, mine, name }: Props = $props();
 
-  let title = $state('A listing');
+  let title = $state(C.something);
   let kind = $state<ListingType | null>(null);
   let author = $state<ActionHash | undefined>(undefined);
 
@@ -65,7 +66,7 @@
       <span
         class="badge {kind === 'Offer' ? 'variant-filled-warning' : 'variant-filled-secondary'}"
       >
-        {kind === 'Offer' ? '💡 Offer' : '📝 Request'}
+        {kind === 'Offer' ? C.listingType.offer : C.listingType.request}
       </span>
     {/if}
     <span class="font-semibold">{title}</span>

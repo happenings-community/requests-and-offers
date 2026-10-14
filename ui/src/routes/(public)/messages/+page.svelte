@@ -7,6 +7,7 @@
   import messagingStore from '$lib/stores/messaging.store.svelte';
   import type { ThreadFilter } from '$lib/utils/messaging-threads';
   import { paths } from '$lib/paths';
+  import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
 
   const messages = useMessages();
 
@@ -90,7 +91,7 @@
   {/if}
 
   {#if messages.loading && messages.threads.length === 0}
-    <p class="text-surface-500">Loading…</p>
+    <p class="text-surface-500">{C.loading}</p>
   {:else}
     <div class="flex flex-col gap-2.5">
       {#if showFaults}

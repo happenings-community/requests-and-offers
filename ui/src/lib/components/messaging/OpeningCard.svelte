@@ -5,6 +5,7 @@
   // the same record (R80), so it reads their wording from where it lives.
   import { EXCHANGE_STRINGS as E } from '$lib/strings/exchanges.strings';
   import type { UIInterest } from '$lib/types/ui';
+  import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
 
   type Props = {
     interest: UIInterest;
@@ -42,7 +43,7 @@
 <article class="card border-2 p-4 {tint}" data-testid="opening-card">
   <div class="flex flex-wrap items-center gap-2">
     <span class="badge {isOffer ? 'variant-filled-warning' : 'variant-filled-secondary'}">
-      {isOffer ? '\u{1F4A1} Offer' : '\u{1F4DD} Request'}
+      {isOffer ? C.listingType.offer : C.listingType.request}
     </span>
     <span class="font-semibold">{heading}</span>
   </div>

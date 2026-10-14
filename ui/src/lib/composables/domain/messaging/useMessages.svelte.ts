@@ -10,6 +10,7 @@ import {
   type ThreadFilter,
   type UIThread
 } from '$lib/utils/messaging-threads';
+import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
 
 /**
  * The Messages list: which conversations to show, and what to call the people in them.
@@ -47,8 +48,8 @@ export function useMessages() {
    */
   const unreadTotal = $derived(unopenedConversations(threads));
 
-  const nameOf = (thread: UIThread) => names[thread.key] ?? 'A member';
-  const nameOfAgent = (key: string) => names[key] ?? 'A member';
+  const nameOf = (thread: UIThread) => names[thread.key] ?? C.someone;
+  const nameOfAgent = (key: string) => names[key] ?? C.someone;
 
   /**
    * One lookup per person, not per row.
@@ -60,7 +61,7 @@ export function useMessages() {
     for (const thread of list) {
       if (thread.key in names) continue;
       const user = await runEffect(usersStore.getUserByActionHash(thread.counterparty));
-      names[thread.key] = user?.name ?? 'A member';
+      names[thread.key] = user?.name ?? C.someone;
     }
   }
 
@@ -70,7 +71,7 @@ export function useMessages() {
       const key = encodeHashToBase64(fault.from);
       if (key in names) continue;
       const user = await runEffect(usersStore.getUserByAgentPubKey(fault.from));
-      names[key] = user?.name ?? 'A member';
+      names[key] = user?.name ?? C.someone;
     }
   }
 

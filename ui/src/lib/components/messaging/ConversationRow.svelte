@@ -2,6 +2,7 @@
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import type { UIThread } from '$lib/utils/messaging-threads';
   import { paths } from '$lib/paths';
+  import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
 
   type Props = {
     thread: UIThread;
@@ -40,9 +41,10 @@
       ...thread.interests.map((i) => i.listing_type),
       ...thread.exchanges.map((e) => e.agreement.listing_type)
     ]);
-    if (types.has('Offer')) out.push({ label: '\u{1F4A1} Offer', variant: 'variant-soft-warning' });
+    if (types.has('Offer'))
+      out.push({ label: C.listingType.offer, variant: 'variant-soft-warning' });
     if (types.has('Request'))
-      out.push({ label: '\u{1F4DD} Request', variant: 'variant-soft-secondary' });
+      out.push({ label: C.listingType.request, variant: 'variant-soft-secondary' });
     if (thread.exchanges.length > 0)
       out.push({ label: '\u{1F91D} Exchange', variant: 'variant-soft-primary' });
     return out;

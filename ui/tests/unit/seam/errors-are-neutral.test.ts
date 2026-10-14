@@ -1,73 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, statSync } from 'node:fs';
-import { dirname, join, normalize } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { messagingReachedFrom } from './messaging-modules';
 
 /**
  * **`$lib/errors` must not reach messaging.**
  *
- * `errors/index.ts` re-exports `messaging.errors`, which imported `reasonOf` from
+ * `errors/index.ts` re-exported `messaging.errors`, which imported `reasonOf` from
  * `utils/messaging-threads`. So every file importing `$lib/errors` pulled the whole
- * messaging module in transitively, including every exchange page. That is rule 1 of the
- * seam broken in a place nobody would look, and it would have made H1's test either fail
- * everywhere or be written to miss it.
+ * messaging feature in transitively — its thread rules, its local state, its schemas —
+ * including eleven offer and request components that never mention messaging. That is the
+ * seam's first rule broken in a place nobody would look.
  *
- * `reasonOf`, `errorShape` and `guestReason` are about error shapes rather than
- * messaging, so they belong in a neutral helper. `isTooLong` matches `message.rs`'s own
- * wording and stays where it is.
+ * Two changes answer it. `reasonOf`, `errorShape` and `guestReason` moved to a neutral
+ * helper, because they are about error shapes rather than messaging (H1a). And the barrel
+ * no longer re-exports a feature's errors at all, because anything defined by messaging,
+ * its errors included, is messaging (H1).
  *
- * **This follows the import graph, not the import lines**, which is what H1 needs too.
+ * `isTooLong` stayed with messaging: it matches `message.rs`'s own wording.
+ *
+ * What counts as messaging, and how the graph is walked, are defined once in
+ * `./messaging-modules` and shared with the seam test, so the two cannot drift apart.
  */
-const ROOT = 'src';
-
-/** Resolve an import specifier to a file, as the aliases do. */
-function resolve(from: string, spec: string): string | null {
-  let base: string;
-  if (spec.startsWith('$lib/')) base = join(ROOT, 'lib', spec.slice('$lib/'.length));
-  else if (spec.startsWith('@/')) base = join(ROOT, spec.slice(2));
-  else if (spec.startsWith('.')) base = normalize(join(dirname(from), spec));
-  else return null; // a package, not ours
-  // A file, never a directory: `$lib/errors` names a folder with an index, and taking
-  // the folder itself would try to read it and throw.
-  for (const candidate of [
-    base,
-    `${base}.ts`,
-    `${base}.svelte`,
-    `${base}.svelte.ts`,
-    join(base, 'index.ts')
-  ]) {
-    try {
-      if (statSync(candidate).isFile()) return candidate;
-    } catch {
-      // not there; try the next spelling
-    }
-  }
-  return null;
-}
-
-function importsOf(file: string): string[] {
-  const source = readFileSync(file, 'utf8');
-  return [...source.matchAll(/from\s+['"]([^'"]+)['"]/g)].map((m) => m[1]);
-}
-
-/** Every file reachable from `entry`, following our own imports only. */
-function reachableFrom(entry: string): Set<string> {
-  const seen = new Set<string>();
-  const queue = [entry];
-  while (queue.length) {
-    const file = queue.pop()!;
-    if (seen.has(file)) continue;
-    seen.add(file);
-    for (const spec of importsOf(file)) {
-      const target = resolve(file, spec);
-      if (target && !seen.has(target)) queue.push(target);
-    }
-  }
-  return seen;
-}
-
-const isMessaging = (file: string) =>
-  /(^|\/)(components|stores|utils|strings|schemas|composables\/domain)\/messaging/.test(file) ||
-  /messaging[-.]/.test(file.split('/').pop() ?? '');
 
 describe('the error helpers are neutral', () => {
   /**
@@ -75,11 +28,11 @@ describe('the error helpers are neutral', () => {
    * it from `errors/messaging.errors.ts`. The chain reappears and this names it.
    */
   it('$lib/errors reaches no messaging module', () => {
-    const reached = [...reachableFrom('src/lib/errors/index.ts')].filter(isMessaging);
-    // messaging.errors.ts is itself named for messaging and is allowed to exist; what
-    // must not be reachable is the messaging feature's own store, utils and components.
-    const feature = reached.filter((f) => !f.endsWith('errors/messaging.errors.ts'));
-    expect(feature, `$lib/errors reaches: ${feature.join(', ')}`).toEqual([]);
+    const reached = messagingReachedFrom('src/lib/errors/index.ts');
+    // **Nothing, including messaging's own errors.** The rule is that anything defined
+    // by messaging is messaging, so the barrel no longer re-exports them: a feature's
+    // errors are imported from the feature.
+    expect(reached, `$lib/errors reaches: ${reached.join(', ')}`).toEqual([]);
   });
 
   it('the neutral helper exists and holds the three functions', () => {
@@ -90,7 +43,7 @@ describe('the error helpers are neutral', () => {
   });
 
   it('and it reaches nothing of messaging itself', () => {
-    const reached = [...reachableFrom('src/lib/utils/error-shape.ts')].filter(isMessaging);
+    const reached = messagingReachedFrom('src/lib/utils/error-shape.ts');
     expect(reached).toEqual([]);
   });
 

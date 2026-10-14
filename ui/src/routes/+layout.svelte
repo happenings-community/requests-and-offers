@@ -335,6 +335,21 @@
     }
   }
 
+  /**
+   * Ask whether messaging is here, whenever there is a connection to ask over.
+   *
+   * **A check that can answer "not yet" has to name who asks again.** Presence stays
+   * unknown after a failure that is not absence, so something has to come back; this is
+   * that something. Tracking `isConnected` rather than awaiting a one-off covers a slow
+   * start, which `waitForConnection`'s 60-second timeout would not, and a reconnect.
+   *
+   * Cheap to run often: once presence has settled, `ask()` returns without probing. The
+   * same shape as the "Connected" indicator and the outbox's retry on reconnect.
+   */
+  $effect(() => {
+    if (hc.isConnected) void messagingPresence.ask();
+  });
+
   onMount(async () => {
     /**
      * Wire the presence module to its probe, and ask once.
@@ -344,8 +359,11 @@
      * nothing of messaging either. `find_sent` bounded to now is a read that walks almost
      * nothing and commits nothing.
      *
-     * Not awaited: whether messaging is here does not gate start-up, and the answer reads
-     * as present until it settles.
+     * **Who asks, and when:** the effect below, each time the connection comes up. Asking
+     * here would always fail — `installProbe` runs before `initializeAsync` has a client,
+     * and `callZome` throws "Client not connected", which is not absence, so presence
+     * would stay unknown and nothing would ever ask again. On a network without messaging
+     * it would never settle.
      */
     installProbe(() =>
       runEffect(
@@ -360,7 +378,6 @@
         }).pipe(E.provide(MessagingServiceLive), E.provide(HolochainClientServiceLive))
       )
     );
-    void messagingPresence.ask();
 
     // Initialize Weave hot-reload for dev mode (no-op in production webhapp)
     // This sets up window.__WEAVE_API__ which isWeaveContext() checks.

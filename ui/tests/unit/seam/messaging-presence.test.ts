@@ -71,6 +71,60 @@ describe('the presence module', () => {
     expect(attempt).toBe(2);
   });
 
+  /**
+   * **The failure this covers actually happened.** The layout asked once, at the top of
+   * `onMount`, before `initializeAsync` had a client. `callZome` throws "Client not
+   * connected", which is not absence, so presence stayed unknown and nothing asked
+   * again: on a network without messaging it would never have settled.
+   *
+   * So a check that can answer "not yet" has to name who asks again. Here it is an
+   * effect on the connection; this is the behaviour that makes asking again worth
+   * anything.
+   *
+   * **To make this go red:** cache the failure as absent, or refuse to re-probe once
+   * asked. The second ask returns unknown and the network's messaging never appears.
+   */
+  it('an unknown after a failed probe settles on the next ask', async () => {
+    let connected = false;
+    const probe = vi.fn(async () => {
+      if (!connected) throw new Error('Client not connected');
+      return undefined;
+    });
+    const presence = createMessagingPresence(probe);
+
+    // The ask that fires before there is a client.
+    expect(await presence.ask()).toEqual({ state: 'unknown' });
+    expect(presence.isAbsent, 'and nothing is hidden meanwhile').toBe(false);
+
+    // The connection comes up, and whoever watches it asks again.
+    connected = true;
+    expect(await presence.ask()).toEqual({ state: 'present' });
+    expect(probe).toHaveBeenCalledTimes(2);
+  });
+
+  /** The same, for a network that really has no messaging: it settles on the second ask. */
+  it('and settles on absent just as readily', async () => {
+    let connected = false;
+    const presence = createMessagingPresence(async () => {
+      if (!connected) throw new Error('Client not connected');
+      throw new Error("ribosome_error: Referenced a zome that doesn't exist: Zome: messaging");
+    });
+
+    expect(await presence.ask()).toEqual({ state: 'unknown' });
+    connected = true;
+    expect(await presence.ask()).toEqual({ state: 'absent', reason: 'notInDna' });
+  });
+
+  /** Once settled, asking again is free, which is what lets the effect ask often. */
+  it('asking again after it has settled does not probe', async () => {
+    const probe = vi.fn(async () => undefined);
+    const presence = createMessagingPresence(probe);
+    await presence.ask();
+    await presence.ask();
+    await presence.ask();
+    expect(probe).toHaveBeenCalledTimes(1);
+  });
+
   it('probes once however many callers ask at start-up', async () => {
     let started = 0;
     const presence = createMessagingPresence(async () => {

@@ -27,13 +27,13 @@ const PRESENCE_MODULE = 'src/lib/services/messagingPresence.svelte.ts';
  * 3. Messaging extends the exchange pages: it supplies Go to chat, counts and cards, and
  *    the pages work without them.
  *
- * Rule 3 is not a test about imports; it is what H4 to H6 build and what Sam's hand test
- * checks. Rules 1 and 2 are here.
+ * Rule 3 is not a test about imports; it is what the later steps build and what the hand
+ * test checks. Rules 1 and 2 are here.
  *
- * **This file is skipped until H4.** It is red today on purpose: H3 moves the interest
- * components, H4 moves the way of reaching the other person, and H5 makes the propose
- * page stand alone. Each unskipped run is the step's own evidence, which is why the red
- * output is in the H1 report rather than only in the history.
+ * **This now guards the seam rather than describing where it is going.** It ran red from
+ * the day it was written, naming every file that had to move, and was skipped while they
+ * moved: ten files, then nine, then one, then none. From here a red run means something
+ * new has reached across, and the name it prints is the file that did it.
  *
  * It reads the **import graph**, not import lines. `errors/index.ts` used to re-export
  * messaging's errors, which imported from `messaging-threads`, so an exchange page reached
@@ -68,12 +68,14 @@ function exchangeAndListingFiles(): string[] {
   return out.sort();
 }
 
-describe.skip('the seam', () => {
+describe('the seam', () => {
   /**
    * **Rule 1.** The formal route is the core and must work whole without messaging, so
    * nothing on it may reach the feature, at any number of hops.
    *
-   * **To make this go red:** it is red now. It goes green as H3 to H5 move each piece.
+   * **To make this go red:** write a sentence about conversations on a formal page, or
+   * read the messaging store for a count one of them shows. Either is a single line, which
+   * is the point of having this.
    */
   it('no exchange page, listing page or exchange component reaches messaging', () => {
     const offenders = exchangeAndListingFiles()
@@ -88,8 +90,9 @@ describe.skip('the seam', () => {
 
   /**
    * **Rule 2.** The nav bar is shared chrome, not exchange code, so it is allowed to ask
-   * whether messaging is present — but only that, through H2's module. It may not reach
-   * the store, the thread rules or any component.
+   * whether this network has conversations, and to show what one supplies. It may not
+   * reach the store, the thread rules or any component: it asks the module that answers
+   * the question, and renders what is plugged into the neutral modules beside it.
    */
   it('the nav bar reaches only the module that answers "is messaging here?"', () => {
     const navBar = 'src/lib/components/shared/NavBar.svelte';
@@ -107,8 +110,8 @@ describe.skip('the seam', () => {
 });
 
 /**
- * These two hold today and are not part of the skip: the list has to stay honest while
- * the rest of H is built, or every later run tests less than it appears to.
+ * The list has to stay honest, or the two tests above check less than they appear to: a
+ * messaging file nobody added to it is a file the walk does not recognise as messaging.
  */
 describe('the list of messaging modules', () => {
   it('claims every file whose path says messaging or messages', () => {

@@ -15,9 +15,7 @@
   } from '$lib/utils/exchange-ui';
   import type { ReviewInDHT } from '$lib/types/holochain';
   import { paths, readOrigin, routeBack } from '$lib/paths';
-  import { runEffect } from '$lib/utils/effect';
-  import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
-  import usersStore from '$lib/stores/users.store.svelte';
+  import { getBackToChat } from '$lib/extensions/back-to-chat';
 
   const modalStore = getModalStore();
 
@@ -79,15 +77,16 @@
    * Exchanges it does not, and the page keeps its own Back.
    */
   const back = $derived(routeBack(readOrigin(page.url), paths.exchanges()));
-  let backName = $state('a member');
-  $effect(() => {
-    if (back.wording !== 'conversation') return;
-    const hash = back.counterparty;
-    (async () => {
-      const user = await runEffect(usersStore.getUserByActionHash(hash));
-      if (user?.name) backName = user.name;
-    })();
-  });
+
+  /**
+   * Whether this page was reached from a conversation is its own to decide, and it reads
+   * that from the marker in its address. Saying so, and addressing the conversation, is
+   * not: that sentence is written in one place, and this asks for it. Nothing plugged in
+   * means this network has no conversations, so there was nowhere to arrive from and the
+   * page's own Back is the only one.
+   */
+  const pluggedBack = getBackToChat();
+  const BackToChat = $derived(pluggedBack());
 </script>
 
 <svelte:head>
@@ -117,11 +116,13 @@
       wording and the destination cannot disagree.
     -->
     <div class="flex flex-wrap items-center gap-2">
-      <button class="variant-soft btn btn-sm" onclick={() => goto(back.href)}>
-        {back.wording === 'conversation'
-          ? `← ${fill(S.listing.backToConversation, { name: backName })}`
-          : 'Back to exchanges'}
-      </button>
+      {#if back.wording === 'conversation' && BackToChat}
+        <BackToChat counterparty={back.counterparty} classes="variant-soft btn btn-sm" />
+      {:else}
+        <button class="variant-soft btn btn-sm" onclick={() => goto(paths.exchanges())}>
+          Back to exchanges
+        </button>
+      {/if}
       <!--
         Wherever an exchange appears, there is a way to the chat it belongs to. Reached
         from a conversation, Back already goes there, so a second link to the same place

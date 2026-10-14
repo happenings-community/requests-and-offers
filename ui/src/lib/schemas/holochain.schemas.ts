@@ -48,13 +48,19 @@ export const RecordSchema = Schema.Struct({
   signed_action: Schema.Struct({
     hashed: Schema.Struct({
       hash: ActionHashSchema,
+      // Holochain 0.7 splits an action into a common header and per-variant data.
       content: Schema.Struct({
-        author: AgentPubKeySchema,
-        timestamp: TimestampSchema,
-        prev_action: ActionHashSchema.pipe(Schema.optional),
-        action_seq: Schema.Number.pipe(Schema.int(), Schema.nonNegative()),
-        entry_type: Schema.optional(Schema.String),
-        entry_hash: Schema.optional(EntryHashSchema)
+        header: Schema.Struct({
+          author: AgentPubKeySchema,
+          timestamp: TimestampSchema,
+          prev_action: ActionHashSchema.pipe(Schema.optional),
+          action_seq: Schema.Number.pipe(Schema.int(), Schema.nonNegative())
+        }),
+        data: Schema.Struct({
+          type: Schema.String,
+          entry_type: Schema.optional(Schema.String),
+          entry_hash: Schema.optional(EntryHashSchema)
+        })
       })
     }),
     signature: Schema.String

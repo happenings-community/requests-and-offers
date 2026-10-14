@@ -65,7 +65,7 @@ pub fn validate_offer(offer: Offer) -> ExternResult<ValidateCallbackResult> {
 pub fn validate_update_offer(
   _action: Update,
   _offer: Offer,
-  _original_action: EntryCreationAction,
+  _original_action: TypedAction<EntryCreationData>,
   _original_offer: Offer,
 ) -> ExternResult<ValidateCallbackResult> {
   // Add specific update validation logic if needed
@@ -74,7 +74,7 @@ pub fn validate_update_offer(
 
 /// Validates an offer link creation
 pub fn validate_create_link_offer_updates(
-  _action: CreateLink,
+  _action: TypedAction<CreateLinkData>,
   _base_address: AnyLinkableHash,
   _target_address: AnyLinkableHash,
   _tag: LinkTag,
@@ -85,8 +85,8 @@ pub fn validate_create_link_offer_updates(
 
 /// Validates an offer link deletion
 pub fn validate_delete_link_offer_updates(
-  _action: DeleteLink,
-  _original_action: CreateLink,
+  _action: TypedAction<DeleteLinkData>,
+  _original_action: TypedAction<CreateLinkData>,
   _base: AnyLinkableHash,
   _target: AnyLinkableHash,
   _tag: LinkTag,

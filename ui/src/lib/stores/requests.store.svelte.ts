@@ -157,7 +157,7 @@ const processRecord = (
   requestsService: RequestsService
 ): E.Effect<UIRequest, RequestError, never> => {
   const requestHash = record.signed_action.hashed.hash;
-  const authorPubKey = record.signed_action.hashed.content.author;
+  const authorPubKey = record.signed_action.hashed.content.header.author;
 
   return pipe(
     E.all({
@@ -336,7 +336,7 @@ export const createRequestsStore = (): E.Effect<
           ),
           E.tap((record) =>
             E.sync(() => {
-              const authorPubKey = record.signed_action.hashed.content.author;
+              const authorPubKey = record.signed_action.hashed.content.header.author;
               const creator = usersStore.currentUser?.original_action_hash;
               const entity = createUIRequest(record, {
                 authorPubKey,

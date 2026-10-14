@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { encodeHashToBase64, type AppWebsocket, type Record as HcRecord } from '@holochain/client';
-import { gotoApp, createTestClient, ensureAcceptedUser, callZome } from '../utils/e2e-helpers.js';
+import { gotoApp, createTestClient, closeTestClient, ensureAcceptedUser, callZome } from '../utils/e2e-helpers.js';
 
 // ============================================================================
 // 09 — EXCHANGES
@@ -20,7 +20,7 @@ test.describe.serial('09 — exchanges', () => {
   });
 
   test.afterAll(async () => {
-    await client.client.close();
+    await closeTestClient(client);
   });
 
   test('my exchanges renders its three groups and the empty state', async ({ page }) => {

@@ -52,8 +52,21 @@ pub fn validate_agent_joining(
 #[allow(clippy::collapsible_match, clippy::single_match)]
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
-  if let FlatOp::StoreEntry(store_entry) = op.flattened::<EntryTypes, LinkTypes>()? {
-    match store_entry {
+  // Fast path. `op.flattened()` below is the expensive call. Agent-activity
+  // ops are the only ones Holochain delivers to every integrity zome in the
+  // DNA, and no zome here has a rule for them, so that is the one op kind
+  // skipped. Every other op kind reaches only the zome that owns its type and
+  // still goes through `flattened()` exactly as before.
+  //
+  // WARNING: if you ever add a rule for agent-activity ops to this zome, you
+  // must delete this guard here first. It returns Valid before the match below
+  // ever sees the op, so the new rule would silently never run.
+  if matches!(&op, Op::RegisterAgentActivity(_)) {
+    return Ok(ValidateCallbackResult::Valid);
+  }
+
+  match op.flattened::<EntryTypes, LinkTypes>()? {
+    FlatOp::StoreEntry(store_entry) => match store_entry {
       OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
         match app_entry {
           EntryTypes::User(user) => {
@@ -66,10 +79,8 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       }
 
       _ => (),
-    }
-  }
-  if let FlatOp::StoreRecord(store_record) = op.flattened::<EntryTypes, LinkTypes>()? {
-    match store_record {
+    },
+    FlatOp::StoreRecord(store_record) => match store_record {
       OpRecord::DeleteEntry {
         original_action_hash,
         ..
@@ -127,7 +138,8 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         }
       }
       _ => (),
-    }
+    },
+    _ => (),
   }
   Ok(ValidateCallbackResult::Valid)
 }

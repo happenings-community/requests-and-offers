@@ -144,7 +144,7 @@ async fn exchange_lifecycle_from_interest_to_reviewed() {
     let ex: Exchange = conductors[1]
         .call(&bob.zome("exchanges"), "get_exchange", agreement_hash.clone())
         .await;
-    assert_eq!(status_of(&ex), "ProviderDelivered");
+    assert_eq!(status_of(&ex), "OneSideDone");
 
     // Bob marks done; both signed the same agreement as complete.
     let _: Record = conductors[1]
@@ -178,6 +178,66 @@ async fn exchange_lifecycle_from_interest_to_reviewed() {
     let theirs: Vec<Exchange> = conductors[1].call(&bob.zome("exchanges"), "get_my_exchanges", ()).await;
     assert_eq!(mine.len(), 1);
     assert_eq!(theirs.len(), 1);
+}
+
+/// Either party may mark their part done first. The zome takes a completion
+/// from whoever is ready, so the status has to reflect one side being done
+/// whichever side that is - not only the provider.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_receiver_may_mark_done_first() {
+    let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
+
+    let interest: Record = conductors[1]
+        .call(
+            &bob.zome("exchanges"),
+            "create_interest",
+            json!({ "listing": offer_hash, "listing_type": "Offer" }),
+        )
+        .await;
+    let interest_hash = interest.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let agreement: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_agreement", agreement_input(&offer_hash, &interest_hash))
+        .await;
+    let agreement_hash = agreement.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let _: Record = conductors[0]
+        .call(
+            &alice.zome("exchanges"),
+            "respond_to_agreement",
+            json!({ "agreement": agreement_hash, "accepted": true, "note": "Yes." }),
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Bob receives on Alice's offer, and marks his part done before she does.
+    let _: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "complete_agreement", agreement_hash.clone())
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let ex: Exchange = conductors[0]
+        .call(&alice.zome("exchanges"), "get_exchange", agreement_hash.clone())
+        .await;
+    assert!(ex.receiver_completion.is_some(), "Bob's completion is recorded");
+    assert_ne!(
+        status_of(&ex),
+        "Agreed",
+        "one side is done, so the exchange is no longer merely agreed"
+    );
+    assert_eq!(status_of(&ex), "OneSideDone");
+
+    // Alice marks hers; both are in, and it completes as usual.
+    let _: Record = conductors[0]
+        .call(&alice.zome("exchanges"), "complete_agreement", agreement_hash.clone())
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    let ex: Exchange = conductors[1]
+        .call(&bob.zome("exchanges"), "get_exchange", agreement_hash.clone())
+        .await;
+    assert_eq!(status_of(&ex), "Complete");
 }
 
 #[tokio::test(flavor = "multi_thread")]

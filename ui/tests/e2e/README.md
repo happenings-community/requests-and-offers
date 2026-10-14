@@ -38,7 +38,8 @@ There is currently **no CI workflow running this suite** (`.github/workflows/` h
 
 ## Rules
 
-- Navigate with `gotoApp()` (never bare `page.goto()`) — it injects the `hcPort`/`hcToken`/`hcAdminPort` params the Holochain client needs.
+- Navigate with `gotoApp()`, never bare `page.goto()`. It injects the `hcPort`/`hcToken`/`hcAdminPort` params the Holochain client needs, then `waitForConnection()` waits for the app shell's `<nav>`, which the root layout renders only once connected. It throws, naming the state it was stuck in (connection error shown, gate never lifted, or nothing rendered), so a dead conductor fails at navigation instead of as a missing heading later.
+- Assert positive signals. A `toBeHidden()` on an error text, or a URL match, also passes against a blank page, so it proves nothing on its own; every probe should be one that a broken connection would turn red.
 - Any spec that mutates the primary user's status **must restore `accepted` before it ends** (see `01`'s `afterAll` safety net); every later chapter depends on it.
 - Destructive moderation paths (reject) are exercised on service types and organizations, never on the primary user.
 - Multi-agent flows (second member joining an org, cross-agent exchanges) are **out of scope here** — they belong to Sweettest.

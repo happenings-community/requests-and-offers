@@ -1,4 +1,4 @@
-import type { UIRequest, UIOffer, UIServiceType, UIUser, UIOrganization } from '$lib/types/ui';
+import type { UIRequest, UIOffer, UIServiceType, UIUser, UIOrganization, UIExchange } from '$lib/types/ui';
 import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
 import type { ActionHash } from '@holochain/client';
 
@@ -35,6 +35,10 @@ export type StoreEvents = {
   'offer:created': { offer: UIOffer };
   'offer:updated': { offer: UIOffer };
   'offer:deleted': { offerHash: ActionHash };
+
+  // Exchanges
+  'exchange:accepted': { exchange: UIExchange };
+  'exchange:completed': { exchange: UIExchange };
 
   // Service Types
   'serviceType:created': { serviceType: UIServiceType };

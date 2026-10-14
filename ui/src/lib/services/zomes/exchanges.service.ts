@@ -1,6 +1,7 @@
 import type { ActionHash, Record } from '@holochain/client';
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
-import { Effect as E, Layer, Context } from 'effect';
+import { Effect as E, Either, Layer, Context, pipe } from 'effect';
+import { ArrayFormatter, type ParseError } from 'effect/ParseResult';
 import { ExchangeError } from '$lib/errors/exchanges.errors';
 import { EXCHANGE_CONTEXTS } from '$lib/errors/error-contexts';
 import type {
@@ -10,8 +11,42 @@ import type {
   ReviewInput
 } from '$lib/types/holochain';
 import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
+import {
+  decodeCancelAgreementInput,
+  decodeCreateAgreementInput,
+  decodeCreateInterestInput,
+  decodeRespondToAgreementInput,
+  decodeReviewInput
+} from '$lib/schemas/exchanges.schemas';
 
 export { ExchangeError };
+
+/**
+ * Validation sits here, at the boundary to the DHT, rather than in each form.
+ * The schemas mirror the integrity zome rule for rule, so a write the zome
+ * would refuse fails with a message a member can act on and never leaves the
+ * browser.
+ *
+ * Every write carrying a payload beyond a bare hash is decoded: the five are
+ * `createInterest`, `createAgreement`, `respondToAgreement`, `reviewAgreement`
+ * and `cancelAgreement`. `withdrawInterest` and `completeAgreement` take only
+ * an `ActionHash`, which the client has already typed, so there is no rule for
+ * a schema to carry. A form may also decode its own input for immediate
+ * feedback, as the review form does before submit; that is a convenience in
+ * front of this gate rather than an alternative to it.
+ */
+const validated = <A>(
+  decoded: Either.Either<A, ParseError>,
+  context: string
+): E.Effect<void, ExchangeError> =>
+  Either.isRight(decoded)
+    ? E.void
+    : E.fail(
+        ExchangeError.create(
+          ArrayFormatter.formatErrorSync(decoded.left)[0]?.message ?? 'That input is not valid.',
+          context
+        )
+      );
 
 // --- Service Interface ---
 
@@ -71,10 +106,18 @@ export const ExchangesServiceLive: Layer.Layer<
       );
 
     const createInterest = (listing: ActionHash, listingType: ListingType) =>
-      wrapZomeCall<Record>(
-        'create_interest',
-        { listing, listing_type: listingType },
-        EXCHANGE_CONTEXTS.CREATE_INTEREST
+      pipe(
+        validated(
+          decodeCreateInterestInput({ listing, listing_type: listingType }),
+          EXCHANGE_CONTEXTS.CREATE_INTEREST
+        ),
+        E.flatMap(() =>
+          wrapZomeCall<Record>(
+            'create_interest',
+            { listing, listing_type: listingType },
+            EXCHANGE_CONTEXTS.CREATE_INTEREST
+          )
+        )
       );
 
     const withdrawInterest = (interest: ActionHash) =>
@@ -87,23 +130,50 @@ export const ExchangesServiceLive: Layer.Layer<
       wrapZomeCall<Record[]>('get_my_interests', null, EXCHANGE_CONTEXTS.GET_INTERESTS);
 
     const createAgreement = (input: CreateAgreementInput) =>
-      wrapZomeCall<Record>('create_agreement', input, EXCHANGE_CONTEXTS.CREATE_AGREEMENT);
+      pipe(
+        validated(decodeCreateAgreementInput(input), EXCHANGE_CONTEXTS.CREATE_AGREEMENT),
+        E.flatMap(() =>
+          wrapZomeCall<Record>('create_agreement', input, EXCHANGE_CONTEXTS.CREATE_AGREEMENT)
+        )
+      );
 
     const respondToAgreement = (agreement: ActionHash, accepted: boolean, note: string) =>
-      wrapZomeCall<Record>(
-        'respond_to_agreement',
-        { agreement, accepted, note },
-        EXCHANGE_CONTEXTS.RESPOND
+      pipe(
+        validated(
+          decodeRespondToAgreementInput({ agreement, accepted, note }),
+          EXCHANGE_CONTEXTS.RESPOND
+        ),
+        E.flatMap(() =>
+          wrapZomeCall<Record>(
+            'respond_to_agreement',
+            { agreement, accepted, note },
+            EXCHANGE_CONTEXTS.RESPOND
+          )
+        )
       );
 
     const completeAgreement = (agreement: ActionHash) =>
       wrapZomeCall<Record>('complete_agreement', agreement, EXCHANGE_CONTEXTS.COMPLETE);
 
     const reviewAgreement = (agreement: ActionHash, review: ReviewInput) =>
-      wrapZomeCall<Record>('review_agreement', { agreement, ...review }, EXCHANGE_CONTEXTS.REVIEW);
+      pipe(
+        validated(decodeReviewInput(review), EXCHANGE_CONTEXTS.REVIEW),
+        E.flatMap(() =>
+          wrapZomeCall<Record>(
+            'review_agreement',
+            { agreement, ...review },
+            EXCHANGE_CONTEXTS.REVIEW
+          )
+        )
+      );
 
     const cancelAgreement = (agreement: ActionHash, note: string) =>
-      wrapZomeCall<Record>('cancel_agreement', { agreement, note }, EXCHANGE_CONTEXTS.CANCEL);
+      pipe(
+        validated(decodeCancelAgreementInput({ agreement, note }), EXCHANGE_CONTEXTS.CANCEL),
+        E.flatMap(() =>
+          wrapZomeCall<Record>('cancel_agreement', { agreement, note }, EXCHANGE_CONTEXTS.CANCEL)
+        )
+      );
 
     const getExchange = (agreement: ActionHash) =>
       wrapZomeCall<ExchangeReadModel>('get_exchange', agreement, EXCHANGE_CONTEXTS.GET_EXCHANGE);

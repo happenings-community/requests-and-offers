@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { readTestEnv, createZomeClient } from '../../setup/conductor-manager.js';
 import type { AppWebsocket, Record as HolochainRecord } from '@holochain/client';
@@ -42,20 +42,58 @@ export async function gotoApp(page: Page, path: string = '/'): Promise<void> {
 }
 
 /**
- * Waits for the UI to finish connecting to the Holochain conductor.
- * The connection indicator disappears once AppWebsocket.connect() resolves.
+ * Waits for the UI to finish connecting to the Holochain conductor, and
+ * throws when it does not.
+ *
+ * The root layout (src/routes/+layout.svelte) renders a full-screen gate
+ * ("Connecting to Holochain Network", then "Initializing Application
+ * Runtime") until the conductor websocket is up and initialization has
+ * finished, and only then renders the app shell, whose NavBar is the page's
+ * one <nav>. The shell is therefore a positive signal: it cannot appear
+ * without a connection. Waiting for the gate to be hidden is not, because a
+ * page that has not rendered anything yet hides the gate too.
+ *
+ * On failure the error says which of three states the page was stuck in, so
+ * a dead conductor is never reported as a missing heading further down:
+ * the gate showed a connection error, the gate was shown and never lifted,
+ * or neither the gate nor the shell ever rendered.
  */
-export async function waitForConnection(page: Page, timeoutMs = 20_000): Promise<void> {
-  // Wait for any "connecting" spinner/overlay to disappear. The root layout
-  // shows a full-screen gate ("Initializing Application Runtime" then
-  // "Connecting to Holochain Network") until connectionStatus === 'connected'.
-  const connectingLocator = page.locator(
-    '[data-testid="connecting-overlay"], text=Connecting to Holochain, text=Initializing Application Runtime'
-  );
-  try {
-    await expect(connectingLocator.first()).toBeHidden({ timeout: timeoutMs });
-  } catch {
-    // Not present is also fine — connection might be instant
+export async function waitForConnection(page: Page, timeoutMs = 30_000): Promise<void> {
+  const shell = page.getByRole('navigation').first();
+  const gate = page
+    .getByRole('heading', {
+      name: /^(Connecting to Holochain Network|Initializing Application Runtime)$/
+    })
+    .first();
+  // The two connectionError strings the root layout renders inside the gate.
+  const failure = page
+    .getByText(/Failed to connect to Holochain|Initialization failed\. Please refresh/)
+    .first();
+
+  // Every read below returns at once. An auto-waiting read such as innerText()
+  // would block for the whole action timeout when the gate lifts between the
+  // visibility check and the read, which is exactly the success case.
+  const textOf = async (locator: Locator): Promise<string> =>
+    ((await locator.allInnerTexts())[0] ?? '').trim();
+
+  const deadline = Date.now() + timeoutMs;
+  let lastGate: string | null = null;
+  for (;;) {
+    if (await shell.isVisible()) return;
+    if (await failure.isVisible()) {
+      throw new Error(
+        `[e2e] waitForConnection: the app reported a connection failure (${await textOf(failure)})`
+      );
+    }
+    if (await gate.isVisible()) lastGate = (await textOf(gate)) || lastGate || 'gate';
+    if (Date.now() >= deadline) {
+      throw new Error(
+        lastGate
+          ? `[e2e] waitForConnection: the connection gate was shown and never lifted within ${timeoutMs}ms (last seen: ${lastGate})`
+          : `[e2e] waitForConnection: neither the connection gate nor the app shell rendered within ${timeoutMs}ms`
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
   }
 }
 

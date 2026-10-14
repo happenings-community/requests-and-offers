@@ -1,0 +1,102 @@
+# Continuous Integration
+
+Two workflows, split by what they cost. The fast checks run on every pull request; the slow suites run when you ask for them.
+
+Before September 2026 this repository had no CI beyond a documentation deploy, so a green pull request proved nothing. That is the gap [#222](https://github.com/happenings-community/requests-and-offers/issues/222) closed.
+
+## What runs on every pull request
+
+`.github/workflows/ci.yml`, on pull requests to `dev` and `main` and on pushes to `dev`.
+
+| Job | Steps | Blocking | Typical time |
+|---|---|---|---|
+| **Frontend** | `sha256sum -c` on the vendored tarballs, `bun run check` (svelte-check), `bun run test:unit` (646 tests), `bun run lint` | types and tests yes, lint errors no | about a minute |
+| **Zomes** | `bun run download-hrea`, then `bun run build:zomes` and `hc app pack` under Nix | yes | 2 to 3 minutes, faster with a warm cache |
+
+### Why the zomes job packs and does not only compile
+
+`hc app pack` validates the DNA and app manifests. A successful `cargo build` says nothing about them, so a manifest broken by a dependency or platform bump would pass a compile-only job.
+
+Note what it does **not** cover, because it is tempting to assume otherwise. The v0.6.0-alpha.1 desktop failure ([#260](https://github.com/happenings-community/requests-and-offers/issues/260)) involved the **webhapp**, which `bun run package` builds and this job does not, and the desktop wrapper's own pinned reader, which lives in another repository. This job would not have caught it. [#261](https://github.com/happenings-community/requests-and-offers/issues/261) carries that check.
+
+### Why lint does not block, and what does
+
+There are 158 pre-existing ESLint errors in a clean checkout, almost all `no-explicit-any` and unused variables, concentrated in `ui/tests/unit/`. None are type errors: `svelte-check` reports zero.
+
+158 is roughly one focused session, not a permanent condition, so treat this tolerance as temporary rather than as policy. It exists so the pipeline could land without a red wall on day one, and it should be removed as soon as someone pays the backlog down.
+
+A warning if you measure this yourself: running `bun run lint` in a working tree that has build output in it (a `test-results/` directory, for instance) reports a much larger number, because ESLint lints those files too. The clean-checkout figure is the one CI sees and the one that matters.
+
+So the step tolerates lint errors and writes the count to the job summary, where the backlog stays visible. It does **not** tolerate a broken linter: ESLint exits `1` when it ran and found problems, and `2` or above when it could not run at all. The second fails the job. Without that split a crashing linter would exit zero and report "0 errors", which reads as good news.
+
+**When the count reaches zero, make it blocking**: delete the step's tolerance of exit 1 in `.github/workflows/ci.yml`.
+
+## Running the heavy suites
+
+`.github/workflows/tests-manual.yml`. Both spin real conductors. Sweettest takes tens of minutes on a developer machine and hours on a hosted runner; the end-to-end suite measured 8m33s in CI on chromium alone, and considerably longer locally when the config adds firefox and webkit. Neither belongs on a per-commit path.
+
+### On a pull request, by label
+
+Add one of these labels to a pull request and the suite runs against that pull request's code, reporting back as a check on it:
+
+| Label | Runs |
+|---|---|
+| `run:sweettest` | the Rust integration suite |
+| `run:e2e` | the Playwright end-to-end suite |
+| `run:heavy` | both |
+
+**The label is removed automatically once the run starts**, so re-applying it runs the suite again. This is as close as GitHub Actions gets to GitLab's manual pipeline job: GitHub has no job that waits inside a pipeline for a click, so the click happens on a label instead.
+
+**A check reports the most recent run, including a skipped one.** Both jobs live in one workflow, so labelling `run:e2e` starts the workflow and skips the sweettest job, and the pull request's Sweettest check then reads `skipping` even if an earlier run had it green. This is GitHub's display, not a lost result: the older run keeps its own conclusion on its own page. If you want both checks green on the same commit, label `run:heavy`, or label the second suite once the first finishes.
+
+### On a branch or tag, from the Actions tab
+
+Actions, then **Heavy tests (manual)**, then **Run workflow**. Choose a `suite` of `sweettest`, `e2e` or `both`, and optionally a `ref` to test something other than the branch you selected. Use this before cutting a release.
+
+A `workflow_dispatch` workflow only appears in the Actions tab once its file is on the default branch, so a new one is invisible while its own pull request is open.
+
+### Sweettest and contention
+
+The sweettest job runs each test case in its own `cargo test` process and passes no thread count at all; see the leak note below for why. Nothing passes `--no-fail-fast` any more either: the per-case loop runs every case whatever the last one did, collects the names of those that failed, and exits non-zero at the end with the list. `fail-fast: false` on the matrix is separate and still live, and is what stops one red binary cancelling the others. These tests wait on real DHT gossip with a 15 second ceiling, so on a loaded machine they fail on the wait rather than on the code. During the v0.6.0-alpha.1 release the same suite went red under contention and green on a quiet machine at 57 passed, 0 failed.
+
+**Sweettest runs as one parallel job per test binary, and that is not premature optimisation.** It was first written as a single job, and the single job does not work. Run 34930626083 ran for 2h13m, passed 28 tests with zero failures, and was killed by `The runner has received a shutdown signal` with two binaries still to go, never reaching its own timeout. A suite that cannot deliver a verdict is not a check.
+
+The reason it is so slow on a runner is the machine, not the tests. A hosted runner has 4 cores against a typical 16 on a developer machine, every test constructs two in-process conductors, and the conductor is linked into the test binary rather than started from a prebuilt one, so the job pays 13m15s to compile 841 crates before a single test runs. The suite takes tens of minutes on a developer machine and hours here.
+
+The matrix trades runner count for wall clock: each leg compiles once and runs one binary, so the suite finishes in roughly the time of its slowest binary rather than the sum of them all. Exactly one leg saves the Rust cache, under a `shared-key` all of them restore from, because one multi-gigabyte cache entry per leg would exhaust the repository's quota. The individual legs report as `Sweettest (<target>)`; the single `Sweettest (Rust integration)` check aggregates them and is the one to require in branch protection.
+
+**Thread count is how this suite starves itself, and the runner said so first.** An early matrix run at `--test-threads 4` lost two legs to `The hosted runner lost communication with the server. Anything in your workflow that terminates the runner process, starves it for CPU/Memory, or blocks its network access can cause this error`, with every test they had executed passing. Each test constructs two or three in-process conductors, so 4 threads is 8 or more conductors on a 4-core runner. That is the starvation, and it also explains individual tests taking over ten minutes in CI against seconds locally: the legs were thrashing rather than working. CI now sidesteps thread count entirely by running one case per process.
+
+**Locally, run tests the way CI does: one case per process.** The old advice here, that 4 threads is right on a 16-core developer machine, is wrong: measured on a 16-core machine, `administration_progenitor` loses cases at that setting and at cargo's default, always to setup timeouts while installing an app rather than to anything the tests assert.
+
+**CI runs each test in its own `cargo test` process, which is a workaround for a real leak.** The suite leaks roughly 620MB per minute across the tests inside a single `cargo test` binary, so on a 16GB runner the two largest binaries exhaust memory and GitHub kills the runner before they finish. This was measured, not guessed: the job samples free memory every 30 seconds and the curve falls in a straight line from 13.6GB to 71MB while disk stays flat at 72G. Running one test per process hands that memory back at every test boundary, and drops the peak to a single test's two conductors. `cargo-nextest` does this natively and was tried first, but its list step could not load `libssl.so.3` from the Nix store, so the loop uses the toolchain that already works in this shell rather than a fetched binary plus an `LD_LIBRARY_PATH` workaround. The leak itself is [#265](https://github.com/happenings-community/requests-and-offers/issues/265) and is still open. Locally more memory hides the leak, but not the setup timeouts: run one case per process, per the paragraph above.
+
+**Adding a `[[test]]` target to `tests/sweettest/Cargo.toml` means adding it to the matrix too.** There is no globbing: a target missing from the matrix simply never runs in CI, silently.
+
+If a sweettest failure says "Consistency not reached", suspect the machine before the code, and re-run it alone.
+
+## Running the same checks locally
+
+```bash
+cd ui && bun run check      # svelte-check, also generates SvelteKit types
+cd ui && bun run test:unit  # 646 unit tests, no Nix needed
+cd ui && bun run lint       # expect the known backlog
+
+nix develop --command bun run build:happ   # what the zomes job does
+```
+
+`bun run check` runs `svelte-kit sync` first on purpose. That generates `ui/.svelte-kit/tsconfig.json`, which is gitignored, so on a fresh clone `svelte-check` would otherwise fail with "Cannot read file" before reaching any real type error.
+
+## Things worth knowing before changing these files
+
+- **`.github` is no longer blanket-ignored.** It was until September 2026, which silently untracked every workflow added after July 2025. Three paths are still ignored on purpose, each commented in `.gitignore`. Check `git status` shows your new workflow before assuming it is committed.
+- **`--frozen-lockfile` means the lockfile must match every manifest.** If you change any `package.json`, run `bun install` and commit `bun.lock` in the same commit. Avoid floating specs such as `"latest"`: they drift the lockfile on any contributor's install and then fail an unrelated pull request's frozen check. Never hand-edit `bun.lock`, and never resolve a conflict in it by hand: the file is generated, so take either side and re-run `bun install` to regenerate it. A hand-merged lockfile passes review and then fails `--frozen-lockfile` on a change nobody connects to it.
+- **Vendored tarballs are checked by hash before install.** bun checks a `file:` tarball against its `bun.lock` sha512 only on a cold cache: there a tampered `vendor/*.tgz` fails `--frozen-lockfile` with `IntegrityCheckFailed`, but with the original already cached, bun exits 0 and installs the cached bytes, so the result depends on cache state. The hash gate gives one answer whatever the cache holds, and an explicit failure naming the file before anything installs. The frontend job runs `sha256sum -c` against the `.sha256` file beside each tarball first, so replacing one means updating its `.sha256` in the same commit. See `vendor/README.md`.
+- **The zomes job installs no JavaScript.** `build:happ` is cargo plus `hc`, and `download-hrea` is a dependency-free bun script that checks the pinned sha256. Adding a `bun install` there couples a Rust job to the JS lockfile for no benefit.
+- **Nix comes from the public `holochain-ci` Cachix cache**, read-only, so no token is needed.
+- **Branch rules live in a ruleset, so the classic API lies about them.** `gh api repos/:owner/:repo/branches/dev/protection` returns 404 for a branch that is protected, because rulesets are not classic branch protection and never appear at that endpoint. Read `gh api repos/:owner/:repo/rules/branches/dev` for what actually applies to a branch, and `gh api repos/:owner/:repo/rulesets` for the rulesets themselves. The branch object's `protected: true` is the only honest signal the older endpoints give.
+
+## What CI still does not cover
+
+- **No check is required to merge.** `dev` is protected against deletion and force push by ruleset `2344243` and by nothing else, so a red check does not block a merge. Making one required is a repository setting, not a workflow line. See [Contributing](contributing.md#branch-protection).
+- **Nothing checks the desktop packaging path.** The wrapper's bundled conductor and the hApp's Holochain version are paired only at release time, which is how [#260](https://github.com/happenings-community/requests-and-offers/issues/260) reached a release. [#261](https://github.com/happenings-community/requests-and-offers/issues/261) carries the check for the 0.7 upgrade.

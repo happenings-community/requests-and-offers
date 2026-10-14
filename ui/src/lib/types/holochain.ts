@@ -206,7 +206,7 @@ export type CancellationInDHT = {
 export type ExchangeStatus =
   | 'Proposed'
   | 'Agreed'
-  | 'ProviderDelivered'
+  | 'OneSideDone'
   | 'Complete'
   | 'Reviewed'
   | 'Declined'

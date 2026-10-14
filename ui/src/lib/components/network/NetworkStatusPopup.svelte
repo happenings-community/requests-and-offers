@@ -9,8 +9,7 @@
   interface KangarooAPI {
     getConfig(): Promise<{
       bootstrapUrl?: string;
-      signalUrl?: string;
-      networkSeed?: string;
+      relayUrl?: string;
     }>;
   }
 
@@ -57,8 +56,7 @@
   // Network configuration state (will be populated dynamically)
   let networkConfig = $state({
     bootstrapUrl: 'Loading...',
-    signalUrl: 'Loading...',
-    networkSeed: 'Loading...',
+    relayUrl: 'Loading...',
     bootstrapStatus: 'checking' as BootstrapStatus
   });
 
@@ -97,84 +95,81 @@
 
       if (kangarooConfig) {
         networkConfig.bootstrapUrl = kangarooConfig.bootstrapUrl || 'Unknown';
-        networkConfig.signalUrl = kangarooConfig.signalUrl || 'Unknown';
-        networkConfig.networkSeed = kangarooConfig.networkSeed || 'Unknown';
+        networkConfig.relayUrl = kangarooConfig.relayUrl || 'Unknown';
         networkConfig.bootstrapStatus = 'unknown';
       } else {
         // No kangaroo config available - cannot determine actual bootstrap server
         networkConfig.bootstrapUrl = 'Not available';
-        networkConfig.signalUrl = 'Not available';
+        networkConfig.relayUrl = 'Not available';
         networkConfig.bootstrapStatus = 'unknown';
       }
     } catch (error) {
       networkConfig.bootstrapStatus = 'error';
       networkConfig.bootstrapUrl = 'Error';
-      networkConfig.signalUrl = 'Error';
+      networkConfig.relayUrl = 'Error';
       console.warn('Failed to fetch network config:', error);
     }
   }
 
-  function getTooltipLines(status: typeof finalConnectionStatus): string[] {
+  // The seed, DNA and role are read from the local conductor at startup, so they are
+  // known whatever the peer state. They matter most when no peers are visible: two
+  // members who cannot see each other compare them first.
+  function networkIdentityLines(): string[] {
+    if (!finalNetworkSeed) return [];
+    const lines = [`🌐 Network Seed: ${finalNetworkSeed}`];
+    if (finalNetworkInfo) {
+      lines.push(`🔬 DNA: ${finalNetworkInfo.dnaHash.slice(0, 8)}...`);
+      lines.push(`🎭 Role: ${finalNetworkInfo.roleName}`);
+    }
+    lines.push(`💡 Compare seeds with other users to verify network`);
+    return lines;
+  }
+
+  function networkServerLines(): string[] {
+    return [
+      `🌐 Bootstrap Server: ${networkConfig.bootstrapUrl}`,
+      `📡 Relay Server: ${networkConfig.relayUrl}`
+    ];
+  }
+
+  function statusLines(status: typeof finalConnectionStatus): string[] {
     const baseText = `Connection Status: ${getConnectionText(status)}`;
-    const lines: string[] = [];
 
     if (status === 'connected' && finalLastPingTime) {
-      const timeStr = finalLastPingTime.toLocaleTimeString();
-      lines.push(`${baseText} (verified at ${timeStr})`);
-      lines.push(
+      return [
+        `${baseText} (verified at ${finalLastPingTime.toLocaleTimeString()})`,
         peersKnown === null
           ? `Peers: ${peersReachable} reachable`
-          : `Peers: ${peersReachable} of ${peersKnown} reachable`
-      );
-      lines.push(`Conductor: ${conductorStatus}`);
-
-      // Add network seed information if available
-      if (finalNetworkSeed) {
-        lines.push(`🌐 Network Seed: ${finalNetworkSeed}`);
-        if (finalNetworkInfo) {
-          lines.push(`🔬 DNA: ${finalNetworkInfo.dnaHash.slice(0, 8)}...`);
-          lines.push(`🎭 Role: ${finalNetworkInfo.roleName}`);
-        }
-        lines.push(`💡 Compare seeds with other users to verify network`);
-      }
-
-      // Add network configuration
-      lines.push(`🌐 Bootstrap Server: ${networkConfig.bootstrapUrl}`);
-      lines.push(`📡 Signal Server: ${networkConfig.signalUrl}`);
-
-      return lines;
+          : `Peers: ${peersReachable} of ${peersKnown} reachable`,
+        `Conductor: ${conductorStatus}`
+      ];
     }
 
     if (status === 'alone') {
-      lines.push(`${baseText}`);
-      lines.push(`You can reach the network, but no other peers are online right now.`);
-      lines.push(`Conductor: ${conductorStatus}`);
-      return lines;
+      return [
+        baseText,
+        `You can reach the network, but no other peers are online right now.`,
+        `Conductor: ${conductorStatus}`
+      ];
     }
 
     if (status === 'offline') {
-      lines.push(`${baseText}`);
-      lines.push(`No route to the network. Your local data is still available.`);
-      lines.push(`Conductor: ${conductorStatus}`);
-      return lines;
+      return [
+        baseText,
+        `No route to the network. Your local data is still available.`,
+        `Conductor: ${conductorStatus}`
+      ];
     }
 
     if ((status === 'disconnected' || status === 'error') && finalPingError) {
-      lines.push(`${baseText} - ${finalPingError}`);
-
-      // Add network configuration even when disconnected
-      lines.push(`🌐 Bootstrap Server: ${networkConfig.bootstrapUrl}`);
-      lines.push(`📡 Signal Server: ${networkConfig.signalUrl}`);
-
-      return lines;
+      return [`${baseText} - ${finalPingError}`];
     }
 
-    // Add network configuration for checking status too
-    return [
-      baseText,
-      `🌐 Bootstrap Server: ${networkConfig.bootstrapUrl}`,
-      `📡 Signal Server: ${networkConfig.signalUrl}`
-    ];
+    return [baseText];
+  }
+
+  function getTooltipLines(status: typeof finalConnectionStatus): string[] {
+    return [...statusLines(status), ...networkIdentityLines(), ...networkServerLines()];
   }
 
   // Fetch network configuration when component mounts
@@ -211,29 +206,17 @@
           <span class="font-medium">🎭 Role:</span>
           <span class="ml-2">{line.split('Role: ')[1]}</span>
         </div>
-      {:else if line.includes('Config Network Seed:')}
-        <div class="text-sm">
-          <span class="font-medium">🌐 Config Network Seed:</span>
-          <span class="ml-2 break-all font-mono text-xs"
-            >{line.split('Config Network Seed: ')[1]}</span
-          >
-        </div>
       {:else if line.includes('Bootstrap Server:')}
         <div class="text-sm">
           <span class="font-medium">🌐 Bootstrap Server:</span>
           <span class="ml-2 break-all font-mono text-xs">{line.split('Bootstrap Server: ')[1]}</span
           >
         </div>
-      {:else if line.includes('Signal Server:')}
+      {:else if line.includes('Relay Server:')}
         <div class="text-sm">
-          <span class="font-medium">📡 Signal Server:</span>
-          <span class="ml-2 break-all font-mono text-xs">{line.split('Signal Server: ')[1]}</span>
+          <span class="font-medium">📡 Relay Server:</span>
+          <span class="ml-2 break-all font-mono text-xs">{line.split('Relay Server: ')[1]}</span>
         </div>
-        {#if networkConfig.signalUrl.includes('holostrap.holo.host') && networkConfig.bootstrapUrl.includes('bootstrap.holo.host')}
-          <div class="mt-1 text-xs text-warning-400">
-            ⚠️ Mismatch: Signal server different domain from bootstrap
-          </div>
-        {/if}
       {:else if line.includes('Tip:') || line.includes('Compare seeds')}
         <div class="text-info-300 mt-2 border-t border-surface-600 pt-2 text-sm">
           💡 {line.split('Tip: ')[1] || line.split('💡 ')[1] || line}

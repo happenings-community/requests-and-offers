@@ -1,7 +1,21 @@
 import { HreaServiceTag, HreaServiceLive } from '$lib/services/hrea.service';
+import {
+  MediumsOfExchangeServiceTag,
+  MediumsOfExchangeServiceLive
+} from '$lib/services/zomes/mediums-of-exchange.service';
 import { Effect as E, pipe, Schedule } from 'effect';
 import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
 import { storeEventBus } from '$lib/stores/storeEvents';
+import usersStore from '$lib/stores/users.store.svelte';
+import type { UIExchange } from '$lib/types/ui';
+import {
+  mapAgreementToHrea,
+  mapCompletionToEvent,
+  rnoAgreementRef,
+  type ResolvedParties,
+  type ResolvedSpecs,
+  setUnitRegistry
+} from '$lib/services/mappers/agreement-commitment.mapper';
 import { HreaError } from '$lib/errors';
 
 // Import standardized store helpers
@@ -10,7 +24,7 @@ import {
   createStandardEventEmitters,
   type LoadingStateSetter
 } from '$lib/utils/store-helpers';
-import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/hrea';
+import type { Agent, ResourceSpecification, Proposal, EconomicEvent, Intent, Agreement, Commitment } from '$lib/types/hrea';
 import type { ApolloClient, NormalizedCacheObject } from '@apollo/client/core';
 import type { UIUser, UIOrganization, UIServiceType, UIRequest, UIOffer } from '$lib/types/ui';
 import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
@@ -23,6 +37,13 @@ import {
   createProposalFromOffer as mapOfferToProposal,
   validateOfferMappingRequirements
 } from '$lib/services/mappers/offer-proposal.mapper';
+export type HreaAgreementRefs = {
+  agreementId: string;
+  primaryCommitmentId: string;
+  primaryRevisionId?: string;
+  reciprocalCommitmentId?: string;
+  reciprocalRevisionId?: string;
+};
 
 // ============================================================================
 // CONSTANTS
@@ -68,6 +89,7 @@ const intentEventEmitters = createStandardEventEmitters<Intent>('hrea-intent');
 
 export type HreaStore = {
   readonly userAgentMappings: ReadonlyMap<string, string>; // userHash -> agentId
+  readonly agreementMappings: ReadonlyMap<string, HreaAgreementRefs>; // rnoAgreementHash -> hREA ids
   readonly organizationAgentMappings: ReadonlyMap<string, string>; // organizationHash -> agentId
   readonly serviceTypeResourceSpecMappings: ReadonlyMap<string, string>; // serviceTypeHash -> resourceSpecId
   readonly mediumOfExchangeResourceSpecMappings: ReadonlyMap<string, string>; // mediumOfExchangeHash -> resourceSpecId
@@ -141,6 +163,8 @@ export type HreaStore = {
   readonly getMediumOfExchangeResourceSpecs: () => ResourceSpecification[];
   readonly createProposalFromRequest: (request: UIRequest) => E.Effect<Proposal | null, HreaError>;
   readonly createProposalFromOffer: (offer: UIOffer) => E.Effect<Proposal | null, HreaError>;
+  readonly createAgreementFromExchange: (exchange: UIExchange) => E.Effect<HreaAgreementRefs | null, HreaError>;
+  readonly recordCompletionEvent: (exchange: UIExchange) => E.Effect<EconomicEvent | null, HreaError>;
   readonly deleteProposalForRequest: (requestHash: string) => E.Effect<boolean, HreaError>;
   readonly deleteProposalForOffer: (offerHash: string) => E.Effect<boolean, HreaError>;
   readonly createRetroactiveProposalMappings: (
@@ -324,6 +348,8 @@ const createEventHandlers = (
   ) => E.Effect<boolean, HreaError>,
   createProposalFromRequest: (request: UIRequest) => E.Effect<Proposal | null, HreaError>,
   createProposalFromOffer: (offer: UIOffer) => E.Effect<Proposal | null, HreaError>,
+  createAgreementFromExchange: (exchange: UIExchange) => E.Effect<HreaAgreementRefs | null, HreaError>,
+  recordCompletionEvent: (exchange: UIExchange) => E.Effect<EconomicEvent | null, HreaError>,
   deleteProposalForRequest: (requestHash: string) => E.Effect<boolean, HreaError>,
   deleteProposalForOffer: (offerHash: string) => E.Effect<boolean, HreaError>,
   handleRequestUpdatedFn: (request: UIRequest) => E.Effect<Proposal | null, HreaError>,
@@ -470,6 +496,18 @@ const createEventHandlers = (
     );
   };
 
+  const handleExchangeAccepted = (exchange: UIExchange) => {
+    pipe(createAgreementFromExchange(exchange), E.runPromise).catch((err) =>
+      console.error('hREA Store: Failed to mirror accepted exchange:', err)
+    );
+  };
+
+  const handleExchangeCompleted = (exchange: UIExchange) => {
+    pipe(recordCompletionEvent(exchange), E.runPromise).catch((err) =>
+      console.error('hREA Store: Failed to mirror completion:', err)
+    );
+  };
+
   const handleOfferCreated = (offer: UIOffer) => {
     console.log('hREA Store: Offer created, auto-creating proposal:', offer.title);
     pipe(createProposalFromOffer(offer), E.runPromise).catch((err) =>
@@ -520,7 +558,9 @@ const createEventHandlers = (
     handleRequestDeleted,
     handleOfferDeleted,
     handleRequestUpdated,
-    handleOfferUpdated
+    handleOfferUpdated,
+    handleExchangeAccepted,
+    handleExchangeCompleted
   };
 };
 
@@ -542,11 +582,20 @@ const createEventSubscriptions = (
   handleRequestDeleted: (requestHash: string) => void,
   handleOfferDeleted: (offerHash: string) => void,
   handleRequestUpdated: (request: UIRequest) => void,
-  handleOfferUpdated: (offer: UIOffer) => void
+  handleOfferUpdated: (offer: UIOffer) => void,
+  handleExchangeAccepted: (exchange: UIExchange) => void,
+  handleExchangeCompleted: (exchange: UIExchange) => void
 ) => {
   const unsubscribeFunctions: Array<() => void> = [];
 
   // Subscribe to acceptance events to auto-create hREA entities
+  const unsubscribeExchangeAccepted = storeEventBus.on('exchange:accepted', (payload) => {
+    handleExchangeAccepted(payload.exchange);
+  });
+  const unsubscribeExchangeCompleted = storeEventBus.on('exchange:completed', (payload) => {
+    handleExchangeCompleted(payload.exchange);
+  });
+
   const unsubscribeUserAccepted = storeEventBus.on('user:accepted', (payload) => {
     const { user } = payload;
     handleUserAccepted(user);
@@ -651,7 +700,9 @@ const createEventSubscriptions = (
     unsubscribeRequestDeleted,
     unsubscribeOfferDeleted,
     unsubscribeRequestUpdated,
-    unsubscribeOfferUpdated
+    unsubscribeOfferUpdated,
+    unsubscribeExchangeAccepted,
+    unsubscribeExchangeCompleted
   );
 
   return {
@@ -690,15 +741,21 @@ const createEventSubscriptions = (
  *
  * @returns An Effect that creates an hREA store with mapping state and synchronization methods
  */
-export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
+export const createHreaStore = (): E.Effect<
+  HreaStore,
+  never,
+  HreaServiceTag | MediumsOfExchangeServiceTag
+> =>
   E.gen(function* () {
     const hreaService = yield* HreaServiceTag;
+    const mediumsOfExchangeService = yield* MediumsOfExchangeServiceTag;
 
     // ========================================================================
     // STATE INITIALIZATION
     // ========================================================================
     const state = $state({
       userAgentMappings: new Map<string, string>(), // userHash -> agentId
+      agreementMappings: new Map<string, HreaAgreementRefs>(),
       organizationAgentMappings: new Map<string, string>(), // organizationHash -> agentId
       serviceTypeResourceSpecMappings: new Map<string, string>(), // serviceTypeHash -> resourceSpecId
       mediumOfExchangeResourceSpecMappings: new Map<string, string>(), // mediumOfExchangeHash -> resourceSpecId
@@ -783,6 +840,18 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
             E.sync(() => {
               state.apolloClient = client as ApolloClient<NormalizedCacheObject>;
             })
+          ),
+          E.tap(() =>
+            // Forked: seeding must not sit inside the layout's 15s init timeout.
+            // A mirror racing the registry degrades that one quantity to prose.
+            E.forkDaemon(
+              pipe(
+                ensureUnits(),
+                E.catchAll((error) =>
+                  E.sync(() => console.warn('hREA Store: unit seeding failed', error))
+                )
+              )
+            )
           ),
           E.asVoid,
           E.mapError((error) => HreaError.fromError(error, ERROR_CONTEXTS.INITIALIZE))
@@ -1345,6 +1414,36 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
      * Creates mappings for existing users and organizations by finding matching agents via action hash references.
      * This handles the case where entities were created before hREA store was listening.
      */
+    const SEED_UNITS = [
+      { label: 'hours', symbol: 'h', omUnitIdentifier: 'hour' },
+      { label: 'days', symbol: 'd', omUnitIdentifier: 'day' },
+      { label: 'each', symbol: 'ea', omUnitIdentifier: 'one' }
+    ];
+
+    const ensureUnits = (): E.Effect<void, HreaError> =>
+      pipe(
+        hreaService.getUnits(),
+        E.flatMap((existing) =>
+          pipe(
+            E.forEach(
+              SEED_UNITS.filter((seed) => !existing.some((u) => u.label === seed.label)),
+              (seed) => hreaService.createUnit(seed)
+            ),
+            E.map((created) => {
+              const registry: Record<string, string> = {};
+              for (const unit of [...existing, ...created]) {
+                // Dedupe on read: first id per label wins.
+                if (!registry[unit.label]) registry[unit.label] = unit.id;
+              }
+              setUnitRegistry(registry);
+              console.log(
+                `hREA Store: unit registry ready - ${Object.keys(registry).length} labels`
+              );
+            })
+          )
+        )
+      );
+
     const createRetroactiveMappings = (
       users: UIUser[],
       organizations: UIOrganization[]
@@ -1656,30 +1755,39 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
     const syncMediumOfExchangeToResourceSpec = (
       mediumOfExchange: UIMediumOfExchange
     ): E.Effect<ResourceSpecification | null, HreaError> => {
-      const mediumOfExchangeHash = mediumOfExchange.original_action_hash?.toString();
-      if (!mediumOfExchangeHash) {
+      if (!mediumOfExchange.original_action_hash) {
         return E.succeed(null);
       }
-      const existingResourceSpec = findResourceSpecByActionHash(
-        state.resourceSpecifications,
-        mediumOfExchangeHash
-      );
-      if (existingResourceSpec) {
-        // For now, we don't have an update method specifically for medium of exchange
-        // We could add updateResourceSpecificationFromMediumOfExchange if needed
-        console.log(
-          'hREA Store: Found existing resource spec for medium of exchange, skipping update:',
-          mediumOfExchange.name
-        );
-        return E.succeed(existingResourceSpec);
-      } else {
-        // Create new resource specification (only if approved)
-        if (mediumOfExchange.status === 'approved') {
-          return createResourceSpecificationFromMediumOfExchange(mediumOfExchange);
-        } else {
+      // Identity is the DHT's answer: resolve to the chain root before any
+      // note is written or compared, so revision-fronted records (approval
+      // mints an update) cannot scatter the cross-DHT reference.
+      return pipe(
+        mediumsOfExchangeService.resolveToOriginal(mediumOfExchange.original_action_hash),
+        E.mapError((error) =>
+          HreaError.fromError(error, 'Failed to resolve medium of exchange chain root')
+        ),
+        E.flatMap((rootHash) => {
+          const resolved: UIMediumOfExchange = {
+            ...mediumOfExchange,
+            original_action_hash: rootHash
+          };
+          const existingResourceSpec = findResourceSpecByActionHash(
+            state.resourceSpecifications,
+            rootHash.toString()
+          );
+          if (existingResourceSpec) {
+            console.log(
+              'hREA Store: Found existing resource spec for medium of exchange, skipping update:',
+              resolved.name
+            );
+            return E.succeed(existingResourceSpec);
+          }
+          if (resolved.status === 'approved') {
+            return createResourceSpecificationFromMediumOfExchange(resolved);
+          }
           return E.succeed(null);
-        }
-      }
+        })
+      );
     };
 
     // ========================================================================
@@ -1743,7 +1851,13 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
           // 3. Find medium of exchange resource specification
           let mediumOfExchangeResourceSpec: ResourceSpecification | null = null;
           if (request.medium_of_exchange_hashes && request.medium_of_exchange_hashes.length > 0) {
-            const mediumOfExchangeHash = request.medium_of_exchange_hashes[0].toString();
+            const mediumRootHash = yield* pipe(
+              mediumsOfExchangeService.resolveToOriginal(request.medium_of_exchange_hashes[0]),
+              E.mapError((error) =>
+                HreaError.fromError(error, 'Failed to resolve medium of exchange chain root')
+              )
+            );
+            const mediumOfExchangeHash = mediumRootHash.toString();
             mediumOfExchangeResourceSpec =
               state.resourceSpecifications.find((spec) =>
                 spec.note?.includes(`ref:mediumOfExchange:${mediumOfExchangeHash}`)
@@ -1849,6 +1963,118 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       );
     };
 
+    const specIdByName = (name: string): string | undefined =>
+      state.resourceSpecifications.find((s) => s.name === name)?.id;
+
+    const agentIdForUserHash = (userHash: string): string | undefined => {
+      // Mapping map first (filled by retroactive passes), then the boot-loaded
+      // agents by their ref:user notes - same derivation the proposal path uses.
+      const mapped = state.userAgentMappings.get(userHash);
+      if (mapped) return mapped;
+      return findAgentByActionHash(state.agents, userHash, 'user')?.id;
+    };
+
+    const resolveParties = (exchange: UIExchange): ResolvedParties | null => {
+      const providerAgentId = agentIdForUserHash(exchange.agreement.provider.toString());
+      const receiverAgentId = agentIdForUserHash(exchange.agreement.receiver.toString());
+      return providerAgentId && receiverAgentId ? { providerAgentId, receiverAgentId } : null;
+    };
+
+    const resolveSpecs = (exchange: UIExchange): ResolvedSpecs => ({
+      primarySpecId: specIdByName(exchange.agreement.primary.resource_conforms_to),
+      reciprocalSpecId: specIdByName(exchange.agreement.medium)
+    });
+
+    /** One hREA Agreement and two Commitments for an accepted R&O agreement. Idempotent per R&O hash. */
+    const createAgreementFromExchange = (exchange: UIExchange): E.Effect<HreaAgreementRefs | null, HreaError> => {
+      const ref = rnoAgreementRef(exchange);
+      const existing = state.agreementMappings.get(ref);
+      if (existing) return E.succeed(existing);
+      let parties = resolveParties(exchange);
+      if (!parties) {
+        // Read-through on miss: boot-loaded state may predate DHT gossip of the
+        // counterparty's agent or spec. Refresh once from the DHT and retry
+        // before concluding the parties are unmirrorable.
+        return pipe(
+          E.all([getAllAgents(), getAllResourceSpecifications()]),
+          E.flatMap(() => {
+            parties = resolveParties(exchange);
+            if (!parties) {
+              console.warn('hREA Store: exchange parties have no hREA agents yet, not mirroring', ref);
+              return E.succeed(null);
+            }
+            return createAgreementFromExchange(exchange);
+          })
+        );
+      }
+      if (!parties) {
+        console.warn('hREA Store: exchange parties have no hREA agents yet, not mirroring', ref);
+        return E.succeed(null);
+      }
+      const mapped = mapAgreementToHrea(exchange, parties, resolveSpecs(exchange));
+      if (!mapped) return E.succeed(null);
+
+      return pipe(
+        hreaService.createAgreement(mapped.agreement),
+        E.flatMap((agreement) =>
+          pipe(
+            hreaService.createCommitment({ ...mapped.primary, clauseOf: agreement.id }),
+            E.flatMap(
+              (
+                primary
+              ): E.Effect<
+                { agreement: Agreement; primary: Commitment; reciprocal: Commitment | undefined },
+                HreaError
+              > =>
+              mapped.reciprocal
+                ? pipe(
+                    hreaService.createCommitment({ ...mapped.reciprocal, clauseOf: agreement.id }),
+                    E.map((reciprocal) => ({ agreement, primary, reciprocal }))
+                  )
+                : E.succeed({ agreement, primary, reciprocal: undefined })
+            )
+          )
+        ),
+        E.map(({ agreement, primary, reciprocal }) => {
+          const refs: HreaAgreementRefs = {
+            agreementId: agreement.id,
+            primaryCommitmentId: primary.id,
+            primaryRevisionId: primary.revisionId,
+            reciprocalCommitmentId: reciprocal?.id,
+            reciprocalRevisionId: reciprocal?.revisionId
+          };
+          state.agreementMappings.set(ref, refs);
+          console.log('hREA Store: mirrored exchange as agreement', agreement.id);
+          return refs;
+        })
+      );
+    };
+
+    /** The completing party's EconomicEvent, and its Commitment marked finished. */
+    const recordCompletionEvent = (exchange: UIExchange): E.Effect<EconomicEvent | null, HreaError> => {
+      const me = usersStore.currentUser?.original_action_hash?.toString();
+      if (!me) return E.succeed(null);
+      const side = me === exchange.agreement.provider.toString() ? 'provider' : 'receiver';
+      const parties = resolveParties(exchange);
+      if (!parties) return E.succeed(null);
+      const refs = state.agreementMappings.get(rnoAgreementRef(exchange));
+      const done = side === 'provider' ? exchange.provider_done : exchange.receiver_done;
+      const at = done?.created_at ?? Math.floor(Date.now() / 1000);
+      const input = mapCompletionToEvent(exchange, side, parties, resolveSpecs(exchange), refs?.agreementId, at);
+      if (!input) return E.succeed(null);
+
+      const revisionId = side === 'provider' ? refs?.primaryRevisionId : refs?.reciprocalRevisionId;
+      return pipe(
+        hreaService.createEconomicEvent(input),
+        E.tap((event) => E.sync(() => console.log('hREA Store: recorded completion event', event.id))),
+        E.tap(() =>
+          revisionId
+            ? pipe(hreaService.updateCommitment({ revisionId, finished: true }), E.ignore)
+            : E.void
+        )
+      );
+    };
+
     const createProposalFromOffer = (offer: UIOffer): E.Effect<Proposal | null, HreaError> => {
       const offerHash = offer.original_action_hash?.toString();
 
@@ -1904,7 +2130,13 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
           // 3. Find medium of exchange resource specification
           let mediumOfExchangeResourceSpec: ResourceSpecification | null = null;
           if (offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0) {
-            const mediumOfExchangeHash = offer.medium_of_exchange_hashes[0].toString();
+            const mediumRootHash = yield* pipe(
+              mediumsOfExchangeService.resolveToOriginal(offer.medium_of_exchange_hashes[0]),
+              E.mapError((error) =>
+                HreaError.fromError(error, 'Failed to resolve medium of exchange chain root')
+              )
+            );
+            const mediumOfExchangeHash = mediumRootHash.toString();
             mediumOfExchangeResourceSpec =
               state.resourceSpecifications.find((spec) =>
                 spec.note?.includes(`ref:mediumOfExchange:${mediumOfExchangeHash}`)
@@ -2271,7 +2503,9 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       handleRequestDeleted,
       handleOfferDeleted,
       handleRequestUpdated,
-      handleOfferUpdated
+      handleOfferUpdated,
+      handleExchangeAccepted,
+      handleExchangeCompleted
     } = createEventHandlers(
       createPersonFromUser,
       createOrganizationFromOrg,
@@ -2281,6 +2515,8 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       deleteResourceSpecificationForMediumOfExchange,
       createProposalFromRequest,
       createProposalFromOffer,
+      createAgreementFromExchange,
+      recordCompletionEvent,
       deleteProposalForRequest,
       deleteProposalForOffer,
       handleRequestUpdatedEffect,
@@ -2303,7 +2539,9 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       handleRequestDeleted,
       handleOfferDeleted,
       handleRequestUpdated,
-      handleOfferUpdated
+      handleOfferUpdated,
+      handleExchangeAccepted,
+      handleExchangeCompleted
     );
 
     const dispose = () => {
@@ -2324,6 +2562,9 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
     return {
       get userAgentMappings() {
         return state.userAgentMappings;
+      },
+      get agreementMappings() {
+        return state.agreementMappings;
       },
       get organizationAgentMappings() {
         return state.organizationAgentMappings;
@@ -2381,6 +2622,8 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
       createRetroactiveMediumOfExchangeResourceSpecMappings,
       createProposalFromRequest,
       createProposalFromOffer,
+      createAgreementFromExchange,
+      recordCompletionEvent,
       deleteProposalForRequest,
       deleteProposalForOffer,
       createRetroactiveProposalMappings,
@@ -2418,6 +2661,7 @@ export const createHreaStore = (): E.Effect<HreaStore, never, HreaServiceTag> =>
 
 const hreaStore: HreaStore = pipe(
   createHreaStore(),
+  E.provide(MediumsOfExchangeServiceLive),
   E.provide(HreaServiceLive),
   E.provide(HolochainClientServiceLive),
   E.runSync

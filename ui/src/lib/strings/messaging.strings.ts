@@ -12,17 +12,17 @@
  * **Style, from the wording file:** British spelling, sentence case, no em dashes, plain
  * words. Say what happened and what the person can do next.
  *
- * `{name}`, `{count}`, `{date}` and `{reason}` are filled in at runtime by `fill` below,
- * never by string concatenation at the call site, so a translator or Anita can move a
+ * `{name}`, `{count}`, `{date}` and `{reason}` are filled in at runtime by `fill`, never
+ * by string concatenation at the call site, so a translator or Anita can move a
  * placeholder within its sentence.
  */
 
-/** Replace every `{token}` with the matching value. Unknown tokens are left alone. */
-export function fill(template: string, values: Record<string, string | number>): string {
-  return template.replace(/\{(\w+)\}/g, (whole, key: string) =>
-    key in values ? String(values[key]) : whole
-  );
-}
+/**
+ * Re-exported from `./fill`, which the exchange strings share (H3). Importers here are
+ * unaffected; an exchange module imports it from `./fill` directly, because it may not
+ * reach a messaging module.
+ */
+export { fill } from './fill';
 
 export const MESSAGING_STRINGS = {
   hub: {
@@ -112,14 +112,17 @@ export const MESSAGING_STRINGS = {
     sharedByThem: '{name} shared a listing'
   },
 
+  /**
+   * The opening card's own lines. **View listing and Withdraw interest are not here:**
+   * they are the exchange's actions, so H3 moved them to `EXCHANGE_STRINGS.interest`,
+   * which the cards read.
+   */
   card: {
     interest: {
       youInOffer: "You showed interest in {name}'s offer",
       youInRequest: "You showed interest in {name}'s request",
       theyInYourOffer: '{name} showed interest in your offer',
-      theyInYourRequest: '{name} showed interest in your request',
-      withdraw: 'Withdraw interest',
-      view: 'View listing'
+      theyInYourRequest: '{name} showed interest in your request'
     }
   },
 
@@ -215,25 +218,23 @@ export const MESSAGING_STRINGS = {
     proposeOffer: 'Propose from this offer'
   },
 
+  /**
+   * What is left here is messaging's own: a way into the conversation, and a way back to
+   * it. Show interest, You're interested and the three endings after publishing went to
+   * `EXCHANGE_STRINGS.listing` in H3.
+   *
+   * **`goToChat` stays**, with `hub.unread` and `exchanges.goToChat`: H4 replaces all
+   * three with one component that says Go to chat with a count when messaging is present
+   * and offers Contact when it is absent. Moving them in H3 would move them twice.
+   */
   listing: {
-    showInterest: 'Show interest',
-    interestShown: "You're interested",
     goToChat: 'Go to chat',
     /**
      * Shown after publishing a listing that was started from a conversation, so the
      * member can get back to what they were doing. A link rather than an automatic jump:
      * they may want to check the listing they just posted first.
      */
-    backToConversation: 'Back to your conversation with {name}',
-    /**
-     * **Two endings, because there are two ways in.** Published from inside a proposal,
-     * the listing is a step in that proposal, so the way on is back to it with the new
-     * listing as the reciprocal side. Published from the picker, it is a thing to tell
-     * somebody about, so the way on is to share it. Neither happens by itself.
-     */
-    continueProposal: 'Continue your proposal',
-    shareWith: 'Share it with {name}',
-    shareFailed: 'That could not be shared. Your listing is published; try sharing again.'
+    backToConversation: 'Back to your conversation with {name}'
   },
 
   exchanges: {
@@ -253,17 +254,6 @@ export const MESSAGING_STRINGS = {
     completed: 'Completed',
     goToChat: 'Go to chat',
     open: 'Open'
-  },
-
-  interested: {
-    title: "Listings you're interested in",
-    intro:
-      'Showing interest opens a conversation with the listing’s author and lets either of you propose an exchange from it. It works as your saved listings too.',
-    since: 'Interested since {date}',
-    count: '{count} members interested',
-    noProposal: 'No proposal yet',
-    archived: 'Archived by its author',
-    empty: 'When you show interest in a listing, it’s saved here.'
   },
 
   block: {

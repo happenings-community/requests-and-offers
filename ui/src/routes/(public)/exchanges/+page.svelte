@@ -3,7 +3,7 @@
   import { useExchangesManagement } from '$lib/composables/domain/exchanges/useExchangesManagement.svelte';
   import messagingStore from '$lib/stores/messaging.store.svelte';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
-  import InterestedIn from '$lib/components/messaging/InterestedIn.svelte';
+  import InterestedIn from '$lib/components/exchanges/InterestedIn.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { threadKeyOf } from '$lib/utils/messaging-threads';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';

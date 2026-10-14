@@ -19,7 +19,7 @@
   import ListingInterest from '$lib/components/exchanges/ListingInterest.svelte';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
-  import ShowInterestButton from '$lib/components/messaging/ShowInterestButton.svelte';
+  import ShowInterestButton from '$lib/components/exchanges/ShowInterestButton.svelte';
   import { paths } from '$lib/paths';
 
   const toastStore = getToastStore();

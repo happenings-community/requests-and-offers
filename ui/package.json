@@ -47,7 +47,7 @@
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "@valueflows/vf-graphql": "^0.9.1-alpha.6",
-    "@valueflows/vf-graphql-holochain": "^0.600.0-dev.0",
+    "@valueflows/vf-graphql-holochain": "file:../vendor/valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz",
     "autoprefixer": "10.4.16",
     "bestzip": "^2.2.1",
     "cross-env": "^7.0.3",

@@ -5,7 +5,6 @@
   import { runEffect } from '$lib/utils/effect';
   import { reasonOf } from '$lib/utils/error-shape';
   import { EXCHANGE_STRINGS as S } from '$lib/strings/exchanges.strings';
-  import ReachPerson from './ReachPerson.svelte';
   import type { ListingType } from '$lib/types/holochain';
 
   type Props = {
@@ -65,8 +64,12 @@
 {#if !mine && author}
   <div class="flex flex-wrap items-center gap-2">
     {#if already}
+      <!--
+        The badge is the whole of it. This button is only ever shown on a listing card
+        inside a conversation, so a link to that conversation would point at the page the
+        member is already reading.
+      -->
       <span class="variant-soft-success badge">{S.listing.interestShown}</span>
-      <ReachPerson person={author} listingType={listingType === 'Offer' ? 'offer' : 'request'} />
     {:else}
       <button
         type="button"

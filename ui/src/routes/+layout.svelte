@@ -6,6 +6,13 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import hc from '$lib/services/HolochainClientService.svelte';
   import messagingPresence from '$lib/services/messagingPresence.svelte';
+  // The layout is the one place that may see both sides of the seam, which is why the
+  // extension points are plugged in here and nowhere else (brief H4).
+  import { setReachPerson } from '$lib/extensions/reach-person';
+  import { setUnreadCount } from '$lib/extensions/unread-count';
+  import GoToChat from '$lib/components/messaging/GoToChat.svelte';
+  import messagingStore from '$lib/stores/messaging.store.svelte';
+  import { unopenedConversations } from '$lib/utils/messaging-threads';
   import { initializeHotReload } from '@theweave/api';
   import weaveStore from '$lib/stores/weave.store.svelte';
   import {
@@ -122,6 +129,43 @@
     },
     networkSeed: () => networkSeed,
     networkInfo: () => networkInfo
+  });
+
+  /**
+   * Plug messaging into the exchange pages and the nav bar (R121, brief H4).
+   *
+   * **Providers, not components**, because of when each answer is known: `setContext` runs
+   * now, while this layout initialises, and whether this network has messaging is read from
+   * the DNA a moment later in step 3. Both are read at render time instead, so one plug at
+   * init still answers correctly once the DNA has been read, and the pages re-render when
+   * it does.
+   *
+   * `isAbsent` is false until the DNA says otherwise, so a page that renders before step 3
+   * shows Go to chat rather than hiding it. A fault leaves it there too, which is the right
+   * way round: a chat link that fails is better than a network losing its messaging.
+   */
+  setReachPerson(() => (messagingPresence.isAbsent ? undefined : GoToChat));
+  setUnreadCount(() =>
+    messagingPresence.isAbsent ? undefined : unopenedConversations(messagingStore.threads)
+  );
+
+  /**
+   * Keep the plugged-in count fresh, and only while there is messaging to count.
+   *
+   * This poll was the nav bar's, riding alongside its exchanges refresh. It belongs on this
+   * side of the seam now: the nav bar renders a number and owns no messaging timing, and an
+   * exchange page renders Go to chat without loading anything itself. Same fifteen seconds
+   * as before, and #51 still replaces it with a signal.
+   *
+   * Skipped entirely on a network without messaging, so an absent network makes no
+   * messaging calls at all — which is what makes the absent-mode hand test honest.
+   */
+  $effect(() => {
+    if (messagingPresence.isAbsent || !usersStore.currentUser) return;
+    const refresh = () => runEffect(messagingStore.loadConversations()).catch(() => {});
+    void refresh();
+    const interval = setInterval(refresh, 15000);
+    return () => clearInterval(interval);
   });
 
   // Step 1: Connect to Holochain with retry logic (exponential backoff, 3 attempts, 10s timeout)

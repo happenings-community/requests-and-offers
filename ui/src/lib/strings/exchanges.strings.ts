@@ -48,6 +48,20 @@ export const EXCHANGE_STRINGS = {
     withdraw: 'Withdraw interest'
   },
 
+  /**
+   * Reaching the other person, whatever this network is (R121, R122).
+   *
+   * **The formal half only.** Go to chat and its count are messaging's wording and live in
+   * `messaging.strings.ts`, said by the component messaging plugs in. What is here is what
+   * a network without messaging shows instead: the contact details on their profile, which
+   * is where R78 left them.
+   */
+  reach: {
+    contact: 'Contact',
+    contactNamed: 'Contact {name}',
+    noContactDetails: 'No contact details on their profile.'
+  },
+
   /** The Interested in tab on My exchanges. */
   interested: {
     title: "Listings you're interested in",

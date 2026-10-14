@@ -1,17 +1,12 @@
 <script lang="ts">
-  import { paths } from '$lib/paths';
   import { encodeHashToBase64, type ActionHash } from '@holochain/client';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import offersStore from '$lib/stores/offers.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
-  import messagingStore from '$lib/stores/messaging.store.svelte';
   import { runEffect } from '$lib/utils/effect';
-  import { threadKeyOf } from '$lib/utils/messaging-threads';
   import { EXCHANGE_STRINGS as S, fill } from '$lib/strings/exchanges.strings';
-  // The unread count and Go to chat are messaging's wording, and H4 takes both over with
-  // the one component for reaching the other person. It removes them from here.
-  import { MESSAGING_STRINGS as M } from '$lib/strings/messaging.strings';
+  import ReachPerson from './ReachPerson.svelte';
   import { statusLabel } from '$lib/utils/exchange-ui';
   import { ListingStatus } from '$lib/types/holochain';
   import type { UIInterest } from '$lib/types/ui';
@@ -62,9 +57,6 @@
     exchangesStore.exchanges.find(
       (e) => encodeHashToBase64(e.agreement.listing) === encodeHashToBase64(listing)
     );
-
-  const unreadWith = (author: ActionHash | undefined) =>
-    author ? (messagingStore.threads.find((t) => t.key === threadKeyOf(author))?.unread ?? 0) : 0;
 
   const since = (at: number | undefined) =>
     at
@@ -119,16 +111,11 @@
             {#if exchange}{statusLabel(exchange)}{:else}{S.interested.noProposal}{/if}
           </p>
           <div class="flex flex-wrap items-center gap-2">
-            {#if row.author}
-              <a class="variant-ghost btn btn-sm" href={paths.conversation(row.author)}
-                >{M.exchanges.goToChat}</a
-              >
-              {#if unreadWith(row.author) > 0}
-                <span class="variant-filled-primary badge"
-                  >{fill(M.hub.unread, { count: unreadWith(row.author) })}</span
-                >
-              {/if}
-            {/if}
+            <ReachPerson
+              person={row.author}
+              listingType={row.interest.listing_type === 'Offer' ? 'offer' : 'request'}
+              listingTitle={row.title}
+            />
             <a
               class="variant-ghost btn btn-sm"
               href="/{row.interest.listing_type === 'Offer'

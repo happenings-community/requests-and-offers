@@ -19,6 +19,7 @@ const REACH_PERSON = 'src/lib/extensions/reach-person.ts';
 const UNREAD_COUNT = 'src/lib/extensions/unread-count.ts';
 const GO_TO_CHAT = 'src/lib/components/messaging/GoToChat.svelte';
 const SHARE_LISTING = 'src/lib/extensions/share-listing.ts';
+const BACK_TO_CHAT = 'src/lib/extensions/back-to-chat.ts';
 const SHARE_COMPONENT = 'src/lib/components/messaging/ShareListing.svelte';
 const EXCHANGE_SIDE = 'src/lib/components/exchanges/ReachPerson.svelte';
 const NAV_BAR = 'src/lib/components/shared/NavBar.svelte';
@@ -31,14 +32,18 @@ describe('the extension points belong to neither side', () => {
    * or import the messaging store in `unread-count.ts` to compute the number there. Either
    * one puts the whole feature in the import graph of every page that asks.
    */
-  it.each([REACH_PERSON, UNREAD_COUNT, SHARE_LISTING])('%s reaches no messaging module', (file) => {
-    expect(messagingReachedFrom(file)).toEqual([]);
-  });
+  it.each([REACH_PERSON, UNREAD_COUNT, SHARE_LISTING, BACK_TO_CHAT])(
+    '%s reaches no messaging module',
+    (file) => {
+      expect(messagingReachedFrom(file)).toEqual([]);
+    }
+  );
 
   it('and is not itself counted as messaging, despite what it carries', () => {
     expect(isMessaging(REACH_PERSON)).toBe(false);
     expect(isMessaging(UNREAD_COUNT)).toBe(false);
     expect(isMessaging(SHARE_LISTING)).toBe(false);
+    expect(isMessaging(BACK_TO_CHAT)).toBe(false);
   });
 
   /** The components messaging supplies are messaging, and stay on that list. */
@@ -83,7 +88,7 @@ describe('the extension points are what keep rule 2 true', () => {
    * badge a question reaches the store, the service and the zome behind it — the nav bar
    * included, without a line of the nav bar changing.
    */
-  it.each([REACH_PERSON, UNREAD_COUNT, SHARE_LISTING])(
+  it.each([REACH_PERSON, UNREAD_COUNT, SHARE_LISTING, BACK_TO_CHAT])(
     '%s stays clean, so anything that reaches it stays clean',
     (file) => {
       expect(messagingReachedFrom(file)).toEqual([]);
@@ -144,5 +149,6 @@ describe('the layout is where the two sides meet', () => {
     expect(reached).toContain(REACH_PERSON);
     expect(reached).toContain(UNREAD_COUNT);
     expect(reached).toContain(SHARE_LISTING);
+    expect(reached).toContain(BACK_TO_CHAT);
   });
 });

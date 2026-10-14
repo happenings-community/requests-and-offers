@@ -229,10 +229,25 @@ describe('the exchange page offers the chat when it was not reached from one', (
     expect(chat).toContain('paths.conversation(person)');
   });
 
-  it('Back is always there, and carries the paired wording', () => {
+  it('Back is always there, and the page decides which one it is', () => {
     expect(source).toContain('routeBack(readOrigin(page.url), paths.exchanges())');
     expect(source).toContain("back.wording === 'conversation'");
-    expect(source).toContain('S.listing.backToConversation');
+  });
+
+  /**
+   * **The page decides where it came from; it does not say it.** Naming the person's
+   * conversation is one sentence, written in one place, and a page with no other business
+   * with conversations asks for it. So the page is checked for the decision and that
+   * component for the words.
+   *
+   * **To make this go red:** write the sentence out on the page again, from the messaging
+   * strings, which is what it did before.
+   */
+  it('and the sentence about the conversation is written in one place', () => {
+    expect(source, 'not on the page').not.toContain('backToConversation');
+    const link = readFileSync('src/lib/components/messaging/BackToConversation.svelte', 'utf8');
+    expect(link).toContain('S.listing.backToConversation');
+    expect(link).toContain('paths.conversation(counterparty)');
   });
 });
 

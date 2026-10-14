@@ -11,8 +11,10 @@
   import { setReachPerson } from '$lib/extensions/reach-person';
   import { setUnreadCount } from '$lib/extensions/unread-count';
   import { setShareListing } from '$lib/extensions/share-listing';
+  import { setBackToChat } from '$lib/extensions/back-to-chat';
   import GoToChat from '$lib/components/messaging/GoToChat.svelte';
   import ShareListing from '$lib/components/messaging/ShareListing.svelte';
+  import BackToConversation from '$lib/components/messaging/BackToConversation.svelte';
   import messagingStore from '$lib/stores/messaging.store.svelte';
   import { unopenedConversations } from '$lib/utils/messaging-threads';
   import { initializeHotReload } from '@theweave/api';
@@ -162,6 +164,7 @@
     return unopenedConversations(messagingStore.threads);
   });
   setShareListing(() => (messagingPresence.isAbsent ? undefined : ShareListing));
+  setBackToChat(() => (messagingPresence.isAbsent ? undefined : BackToConversation));
 
   /**
    * Keep the plugged-in count fresh, and only while there is messaging to count.

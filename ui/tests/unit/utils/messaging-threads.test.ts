@@ -12,6 +12,7 @@ import { encodeHashToBase64 } from '@holochain/client';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
+import { guestReason } from '$lib/utils/error-shape';
 import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
 import type { ActionHash, AgentPubKey } from '@holochain/client';
 import type { AgreementInDHT, ExchangeStatus, ExchangeTerm } from '$lib/types/holochain';
@@ -25,7 +26,6 @@ import {
   bytesLeft,
   classifySendFailure,
   contentBytes,
-  guestReason,
   isDevicesNotFound,
   isPersonal,
   isTooLong,

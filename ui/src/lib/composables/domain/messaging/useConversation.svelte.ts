@@ -2,10 +2,10 @@ import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holo
 import messagingStore, { type OutboxItem } from '$lib/stores/messaging.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
 import exchangesStore from '$lib/stores/exchanges.store.svelte';
+import { reasonOf } from '$lib/utils/error-shape';
 import { runEffect } from '$lib/utils/effect';
 import {
   buildTimeline,
-  reasonOf,
   proposableFrom,
   threadKeyOf,
   type TimelineItem,

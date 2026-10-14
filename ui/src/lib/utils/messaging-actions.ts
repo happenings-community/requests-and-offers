@@ -1,4 +1,4 @@
-import { reasonOf } from '$lib/utils/messaging-threads';
+import { reasonOf } from '$lib/utils/error-shape';
 
 /**
  * Sequences where the order of two effects is the rule, not an implementation detail.
@@ -9,9 +9,7 @@ import { reasonOf } from '$lib/utils/messaging-threads';
  */
 
 /** What `showInterestAndOpen` reports back, so a caller can show the right thing. */
-export type ShowInterestOutcome =
-  | { ok: true }
-  | { ok: false; reason: string };
+export type ShowInterestOutcome = { ok: true } | { ok: false; reason: string };
 
 /**
  * Record an interest, and only then open the conversation.

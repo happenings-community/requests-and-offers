@@ -1,5 +1,5 @@
 import { Data } from 'effect';
-import { reasonOf } from '$lib/utils/messaging-threads';
+import { reasonOf } from '$lib/utils/error-shape';
 
 /**
  * Centralised error type for the Messaging domain.

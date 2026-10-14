@@ -91,6 +91,23 @@ describe('reaching someone when there is no conversation to offer', () => {
     expect(retry.getAttribute('title')).toBe('Try again');
   });
 
+  /**
+   * An alert is read out whole the moment it appears, so it holds the reason and nothing
+   * else. With the button inside it, a screen reader announced the button's label as part
+   * of the fault.
+   *
+   * **To make this go red:** put the button back inside the alert.
+   */
+  it('announces only the reason, with the button beside the alert rather than in it', async () => {
+    getUserByActionHash.mockRejectedValue(new Error('conductor unavailable'));
+    render(ReachPerson, { props: { person: PERSON } });
+
+    const said = await screen.findByRole('alert');
+    const retry = await screen.findByTestId('contact-retry');
+    expect(said.contains(retry), 'the button is not part of what is announced').toBe(false);
+    expect(said.textContent).not.toContain('Try again');
+  });
+
   it('reads nothing at all when there is nobody to reach', () => {
     render(ReachPerson, { props: { person: undefined } });
     expect(getUserByActionHash).not.toHaveBeenCalled();

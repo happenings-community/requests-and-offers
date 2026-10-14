@@ -107,8 +107,14 @@
     <Reach {person} />
   {:else if looked}
     {#if failed}
-      <p class="flex items-center gap-2 text-sm text-error-700 dark:text-error-300" role="alert">
-        {fill(S.reach.contactUnread, { reason: failed })}
+      <!--
+        The alert holds the reason alone, because an alert is read out whole as it appears;
+        the button sits beside it so it is not announced as part of the fault.
+      -->
+      <div class="flex items-center gap-2">
+        <p class="text-sm text-error-700 dark:text-error-300" role="alert">
+          {fill(S.reach.contactUnread, { reason: failed })}
+        </p>
         <button
           type="button"
           class="variant-ghost btn-icon btn-icon-sm"
@@ -119,7 +125,7 @@
         >
           ↻
         </button>
-      </p>
+      </div>
     {:else if reachable}
       <button
         type="button"

@@ -32,10 +32,25 @@ export interface UseApprovalWatchOptions {
 
 export function useApprovalWatch({ onAccepted }: UseApprovalWatchOptions) {
   let settled = false;
+  let stopWatching: (() => void) | null = null;
+
+  /** Stops the poll and the focus listener. Safe to call more than once. */
+  function stop(): void {
+    settled = true;
+    stopWatching?.();
+    stopWatching = null;
+  }
 
   async function check(): Promise<void> {
+    if (settled) return;
     const user = usersStore.currentUser;
-    if (settled || !user?.original_action_hash || user.status?.status_type !== 'pending') return;
+    // The profile may still be loading at start-up: wait for it.
+    if (!user?.original_action_hash || !user.status) return;
+    // A member who is not pending never needs watching; nothing in the app returns them to pending.
+    if (user.status.status_type !== 'pending') {
+      stop();
+      return;
+    }
     try {
       const latest = await runEffect(
         administrationStore.getLatestStatusForEntity(
@@ -45,11 +60,11 @@ export function useApprovalWatch({ onAccepted }: UseApprovalWatchOptions) {
       );
       const change = approvalChange(user.status?.status_type, latest?.status_type);
       if (change === 'accepted') {
-        settled = true;
+        stop();
         onAccepted();
       } else if (change === 'left-pending') {
         // Rejected or suspended: refresh so the profile guards show the right screen.
-        settled = true;
+        stop();
         await runEffect(usersStore.refreshCurrentUser());
       }
     } catch {
@@ -59,15 +74,23 @@ export function useApprovalWatch({ onAccepted }: UseApprovalWatchOptions) {
 
   /** Starts watching; returns the function that stops it. */
   function start(): () => void {
-    check();
+    if (settled || stopWatching) return stop;
     const interval = setInterval(check, APPROVAL_POLL_MS);
     const onFocus = () => check();
     window.addEventListener('focus', onFocus);
-    return () => {
+    stopWatching = () => {
       clearInterval(interval);
       window.removeEventListener('focus', onFocus);
     };
+    check();
+    return stop;
   }
 
-  return { check, start };
+  return {
+    check,
+    start,
+    get watching() {
+      return stopWatching !== null;
+    }
+  };
 }

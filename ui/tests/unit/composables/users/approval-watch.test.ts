@@ -97,4 +97,54 @@ describe('useApprovalWatch', () => {
     await useApprovalWatch({ onAccepted }).check();
     expect(onAccepted).not.toHaveBeenCalled();
   });
+
+  it('stops polling once the member is accepted', async () => {
+    vi.useFakeTimers();
+    try {
+      const onAccepted = vi.fn();
+      const watch = useApprovalWatch({ onAccepted });
+      state.latest = { status_type: 'pending' };
+      watch.start();
+      expect(watch.watching).toBe(true);
+      state.latest = { status_type: 'accepted' };
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(onAccepted).toHaveBeenCalledTimes(1);
+      expect(watch.watching).toBe(false);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stops straight away for a member who is not pending', async () => {
+    vi.useFakeTimers();
+    try {
+      state.currentUser = { ...pendingUser(), status: { status_type: 'accepted' } };
+      const watch = useApprovalWatch({ onAccepted: vi.fn() });
+      watch.start();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(watch.watching).toBe(false);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps waiting while the profile is still loading', async () => {
+    vi.useFakeTimers();
+    try {
+      state.currentUser = null;
+      const watch = useApprovalWatch({ onAccepted: vi.fn() });
+      const stop = watch.start();
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(watch.watching).toBe(true);
+      // A second start must not add a second timer.
+      watch.start();
+      expect(vi.getTimerCount()).toBe(1);
+      stop();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

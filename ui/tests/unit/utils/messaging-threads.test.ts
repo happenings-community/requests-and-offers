@@ -717,6 +717,21 @@ describe('showsAsAgreement, and what a proposal says happened to it', () => {
     expect(proposalOutcome(declined)).toBe('declined');
   });
 
+  /**
+   * A refusal stays a refusal. Either party may cancel at any time, so a cancellation can
+   * land on a proposal that was already declined; the card still says it was declined, and
+   * the formal pages now say the same, because both read one derivation of the record.
+   */
+  it('still says declined when a cancellation lands on a proposal already refused', () => {
+    const both = exchange({
+      status: 'Cancelled',
+      response: { accepted: false, note: 'no' },
+      cancellation: { note: 'tidying up' }
+    });
+    expect(showsAsAgreement(both), 'it never became an agreement').toBe(false);
+    expect(proposalOutcome(both)).toBe('declined');
+  });
+
   it('an unanswered proposal is open, and shows as a card', () => {
     const open = exchange({ status: 'Proposed' });
     expect(showsAsAgreement(open)).toBe(false);

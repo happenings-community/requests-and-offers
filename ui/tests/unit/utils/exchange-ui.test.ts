@@ -12,12 +12,13 @@ import type { ActionHash } from '@holochain/client';
 import type { AgreementInDHT, ExchangeStatus, ExchangeTerm } from '$lib/types/holochain';
 import type { UIExchange } from '$lib/types/ui';
 import {
-  EXCHANGE_STATUS_LABEL,
-  EXCHANGE_TABS,
+  EXCHANGE_STATE_LABEL,
+  TAB_OF_STATE,
   actionLabel,
   awaitingMe,
   counterpartyOf,
   doneBy,
+  exchangeState,
   exchangeStatusVariant,
   formatWhen,
   otherRole,
@@ -244,7 +245,7 @@ describe('exchange-ui', () => {
     it('lands every status in exactly one tab', () => {
       for (const status of ALL_STATUSES) {
         const e = exchange({ status, response: accepted });
-        expect(Object.keys(EXCHANGE_TABS), status).toContain(tabOf(e));
+        expect(Object.values(TAB_OF_STATE), status).toContain(tabOf(e));
       }
     });
   });
@@ -252,14 +253,18 @@ describe('exchange-ui', () => {
   describe('statusLabel', () => {
     it('calls a cancellation before any answer a withdrawal', () => {
       expect(statusLabel(exchange({ status: 'Cancelled' }))).toBe('Withdrawn');
-      expect(statusLabel(exchange({ status: 'Cancelled', response: declined }))).toBe('Cancelled');
+      expect(
+        statusLabel(exchange({ status: 'Cancelled', response: accepted })),
+        'agreed, then stopped'
+      ).toBe('Cancelled');
     });
 
-    it('has a label for every status', () => {
+    it('has a label for every status, and it is the label of the state it reads as', () => {
       for (const status of ALL_STATUSES) {
-        const label = statusLabel(exchange({ status, response: accepted }));
+        const e = exchange({ status, response: accepted });
+        const label = statusLabel(e);
         expect(label, status).toBeTruthy();
-        expect(label, status).toBe(EXCHANGE_STATUS_LABEL[status]);
+        expect(label, status).toBe(EXCHANGE_STATE_LABEL[exchangeState(e)]);
       }
     });
   });
@@ -402,5 +407,81 @@ describe('reciprocalTermFor', () => {
         returnService: '__none__'
       }).resource_conforms_to
     ).toBe('');
+  });
+});
+
+/**
+ * **One reading of the record, so four questions cannot disagree about it.**
+ *
+ * The label on a card, the group it sits in, whose turn it is and whether a conversation
+ * shows it as an agreement are four readings of one fact. Each used to read the status
+ * for itself, and two of them had to compensate for a status that cannot say
+ * "withdrawn": one asked `Cancelled && !response`, another asked `response.accepted`.
+ * Two spellings of the same question in one codebase is how they drift apart.
+ */
+describe('exchangeState, the record read once', () => {
+  it('names the state for every status the zome can answer', () => {
+    expect(exchangeState(exchange({ status: 'Proposed' }))).toBe('proposed');
+    expect(exchangeState(exchange({ status: 'Declined', response: declined }))).toBe('declined');
+    expect(exchangeState(exchange({ status: 'Agreed', response: accepted }))).toBe('agreed');
+    expect(exchangeState(exchange({ status: 'OneSideDone', response: accepted }))).toBe(
+      'partlyDone'
+    );
+    expect(exchangeState(exchange({ status: 'Complete', response: accepted }))).toBe(
+      'awaitingReviews'
+    );
+    expect(exchangeState(exchange({ status: 'Reviewed', response: accepted }))).toBe('reviewed');
+  });
+
+  /**
+   * **To make this go red:** return `'cancelled'` for every `Cancelled` exchange. A
+   * proposal taken back before anyone answered reads as an agreement that was stopped,
+   * which is the claim Sam saw announced to both people.
+   */
+  it('tells a withdrawal from a cancellation by the response, not the status', () => {
+    expect(exchangeState(exchange({ status: 'Cancelled' })), 'nobody answered it').toBe(
+      'withdrawn'
+    );
+    expect(
+      exchangeState(exchange({ status: 'Cancelled', response: accepted })),
+      'it was agreed, then stopped'
+    ).toBe('cancelled');
+  });
+
+  /**
+   * A refusal stays a refusal. Either party may cancel at any time, so a cancellation can
+   * land on a proposal that was already declined, and the decline is what happened to it.
+   */
+  it('keeps a declined proposal declined when a cancellation lands on top of it', () => {
+    const e = exchange({ status: 'Cancelled', response: declined });
+    expect(exchangeState(e)).toBe('declined');
+    expect(statusLabel(e), 'and the label follows the state').toBe('Declined');
+  });
+
+  it('has a label and exactly one tab for every state, with nothing left unplaced', () => {
+    for (const state of Object.keys(
+      EXCHANGE_STATE_LABEL
+    ) as (keyof typeof EXCHANGE_STATE_LABEL)[]) {
+      expect(EXCHANGE_STATE_LABEL[state], state).toBeTruthy();
+      expect(['proposals', 'active', 'completed'], state).toContain(TAB_OF_STATE[state]);
+    }
+  });
+
+  /**
+   * The point of the whole change: the four readers answer from the same derivation, so a
+   * withdrawal reads as one thing everywhere it appears.
+   */
+  it('reads a withdrawal the same way in the label, the tab, the turn and the card', () => {
+    const withdrawn = exchange({
+      status: 'Cancelled',
+      cancellation: { agreement: hash(9), note: '', created_at: 1 }
+    });
+    expect(exchangeState(withdrawn)).toBe('withdrawn');
+    expect(statusLabel(withdrawn)).toBe('Withdrawn');
+    expect(tabOf(withdrawn), 'it never became an exchange').toBe('proposals');
+    expect(turnOf(withdrawn, RECEIVER), 'nothing is asked of either side').toBe('none');
+    expect(actionLabel(withdrawn, 'receiver'), 'a proposal is what there is to open').toBe(
+      'Open proposal'
+    );
   });
 });

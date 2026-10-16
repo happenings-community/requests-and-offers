@@ -24,7 +24,12 @@ export default defineConfig({
     conditions: ['browser'],
     alias: {
       $lib: '/src/lib',
-      '@': '/src'
+      '@': '/src',
+      // SvelteKit supplies these two at build time through its own Vite plugin, which this
+      // config does not load, so a route importing them cannot resolve and cannot be
+      // mounted. The stand-ins are for the test run only; nothing in `src` is aliased.
+      '$app/state': '/tests/mocks/app-state.ts',
+      '$app/navigation': '/tests/mocks/app-navigation.ts'
     }
   }
 });

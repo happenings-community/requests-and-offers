@@ -26,6 +26,9 @@ const NAV_BAR = 'src/lib/components/shared/NavBar.svelte';
 const LAYOUT = 'src/routes/+layout.svelte';
 const PRESENCE = 'src/lib/services/messagingPresence.svelte.ts';
 const PROPOSE_PAGE = 'src/routes/(public)/exchanges/propose/+page.svelte';
+const FIRST_CONTACT = 'src/lib/extensions/first-contact.ts';
+const FIRST_CONTACT_LINK = 'src/lib/components/messaging/FirstContactLink.svelte';
+const DOOR = 'src/lib/components/exchanges/ListingInterest.svelte';
 
 describe('the extension points belong to neither side', () => {
   /**
@@ -169,5 +172,29 @@ describe('the propose page asks the same way', () => {
 
   it('and reaches no messaging module', () => {
     expect(messagingReachedFrom(PROPOSE_PAGE)).toEqual([]);
+  });
+});
+
+describe('the word before a first proposal is plugged in too', () => {
+  /**
+   * What a proposal puts on the network depends on who can read it, which is a sentence
+   * about conversations. The formal door keeps the word and the address and asks for a
+   * link; a network without conversations says nothing and the link is plain.
+   *
+   * **To make this go red:** import `FirstContactLink` in the door. The notice renders
+   * identically and the whole of messaging is back in the import graph of every listing
+   * page, through a sentence.
+   */
+  it('the door reaches the extension point, and no messaging module', () => {
+    expect([...reachableFrom(DOOR)]).toContain(FIRST_CONTACT);
+    expect(messagingReachedFrom(DOOR)).toEqual([]);
+  });
+
+  it('and the extension point itself stays neutral', () => {
+    expect(messagingReachedFrom(FIRST_CONTACT)).toEqual([]);
+  });
+
+  it('while the link that fills it is messaging', () => {
+    expect(isMessaging(FIRST_CONTACT_LINK)).toBe(true);
   });
 });

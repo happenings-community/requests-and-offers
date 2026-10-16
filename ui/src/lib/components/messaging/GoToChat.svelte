@@ -1,8 +1,11 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
+  import { getModalStore } from '@skeletonlabs/skeleton';
   import { paths } from '$lib/paths';
   import messagingStore from '$lib/stores/messaging.store.svelte';
   import { threadKeyOf } from '$lib/utils/messaging-threads';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
+  import { firstContactNeeded, openFirstContact } from '$lib/utils/messaging-first-contact';
   import type { ReachPersonProps } from '$lib/extensions/reach-person';
 
   /**
@@ -26,9 +29,25 @@
   const unread = $derived(
     messagingStore.threads.find((t) => t.key === threadKeyOf(person))?.unread ?? 0
   );
+
+  const href = $derived(paths.conversation(person));
+  const modalStore = getModalStore();
+
+  /**
+   * A member's first message is told what it does and does not put out, once, and this is
+   * one of the two places that can be. It names nobody: the hash is all this has, and
+   * reading the person for a sentence shown once is a call not worth making.
+   */
+  function press(event: MouseEvent) {
+    if (!firstContactNeeded()) return;
+    event.preventDefault();
+    openFirstContact(modalStore, { kind: 'chat', label: S.exchanges.goToChat }, () => {
+      void goto(href);
+    });
+  }
 </script>
 
-<a class="variant-ghost btn btn-sm" href={paths.conversation(person)} data-testid="go-to-chat">
+<a class="variant-ghost btn btn-sm" {href} onclick={press} data-testid="go-to-chat">
   {S.exchanges.goToChat}
 </a>
 {#if unread > 0}

@@ -62,6 +62,31 @@ describe('readLocal', () => {
     });
     expect(readLocal(store, KEY)).toEqual(EMPTY_LOCAL);
   });
+
+  /**
+   * **A field added without a version bump degrades the right way.**
+   *
+   * Data written before the notice existed has no such key, and reading that as "already
+   * told" would swallow the one time it is shown. Reading it as not told says it once
+   * more, which is the harmless direction. Bumping the version for this would have been
+   * worse than either: it reads the whole namespace as empty, and an outbox the member is
+   * still waiting on is in there.
+   */
+  it('reads this version written without the notice flag as not yet told', () => {
+    const store = fakeStore({
+      [KEY]: JSON.stringify({ schemaVersion: LOCAL_SCHEMA_VERSION, archived: ['x'] })
+    });
+    const read = readLocal(store, KEY);
+    expect(read.noticeSeen, 'said once more, rather than never').toBe(false);
+    expect(read.archived, 'and nothing else is lost over it').toEqual(['x']);
+  });
+
+  it('remembers being told, once it has been written', () => {
+    const store = fakeStore();
+    expect(readLocal(store, KEY).noticeSeen).toBe(false);
+    writeLocal(store, KEY, { noticeSeen: true });
+    expect(readLocal(store, KEY).noticeSeen).toBe(true);
+  });
 });
 
 describe('writeLocal', () => {

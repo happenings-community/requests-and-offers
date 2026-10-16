@@ -106,6 +106,9 @@ export type MessagingStore = {
   receiptsOn: (counterparty: ActionHash) => boolean;
   receiptSettingFor: (counterparty: ActionHash) => ReceiptSetting;
   receiptsOverall: () => boolean;
+  /** Whether this member has been told what a proposal and a message put out. */
+  noticeSeen: () => boolean;
+  markNoticeSeen: () => void;
   setReceiptsOverall: (on: boolean) => void;
   setReceiptsForChat: (counterparty: ActionHash, setting: ReceiptSetting) => void;
   setArchived: (counterparty: ActionHash, archived: boolean) => void;
@@ -653,6 +656,20 @@ function createMessagingStore(): MessagingStore {
   /** The overall setting, which governs every chat left on `inherit`. */
   const receiptsOverall = (): boolean => readFor(myAgent).receipts;
 
+  /** Whether this member has already been told what a proposal and a message put out. */
+  const noticeSeen = (): boolean => readFor(myAgent).noticeSeen;
+
+  /**
+   * Remember that they have.
+   *
+   * Written before the member is taken anywhere, so a notice cannot appear twice because
+   * the page navigated first. If the write fails, which it does in private browsing, they
+   * see it again; saying it twice is the harmless direction.
+   */
+  const markNoticeSeen = (): void => {
+    writeFor(myAgent, { noticeSeen: true });
+  };
+
   const setReceiptsForChat = (counterparty: ActionHash, setting: ReceiptSetting): void => {
     const local = readFor(myAgent);
     writeFor(myAgent, {
@@ -743,6 +760,8 @@ function createMessagingStore(): MessagingStore {
     receiptsOn,
     receiptSettingFor,
     receiptsOverall,
+    noticeSeen,
+    markNoticeSeen,
     setReceiptsOverall,
     setReceiptsForChat,
     setArchived,

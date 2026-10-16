@@ -25,6 +25,7 @@ export const MESSAGING_PATHS = [
   'src/lib/utils/messaging-threads.ts',
   'src/lib/utils/messaging-local.ts',
   'src/lib/utils/messaging-actions.ts',
+  'src/lib/utils/messaging-first-contact.ts',
   'src/routes/(public)/messages/'
 ] as const;
 

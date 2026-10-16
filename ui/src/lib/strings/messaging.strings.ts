@@ -226,6 +226,29 @@ export const MESSAGING_STRINGS = {
     goToChat: 'Go to chat'
   },
 
+  /**
+   * Said once, the first time a member proposes or writes to somebody.
+   *
+   * **What is public and what is not differs between the two**, so there is a line for
+   * each rather than one that covers both loosely: a proposal is a record any member can
+   * read, while the words in a message are readable only by the two people, and the fact
+   * that one was sent is not. Telling somebody afterwards is too late to be a choice,
+   * which is why this comes before and offers a way out.
+   *
+   * It lives with the conversation because what it says depends on there being one. A
+   * network built without conversations says nothing here, which is why the line that
+   * continues is the word the member already pressed rather than one of ours.
+   *
+   * **Placeholder wording, for Anita to review in the app.**
+   */
+  firstContact: {
+    title: 'Before you start',
+    proposal:
+      'A proposal is a record on this network. Its terms, and any note you add when you reply, decline or cancel, can be read by other members, even though the app shows them only to you and {name}.',
+    chat: 'Only the two of you can read what you write. Other members can see that you wrote, and when, but not what you said.',
+    cancel: 'Not now'
+  },
+
   block: {
     button: 'Block',
     confirm: {

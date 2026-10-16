@@ -2,7 +2,8 @@ import { encodeHashToBase64, type ActionHash, type AgentPubKey } from '@holochai
 import type { Message } from '$lib/schemas/messaging.schemas';
 import type { ReceiptSetting } from '$lib/utils/messaging-local';
 import type { UIExchange, UIInterest } from '$lib/types/ui';
-import type { ListingType } from '$lib/types/holochain';
+import type { ExchangeStatus, ListingType } from '$lib/types/holochain';
+import { exchangeState, type ExchangeState } from '$lib/utils/exchange-ui';
 import { paths } from '$lib/paths';
 import { errorShape } from '$lib/utils/error-shape';
 
@@ -645,18 +646,31 @@ export function proposeHrefFor(
  * One record, two appearances, because that is how a conversation reads: the proposal is
  * the thing being decided, the line is the decision.
  *
- * **The question is whether it was ever accepted, not what it says now.** This used to
- * ask the status, and a status cannot answer it: the zome returns `Cancelled` for a
- * withdrawal as well as for a cancellation after agreement, short-circuiting before the
- * response is even read (`exchanges/src/exchange.rs:206-212`). So withdrawing a proposal
- * nobody had answered announced "you reached an agreement" to both people.
+ * **Read from the one derivation**, so the card and the formal pages cannot disagree
+ * about the same record. This used to ask the response for itself, which was the right
+ * answer reached a second way: a withdrawal and a cancellation after agreement both
+ * arrive as `Cancelled`, and asking the status announced "you reached an agreement" to
+ * both people when a proposal nobody had answered was taken back.
  *
- * A response that exists and was accepted is the only thing that makes an agreement, and
- * it stays true afterwards: cancelling one does not unmake the fact that it happened.
- * Nothing else needs fetching, because the response already travels with the exchange.
+ * An agreement stays one afterwards: cancelling it does not unmake the fact that it
+ * happened. Nothing needs fetching, because the response travels with the exchange.
  */
-export function showsAsAgreement(exchange: { response?: { accepted: boolean } | null }): boolean {
-  return exchange.response?.accepted === true;
+const SHOWS_AS_AGREEMENT: Record<ExchangeState, boolean> = {
+  proposed: false,
+  declined: false,
+  withdrawn: false,
+  agreed: true,
+  partlyDone: true,
+  awaitingReviews: true,
+  reviewed: true,
+  cancelled: true
+};
+
+export function showsAsAgreement(exchange: {
+  status: ExchangeStatus;
+  response?: { accepted: boolean } | null;
+}): boolean {
+  return SHOWS_AS_AGREEMENT[exchangeState(exchange)];
 }
 
 /**
@@ -667,13 +681,14 @@ export function showsAsAgreement(exchange: { response?: { accepted: boolean } | 
  * this read the status, since both arrive as `Cancelled` or get lost behind it.
  */
 export function proposalOutcome(exchange: {
+  status: ExchangeStatus;
   response?: { accepted: boolean } | null;
-  cancellation?: unknown;
 }): 'open' | 'declined' | 'withdrawn' {
-  if (exchange.response && !exchange.response.accepted) return 'declined';
-  // No response, so nobody ever answered it; a cancellation here is the proposer
-  // taking it back.
-  if (exchange.cancellation) return 'withdrawn';
+  const state = exchangeState(exchange);
+  if (state === 'declined') return 'declined';
+  if (state === 'withdrawn') return 'withdrawn';
+  // Anything else is a proposal still being decided, or one that became an agreement;
+  // either way this card has no outcome to announce.
   return 'open';
 }
 

@@ -108,7 +108,8 @@ describe('HolochainClientService Network Methods', () => {
       const mockNetworkInfo = {
         networkSeed: 'test-network-seed-123',
         dnaHash: 'test-dna-hash-456',
-        roleName: 'requests_and_offers'
+        roleName: 'requests_and_offers',
+        integrityZomeNames: []
       };
       mockClient.callZome.mockResolvedValue(mockNetworkInfo);
 

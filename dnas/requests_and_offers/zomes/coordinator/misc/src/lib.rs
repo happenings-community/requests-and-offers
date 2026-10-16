@@ -6,12 +6,8 @@ pub struct NetworkInfo {
   pub network_seed: String,
   pub dna_hash: String,
   pub role_name: String,
-  /// The DNA's integrity zomes, by name, in the order `dna_info()` gives them.
-  ///
-  /// Integrity zomes only, which is all `dna_info()` reports: they define the data, are
-  /// part of the DNA hash, and so are fixed for the life of a network. That makes this the
-  /// record of which optional modules a network was created with. The interface reads it
-  /// once at start-up to know whether a module is here, rather than probing for it.
+  /// The DNA's integrity zomes, in `dna_info()` order. Fixed for the life of a network,
+  /// so the interface reads them once to know which optional modules this network has.
   pub integrity_zome_names: Vec<String>,
 }
 
@@ -60,13 +56,13 @@ mod tests {
       network_seed: "test-seed".to_string(),
       dna_hash: "test-hash".to_string(),
       role_name: "requests_and_offers".to_string(),
-      integrity_zome_names: vec!["misc_integrity".to_string()],
+      integrity_zome_names: vec!["requests_integrity".to_string()],
     };
 
     assert_eq!(network_info.network_seed, "test-seed");
     assert_eq!(network_info.dna_hash, "test-hash");
     assert_eq!(network_info.role_name, "requests_and_offers");
-    assert_eq!(network_info.integrity_zome_names, vec!["misc_integrity".to_string()]);
+    assert_eq!(network_info.integrity_zome_names, vec!["requests_integrity".to_string()]);
   }
 
   #[test]

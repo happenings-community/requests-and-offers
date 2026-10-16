@@ -21,6 +21,7 @@ import {
   exchangeState,
   exchangeStatusVariant,
   formatWhen,
+  namedInterest,
   otherRole,
   reciprocalTermFor,
   reviewedBy,
@@ -483,5 +484,37 @@ describe('exchangeState, the record read once', () => {
     expect(actionLabel(withdrawn, 'receiver'), 'a proposal is what there is to open').toBe(
       'Open proposal'
     );
+  });
+});
+
+/**
+ * **A hash in a link means nothing until a record says it does.**
+ *
+ * The propose page is opened with an interest hash in its address, and only the
+ * listing's own interests can say whether that hash is one of them. Read and absent is
+ * its own answer: the interest may have been withdrawn, or the link kept from an older
+ * one, and the page has to stop rather than fill itself in from the query string.
+ */
+describe('namedInterest, matching a link against the records', () => {
+  const INTEREST = hash(7);
+  const listed = [{ interest_hash: hash(7), user: PROVIDER }, { interest_hash: hash(8) }];
+
+  /**
+   * **To make this go red:** compare the hashes with `===`, or with `includes`. Two
+   * `Uint8Array`s holding the same bytes are different objects, so the page would never
+   * find the interest it was opened from and would call every proposal impossible.
+   */
+  it('finds it by what the hash holds, not by which object it is', () => {
+    const found = namedInterest(listed, new Uint8Array([132, 41, 36, 7]) as unknown as ActionHash);
+    expect(found?.user, 'the interest, with whoever registered it').toBe(PROVIDER);
+  });
+
+  it('finds nothing when the listing has no such interest', () => {
+    expect(namedInterest(listed, hash(99))).toBeUndefined();
+  });
+
+  it('and nothing when the link names none at all', () => {
+    expect(namedInterest(listed, null)).toBeUndefined();
+    expect(namedInterest([], INTEREST)).toBeUndefined();
   });
 });

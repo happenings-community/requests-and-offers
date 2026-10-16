@@ -127,6 +127,25 @@ export type ExchangeRole = 'provider' | 'receiver';
 const same = (a: Uint8Array | undefined, b: Uint8Array | undefined) =>
   !!a && !!b && a.toString() === b.toString();
 
+/**
+ * The interest a link names, found among the ones the listing actually has.
+ *
+ * **A hash in an address means nothing until a record says it does.** The propose page
+ * is opened with one, and only the listing's own interests can answer whether it is one
+ * of them; read and absent is its own answer, distinct from a read that failed, and the
+ * page stops either way rather than filling itself in from the query string.
+ *
+ * Hashes compare by what they hold. Two `Uint8Array`s with the same bytes are different
+ * objects, so `===` is always false and `includes` never finds anything.
+ */
+export function namedInterest<T extends { interest_hash: ActionHash }>(
+  interests: readonly T[],
+  wanted: ActionHash | null | undefined
+): T | undefined {
+  if (!wanted) return undefined;
+  return interests.find((i) => same(i.interest_hash, wanted));
+}
+
 export function roleOf(exchange: UIExchange, myUserHash: ActionHash | undefined): ExchangeRole | null {
   if (same(exchange.agreement.provider, myUserHash)) return 'provider';
   if (same(exchange.agreement.receiver, myUserHash)) return 'receiver';

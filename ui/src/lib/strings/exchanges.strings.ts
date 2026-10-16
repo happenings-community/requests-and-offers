@@ -108,6 +108,16 @@ export const EXCHANGE_STRINGS = {
     termsFailed: 'The listing’s terms could not be read, so nothing can be proposed yet.',
     termsRetry: 'Try again',
     termsLocked: "These terms come from the listing and can't be changed here.",
+    /**
+     * **The link named an interest the listing does not have.**
+     *
+     * Read, and not there, which is a different thing from a read that failed: the
+     * interest may have been withdrawn, or the link may have been kept from an older
+     * one. Either way there is nothing to propose against, so this says so rather than
+     * letting the member fill the form and meet the zome's refusal at Send.
+     */
+    interestMissing:
+      'This proposal was opened from an interest that is not on this listing, so there is nothing to propose against. Open the listing and show interest again.',
     send: 'Send proposal',
     /**
      * A service exchange names an offer from each side, and the proposer may not have

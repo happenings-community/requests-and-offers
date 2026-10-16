@@ -25,6 +25,7 @@ const EXCHANGE_SIDE = 'src/lib/components/exchanges/ReachPerson.svelte';
 const NAV_BAR = 'src/lib/components/shared/NavBar.svelte';
 const LAYOUT = 'src/routes/+layout.svelte';
 const PRESENCE = 'src/lib/services/messagingPresence.svelte.ts';
+const PROPOSE_PAGE = 'src/routes/(public)/exchanges/propose/+page.svelte';
 
 describe('the extension points belong to neither side', () => {
   /**
@@ -150,5 +151,23 @@ describe('the layout is where the two sides meet', () => {
     expect(reached).toContain(UNREAD_COUNT);
     expect(reached).toContain(SHARE_LISTING);
     expect(reached).toContain(BACK_TO_CHAT);
+  });
+});
+
+describe('the propose page asks the same way', () => {
+  /**
+   * The page's "none of these suit" case is the one place left that offered a way to the
+   * other person of its own: a Contact button, wired to the listing's author.
+   *
+   * **To make this go red:** put `ContactButton` back there. The page decides for itself
+   * again, so a network with conversations offers contact details instead of the chat,
+   * and a network without one has two components doing the same job.
+   */
+  it('reaches the extension point, rather than offering contact details itself', () => {
+    expect([...reachableFrom(PROPOSE_PAGE)]).toContain(REACH_PERSON);
+  });
+
+  it('and reaches no messaging module', () => {
+    expect(messagingReachedFrom(PROPOSE_PAGE)).toEqual([]);
   });
 });

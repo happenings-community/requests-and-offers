@@ -19,7 +19,7 @@
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
   import { EXCHANGE_STRINGS } from '$lib/strings/exchanges.strings';
   import { runEffect } from '$lib/utils/effect';
-  import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
+  import ReachPerson from '$lib/components/exchanges/ReachPerson.svelte';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { reciprocalTermFor, termLabel, type ExchangeRole } from '$lib/utils/exchange-ui';
   import type { ExchangeTerm, ListingType } from '$lib/types/holochain';
@@ -439,14 +439,17 @@
                 offer, or a different medium of exchange; this proposal cannot be sent until one is
                 chosen.
               </p>
-              {#if creator}
-                <ContactButton
-                  user={creator}
-                  organization={null}
-                  listingType={params.listingType === 'Offer' ? 'offer' : 'request'}
-                  listingTitle={listing.title}
-                />
-              {/if}
+              <!--
+                Whoever is on the other side of this proposal, which is not always the
+                listing's author: proposing on your own listing offered your own contact
+                details here. How to reach them is decided where the one component is
+                plugged in, not by this page.
+              -->
+              <ReachPerson
+                person={other?.original_action_hash}
+                listingType={params.listingType === 'Offer' ? 'offer' : 'request'}
+                listingTitle={listing.title}
+              />
             {/if}
           {:else if myRole === 'provider'}
             <p class="alert variant-soft-warning text-sm">

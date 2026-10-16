@@ -65,6 +65,8 @@ mod status_tests {
     let mut status = Status::suspend("test", Some((Duration::hours(1), &hours(8))));
     assert!(status.unsuspend_if_time_passed(&hours(10)));
     assert_eq!(status.status_type, "accepted");
+    assert_eq!(status.suspended_until, None);
+    assert_eq!(status.reason, None);
   }
 
   #[test]
@@ -72,6 +74,8 @@ mod status_tests {
     let mut status = Status::suspend("test", Some((Duration::hours(1), &hours(9))));
     assert!(status.unsuspend_if_time_passed(&hours(10)));
     assert_eq!(status.status_type, "accepted");
+    assert_eq!(status.suspended_until, None);
+    assert_eq!(status.reason, None);
   }
 
   #[test]
@@ -83,5 +87,6 @@ mod status_tests {
     let mut status = Status::suspend("test", Some((Duration::hours(1), &started)));
     assert!(!status.unsuspend_if_time_passed(&hours(10)));
     assert_eq!(status.status_type, "suspended temporarily");
+    assert!(status.suspended_until.is_some());
   }
 }

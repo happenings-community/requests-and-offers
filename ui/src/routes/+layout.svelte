@@ -12,9 +12,11 @@
   import { setUnreadCount } from '$lib/extensions/unread-count';
   import { setShareListing } from '$lib/extensions/share-listing';
   import { setBackToChat } from '$lib/extensions/back-to-chat';
+  import { setFirstContact } from '$lib/extensions/first-contact';
   import GoToChat from '$lib/components/messaging/GoToChat.svelte';
   import ShareListing from '$lib/components/messaging/ShareListing.svelte';
   import BackToConversation from '$lib/components/messaging/BackToConversation.svelte';
+  import FirstContactLink from '$lib/components/messaging/FirstContactLink.svelte';
   import messagingStore from '$lib/stores/messaging.store.svelte';
   import { unopenedConversations } from '$lib/utils/messaging-threads';
   import { initializeHotReload } from '@theweave/api';
@@ -165,6 +167,12 @@
   });
   setShareListing(() => (messagingPresence.isAbsent ? undefined : ShareListing));
   setBackToChat(() => (messagingPresence.isAbsent ? undefined : BackToConversation));
+  /**
+   * What a proposal puts on the network depends on who can read it, and that is a sentence
+   * about conversations, so a network without them says nothing and the formal page renders
+   * its link plainly.
+   */
+  setFirstContact(() => (messagingPresence.isAbsent ? undefined : FirstContactLink));
 
   /**
    * Keep the plugged-in count fresh, and only while there is messaging to count.

@@ -97,6 +97,16 @@ export type MessagingLocalState = {
   receipts: boolean;
   /** Per chat, where the member has said. Absent means `inherit`. */
   receiptsByChat: Record<string, ReceiptSetting>;
+  /**
+   * Whether this member has been told, once, what a proposal and a message put on the
+   * network.
+   *
+   * **No version bump for this field.** An older build meeting it ignores a key it does
+   * not know, and a newer build meeting data written without it reads false and says it
+   * once more. Being told twice is survivable; refusing to read the whole namespace over
+   * it would lose an outbox the member is still waiting on.
+   */
+  noticeSeen: boolean;
 };
 
 export const EMPTY_LOCAL: MessagingLocalState = {
@@ -108,7 +118,8 @@ export const EMPTY_LOCAL: MessagingLocalState = {
   blocked: [],
   blockHistory: [],
   receipts: true,
-  receiptsByChat: {}
+  receiptsByChat: {},
+  noticeSeen: false
 };
 
 /** The slice of `localStorage` this needs, so a test can pass a fake. */
@@ -141,7 +152,8 @@ export function readLocal(store: LocalStore | undefined, key: string): Messaging
       blocked: Array.isArray(parsed.blocked) ? parsed.blocked : [],
       blockHistory: Array.isArray(parsed.blockHistory) ? parsed.blockHistory : [],
       receipts: typeof parsed.receipts === 'boolean' ? parsed.receipts : true,
-      receiptsByChat: record(parsed.receiptsByChat)
+      receiptsByChat: record(parsed.receiptsByChat),
+      noticeSeen: parsed.noticeSeen === true
     };
   } catch {
     // Corrupt JSON, or a store that throws. Neither should take the screen down.

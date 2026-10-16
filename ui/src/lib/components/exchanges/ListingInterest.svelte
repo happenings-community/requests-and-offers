@@ -7,6 +7,7 @@
   import { paths } from '$lib/paths';
   import { EXCHANGE_STRINGS as S, fill } from '$lib/strings/exchanges.strings';
   import ReachPerson from './ReachPerson.svelte';
+  import { getFirstContact } from '$lib/extensions/first-contact';
 
   /**
    * The listing page's formal door.
@@ -35,6 +36,16 @@
 
   const firstName = $derived(creator?.name?.split(' ')[0] ?? 'the listing owner');
   const noun = $derived(listingType === 'Offer' ? 'offer' : 'request');
+
+  /**
+   * Whatever says a word before a member's first proposal, if anything does.
+   *
+   * Read at render time rather than at set-up, because which modules this network has is
+   * read from the DNA a moment after the plug is put in. Nothing is plugged in on a
+   * network without conversations, and then the links below are ordinary links.
+   */
+  const firstContact = getFirstContact();
+  const FirstContact = $derived(firstContact());
 
   /**
    * Showing interest no longer opens anything by itself.
@@ -75,9 +86,19 @@
               <a class="anchor" href={paths.userProfile(item.user)}>
                 {person?.name ?? 'A member'}
               </a>
-              <a class="variant-filled-primary btn btn-sm" href={interest.hrefFor(item)}>
-                Send a proposal
-              </a>
+              {#if FirstContact}
+                <FirstContact
+                  kind="proposal"
+                  href={interest.hrefFor(item)}
+                  label="Send a proposal"
+                  name={person?.name}
+                  classes="variant-filled-primary btn btn-sm"
+                />
+              {:else}
+                <a class="variant-filled-primary btn btn-sm" href={interest.hrefFor(item)}>
+                  Send a proposal
+                </a>
+              {/if}
             </li>
           {/each}
         </ul>
@@ -93,9 +114,24 @@
           })}
         </div>
         <div class="flex flex-col gap-2 sm:flex-row">
-          <a class="variant-filled-primary btn flex-1" href={interest.hrefFor(mine)}
-            >{S.listing.makeProposal}</a
-          >
+          <!--
+            The same link either way. Where there are conversations, a member's first
+            proposal is told what it puts on the network before it writes one; where there
+            are none, nothing is plugged in and this is an ordinary link.
+          -->
+          {#if FirstContact}
+            <FirstContact
+              kind="proposal"
+              href={interest.hrefFor(mine)}
+              label={S.listing.makeProposal}
+              name={firstName}
+              classes="variant-filled-primary btn flex-1"
+            />
+          {:else}
+            <a class="variant-filled-primary btn flex-1" href={interest.hrefFor(mine)}
+              >{S.listing.makeProposal}</a
+            >
+          {/if}
           <button
             class="variant-ghost-surface btn flex-1"
             onclick={interest.withdraw}

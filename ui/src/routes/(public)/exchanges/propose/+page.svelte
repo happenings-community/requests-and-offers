@@ -21,7 +21,12 @@
   import { runEffect } from '$lib/utils/effect';
   import ReachPerson from '$lib/components/exchanges/ReachPerson.svelte';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
-  import { reciprocalTermFor, termLabel, type ExchangeRole } from '$lib/utils/exchange-ui';
+  import {
+    namedInterest,
+    reciprocalTermFor,
+    termLabel,
+    type ExchangeRole
+  } from '$lib/utils/exchange-ui';
   import type { ExchangeTerm, ListingType } from '$lib/types/holochain';
   import type { UIOffer, UIRequest, UIUser } from '$lib/types/ui';
 
@@ -72,6 +77,16 @@
    * a shorter list.
    */
   let termsLoad = $state<'loading' | 'ready' | 'failed'>('loading');
+  /**
+   * Whether the interest this page was opened from is one the listing actually has.
+   *
+   * The link carries a hash; only the listing's own interests say whether it means
+   * anything. Read and absent is its own state: the interest may have been withdrawn, or
+   * the link kept from an older one, and either way nothing here can be proposed. Without
+   * this the page filled itself in from the query string, addressed the proposal to
+   * "them", and met the zome's refusal at Send.
+   */
+  let interestOnListing = $state<'loading' | 'found' | 'missing'>('loading');
   let loadError = $state<string | null>(null);
   let busy = $state(false);
 
@@ -180,7 +195,8 @@
     // Nothing is sendable until the terms are actually known. This is the guard that
     // stops a gift proposal being sent while the mediums are still loading.
     termsLoad === 'ready' &&
-      !!params.interest &&
+      // The hash in the link is not enough: it has to be an interest this listing has.
+      interestOnListing === 'found' &&
       !!params.listing &&
       !!service &&
       // **No medium is fine.** A listing that names none is still proposable and the
@@ -252,9 +268,8 @@
         // Under Service Exchange the return service is chosen from what the
         // reciprocal giver actually offers: the receiver of the primary.
         const interests = await runEffect(exchangesStore.getInterestsForListing(hash));
-        const theInterest = interests.find(
-          (i) => params.interest && i.interest_hash.toString() === params.interest.toString()
-        );
+        const theInterest = namedInterest(interests, params.interest);
+        interestOnListing = theInterest ? 'found' : 'missing';
         const authorHash = item.creator;
         const memberHash = theInterest?.user;
         if (memberHash) {
@@ -287,6 +302,7 @@
 
   function retryTerms() {
     termsLoad = 'loading';
+    interestOnListing = 'loading';
     loadError = null;
     loadListing();
   }
@@ -372,6 +388,12 @@
       type of exchange, not the exchange itself. Under Service Exchange you name a second service in
       return, or ask to discuss options.
     </div>
+
+    {#if interestOnListing === 'missing'}
+      <div class="alert variant-filled-warning text-sm" data-testid="interest-missing">
+        {S.form.interestMissing}
+      </div>
+    {/if}
 
     {#if termsLoad === 'failed'}
       <!-- Never the empty-case wording: this says the terms could not be read, which is
@@ -508,8 +530,13 @@
 
     <div class="flex justify-end gap-2">
       <button class="variant-ghost-surface btn" onclick={() => history.back()}>Cancel</button>
-      <button class="variant-filled-primary btn" onclick={submit} disabled={!canSubmit || busy}>
-        Send proposal
+      <button
+        class="variant-filled-primary btn"
+        onclick={submit}
+        disabled={!canSubmit || busy}
+        data-testid="send-proposal"
+      >
+        {S.form.send}
       </button>
     </div>
   {/if}

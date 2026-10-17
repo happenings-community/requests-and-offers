@@ -19,6 +19,12 @@ export interface ExchangeChain {
   rounds: UIExchange[];
   /** The newest round. */
   latest: UIExchange;
+  /**
+   * True when the first visible round counters one that has not arrived yet.
+   * Data reaches a node by gossip, so a newer round can land before an older
+   * one; the chain says so rather than looking complete and growing later.
+   */
+  missingEarlier: boolean;
 }
 
 export interface PersonGroup {
@@ -60,7 +66,13 @@ export function chainsOf(list: UIExchange[]): ExchangeChain[] {
       rounds.push(at);
       at = next.get(keyOf(at.agreement_hash));
     }
-    chains.push({ key, rounds, latest: rounds[rounds.length - 1] });
+    const answers = e.agreement.counters?.agreement;
+    chains.push({
+      key,
+      rounds,
+      latest: rounds[rounds.length - 1],
+      missingEarlier: !!answers && !byKey.has(keyOf(answers))
+    });
   }
   return chains;
 }

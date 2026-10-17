@@ -94,9 +94,19 @@ describe('chainsOf (#333)', () => {
     expect(ids(c.rounds)).toEqual([10]);
   });
 
-  it('starts a chain at a counter whose earlier round is not visible', () => {
+  it('starts a chain at a counter whose earlier round has not arrived, and says so', () => {
     const [c] = chainsOf([round(11, 200, { counters: 10 })]);
     expect(ids(c.rounds)).toEqual([11]);
+    expect(c.missingEarlier).toBe(true);
+  });
+
+  it('does not flag a complete chain or a first proposal', () => {
+    const [c] = chainsOf([
+      round(10, 100, { status: 'Declined' }),
+      round(11, 200, { counters: 10 })
+    ]);
+    expect(c.missingEarlier).toBe(false);
+    expect(chainsOf([round(20, 100)])[0].missingEarlier).toBe(false);
   });
 
   it('continues with the earlier answer if two ever answer one round', () => {

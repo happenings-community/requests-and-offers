@@ -2,6 +2,8 @@
   import { goto } from '$app/navigation';
   import usersStore from '$lib/stores/users.store.svelte';
   import type { Snippet } from 'svelte';
+  import { getModalStore } from '@skeletonlabs/skeleton';
+  import ContactAdminsModal from '$lib/components/users/ContactAdminsModal.svelte';
 
   type Props = {
     children: Snippet;
@@ -200,29 +202,26 @@
           href: '/user/create',
           variant: 'variant-filled-primary'
         };
+      // These open the administrators' contact details (#331); the routes they
+      // used to point at (/support, /help) do not exist.
       case 'pending':
         return {
-          label: 'Contact Admin',
-          href: '/support',
+          label: 'Contact the administrators',
+          href: null,
           variant: 'variant-filled-warning'
         };
       case 'rejected':
         return {
-          label: 'Contact Support',
-          href: '/support',
+          label: 'Contact the administrators',
+          href: null,
           variant: 'variant-filled-error'
         };
       case 'suspended_temporarily':
       case 'suspended_indefinitely':
-        return {
-          label: 'Learn More',
-          href: '/help/profile-status',
-          variant: 'variant-filled-tertiary'
-        };
       case 'unknown':
         return {
-          label: 'Get Help',
-          href: '/help',
+          label: 'Contact the administrators',
+          href: null,
           variant: 'variant-filled-tertiary'
         };
       case 'error':
@@ -250,6 +249,8 @@
     return null;
   });
 
+  const modalStore = getModalStore();
+
   function handlePrimaryAction() {
     const action = primaryAction();
     if (action?.href) {
@@ -257,6 +258,8 @@
     } else if (profileState().state === 'error') {
       // Handle page reload for error states
       window.location.reload();
+    } else {
+      modalStore.trigger({ type: 'component', component: { ref: ContactAdminsModal } });
     }
   }
 
@@ -367,6 +370,20 @@
               <li>• Connect with other community members</li>
             </ul>
           </div>
+        {:else if profileState().state === 'pending' && profileState().user?.status?.reason}
+          <!-- An administrator asked for more information (#331) -->
+          <div
+            class="bg-surface-100-800-token rounded-lg border-l-4 border-warning-500 p-4 text-left"
+          >
+            <h3 class="h4 mb-2 text-warning-600">
+              An administrator has asked for more information
+            </h3>
+            <p class="text-sm">{profileState().user?.status?.reason}</p>
+            <p class="mt-2 text-sm">
+              Answer by editing your profile.
+              <a href="/user/edit" class="anchor">Edit your profile</a>
+            </p>
+          </div>
         {:else if profileState().state === 'pending'}
           <div class="bg-surface-100-800-token rounded-lg p-4">
             <h3 class="h4 mb-2 text-warning-600">What happens next?</h3>
@@ -392,10 +409,16 @@
           </div>
         {:else if ['rejected', 'suspended_temporarily', 'suspended_indefinitely'].includes(profileState().state)}
           <div class="bg-surface-100-800-token rounded-lg p-4">
+            {#if profileState().user?.status?.reason}
+              <p class="mb-3 text-sm">
+                <strong>Reason given:</strong>
+                {profileState().user?.status?.reason}
+              </p>
+            {/if}
             <h3 class="h4 mb-2 text-error-600">Need assistance?</h3>
             <p class="text-sm">
               If you believe this is an error or need clarification about your profile status,
-              please reach out to our support team for help.
+              contact the administrators.
             </p>
           </div>
         {/if}

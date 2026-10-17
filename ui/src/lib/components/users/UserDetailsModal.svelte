@@ -73,12 +73,6 @@
 
 <article class="hcron-modal">
   {#if user}
-    {#if page.url.pathname.startsWith('/admin')}
-      <div class="pb-6">
-        <ActionBar entity={user} />
-      </div>
-    {/if}
-
     <!-- Header Section -->
     <div class="mb-6 flex flex-col items-center gap-6">
       <div onload={() => URL.revokeObjectURL(userPictureUrl)}>
@@ -117,9 +111,12 @@
               <span class="text-error-500">{suspensionDate}</span>
             </div>
           {/if}
-          {#if userStatus?.status_type?.startsWith('suspended') && userStatus?.reason}
+          {#if userStatus?.reason}
+            <!-- A pending reason is an earlier request for more information (#331) -->
             <div class="flex items-start">
-              <span class="min-w-[120px] font-medium">Reason:</span>
+              <span class="min-w-[120px] font-medium">
+                {userStatus.status_type === 'pending' ? 'Information requested:' : 'Reason:'}
+              </span>
               <span class="text-surface-700-200-token">{userStatus.reason}</span>
             </div>
           {/if}
@@ -172,10 +169,27 @@
         </div>
       {/if}
     </div>
+
+    <!-- Admin actions and the decision come after the whole application, so it
+         is read before it is decided (#331). -->
+    {#if page.url.pathname.startsWith('/admin')}
+      <div class="mt-6 border-t border-surface-500 pt-6">
+        <ActionBar entity={user} />
+      </div>
+    {/if}
   {/if}
 
   <!-- Footer -->
   <div class="mt-6 flex justify-end">
-    <button class="variant-filled-surface btn" onclick={() => modalStore.close()}> Close </button>
+    <button
+      class="variant-filled-surface btn"
+      onclick={() => {
+        // Let the opener refresh, as backdrop and Escape already do.
+        $modalStore[0]?.response?.(false);
+        modalStore.close();
+      }}
+    >
+      Close
+    </button>
   </div>
 </article>

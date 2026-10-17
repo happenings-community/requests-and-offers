@@ -410,6 +410,9 @@ const convertToUIStatus = (
   reason: status.reason,
   suspended_until: status.suspended_until,
   duration: timestamp ? calculateDuration(status.suspended_until, timestamp) : undefined,
+  // When this status revision was written, in milliseconds (the action timestamp is in
+  // microseconds). The admin queue compares it with the profile's last edit (#331).
+  created_at: timestamp ? Math.floor(timestamp / 1000) : undefined,
   original_action_hash: original_action_hash!,
   previous_action_hash: previous_action_hash ?? original_action_hash!
 });
@@ -937,7 +940,9 @@ export const createAdministrationStore = (): E.Effect<
                         user_type: 'advocate',
                         name: `Admin ${entityHash.toString().substring(0, 6)}...`,
                         nickname: `Admin ${entityHash.toString().substring(0, 6)}...`,
-                        email: 'admin@example.com'
+                        // No invented address: members are shown admins' real
+                        // contact details only (#331).
+                        email: ''
                       } as UIUser)
                   )
                 );

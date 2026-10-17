@@ -12,6 +12,10 @@
     wroteIt,
     type ExchangeTab
   } from '$lib/utils/exchange-ui';
+  import exchangesStore from '$lib/stores/exchanges.store.svelte';
+  import { chainsOf, groupByPerson, waitingOnMe } from '$lib/utils/exchange-chains';
+  import ExchangesWaitingOnYou from '$lib/components/exchanges/ExchangesWaitingOnYou.svelte';
+  import ExchangePersonGroup from '$lib/components/exchanges/ExchangePersonGroup.svelte';
 
   const TABS: { key: ExchangeTab; label: string; icon: string; blurb: string; ring: string }[] = [
     {
@@ -41,6 +45,16 @@
   const b64 = encodeHashToBase64;
   const me = $derived(exchanges.me);
 
+  /**
+   * By person (#333): every negotiation as a chain of rounds, grouped by the
+   * other member, with what is waiting on this member above. By state is the
+   * tabs and list as they were.
+   */
+  let view = $state<'person' | 'state'>('person');
+  const chains = $derived(chainsOf(exchangesStore.exchanges));
+  const people = $derived(groupByPerson(chains, me, exchanges.lastActivity));
+  const waiting = $derived(waitingOnMe(chains, me, exchanges.lastActivity));
+
   $effect(() => {
     exchanges.initialize();
   });
@@ -56,6 +70,50 @@
     <p class="text-surface-500">Deals you're proposing, working through, and have completed</p>
   </header>
 
+  <div class="flex flex-wrap gap-2" role="tablist" aria-label="View">
+    <button
+      type="button"
+      role="tab"
+      class="btn btn-sm {view === 'person' ? 'variant-filled-primary' : 'variant-ghost'}"
+      aria-selected={view === 'person'}
+      onclick={() => (view = 'person')}
+      data-testid="view-person">By person</button
+    >
+    <button
+      type="button"
+      role="tab"
+      class="btn btn-sm {view === 'state' ? 'variant-filled-primary' : 'variant-ghost'}"
+      aria-selected={view === 'state'}
+      onclick={() => (view = 'state')}
+      data-testid="view-state">By state</button
+    >
+  </div>
+
+  {#if view === 'person'}
+    {#if exchanges.error}
+      <div class="alert variant-filled-error">{exchanges.error}</div>
+    {:else if !exchanges.ready}
+      <p class="text-surface-500">Loading your exchanges...</p>
+    {:else if people.length === 0}
+      <div class="card space-y-3 p-6 text-center">
+        <p class="text-surface-500">No exchanges yet.</p>
+        <a class="variant-filled-primary btn" href="/requests">Browse listings to start one</a>
+      </div>
+    {:else}
+      <ExchangesWaitingOnYou chains={waiting} nameOf={exchanges.nameOf} titleOf={exchanges.titleOf} />
+      <div class="space-y-3">
+        {#each people as group (group.key)}
+          <ExchangePersonGroup
+            {group}
+            {me}
+            name={exchanges.nameOf(group.chains[0].latest) ?? 'A member'}
+            titleOf={exchanges.titleOf}
+            lastActivity={exchanges.lastActivity}
+          />
+        {/each}
+      </div>
+    {/if}
+  {:else}
   <div class="grid gap-4 md:grid-cols-3" role="tablist" aria-label="Exchange groups">
     {#each TABS as t (t.key)}
       <button
@@ -182,5 +240,6 @@
         </li>
       {/each}
     </ul>
+  {/if}
   {/if}
 </section>

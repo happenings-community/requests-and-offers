@@ -197,7 +197,7 @@
                       Foundational exchange categories like "Local Currency", "Time Banking", or
                       "Skill Exchange"
                     </p>
-                    <div class="mt-2 text-xs text-surface-500">
+                    <div class="mt-2 text-xs text-surface-500 dark:text-surface-300">
                       Examples: Local Currency, Time Banking, Skill Exchange, Favor Exchange
                     </div>
                   </div>
@@ -228,7 +228,7 @@
                       Specific currencies or payment methods like "USD", "Bitcoin", or "Ithaca
                       HOURS"
                     </p>
-                    <div class="mt-2 text-xs text-surface-500">
+                    <div class="mt-2 text-xs text-surface-500 dark:text-surface-300">
                       Examples: USD, EUR, Bitcoin, Ithaca HOURS, PayPal
                     </div>
                   </div>
@@ -255,7 +255,7 @@
           {#if errors.code}
             <p class="mt-1 text-sm text-error-500">{errors.code}</p>
           {:else}
-            <p class="mt-1 text-sm text-surface-500">
+            <p class="mt-1 text-sm text-surface-500 dark:text-surface-300">
               {exchangeType === 'base'
                 ? 'Enter a short category code (3-15 characters).'
                 : 'Enter the standard currency code (3-15 characters).'}
@@ -278,7 +278,7 @@
           {#if errors.name}
             <p class="mt-1 text-sm text-error-500">{errors.name}</p>
           {:else}
-            <p class="mt-1 text-sm text-surface-500">
+            <p class="mt-1 text-sm text-surface-500 dark:text-surface-300">
               Enter the full display name for this {exchangeType === 'base'
                 ? 'category'
                 : 'currency'}.

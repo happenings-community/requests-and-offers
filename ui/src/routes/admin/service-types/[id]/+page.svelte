@@ -412,7 +412,7 @@
               <h3 class="h4 mb-2 font-semibold">Created</h3>
               <p class="text-surface-600 dark:text-surface-400">{createdAt}</p>
               {#if serviceType.creator}
-                <p class="mt-1 text-xs text-surface-500">
+                <p class="mt-1 text-xs text-surface-500 dark:text-surface-300">
                   by {serviceType.creator.toString().slice(0, 8)}...
                 </p>
               {/if}
@@ -435,14 +435,14 @@
             <p class="text-2xl font-bold text-primary-400">
               {loadingRelatedContent ? '...' : relatedRequests.length}
             </p>
-            <p class="text-sm text-surface-500">requests using this service type</p>
+            <p class="text-sm text-surface-500 dark:text-surface-300">requests using this service type</p>
           </div>
           <div class="card variant-soft p-4">
             <h4 class="h4 mb-2">Related Offers</h4>
             <p class="text-2xl font-bold text-secondary-500">
               {loadingRelatedContent ? '...' : relatedOffers.length}
             </p>
-            <p class="text-sm text-surface-500">offers using this service type</p>
+            <p class="text-sm text-surface-500 dark:text-surface-300">offers using this service type</p>
           </div>
         </div>
       </div>
@@ -454,7 +454,7 @@
           <h3 class="h3 mb-4">
             Related Requests
             {#if !loadingRelatedContent}
-              <span class="text-sm text-surface-500">({relatedRequests.length})</span>
+              <span class="text-sm text-surface-500 dark:text-surface-300">({relatedRequests.length})</span>
             {/if}
           </h3>
 
@@ -464,7 +464,7 @@
               <p class="ml-2">Loading related requests...</p>
             </div>
           {:else if relatedRequests.length === 0}
-            <p class="py-4 text-surface-500">No requests are currently using this service type.</p>
+            <p class="py-4 text-surface-500 dark:text-surface-300">No requests are currently using this service type.</p>
           {:else}
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {#each relatedRequests.slice(0, 6) as request}
@@ -490,7 +490,7 @@
           <h3 class="h3 mb-4">
             Related Offers
             {#if !loadingRelatedContent}
-              <span class="text-sm text-surface-500">({relatedOffers.length})</span>
+              <span class="text-sm text-surface-500 dark:text-surface-300">({relatedOffers.length})</span>
             {/if}
           </h3>
 
@@ -500,7 +500,7 @@
               <p class="ml-2">Loading related offers...</p>
             </div>
           {:else if relatedOffers.length === 0}
-            <p class="py-4 text-surface-500">No offers are currently using this service type.</p>
+            <p class="py-4 text-surface-500 dark:text-surface-300">No offers are currently using this service type.</p>
           {:else}
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {#each relatedOffers.slice(0, 6) as offer}

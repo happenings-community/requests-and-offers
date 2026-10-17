@@ -80,7 +80,7 @@
   bind:this={dropdownRef}
 >
   <button
-    class="rounded px-3 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 focus:ring-opacity-50"
+    class="inline-flex items-center whitespace-nowrap rounded px-3 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 focus:ring-opacity-50"
     aria-expanded={isHovered}
     aria-haspopup="true"
     aria-label={total > 0 ? `${title} menu, ${total} waiting on you` : `${title} menu`}
@@ -89,15 +89,16 @@
       <img
         src={avatar}
         alt=""
-        class="mr-2 inline-block h-8 w-8 rounded-full bg-surface-200 object-cover align-middle"
+        class="mr-2 h-8 w-8 rounded-full bg-surface-200 object-cover"
       />
     {/if}
-    <span class={avatar ? 'inline-block max-w-[10rem] truncate align-middle' : ''}>{title}</span>
+    <!-- With a picture, the name shows only where there is room for it. -->
+    <span class={avatar ? 'hidden max-w-[10rem] truncate xl:inline' : ''}>{title}</span>
     {#if total > 0}
       <span class="badge ml-1 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700" aria-hidden="true">{shown(total)}</span>
     {/if}
     <svg
-      class="ml-1 inline-block h-4 w-4 transition-transform duration-200 {isHovered
+      class="ml-1 h-4 w-4 shrink-0 transition-transform duration-200 {isHovered
         ? 'rotate-180'
         : ''}"
       fill="none"

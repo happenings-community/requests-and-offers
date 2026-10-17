@@ -176,14 +176,14 @@
   <div class="flex items-center">
     <a href="/" class="flex items-center gap-3 transition-opacity hover:opacity-80">
       <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="h-12 w-12" />
-      <span class="hidden text-lg font-bold text-white sm:block">Requests & Offers</span>
+      <span class="hidden whitespace-nowrap text-lg font-bold text-white sm:block">Requests & Offers</span>
     </a>
   </div>
 
   <!-- Desktop Navigation -->
-  <div class="hidden items-center gap-8 lg:flex">
+  <div class="hidden items-center gap-4 lg:flex xl:gap-8">
     <!-- Primary Actions -->
-    <div class="flex items-center gap-6">
+    <div class="flex items-center gap-3 xl:gap-6">
       <a
         href="/requests"
         class="variant-filled-secondary btn px-6 py-2 font-semibold shadow-md transition-colors hover:variant-filled-tertiary hover:shadow-lg"
@@ -201,7 +201,7 @@
     </div>
 
     <!-- Secondary Navigation -->
-    <div class="flex items-center gap-4 text-white">
+    <div class="flex items-center gap-2 text-white xl:gap-4">
       <NavDropdown title="Community" items={communityItems} />
 
       <NavDropdown title="Resources" items={resourceItems} alignRight={true} />

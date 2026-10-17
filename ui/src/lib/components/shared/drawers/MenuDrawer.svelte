@@ -2,6 +2,7 @@
   import { getDrawerStore } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import { getUserPictureUrl } from '$lib/utils';
 
   const drawerStore = getDrawerStore();
   const { currentUser } = $derived(usersStore);
@@ -37,30 +38,20 @@
 
   <!-- Navigation Content -->
   <div class="flex-1 space-y-6 overflow-y-auto p-4">
-    <!-- Primary Actions -->
+    <!-- The member's own section first, as in the nav bar's top right -->
     <div class="space-y-3">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Main Actions</h3>
-      <a
-        href="/requests"
-        onclick={closeDrawer}
-        class="flex items-center gap-3 rounded-lg bg-secondary-600 p-3 transition-colors hover:bg-secondary-700"
-      >
-        <span class="text-xl">📝</span>
-        <span class="font-medium">Requests</span>
-      </a>
-      <a
-        href="/offers"
-        onclick={closeDrawer}
-        class="flex items-center gap-3 rounded-lg bg-warning-600 p-3 transition-colors hover:bg-warning-700"
-      >
-        <span class="text-xl">💡</span>
-        <span class="font-medium">Offers</span>
-      </a>
-    </div>
-
-    <!-- Profile -->
-    <div class="space-y-3">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Profile</h3>
+      {#if currentUser}
+        <div class="flex items-center gap-3">
+          <img
+            src={getUserPictureUrl(currentUser)}
+            alt=""
+            class="h-10 w-10 rounded-full bg-surface-200 object-cover"
+          />
+          <span class="truncate font-semibold">{currentUser.name}</span>
+        </div>
+      {:else}
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Profile</h3>
+      {/if}
       <div class="space-y-2">
         {#if currentUser}
           <a
@@ -98,6 +89,27 @@
           <span>My Exchanges</span>
         </a>
       </div>
+    </div>
+
+    <!-- Primary Actions -->
+    <div class="space-y-3">
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Main Actions</h3>
+      <a
+        href="/requests"
+        onclick={closeDrawer}
+        class="flex items-center gap-3 rounded-lg bg-secondary-600 p-3 transition-colors hover:bg-secondary-700"
+      >
+        <span class="text-xl">📝</span>
+        <span class="font-medium">Requests</span>
+      </a>
+      <a
+        href="/offers"
+        onclick={closeDrawer}
+        class="flex items-center gap-3 rounded-lg bg-warning-600 p-3 transition-colors hover:bg-warning-700"
+      >
+        <span class="text-xl">💡</span>
+        <span class="font-medium">Offers</span>
+      </a>
     </div>
 
     <!-- Community -->

@@ -7,6 +7,7 @@
     type PopupSettings
   } from '@skeletonlabs/skeleton';
   import NavDropdown from '$lib/components/shared/NavDropdown.svelte';
+  import { getUserPictureUrl } from '$lib/utils';
   import NetworkStatusPopup from '$lib/components/network/NetworkStatusPopup.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -48,6 +49,7 @@
   );
 
   const currentUser = $derived(usersStore.currentUser);
+  const myPicture = $derived(currentUser ? getUserPictureUrl(currentUser) : undefined);
   const agentIsAdministrator = $derived(administrationStore.agentIsAdministrator);
   const drawerStore = getDrawerStore();
   const drawerSettings: DrawerSettings = {
@@ -200,8 +202,6 @@
 
     <!-- Secondary Navigation -->
     <div class="flex items-center gap-4 text-white">
-      <NavDropdown title="Profile" items={profileItems()} />
-
       <NavDropdown title="Community" items={communityItems} />
 
       <NavDropdown title="Resources" items={resourceItems} alignRight={true} />
@@ -230,6 +230,24 @@
       >
         ⚙️ Admin
       </a>
+    {/if}
+
+    <!-- The member's own menu: their picture and name, top right -->
+    {#if currentUser}
+      <div class="text-white">
+        <NavDropdown
+          title={currentUser.name}
+          avatar={myPicture}
+          items={profileItems()}
+          alignRight={true}
+        />
+      </div>
+    {:else}
+      <a
+        href="/user/create"
+        class="variant-ringed-secondary btn border-2 px-4 py-2 text-sm text-white transition-colors hover:variant-filled-secondary"
+        >Create Profile</a
+      >
     {/if}
   </div>
 

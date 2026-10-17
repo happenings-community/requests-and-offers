@@ -1,5 +1,6 @@
 <script lang="ts">
   import { encodeHashToBase64, type ActionHash } from '@holochain/client';
+  import ExchangeCard from './ExchangeCard.svelte';
   import {
     roundChanges,
     roundOutcome,
@@ -8,12 +9,12 @@
     type RoundChange,
     type RoundOutcome
   } from '$lib/utils/exchange-chains';
-  import { formatWhen, statusLabel, turnOf, wroteIt } from '$lib/utils/exchange-ui';
+  import { formatWhen, wroteIt } from '$lib/utils/exchange-ui';
   import type { UIExchange } from '$lib/types/ui';
 
   /**
-   * One negotiation (#333): collapsed to its latest round, opening to every
-   * round, newest first, with what each changed and how it ended.
+   * One negotiation (#333): the exchange card for its latest proposal, with
+   * the earlier proposals, newest first, opening below it in the same card.
    */
   let {
     chain,
@@ -29,18 +30,28 @@
     lastMoved: number;
   } = $props();
 
-  const latest = $derived(chain.latest);
-  const turn = $derived(turnOf(latest, me));
-  const state = $derived(
-    turn === 'you'
-      ? 'Waiting on you'
-      : turn === 'them'
-        ? `Waiting on ${otherName}`
-        : statusLabel(latest)
-  );
-  const newestFirst = $derived([...chain.rounds].reverse());
+  let open = $state(false);
 
-  const href = (e: UIExchange) => `/exchanges/${encodeHashToBase64(e.agreement_hash)}`;
+  const latest = $derived(chain.latest);
+  const count = $derived(chain.rounds.length);
+  /** The first proposal has no chip; the first counter is "Counter-proposal". */
+  const chip = $derived(
+    count < 2 ? undefined : count === 2 ? 'Counter-proposal' : `Counter-proposal ${count - 1}`
+  );
+  /** Earlier proposals, newest first, each with the one it answers and the one answering it. */
+  const earlier = $derived(
+    chain.rounds
+      .slice(0, -1)
+      .map((round, i) => ({
+        round,
+        previous: chain.rounds[i - 1],
+        next: chain.rounds[i + 1]
+      }))
+      .reverse()
+  );
+  const answersWithdrawn = (previous: UIExchange | undefined) =>
+    !!previous && roundOutcome(previous, true) === 'withdrawn';
+
   const by = (e: UIExchange) => (wroteIt(e, me) ? 'you' : otherName);
 
   const FIELD: Record<RoundChange['field'], string> = {
@@ -69,57 +80,79 @@
   }
 </script>
 
-<details class="card p-4" data-testid="exchange-chain">
-  <summary class="cursor-pointer list-none space-y-1">
-    <div class="flex flex-wrap items-center gap-2">
-      <span class="font-semibold">{title}</span>
-      {#if chain.rounds.length > 1}
-        <span class="variant-soft-tertiary badge">Counter-proposal</span>
-      {/if}
-      <span class="badge {turn === 'you' ? 'variant-filled-secondary' : 'variant-soft-surface'}"
-        >{state}</span
-      >
-    </div>
-    <p class="text-sm">{termsInBrief(latest)}</p>
-    <p class="text-xs text-surface-500">
-      Round {chain.rounds.length} &middot; {formatWhen(lastMoved)}
-    </p>
-  </summary>
+<div class="card" data-testid="exchange-chain">
+  <ExchangeCard
+    exchange={latest}
+    {me}
+    other={otherName}
+    {title}
+    when={lastMoved}
+    {chip}
+    framed={false}
+  />
 
-  <ol class="mt-3 space-y-3 border-t border-surface-300 pt-3 dark:border-surface-600">
-    {#each newestFirst as round, i (encodeHashToBase64(round.agreement_hash))}
-      {@const position = chain.rounds.length - i}
-      {@const previous = chain.rounds[position - 2]}
-      {@const next = chain.rounds[position]}
-      {@const changes = roundChanges(previous, round)}
-      <li class="space-y-1 text-sm">
-        <p>
-          <span class="font-semibold">Round {position}</span>
-          <span class="text-surface-500">
-            &middot; proposed by {by(round)} &middot; {formatWhen(round.created_at)}</span
-          >
+  {#if earlier.length > 0 || chain.missingEarlier}
+    <div class="space-y-3 border-t border-surface-300 px-4 py-3 text-sm dark:border-surface-600">
+      {#if answersWithdrawn(chain.rounds[count - 2])}
+        <p class="text-surface-500">Answers a proposal that was withdrawn.</p>
+      {/if}
+      {#if earlier.length === 0}
+        <p class="text-surface-500" data-testid="missing-earlier">
+          Earlier proposals haven't arrived yet. They'll appear once they sync.
         </p>
-        {#if changes.length > 0}
-          <ul class="text-surface-600 dark:text-surface-300">
-            {#each changes as c (c.field)}
-              <li>{FIELD[c.field]}: {c.from} &rarr; <span class="font-semibold">{c.to}</span></li>
+      {:else}
+        <button
+          type="button"
+          class="anchor text-sm"
+          aria-expanded={open}
+          onclick={() => (open = !open)}
+          data-testid="earlier-proposals"
+        >
+          {open ? 'Hide earlier proposals' : `Earlier proposals (${earlier.length})`}
+        </button>
+
+        {#if open}
+          <ol class="space-y-3">
+            {#each earlier as { round, previous, next } (encodeHashToBase64(round.agreement_hash))}
+              {@const changes = roundChanges(previous, round)}
+              <li class="space-y-1">
+                <p>
+                  <span class="font-semibold">Proposed by {by(round)}</span>
+                  <span class="text-surface-500"> &middot; {formatWhen(round.created_at)}</span>
+                </p>
+                {#if answersWithdrawn(previous)}
+                  <p class="text-surface-500">Answers a proposal that was withdrawn.</p>
+                {/if}
+                {#if changes.length > 0}
+                  <ul class="text-surface-600 dark:text-surface-300">
+                    {#each changes as c (c.field)}
+                      <li>
+                        {FIELD[c.field]}: {c.from} &rarr; <span class="font-semibold">{c.to}</span>
+                      </li>
+                    {/each}
+                  </ul>
+                {:else}
+                  <p>{termsInBrief(round)}</p>
+                {/if}
+                <p class="flex flex-wrap items-center gap-2">
+                  <span class="variant-soft-surface badge"
+                    >{outcomeText(round, roundOutcome(round, !!next), next)}</span
+                  >
+                  <a
+                    class="anchor text-xs"
+                    href={`/exchanges/${encodeHashToBase64(round.agreement_hash)}`}>Open</a
+                  >
+                </p>
+              </li>
             {/each}
-          </ul>
-        {:else}
-          <p>{termsInBrief(round)}</p>
+            {#if chain.missingEarlier}
+              <li class="text-surface-500" data-testid="missing-earlier">
+                Earlier proposals haven't arrived yet. They'll appear once they sync.
+              </li>
+            {/if}
+          </ol>
         {/if}
-        <p class="flex flex-wrap items-center gap-2">
-          <span class="variant-soft-surface badge"
-            >{outcomeText(round, roundOutcome(round, !!next), next)}</span
-          >
-          <a class="anchor text-xs" href={href(round)}>Open this round</a>
-        </p>
-      </li>
-    {/each}
-    {#if chain.missingEarlier}
-      <li class="text-sm text-surface-500" data-testid="missing-earlier">
-        Earlier rounds haven't arrived yet. They'll appear once they sync.
-      </li>
-    {/if}
-  </ol>
-</details>
+      {/if}
+    </div>
+  {/if}
+</div>

@@ -47,7 +47,7 @@
       )}
     </span>
     {#if group.waitingOnMe}
-      <span class="variant-filled-secondary badge">Waiting on you</span>
+      <span class="variant-filled-secondary badge">Your turn</span>
     {/if}
   </summary>
   <div class="mt-3 space-y-3">

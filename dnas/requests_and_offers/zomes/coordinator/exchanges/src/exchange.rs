@@ -439,8 +439,9 @@ pub fn counter_agreement(input: CounterAgreementInput) -> ExternResult<Record> {
     accepted: false,
     note: COUNTERED_NOTE.to_string(),
   }))?;
-  create_link(countered_hash.clone(), decline.clone(), LinkTypes::AgreementResponses, ())?;
 
+  // The counter is the very next action after the decline: validation requires
+  // it, so one decline can only ever back one counter. Links come after both.
   // The proposal's author becomes the one this counter is sent to.
   let other_user = countered_writer(&countered, &me);
   let hash = create_entry(&EntryTypes::Agreement(Agreement {
@@ -463,9 +464,10 @@ pub fn counter_agreement(input: CounterAgreementInput) -> ExternResult<Record> {
     delivery_timeframe: input.delivery_timeframe,
     counters: Some(Countering {
       agreement: countered_hash.clone(),
-      decline,
+      decline: decline.clone(),
     }),
   }))?;
+  create_link(countered_hash.clone(), decline, LinkTypes::AgreementResponses, ())?;
   create_link(countered.listing, hash.clone(), LinkTypes::ListingAgreements, ())?;
   create_link(me, hash.clone(), LinkTypes::UserAgreements, ())?;
   create_link(other_user, hash.clone(), LinkTypes::UserAgreements, ())?;

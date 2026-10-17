@@ -21,7 +21,7 @@
   import { useErrorBoundary } from '$lib/composables/ui/useErrorBoundary.svelte';
   import { ADMINISTRATION_CONTEXTS } from '$lib/errors/error-contexts';
   import ErrorDisplay from '$lib/components/shared/ErrorDisplay.svelte';
-  import { reasonFrom } from '$lib/utils/admin-contacts';
+  import { cleanReason } from '$lib/utils/admin-contacts';
 
   type Props = {
     entity: UIUser | UIOrganization;
@@ -156,20 +156,6 @@
           case 'suspend-indefinitely':
             await handleSuspendIndefinitely(response.data);
             break;
-          case 'reject-user':
-          case 'reject-organization':
-            await updateStatus({
-              status_type: 'rejected',
-              reason: reasonFrom(response.data)
-            });
-            break;
-          case 'request-information':
-            // Stays pending: the request is recorded as the status reason (#331).
-            await updateStatus({
-              status_type: 'pending',
-              reason: reasonFrom(response.data)
-            });
-            break;
         }
 
         modalStore.close();
@@ -195,6 +181,11 @@
             case 'accept-user':
             case 'accept-organization':
               await updateStatus({ status_type: 'accepted' });
+              break;
+            case 'reject-user':
+            case 'reject-organization':
+              await updateStatus({ status_type: 'rejected', reason: cleanReason(decisionNote) });
+              decisionNote = '';
               break;
           }
 
@@ -227,40 +218,35 @@
     );
   }
 
-  function handleRejectModal() {
-    queueAndReverseModal(
-      promptModal({
-        id: entityType === AdministrationEntity.Users ? 'reject-user' : 'reject-organization',
-        message: `Reject this ${entityType === AdministrationEntity.Users ? 'user' : 'organization'}? The reason is shown to them and kept in the status history.`,
-        inputs: [
-          {
-            name: 'reason',
-            label: 'Reason (optional)',
-            type: 'text',
-            placeholder: 'Why this application is declined',
-            required: false
-          }
-        ]
-      }),
-      modalStore
-    );
+  // The decision on a pending application is made at the bottom of the details
+  // screen, after the whole application (#331). One message box serves both a
+  // request for more information (required) and a rejection reason (optional).
+  let decisionNote = $state('');
+  const hasDecisionNote = $derived(decisionNote.trim().length > 0);
+
+  async function approveApplication() {
+    await updateStatus({ status_type: 'accepted' });
   }
 
-  function handleRequestInformationModal() {
+  async function requestInformation() {
+    const reason = cleanReason(decisionNote);
+    if (!reason) return;
+    // Stays pending: the request is recorded as the status reason.
+    await updateStatus({ status_type: 'pending', reason });
+    decisionNote = '';
+  }
+
+  function handleRejectModal() {
     queueAndReverseModal(
-      promptModal({
-        id: 'request-information',
-        message:
-          'What do you need to know? The member sees this on their pending screen and answers by editing their profile.',
-        inputs: [
-          {
-            name: 'reason',
-            label: 'Information requested',
-            type: 'text',
-            placeholder: 'e.g. Please add a short bio and where you are based',
-            required: true
-          }
-        ]
+      confirmModal({
+        id: entityType === AdministrationEntity.Users ? 'reject-user' : 'reject-organization',
+        message: `Reject this ${entityType === AdministrationEntity.Users ? 'user' : 'organization'}? ${
+          hasDecisionNote
+            ? 'Your message is shown to them as the reason.'
+            : 'No reason will be given.'
+        }`,
+        confirmLabel: 'Reject',
+        cancelLabel: 'Cancel'
       }),
       modalStore
     );
@@ -525,21 +511,9 @@
     <button class="variant-filled-tertiary btn rounded-lg" onclick={handleStatusHistoryModal}>
       Status History
     </button>
-    {#if userStatus?.status_type === 'pending' || userStatus?.status_type === 'rejected'}
+    {#if userStatus?.status_type === 'rejected'}
       <button class="variant-filled-success btn rounded-lg" onclick={handleAcceptModal}>
         Accept
-      </button>
-    {/if}
-
-    {#if userStatus?.status_type === 'pending' && entityType === AdministrationEntity.Users}
-      <button class="variant-filled-warning btn rounded-lg" onclick={handleRequestInformationModal}>
-        Request more information
-      </button>
-    {/if}
-
-    {#if userStatus?.status_type === 'pending'}
-      <button class="variant-filled-error btn rounded-lg" onclick={handleRejectModal}>
-        Reject
       </button>
     {/if}
 
@@ -565,3 +539,43 @@
     {/if}
   {/if}
 </div>
+
+{#if page.url.pathname !== '/admin/administrators' && userStatus?.status_type === 'pending'}
+  <!-- Decision on a pending application, after the whole application (#331) -->
+  <section class="card mt-6 space-y-4 p-4" aria-labelledby="application-decision">
+    <h3 id="application-decision" class="h4">Decision</h3>
+    <label class="label">
+      <span>Message to the applicant</span>
+      <textarea
+        class="textarea"
+        rows="3"
+        bind:value={decisionNote}
+        placeholder={entityType === AdministrationEntity.Users
+          ? 'What you need to know, or why the application is declined'
+          : 'Why the application is declined'}
+      ></textarea>
+    </label>
+    <p class="text-sm text-surface-400">
+      {entityType === AdministrationEntity.Users
+        ? 'Needed to request more information; optional when rejecting; not sent when approving.'
+        : 'Optional when rejecting; not sent when approving.'}
+    </p>
+    <div class="flex flex-wrap justify-center gap-4">
+      <button class="variant-filled-success btn rounded-lg" onclick={approveApplication}>
+        Approve
+      </button>
+      {#if entityType === AdministrationEntity.Users}
+        <button
+          class="variant-filled-warning btn rounded-lg"
+          onclick={requestInformation}
+          disabled={!hasDecisionNote}
+        >
+          Request more information
+        </button>
+      {/if}
+      <button class="variant-filled-error btn rounded-lg" onclick={handleRejectModal}>
+        Reject
+      </button>
+    </div>
+  </section>
+{/if}

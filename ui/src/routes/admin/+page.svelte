@@ -34,7 +34,10 @@
       modalStore.trigger({
         type: 'component',
         component: modalComponent,
-        meta: { user }
+        meta: { user },
+        // A decision is made inside the details screen (#331): refresh the queue
+        // when it closes, however it closes.
+        response: () => refreshUsersData()
       });
     } else {
       goto(`/users/${encodeHashToBase64(user.original_action_hash)}`);
@@ -48,7 +51,8 @@
       modalStore.trigger({
         type: 'component',
         component: orgModalComponent,
-        meta: { organization: org }
+        meta: { organization: org },
+        response: () => refreshOrganizationsData()
       });
     } else {
       goto(`/organizations/${encodeHashToBase64(org.original_action_hash)}`);
@@ -111,30 +115,6 @@
 
       console.log('✅ Organization updated reactively in dashboard:', updatedOrg.name);
     }
-  }
-
-  async function approveUser(user: UIUser) {
-    await runEffect(administrationStore.approveUser(user));
-    toastStore.trigger({ message: 'User approved.', background: 'variant-filled-success' });
-    refreshUsersData();
-  }
-
-  async function rejectUser(user: UIUser) {
-    await runEffect(administrationStore.rejectUser(user));
-    toastStore.trigger({ message: 'User rejected.', background: 'variant-filled-warning' });
-    refreshUsersData();
-  }
-
-  async function approveOrganization(org: UIOrganization) {
-    await runEffect(administrationStore.approveOrganization(org));
-    toastStore.trigger({ message: 'Organization approved.', background: 'variant-filled-success' });
-    refreshOrganizationsData();
-  }
-
-  async function rejectOrganization(org: UIOrganization) {
-    await runEffect(administrationStore.rejectOrganization(org));
-    toastStore.trigger({ message: 'Organization rejected.', background: 'variant-filled-warning' });
-    refreshOrganizationsData();
   }
 
   async function refreshUsersData() {
@@ -318,16 +298,11 @@
                       onclick={() => handleViewUser(user)}><UserName user={user} /></button
                     >
                   </div>
-                  <div class="flex gap-2">
-                    <button
-                      class="variant-filled-success btn btn-sm"
-                      onclick={() => approveUser(user)}>Approve</button
-                    >
-                    <button
-                      class="variant-filled-warning btn btn-sm"
-                      onclick={() => rejectUser(user)}>Reject</button
-                    >
-                  </div>
+                  <!-- Decided only from the details screen, after reading it (#331) -->
+                  <button
+                    class="variant-filled-primary btn btn-sm"
+                    onclick={() => handleViewUser(user)}>Review application</button
+                  >
                 </div>
               {:else}
                 <p>No pending users.</p>
@@ -345,16 +320,10 @@
                     onclick={() => handleViewOrganization(org)}>{org.name}</button
                   >
                 </div>
-                <div class="flex gap-2">
-                  <button
-                    class="variant-filled-success btn btn-sm"
-                    onclick={() => approveOrganization(org)}>Approve</button
-                  >
-                  <button
-                    class="variant-filled-warning btn btn-sm"
-                    onclick={() => rejectOrganization(org)}>Reject</button
-                  >
-                </div>
+                <button
+                  class="variant-filled-primary btn btn-sm"
+                  onclick={() => handleViewOrganization(org)}>Review application</button
+                >
               </div>
             {:else}
               <p>No pending organizations.</p>

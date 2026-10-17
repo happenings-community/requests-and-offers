@@ -11,10 +11,10 @@ export function contactableAdmins(admins: readonly UIUser[]): UIUser[] {
 }
 
 /**
- * The reason an administrator typed into a status prompt, trimmed, or
- * undefined when left blank, so an empty reject reason stores no reason.
+ * The message an administrator typed for an applicant, trimmed, or undefined
+ * when left blank, so an empty rejection stores no reason.
  */
-export function reasonFrom(data: FormData): string | undefined {
-  const reason = String(data.get('reason') ?? '').trim();
+export function cleanReason(text: string | null | undefined): string | undefined {
+  const reason = (text ?? '').trim();
   return reason.length > 0 ? reason : undefined;
 }

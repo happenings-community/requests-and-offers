@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { contactableAdmins, reasonFrom } from '$lib/utils/admin-contacts';
+import { contactableAdmins, cleanReason } from '$lib/utils/admin-contacts';
 import type { UIUser } from '$lib/types/ui';
 
 const admin = (over: Partial<UIUser>): UIUser =>
@@ -25,19 +25,14 @@ describe('contactableAdmins', () => {
   });
 });
 
-describe('reasonFrom', () => {
-  const form = (reason?: string) => {
-    const data = new FormData();
-    if (reason !== undefined) data.set('reason', reason);
-    return data;
-  };
-
-  it('returns the trimmed reason', () => {
-    expect(reasonFrom(form('  Please add a short bio  '))).toBe('Please add a short bio');
+describe('cleanReason', () => {
+  it('returns the trimmed message', () => {
+    expect(cleanReason('  Please add a short bio  ')).toBe('Please add a short bio');
   });
 
-  it('is undefined when the reason is blank or missing, so none is stored', () => {
-    expect(reasonFrom(form('   '))).toBeUndefined();
-    expect(reasonFrom(form())).toBeUndefined();
+  it('is undefined when the message is blank or missing, so none is stored', () => {
+    expect(cleanReason('   ')).toBeUndefined();
+    expect(cleanReason('')).toBeUndefined();
+    expect(cleanReason(undefined)).toBeUndefined();
   });
 });

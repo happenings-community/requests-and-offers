@@ -129,3 +129,33 @@ describe('local state before the first load (F4)', () => {
     ).not.toBeNull();
   });
 });
+
+describe('the outbox with no conversation open (F1)', () => {
+  it('sends a waiting message to a person this store has no thread for', async () => {
+    const store = await freshStore();
+    sendMessage.mockReturnValueOnce(E.fail(devicesNotFound)).mockReturnValue(E.succeed([]));
+
+    await E.runPromise(store.send(ANITA, 'see you at ten'));
+    expect(store.outbox, 'held, not lost').toHaveLength(1);
+
+    await E.runPromise(store.flushOutbox());
+
+    expect(sendMessage, 'tried again').toHaveBeenCalledTimes(2);
+    expect(sendMessage.mock.calls[1][0]).toMatchObject({ toUser: ANITA, content: 'see you at ten' });
+    expect(store.outbox, 'gone once it went').toHaveLength(0);
+  });
+
+  it('the retry timer tries again by itself, with nothing on screen', async () => {
+    vi.useFakeTimers();
+    const store = await freshStore();
+    sendMessage.mockReturnValueOnce(E.fail(devicesNotFound)).mockReturnValue(E.succeed([]));
+    const stop = store.startRetrying();
+
+    await E.runPromise(store.send(ANITA, 'see you at ten'));
+    await vi.advanceTimersByTimeAsync(30_000);
+    stop();
+
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(store.outbox).toHaveLength(0);
+  });
+});

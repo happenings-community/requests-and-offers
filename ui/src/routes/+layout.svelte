@@ -184,6 +184,13 @@
    *
    * Skipped entirely on a network without messaging, so an absent network makes no
    * messaging calls at all — which is what makes the absent-mode hand test honest.
+   *
+   * **The outbox and the signals live here too, for the same reason.** A message held
+   * because the other person's devices could not be reached belongs to the member, not
+   * to the conversation it was typed in; retried only while that chat was open, it was
+   * never sent to anyone they did not go back to. So the retry timer, the browser's
+   * online event and the nudge-and-receipt listener are started once, with the poll,
+   * and stopped with it.
    */
   $effect(() => {
     if (messagingPresence.isAbsent || !usersStore.currentUser) return;
@@ -195,7 +202,16 @@
         .catch(() => {});
     void refresh();
     const interval = setInterval(refresh, 15000);
-    return () => clearInterval(interval);
+    const stopRetrying = messagingStore.startRetrying();
+    const stopListening = messagingStore.listen();
+    const flush = () => void runEffect(messagingStore.flushOutbox());
+    window.addEventListener('online', flush);
+    return () => {
+      clearInterval(interval);
+      stopRetrying();
+      stopListening();
+      window.removeEventListener('online', flush);
+    };
   });
 
   // Step 1: Connect to Holochain with retry logic (exponential backoff, 3 attempts, 10s timeout)

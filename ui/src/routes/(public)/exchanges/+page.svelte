@@ -1,19 +1,10 @@
 <script lang="ts">
   import { encodeHashToBase64 } from '@holochain/client';
   import { useExchangesManagement } from '$lib/composables/domain/exchanges/useExchangesManagement.svelte';
-  import {
-    actionLabel,
-    exchangeStatusVariant,
-    formatWhen,
-    roleOf,
-    statusLabel,
-    termLabel,
-    turnOf,
-    wroteIt,
-    type ExchangeTab
-  } from '$lib/utils/exchange-ui';
+  import { type ExchangeTab } from '$lib/utils/exchange-ui';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
   import { chainsOf, groupChains, type GroupKey } from '$lib/utils/exchange-chains';
+  import ExchangeCard from '$lib/components/exchanges/ExchangeCard.svelte';
   import ExchangeGroup from '$lib/components/exchanges/ExchangeGroup.svelte';
 
   const TABS: { key: ExchangeTab; label: string; icon: string; blurb: string; ring: string }[] = [
@@ -177,56 +168,14 @@
   {:else}
     <ul class="space-y-3">
       {#each exchanges.shown as e (b64(e.agreement_hash))}
-        {@const role = roleOf(e, me)}
-        {@const other = exchanges.nameOf(e)}
-        {@const give = role === 'provider' ? e.agreement.primary : e.agreement.reciprocal}
-        {@const get = role === 'provider' ? e.agreement.reciprocal : e.agreement.primary}
         <li>
-          <a
-            class="card block space-y-3 p-4 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700"
-            href={`/exchanges/${b64(e.agreement_hash)}`}
-          >
-            <div class="flex flex-wrap items-center gap-2 text-sm">
-              <span class="badge {exchangeStatusVariant(e.status)}">{statusLabel(e)}</span>
-              {#if turnOf(e, me) === 'you'}<span class="variant-filled-secondary badge"
-                  >Your turn</span
-                >
-              {:else if turnOf(e, me) === 'them'}<span class="variant-soft-surface badge"
-                  >Waiting on {other ?? 'them'}</span
-                >{/if}
-              {#if e.agreement.medium}<span class="variant-soft-surface badge"
-                  >{e.agreement.medium}</span
-                >{/if}
-              <span class="text-surface-500"
-                >{role === 'provider' ? 'You provide' : 'You receive'}</span
-              >
-              {#if e.status === 'Proposed' || e.status === 'Declined'}
-                <span class="text-surface-500"
-                  >Proposed by {wroteIt(e, me) ? 'you' : (other ?? '...')}</span
-                >
-              {/if}
-              <span class="ml-auto text-xs text-surface-500"
-                >{formatWhen(exchanges.lastActivity(e))}</span
-              >
-            </div>
-            <h3 class="h4">{exchanges.titleOf(e) ?? '...'}</h3>
-            <div class="flex flex-wrap items-center gap-2 text-sm">
-              <span>You give {termLabel(give)}</span>
-              <span class="text-surface-500">&#8646;</span>
-              <span>{other ?? 'They'} {other ? 'gives' : 'give'} {termLabel(get)}</span>
-            </div>
-            <div class="flex items-center gap-2 text-sm">
-              <span
-                class="flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-xs text-white"
-              >
-                {(other ?? '?')[0]}
-              </span>
-              <span>{other ?? '...'}</span>
-              <span class="variant-filled-primary btn btn-sm ml-auto"
-                >{actionLabel(e, role)} &rarr;</span
-              >
-            </div>
-          </a>
+          <ExchangeCard
+            exchange={e}
+            {me}
+            other={exchanges.nameOf(e)}
+            title={exchanges.titleOf(e)}
+            when={exchanges.lastActivity(e)}
+          />
         </li>
       {/each}
     </ul>

@@ -133,6 +133,19 @@ fn validate_delete_link_agent_administrators(
   Ok(ValidateCallbackResult::Valid)
 }
 
+/// Every rule for a new or updated entry, run for both ops of the write.
+///
+/// Holochain sends the entry op and the record op of a create or update to
+/// different authorities, by entry hash and by action hash, and
+/// `must_get_valid_record` trusts the record authority's verdict. A rule run
+/// on the entry op alone is never seen by the authority that answers for
+/// the record.
+fn validate_entry(app_entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
+  match app_entry {
+    EntryTypes::Status(status) => validate_status(status),
+  }
+}
+
 // ============================================================================
 // VALIDATE CALLBACK
 // ============================================================================
@@ -140,7 +153,8 @@ fn validate_delete_link_agent_administrators(
 /// HDK integrity validation callback. Dispatches every DHT operation to the appropriate
 /// type-specific validator.
 ///
-/// - `CreateEntry` ops are routed to entry-type validators (e.g., `validate_status`).
+/// - `CreateEntry` and `CreateRecord` ops for a create or update are routed to the
+///   entry-type validators (e.g., `validate_status`) through [`validate_entry`].
 /// - `Link` ops (create and delete) are routed to link-type validators.
 /// - All other ops (agent activity, countersigning, etc.) return `Valid` by default.
 #[hdk_extern]
@@ -160,12 +174,15 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, .. } => match app_entry {
-        EntryTypes::Status(status) => validate_status(status),
-      },
-      OpEntry::UpdateEntry { app_entry, .. } => match app_entry {
-        EntryTypes::Status(status) => validate_status(status),
-      },
+      OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
+        validate_entry(app_entry)
+      }
+      _ => Ok(ValidateCallbackResult::Valid),
+    },
+    FlatOp::CreateRecord(store_record) => match store_record {
+      OpRecord::CreateEntry { app_entry, .. } | OpRecord::UpdateEntry { app_entry, .. } => {
+        validate_entry(app_entry)
+      }
       _ => Ok(ValidateCallbackResult::Valid),
     },
     FlatOp::Link(OpLink::CreateLink { link_type, action }) => {

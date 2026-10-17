@@ -43,6 +43,21 @@ export function counterProposalHref(exchange: UIExchange): string {
   );
 }
 
+/** How often an open exchange page re-reads its exchange (#334). */
+export const EXCHANGE_POLL_MS = 15_000;
+
+/**
+ * True once nothing more can happen to an exchange, so its page can stop
+ * re-reading it: both reviews are in, or it was declined or cancelled.
+ */
+export function isSettled(exchange: Pick<UIExchange, 'status'> | null | undefined): boolean {
+  return (
+    exchange?.status === 'Reviewed' ||
+    exchange?.status === 'Declined' ||
+    exchange?.status === 'Cancelled'
+  );
+}
+
 export interface UseExchangeDetailsOptions {
   /** The agreement to load. Null while the route parameter is unreadable. */
   agreementHash: () => ActionHash | null;
@@ -156,6 +171,42 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
     );
   };
 
+  /**
+   * Re-reads the exchange so the other member's moves (marking done, a review,
+   * a reply) show without a reload (#334). Skipped while this member's own
+   * write is in flight, since that write returns the fresh exchange itself, and
+   * quiet on failure: the next tick tries again.
+   */
+  async function refresh(): Promise<void> {
+    const target = agreementHash();
+    if (!target || busy || !exchange) return;
+    try {
+      const fresh = await runEffect(exchangesStore.getExchange(target));
+      if (!busy) exchange = fresh;
+    } catch {
+      // Network hiccup: the next tick tries again.
+    }
+  }
+
+  /** Starts re-reading while the exchange is unsettled; returns the function that stops it. */
+  function watch(): () => void {
+    let stopped = false;
+    const stop = () => {
+      if (stopped) return;
+      stopped = true;
+      clearInterval(interval);
+      window.removeEventListener('focus', tick);
+    };
+    // Once settled nothing more can change, so the timer and listener go too.
+    const tick = () => {
+      if (isSettled(exchange)) stop();
+      else void refresh();
+    };
+    const interval = setInterval(tick, EXCHANGE_POLL_MS);
+    window.addEventListener('focus', tick);
+    return stop;
+  }
+
   async function initialize(): Promise<void> {
     const target = agreementHash();
     if (!target) {
@@ -180,6 +231,8 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
   }
 
   return {
+    refresh,
+    watch,
     get exchange() {
       return exchange;
     },

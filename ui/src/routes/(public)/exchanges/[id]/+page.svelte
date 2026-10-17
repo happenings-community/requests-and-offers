@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
@@ -66,6 +67,10 @@
   $effect(() => {
     details.initialize();
   });
+
+  // Keep the exchange current while it is open, so the other member's moves
+  // show without a reload (#334). Stops itself once nothing more can happen.
+  onMount(() => details.watch());
 </script>
 
 <svelte:head>

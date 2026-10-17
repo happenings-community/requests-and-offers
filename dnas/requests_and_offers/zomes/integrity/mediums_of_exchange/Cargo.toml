@@ -11,3 +11,6 @@ name = "mediums_of_exchange_integrity"
 hdi = { workspace = true }
 holochain_serialized_bytes = { workspace = true }
 serde = { workspace = true }
+
+[dev-dependencies]
+utils = { workspace = true }

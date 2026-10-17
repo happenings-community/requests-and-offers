@@ -821,6 +821,91 @@ async fn a_message_with_neither_text_nor_a_listing_is_refused() {
     }
 }
 
+/// Mirror of the zome's `Signal`, both halves, as the interface decodes them.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+enum MessagingSignal {
+    Nudge {
+        hash: ActionHash,
+        from: AgentPubKey,
+    },
+    Receipt {
+        #[serde(rename = "readUpTo")]
+        read_up_to: Timestamp,
+        from: AgentPubKey,
+    },
+}
+
+/// Mirror of the zome's `SendReceiptInput`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SendReceiptInput {
+    to_user: ActionHash,
+    read_up_to: Timestamp,
+}
+
+/// A receipt reaches the other member's agent, from its sender, with the mark under the
+/// name the interface reads.
+///
+/// The interface's schema says `readUpTo`, like every other field it reads from this
+/// zome. The signal used to carry `read_up_to`, so the interface read `undefined` and
+/// Read never appeared on anyone's message (review of 16 October, F5).
+///
+/// **To make this go red:** drop the `rename` on `Signal::Receipt`. The signal arrives,
+/// decodes as nothing this mirror knows, and the wait runs out.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_receipt_arrives_as_read_up_to_from_its_sender() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+
+    // Subscribe before sending, as the nudge cases do.
+    let mut bob_signals =
+        conductors[1].subscribe_to_app_signals("requests_and_offers".to_string());
+
+    let mark = Timestamp::now();
+    let _: () = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_receipt",
+            SendReceiptInput {
+                to_user: bob_user,
+                read_up_to: mark,
+            },
+        )
+        .await;
+
+    // The same deadline as the nudge cases in `messaging.rs` (`SIGNAL_DEADLINE`), for
+    // the same reason: it is what the hosted runner has been measured to need.
+    let received = tokio::time::timeout(std::time::Duration::from_secs(240), async {
+        loop {
+            match bob_signals.recv().await.expect("Bob's signal channel closed") {
+                Signal::App { signal, .. } => {
+                    if let Ok(decoded) = signal.into_inner().decode::<MessagingSignal>() {
+                        break decoded;
+                    }
+                }
+                Signal::System(_) => {}
+                // 0.7's direct signals, sent with `SendDirectSignal` from an app call: not
+                // something this zome emits, so keep waiting.
+                Signal::AppDirect { .. } => {}
+            }
+        }
+    })
+    .await
+    .expect("Bob should receive the receipt as a signal the interface can decode");
+
+    match received {
+        MessagingSignal::Receipt { read_up_to, from } => {
+            assert_eq!(read_up_to, mark, "the mark should round-trip");
+            assert_eq!(
+                &from,
+                alice.agent_pubkey(),
+                "the sender is taken from call provenance"
+            );
+        }
+        other => panic!("expected a receipt, got {other:?}"),
+    }
+}
+
 /// The chain functions for blocks and read markers are gone.
 ///
 /// Read markers and blocks left the chain because a private entry hides its content but

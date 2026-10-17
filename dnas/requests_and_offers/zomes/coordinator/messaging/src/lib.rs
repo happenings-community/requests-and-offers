@@ -69,7 +69,12 @@ pub enum Signal {
     },
     /// Somebody says they have read up to here. `from` is call provenance, so who sent
     /// it cannot be forged; `read_up_to` is their claim and the app clamps it.
+    ///
+    /// On the wire the field is `readUpTo`, as every other field the interface reads is
+    /// (`Message`, `SendReceiptInput`). Without the rename the interface read
+    /// `undefined`, and Read never appeared on anyone's message.
     Receipt {
+        #[serde(rename = "readUpTo")]
         read_up_to: Timestamp,
         from: AgentPubKey,
     },

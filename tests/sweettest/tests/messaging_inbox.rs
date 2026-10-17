@@ -786,6 +786,41 @@ async fn a_message_carries_text_or_a_listing_never_both() {
     assert_eq!(inbox[0].content, "", "a card-only message carries no text");
 }
 
+/// A message with no text and no listing is refused.
+///
+/// The interface never sends one on purpose: the composer refuses an empty draft and a
+/// card always carries its listing. One reaching the zome is a client defect, and
+/// writing it would put a blank bubble on both chains that nobody meant to send.
+///
+/// **To make this go red:** drop the "neither" check in `send_message`. The call succeeds
+/// and Bob's inbox holds an empty message.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_message_with_neither_text_nor_a_listing_is_refused() {
+    let (conductors, alice, _bob, _alice_user, bob_user) = two_accepted_members().await;
+
+    for content in ["", "   \n"] {
+        let err = conductors[0]
+            .call_fallible::<_, Vec<SentMessage>>(
+                &alice.zome("messaging"),
+                "send_message",
+                SendMessageInput {
+                    to_user: bob_user.clone(),
+                    content: content.to_string(),
+                    send_id: "send-4".to_string(),
+                    read_up_to: None,
+                    listing: None,
+                },
+            )
+            .await
+            .expect_err("a message with neither text nor a listing should be refused")
+            .to_string();
+        assert!(
+            err.contains("This one has neither"),
+            "the refusal should say why; got {err}"
+        );
+    }
+}
+
 /// The chain functions for blocks and read markers are gone.
 ///
 /// Read markers and blocks left the chain because a private entry hides its content but

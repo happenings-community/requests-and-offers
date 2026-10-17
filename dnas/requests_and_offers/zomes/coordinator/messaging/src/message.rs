@@ -177,6 +177,15 @@ pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
     )));
   }
 
+  // **And it carries one of them.** Nothing a member can do produces a message with no
+  // text and no card, so one arriving here is a client defect, and it is refused rather
+  // than written to two chains as a blank bubble nobody meant to send.
+  if input.listing.is_none() && input.content.trim().is_empty() {
+    return Err(wasm_error!(WasmErrorInner::Guest(
+      "A message carries text or a listing. This one has neither.".to_string()
+    )));
+  }
+
   let me = agent_info()?.agent_initial_pubkey;
   require_accepted_member(me.clone())?;
 

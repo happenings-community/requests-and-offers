@@ -13,8 +13,7 @@
     type ExchangeTab
   } from '$lib/utils/exchange-ui';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
-  import { chainsOf, groupChains, waitingOnMe, type GroupKey } from '$lib/utils/exchange-chains';
-  import ExchangesWaitingOnYou from '$lib/components/exchanges/ExchangesWaitingOnYou.svelte';
+  import { chainsOf, groupChains, type GroupKey } from '$lib/utils/exchange-chains';
   import ExchangeGroup from '$lib/components/exchanges/ExchangeGroup.svelte';
 
   const TABS: { key: ExchangeTab; label: string; icon: string; blurb: string; ring: string }[] = [
@@ -59,7 +58,6 @@
     const list = groupChains(visible, groupBy, me, exchanges.lastActivity);
     return exchanges.order === 'oldest' ? list.reverse() : list;
   });
-  const waiting = $derived(waitingOnMe(chains, me, exchanges.lastActivity));
   const groupLabel = (g: (typeof groups)[number]) =>
     groupBy === 'person'
       ? (exchanges.nameOf(g.sample.latest) ?? 'A member')
@@ -148,10 +146,6 @@
       </select></label
     >
   </div>
-
-  {#if exchanges.ready && !exchanges.error}
-    <ExchangesWaitingOnYou chains={waiting} nameOf={exchanges.nameOf} titleOf={exchanges.titleOf} />
-  {/if}
 
   {#if exchanges.error}
     <div class="alert variant-filled-error">{exchanges.error}</div>

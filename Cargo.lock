@@ -6332,9 +6332,12 @@ version = "0.1.0"
 dependencies = [
  "holochain",
  "holochain_serialized_bytes",
+ "holochain_state",
  "rmp-serde",
  "serde",
  "serde_json",
+ "sodoken",
+ "sqlx",
  "tokio",
 ]
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   chainsOf,
-  groupByPerson,
+  groupChains,
   roundChanges,
   roundOutcome,
   waitingOnMe
@@ -133,28 +133,66 @@ describe('waitingOnMe', () => {
   });
 });
 
-describe('groupByPerson', () => {
-  it('groups chains by the other person, most recently active first', () => {
+describe('groupChains', () => {
+  it('groups by the other person, most recently active first', () => {
     const chains = chainsOf([
       round(10, 100, { other: bob }),
       round(20, 400, { other: carol, to: carol }),
       round(30, 300, { other: bob, to: bob })
     ]);
-    const groups = groupByPerson(chains, me, byTime);
-    expect(groups.map((g) => g.person[0])).toEqual([5, 4]);
+    const groups = groupChains(chains, 'person', me, byTime);
+    expect(groups.map((g) => counterOf(g))).toEqual([5, 4]);
     expect(groups[1].chains.map((c) => c.latest.agreement_hash[0])).toEqual([30, 10]);
   });
 
-  it('marks a person whose group holds something waiting on me', () => {
+  it('marks a group holding something waiting on me', () => {
     const chains = chainsOf([
       round(10, 100, { other: bob }),
       round(20, 200, { other: carol, to: carol })
     ]);
-    const groups = groupByPerson(chains, me, byTime);
-    expect(groups.find((g) => g.person[0] === 4)?.waitingOnMe).toBe(true);
-    expect(groups.find((g) => g.person[0] === 5)?.waitingOnMe).toBe(false);
+    const groups = groupChains(chains, 'person', me, byTime);
+    expect(groups.find((g) => counterOf(g) === 4)?.waitingOnMe).toBe(true);
+    expect(groups.find((g) => counterOf(g) === 5)?.waitingOnMe).toBe(false);
+  });
+
+  it('groups by service, medium or listing', () => {
+    const gardening = round(10, 100);
+    const plumbing = {
+      ...round(20, 200),
+      agreement: {
+        ...round(20, 200).agreement,
+        listing: hash(8),
+        medium: 'Pounds',
+        primary: { ...round(20, 200).agreement.primary, resource_conforms_to: 'Plumbing' }
+      }
+    } as UIExchange;
+    const chains = chainsOf([gardening, plumbing]);
+    expect(groupChains(chains, 'service', me, byTime).map((g) => g.key)).toEqual([
+      'Plumbing',
+      'Gardening'
+    ]);
+    expect(groupChains(chains, 'medium', me, byTime).map((g) => g.key)).toEqual([
+      'Pounds',
+      'Free/Pay it Forward'
+    ]);
+    expect(groupChains(chains, 'listing', me, byTime)).toHaveLength(2);
+  });
+
+  it('keeps every round of a negotiation in one group', () => {
+    const chains = chainsOf([
+      round(10, 100, { status: 'Declined' }),
+      round(11, 200, { counters: 10 })
+    ]);
+    for (const by of ['person', 'listing', 'service', 'medium'] as const) {
+      const groups = groupChains(chains, by, me, byTime);
+      expect(groups).toHaveLength(1);
+      expect(groups[0].chains[0].rounds).toHaveLength(2);
+    }
   });
 });
+
+/** The other person's id byte, for a person group. */
+const counterOf = (g: { sample: { latest: UIExchange } }) => g.sample.latest.agreement.provider[0];
 
 describe('roundChanges', () => {
   it('names what changed from the round before', () => {

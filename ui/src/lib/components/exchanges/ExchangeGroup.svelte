@@ -1,36 +1,45 @@
 <script lang="ts">
   import type { ActionHash } from '@holochain/client';
   import ExchangeChainCard from './ExchangeChainCard.svelte';
-  import type { PersonGroup } from '$lib/utils/exchange-chains';
+  import type { ChainGroup } from '$lib/utils/exchange-chains';
   import { formatWhen } from '$lib/utils/exchange-ui';
   import type { UIExchange } from '$lib/types/ui';
 
   /**
-   * Every negotiation with one person (#333), collapsed to their name, how many
-   * negotiations, and when anything last moved.
+   * One group of negotiations (#333): by person, listing, service type or
+   * medium. Collapsed to its label, how many negotiations, and when anything
+   * last moved. `nameOf` names the other person on each card, which differs
+   * from card to card unless the grouping is by person.
    */
   let {
     group,
     me,
-    name,
+    label,
+    initial = false,
+    nameOf,
     titleOf,
     lastActivity
   }: {
-    group: PersonGroup;
+    group: ChainGroup;
     me: ActionHash | undefined;
-    name: string;
+    label: string;
+    /** Show the label's first letter as an avatar: for a person. */
+    initial?: boolean;
+    nameOf: (e: UIExchange) => string | undefined;
     titleOf: (e: UIExchange) => string | undefined;
     lastActivity: (e: UIExchange) => number;
   } = $props();
 </script>
 
-<details class="card variant-soft-surface p-4" data-testid="exchange-person">
+<details class="card variant-soft-surface p-4" data-testid="exchange-group">
   <summary class="flex cursor-pointer list-none flex-wrap items-center gap-2">
-    <span
-      class="flex h-7 w-7 items-center justify-center rounded-full bg-primary-500 text-sm text-white"
-      >{name[0] ?? '?'}</span
-    >
-    <span class="font-semibold">{name}</span>
+    {#if initial}
+      <span
+        class="flex h-7 w-7 items-center justify-center rounded-full bg-primary-500 text-sm text-white"
+        >{label[0] ?? '?'}</span
+      >
+    {/if}
+    <span class="font-semibold">{label}</span>
     <span class="text-sm text-surface-500">
       {group.chains.length}
       {group.chains.length === 1 ? 'negotiation' : 'negotiations'} &middot; {formatWhen(
@@ -46,7 +55,7 @@
       <ExchangeChainCard
         {chain}
         {me}
-        otherName={name}
+        otherName={nameOf(chain.latest) ?? 'them'}
         title={titleOf(chain.latest) ?? 'A listing'}
         lastMoved={lastActivity(chain.latest)}
       />

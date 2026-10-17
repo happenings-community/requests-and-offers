@@ -3,9 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const state = vi.hoisted(() => ({
   currentUser: null as null | {
     original_action_hash: Uint8Array;
-    status?: { status_type: string };
+    status?: { status_type: string; reason?: string };
   },
-  latest: null as null | { status_type: string },
+  latest: null as null | { status_type: string; reason?: string },
   refreshed: 0
 }));
 
@@ -32,6 +32,7 @@ vi.mock('$lib/utils/effect', () => ({
 
 import {
   approvalChange,
+  newInformationRequest,
   useApprovalWatch
 } from '$lib/composables/domain/users/useApprovalWatch.svelte';
 
@@ -146,5 +147,69 @@ describe('useApprovalWatch', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('newInformationRequest', () => {
+  it('is the request when a pending status carries one not yet seen', () => {
+    expect(newInformationRequest(undefined, 'pending', 'Please add a bio')).toBe(
+      'Please add a bio'
+    );
+    expect(newInformationRequest('Old request', 'pending', 'New request')).toBe('New request');
+  });
+
+  it('is nothing for a request already seen, a blank one, or a status that is not pending', () => {
+    expect(newInformationRequest('Please add a bio', 'pending', ' Please add a bio ')).toBeNull();
+    expect(newInformationRequest(undefined, 'pending', '   ')).toBeNull();
+    expect(newInformationRequest(undefined, 'pending', undefined)).toBeNull();
+    expect(newInformationRequest(undefined, 'rejected', 'Not a fit')).toBeNull();
+  });
+});
+
+describe('useApprovalWatch information requests (#331)', () => {
+  beforeEach(() => {
+    state.currentUser = pendingUser();
+    state.latest = null;
+    state.refreshed = 0;
+  });
+
+  it('announces a new request once, refreshes the profile, and keeps watching', async () => {
+    vi.useFakeTimers();
+    try {
+      const onInformationRequested = vi.fn();
+      const watch = useApprovalWatch({ onAccepted: vi.fn(), onInformationRequested });
+      state.latest = { status_type: 'pending', reason: 'Please add a bio' };
+      watch.start();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(onInformationRequested).toHaveBeenCalledTimes(1);
+      expect(onInformationRequested).toHaveBeenCalledWith('Please add a bio');
+      expect(state.refreshed).toBeGreaterThanOrEqual(1);
+      expect(watch.watching).toBe(true);
+      watch.start()();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('announces a second, different request', async () => {
+    const onInformationRequested = vi.fn();
+    const watch = useApprovalWatch({ onAccepted: vi.fn(), onInformationRequested });
+    state.latest = { status_type: 'pending', reason: 'First' };
+    await watch.check();
+    state.latest = { status_type: 'pending', reason: 'Second' };
+    await watch.check();
+    expect(onInformationRequested.mock.calls).toEqual([['First'], ['Second']]);
+  });
+
+  it('does not announce a request the member already has', async () => {
+    const onInformationRequested = vi.fn();
+    state.currentUser = {
+      ...pendingUser(),
+      status: { status_type: 'pending', reason: 'Please add a bio' }
+    };
+    state.latest = { status_type: 'pending', reason: 'Please add a bio' };
+    await useApprovalWatch({ onAccepted: vi.fn(), onInformationRequested }).check();
+    expect(onInformationRequested).not.toHaveBeenCalled();
   });
 });

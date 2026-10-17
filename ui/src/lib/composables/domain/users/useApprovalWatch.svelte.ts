@@ -28,10 +28,29 @@ export function approvalChange(before?: string, after?: string): ApprovalChange 
 export interface UseApprovalWatchOptions {
   /** Called once when the member is accepted. */
   onAccepted: () => void;
+  /**
+   * Called when an administrator asks the still-pending member for more
+   * information (a pending status with a new reason, #331), once per request.
+   */
+  onInformationRequested?: (request: string) => void;
 }
 
-export function useApprovalWatch({ onAccepted }: UseApprovalWatchOptions) {
+/** The request to show, when a pending status now carries one the member hasn't seen. */
+export function newInformationRequest(
+  seen: string | undefined,
+  latestType: string | undefined,
+  latestReason: string | undefined
+): string | null {
+  if (latestType !== 'pending') return null;
+  const request = latestReason?.trim();
+  if (!request || request === seen?.trim()) return null;
+  return request;
+}
+
+export function useApprovalWatch({ onAccepted, onInformationRequested }: UseApprovalWatchOptions) {
   let settled = false;
+  // The last request announced, so a failed profile refresh can't repeat it every tick.
+  let announced: string | undefined;
   let stopWatching: (() => void) | null = null;
 
   /** Stops the poll and the focus listener. Safe to call more than once. */
@@ -66,6 +85,19 @@ export function useApprovalWatch({ onAccepted }: UseApprovalWatchOptions) {
         // Rejected or suspended: refresh so the profile guards show the right screen.
         stop();
         await runEffect(usersStore.refreshCurrentUser());
+      } else {
+        // Still pending: has an administrator asked for more information?
+        const request = newInformationRequest(
+          announced ?? user.status.reason,
+          latest?.status_type,
+          latest?.reason
+        );
+        if (request) {
+          announced = request;
+          // Refresh first so every screen shows the request, then announce it.
+          await runEffect(usersStore.refreshCurrentUser()).catch(() => {});
+          onInformationRequested?.(request);
+        }
       }
     } catch {
       // Network hiccup: the next tick tries again.

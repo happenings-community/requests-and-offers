@@ -46,6 +46,9 @@ export function counterProposalHref(exchange: UIExchange): string {
 /** How often an open exchange page re-reads its exchange (#334). */
 export const EXCHANGE_POLL_MS = 15_000;
 
+/** Failed re-reads in a row before the page says it is showing the last update. */
+export const STALE_AFTER_FAILURES = 3;
+
 /**
  * True once nothing more can happen to an exchange, so its page can stop
  * re-reading it: both reviews are in, or it was declined or cancelled.
@@ -71,6 +74,7 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
   let listingTitle = $state('');
   let loadError = $state<string | null>(null);
   let busy = $state(false);
+  let failedReads = $state(0);
 
   let note = $state('');
   let rating = $state(0);
@@ -174,8 +178,10 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
   /**
    * Re-reads the exchange so the other member's moves (marking done, a review,
    * a reply) show without a reload (#334). Skipped while this member's own
-   * write is in flight, since that write returns the fresh exchange itself, and
-   * quiet on failure: the next tick tries again.
+   * write is in flight, since that write returns the fresh exchange itself. A
+   * single failure is quiet and the next tick tries again; after several in a row
+   * the page says it is showing the last update, so a lost connection is not
+   * mistaken for nothing happening.
    */
   async function refresh(): Promise<void> {
     const target = agreementHash();
@@ -183,8 +189,9 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
     try {
       const fresh = await runEffect(exchangesStore.getExchange(target));
       if (!busy) exchange = fresh;
+      failedReads = 0;
     } catch {
-      // Network hiccup: the next tick tries again.
+      failedReads += 1;
     }
   }
 
@@ -235,6 +242,10 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
     watch,
     get exchange() {
       return exchange;
+    },
+    /** True after repeated failed re-reads: the page is showing its last update. */
+    get stale() {
+      return failedReads >= STALE_AFTER_FAILURES;
     },
     get other() {
       return other;

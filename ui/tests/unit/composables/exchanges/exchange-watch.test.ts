@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const { state, hash } = vi.hoisted(() => ({
-  state: { status: 'Agreed' as string, reads: 0 },
+  state: { status: 'Agreed' as string, reads: 0, failing: false },
   hash: (n: number) => new Uint8Array([n, n, n, n])
 }));
 
@@ -22,6 +22,7 @@ vi.mock('$lib/utils/effect', () => ({
   runEffect: async (token: string) => {
     if (token === 'exchange') {
       state.reads += 1;
+      if (state.failing) throw new Error('no answer');
       return {
         agreement_hash: hash(10),
         status: state.status,
@@ -65,6 +66,7 @@ describe('useExchangeDetails watch (#334)', () => {
     vi.useFakeTimers();
     state.status = 'Agreed';
     state.reads = 0;
+    state.failing = false;
   });
   afterEach(() => vi.useRealTimers());
 
@@ -92,5 +94,21 @@ describe('useExchangeDetails watch (#334)', () => {
     await vi.advanceTimersByTimeAsync(60_000);
     expect(state.reads).toBe(readsWhenSettled);
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('says it is showing the last update after repeated failed reads, and recovers', async () => {
+    const details = useExchangeDetails({ agreementHash: () => hash(10) });
+    await details.initialize();
+    const stop = details.watch();
+    state.failing = true;
+    await vi.advanceTimersByTimeAsync(15_000 * 2);
+    expect(details.stale).toBe(false);
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(details.stale).toBe(true);
+    expect(details.exchange?.status).toBe('Agreed');
+    state.failing = false;
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(details.stale).toBe(false);
+    stop();
   });
 });

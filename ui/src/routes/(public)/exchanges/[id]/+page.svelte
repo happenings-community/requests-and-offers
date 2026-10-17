@@ -105,6 +105,11 @@
     <p class="text-surface-500">Loading the exchange...</p>
   {:else}
     {@const a = exchange.agreement}
+    {#if details.stale}
+      <p class="text-sm text-surface-500" role="status">
+        Can't reach the network just now. Showing the last update; this page keeps trying.
+      </p>
+    {/if}
     <header class="space-y-2">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h1 class="h2"><a class="anchor" href={listingHref}>{listingTitle || '...'}</a></h1>

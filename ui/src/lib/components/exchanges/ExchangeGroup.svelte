@@ -42,7 +42,7 @@
     <span class="font-semibold">{label}</span>
     <span class="text-sm text-surface-500">
       {group.chains.length}
-      {group.chains.length === 1 ? 'negotiation' : 'negotiations'} &middot; {formatWhen(
+      {group.chains.length === 1 ? 'exchange' : 'exchanges'} &middot; {formatWhen(
         group.lastActivity
       )}
     </span>

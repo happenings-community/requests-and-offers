@@ -8,7 +8,7 @@
   } from '@skeletonlabs/skeleton';
   import NavDropdown from '$lib/components/shared/NavDropdown.svelte';
   import { getUserPictureUrl } from '$lib/utils';
-  import { myMenuItems } from '$lib/navigation/my-menu';
+  import { myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
   import NetworkStatusPopup from '$lib/components/network/NetworkStatusPopup.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -64,9 +64,9 @@
   }
 
   // Navigation menu configurations
-  function profileItems() {
-    // The shared list, with the count of exchanges waiting on the member.
-    return myMenuItems(!!currentUser).map((item) =>
+  // My Activity, with the count of exchanges waiting on the member.
+  function activityItems() {
+    return myActivityItems().map((item) =>
       item.href === '/exchanges' ? { ...item, badge: pendingCount } : item
     );
   }
@@ -185,6 +185,10 @@
 
     <!-- Secondary Navigation -->
     <div class="flex items-center gap-2 text-white xl:gap-4">
+      {#if currentUser}
+        <NavDropdown title="My Activity" items={activityItems()} />
+      {/if}
+
       <NavDropdown title="Community" items={communityItems} />
 
       <NavDropdown title="Resources" items={resourceItems} alignRight={true} />
@@ -220,7 +224,7 @@
         <NavDropdown
           title={currentUser.name}
           avatar={myPicture}
-          items={profileItems()}
+          items={myProfileItems(true)}
           alignRight={true}
         />
       </div>

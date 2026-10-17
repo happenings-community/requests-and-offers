@@ -3,7 +3,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { getUserPictureUrl } from '$lib/utils';
-  import { myMenuItems } from '$lib/navigation/my-menu';
+  import { myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
 
   const drawerStore = getDrawerStore();
   const { currentUser } = $derived(usersStore);
@@ -54,7 +54,7 @@
         <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Profile</h3>
       {/if}
       <div class="space-y-2">
-        {#each myMenuItems(!!currentUser) as item (item.href)}
+        {#each myProfileItems(!!currentUser) as item (item.href)}
           <a
             href={item.href}
             onclick={closeDrawer}
@@ -87,6 +87,27 @@
         <span class="font-medium">Offers</span>
       </a>
     </div>
+
+    <!-- My Activity, as in the nav bar -->
+    {#if currentUser}
+      <div class="space-y-3">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">
+          My Activity
+        </h3>
+        <div class="space-y-2">
+          {#each myActivityItems() as item (item.href)}
+            <a
+              href={item.href}
+              onclick={closeDrawer}
+              class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
+            >
+              <span class="text-lg">{item.icon}</span>
+              <span>{item.label}</span>
+            </a>
+          {/each}
+        </div>
+      </div>
+    {/if}
 
     <!-- Community -->
     <div class="space-y-3">

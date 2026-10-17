@@ -1,7 +1,9 @@
 /**
- * The member's own items, in one place (#344): the nav bar's top-right menu,
- * the mobile drawer and the home page's cards all read this list, so they
- * cannot drift apart again.
+ * The member's own items, in one place (#344). The nav bar has two menus for
+ * them (Sam, 17 October): **My Activity** (listings and exchanges, what you
+ * do on the network) and **your profile menu** under your picture (your
+ * profile, and My Messages once messaging is switched on). The mobile drawer
+ * and the home page read the same lists, so they cannot drift apart.
  */
 export interface MyMenuItem {
   href: string;
@@ -10,7 +12,8 @@ export interface MyMenuItem {
   description: string;
 }
 
-export function myMenuItems(hasProfile: boolean): MyMenuItem[] {
+/** Under your picture: your profile, or Create Profile until there is one. */
+export function myProfileItems(hasProfile: boolean): MyMenuItem[] {
   return [
     hasProfile
       ? {
@@ -24,7 +27,13 @@ export function myMenuItems(hasProfile: boolean): MyMenuItem[] {
           label: 'Create Profile',
           icon: '👤',
           description: 'Join the community'
-        },
+        }
+  ];
+}
+
+/** My Activity: what you are doing on the network. */
+export function myActivityItems(): MyMenuItem[] {
+  return [
     {
       href: '/my-listings',
       label: 'My Listings',
@@ -38,4 +47,9 @@ export function myMenuItems(hasProfile: boolean): MyMenuItem[] {
       description: 'Agreements you are part of'
     }
   ];
+}
+
+/** Everything of your own, profile first: the home page's cards. */
+export function myMenuItems(hasProfile: boolean): MyMenuItem[] {
+  return [...myProfileItems(hasProfile), ...myActivityItems()];
 }

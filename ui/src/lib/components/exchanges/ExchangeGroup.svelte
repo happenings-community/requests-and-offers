@@ -29,9 +29,11 @@
     titleOf: (e: UIExchange) => string | undefined;
     lastActivity: (e: UIExchange) => number;
   } = $props();
+
+  let open = $state(false);
 </script>
 
-<details class="card variant-soft-surface p-4" data-testid="exchange-group">
+<details class="card variant-soft-surface p-4" data-testid="exchange-group" bind:open>
   <summary class="flex cursor-pointer list-none flex-wrap items-center gap-2">
     {#if initial}
       <span
@@ -46,7 +48,7 @@
         group.lastActivity
       )}
     </span>
-    {#if group.waitingOnMe}
+    {#if group.waitingOnMe && !open}
       <span class="variant-filled-secondary badge">Your turn</span>
     {/if}
   </summary>

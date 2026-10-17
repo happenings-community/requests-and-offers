@@ -188,6 +188,8 @@ describe('roundChanges', () => {
     const a = round(10, 100, { hours: 3 });
     const b = round(11, 200, { counters: 10, hours: null });
     expect(roundChanges(a, b)).toEqual([{ field: 'primary', from: '3 hours', to: 'none' }]);
+    const one = round(12, 300, { counters: 11, hours: 1 });
+    expect(roundChanges(b, one)).toEqual([{ field: 'primary', from: 'none', to: '1 hour' }]);
     expect(roundChanges(undefined, a)).toEqual([]);
   });
 });

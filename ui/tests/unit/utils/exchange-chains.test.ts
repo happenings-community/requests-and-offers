@@ -198,6 +198,11 @@ describe('roundOutcome', () => {
     expect(roundOutcome(round(10, 100, { status: 'Declined' }), false)).toBe('declined');
   });
 
+  it('reads a round withdrawn while the counter was on its way as withdrawn', () => {
+    const raced = { ...round(10, 100, { status: 'Cancelled' }), response: { accepted: false } };
+    expect(roundOutcome(raced as never, true)).toBe('withdrawn');
+  });
+
   it('names every other ending', () => {
     expect(roundOutcome(round(1, 1), false)).toBe('open');
     expect(roundOutcome(round(1, 1, { status: 'Agreed' }), false)).toBe('accepted');

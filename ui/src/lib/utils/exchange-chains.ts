@@ -173,9 +173,12 @@ export type RoundOutcome =
 /**
  * How a round ended. A round followed by another in its chain was countered;
  * the countered round's decline is part of countering, not a separate refusal.
+ * The exception: its author withdrew it while the counter was on its way.
+ * Validation accepts that counter, so the round reads as withdrawn and the
+ * counter as answering a withdrawn proposal.
  */
 export function roundOutcome(round: UIExchange, answered: boolean): RoundOutcome {
-  if (answered) return 'countered';
+  if (answered) return round.status === 'Cancelled' ? 'withdrawn' : 'countered';
   switch (round.status) {
     case 'Proposed':
       return 'open';

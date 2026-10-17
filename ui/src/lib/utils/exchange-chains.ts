@@ -27,13 +27,17 @@ export interface ExchangeChain {
   missingEarlier: boolean;
 }
 
-export interface PersonGroup {
-  /** The other person's user hash, encoded. */
+/** What My Exchanges can group negotiations by. */
+export type GroupKey = 'person' | 'listing' | 'service' | 'medium';
+
+export interface ChainGroup {
+  /** The grouping value, encoded: a user or listing hash, or the service or medium name. */
   key: string;
-  person: ActionHash;
-  /** Their negotiations with this member, most recently moved first. */
+  /** The chain the group is labelled from: its latest round names the person, listing or term. */
+  sample: ExchangeChain;
+  /** Negotiations in this group, most recently moved first. */
   chains: ExchangeChain[];
-  /** When anything with this person last moved. */
+  /** When anything in the group last moved. */
   lastActivity: number;
   /** True when any of these chains is waiting on this member. */
   waitingOnMe: boolean;
@@ -88,26 +92,43 @@ export function waitingOnMe(
     .sort((a, b) => activity(b.latest) - activity(a.latest));
 }
 
-/** Chains grouped by the other person, most recently active person first. */
-export function groupByPerson(
+/**
+ * The value a chain is grouped by. Service and medium cannot change between
+ * rounds (validation refuses it), so a negotiation always sits in one group.
+ */
+export function groupValue(chain: ExchangeChain, by: GroupKey, me: ActionHash | undefined): string {
+  const a = chain.latest.agreement;
+  switch (by) {
+    case 'person':
+      return keyOf(counterpartyOf(chain.latest, me));
+    case 'listing':
+      return keyOf(a.listing);
+    case 'service':
+      return a.primary.resource_conforms_to || 'No service named';
+    case 'medium':
+      return a.medium || 'No medium';
+  }
+}
+
+/** Chains grouped by `by`, most recently active group first. */
+export function groupChains(
   chains: ExchangeChain[],
+  by: GroupKey,
   me: ActionHash | undefined,
   activity: (e: UIExchange) => number
-): PersonGroup[] {
-  const groups = new Map<string, PersonGroup>();
+): ChainGroup[] {
+  const groups = new Map<string, ChainGroup>();
   for (const chain of chains) {
-    const person = counterpartyOf(chain.latest, me);
-    const key = keyOf(person);
-    const moved = activity(chain.latest);
+    const key = groupValue(chain, by, me);
     const group = groups.get(key) ?? {
       key,
-      person,
+      sample: chain,
       chains: [],
       lastActivity: 0,
       waitingOnMe: false
     };
     group.chains.push(chain);
-    group.lastActivity = Math.max(group.lastActivity, moved);
+    group.lastActivity = Math.max(group.lastActivity, activity(chain.latest));
     group.waitingOnMe ||= awaitingMe(chain.latest, me);
     groups.set(key, group);
   }

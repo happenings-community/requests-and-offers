@@ -76,6 +76,7 @@ const agreement = (over: Partial<AgreementInDHT> = {}): AgreementInDHT => ({
   medium: 'CAD',
   terms: 'Within the month',
   delivery_timeframe: '2 weeks',
+  counters: null,
   ...over
 });
 

@@ -29,6 +29,20 @@ pub struct CreateAgreementInput {
   pub delivery_timeframe: String,
 }
 
+/// A counter-proposal: the proposal it answers and the three things a counter
+/// may change. Everything else is copied from the proposal (#332, #333).
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CounterAgreementInput {
+  pub agreement: ActionHash,
+  pub primary_quantity: Option<Quantity>,
+  pub reciprocal_quantity: Option<Quantity>,
+  pub delivery_timeframe: String,
+}
+
+/// Recorded on the proposal a counter declines; the interface reads the chain
+/// from `counters`, not from this wording.
+pub const COUNTERED_NOTE: &str = "Countered with a new proposal";
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RespondInput {
   pub agreement: ActionHash,
@@ -79,6 +93,10 @@ pub struct Exchange {
   pub receiver_review: Option<Record>,
   pub cancellation: Option<Record>,
   pub status: ExchangeStatus,
+  /// The counter-proposal that answers this one, if any: the next round of the
+  /// same negotiation. The previous round is on the agreement itself, in
+  /// `counters`.
+  pub countered_by: Option<ActionHash>,
 }
 
 // ---------------------------------------------------------------------------
@@ -253,7 +271,10 @@ fn assemble(agreement_record: Record) -> ExternResult<Exchange> {
   let responses = records_from(hash.clone(), LinkTypes::AgreementResponses)?;
   let completions = records_from(hash.clone(), LinkTypes::AgreementCompletions)?;
   let reviews = records_from(hash.clone(), LinkTypes::AgreementReviews)?;
-  let cancellations = records_from(hash, LinkTypes::AgreementCancellations)?;
+  let cancellations = records_from(hash.clone(), LinkTypes::AgreementCancellations)?;
+  let countered_by = links_from(hash, LinkTypes::AgreementCounters)?
+    .into_iter()
+    .find_map(|link| link.target.into_action_hash());
   let response = responses.into_iter().next();
   let cancellation = cancellations.into_iter().next();
   // Completions and reviews are authored by agents; the parties are user
@@ -287,6 +308,7 @@ fn assemble(agreement_record: Record) -> ExternResult<Exchange> {
     receiver_review,
     cancellation,
     status,
+    countered_by,
   })
 }
 
@@ -383,11 +405,84 @@ pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<Record> {
     medium: input.medium,
     terms: input.terms,
     delivery_timeframe: input.delivery_timeframe,
+    counters: None,
   }))?;
   create_link(listing, hash.clone(), LinkTypes::ListingAgreements, ())?;
   create_link(my_user, hash.clone(), LinkTypes::UserAgreements, ())?;
   create_link(other_user, hash.clone(), LinkTypes::UserAgreements, ())?;
   record_at(hash, "agreement")
+}
+
+/// Declines a proposal and answers it with a counter-proposal, in one commit,
+/// so neither can exist without the other (#333).
+///
+/// Only the member the proposal was sent to may counter it, and only while it
+/// is unanswered and not cancelled. The counter copies the proposal and changes
+/// only what the input carries; validation refuses anything else.
+#[hdk_extern]
+pub fn counter_agreement(input: CounterAgreementInput) -> ExternResult<Record> {
+  let countered_hash = root(input.agreement)?;
+  let (_, countered) = agreement_at(&countered_hash)?;
+  let me = my_accepted_user()?;
+  if me != countered.counterparty {
+    return Err(AdministrationError::Unauthorized.into());
+  }
+  if !links_from(countered_hash.clone(), LinkTypes::AgreementResponses)?.is_empty() {
+    return Err(CommonError::InvalidData("this proposal already has a response".to_string()).into());
+  }
+  if !links_from(countered_hash.clone(), LinkTypes::AgreementCancellations)?.is_empty() {
+    return Err(CommonError::InvalidData("this proposal was withdrawn".to_string()).into());
+  }
+
+  let decline = create_entry(&EntryTypes::Response(Response {
+    agreement: countered_hash.clone(),
+    accepted: false,
+    note: COUNTERED_NOTE.to_string(),
+  }))?;
+
+  // The counter is the very next action after the decline: validation requires
+  // it, so one decline can only ever back one counter. Links come after both.
+  // The proposal's author becomes the one this counter is sent to.
+  let other_user = countered_writer(&countered, &me);
+  let hash = create_entry(&EntryTypes::Agreement(Agreement {
+    listing: countered.listing.clone(),
+    listing_type: countered.listing_type.clone(),
+    interest: countered.interest.clone(),
+    counterparty: other_user.clone(),
+    provider: countered.provider.clone(),
+    receiver: countered.receiver.clone(),
+    primary: ExchangeTerm {
+      quantity: input.primary_quantity,
+      ..countered.primary.clone()
+    },
+    reciprocal: ExchangeTerm {
+      quantity: input.reciprocal_quantity,
+      ..countered.reciprocal.clone()
+    },
+    medium: countered.medium.clone(),
+    terms: countered.terms.clone(),
+    delivery_timeframe: input.delivery_timeframe,
+    counters: Some(Countering {
+      agreement: countered_hash.clone(),
+      decline: decline.clone(),
+    }),
+  }))?;
+  create_link(countered_hash.clone(), decline, LinkTypes::AgreementResponses, ())?;
+  create_link(countered.listing, hash.clone(), LinkTypes::ListingAgreements, ())?;
+  create_link(me, hash.clone(), LinkTypes::UserAgreements, ())?;
+  create_link(other_user, hash.clone(), LinkTypes::UserAgreements, ())?;
+  create_link(countered_hash, hash.clone(), LinkTypes::AgreementCounters, ())?;
+  record_at(hash, "agreement")
+}
+
+/// The party who wrote an agreement: of provider and receiver, the one that is
+/// not its counterparty.
+fn countered_writer(agreement: &Agreement, counterparty: &ActionHash) -> ActionHash {
+  if &agreement.provider == counterparty {
+    agreement.receiver.clone()
+  } else {
+    agreement.provider.clone()
+  }
 }
 
 #[hdk_extern]

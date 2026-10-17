@@ -133,8 +133,18 @@ function createMessagingStore(): MessagingStore {
   let loading = $state(false);
   let error = $state<string | null>(null);
 
-  /** My own agent key, needed for both local keys. Set on the first load. */
+  /**
+   * My own agent key, which every read and write of local state is keyed by.
+   *
+   * **Resolved the first time anything asks, not at the end of the first load.** It used
+   * to be set after the inbox, the sent list, the exchanges and the interests had all been
+   * read, and until then every local write returned `false` without writing: a member who
+   * turned receipts off on a freshly opened Messages page, or was told the first-contact
+   * notice and said go on, had it silently dropped. The profile is known long before the
+   * conversations are, so there is nothing to wait for.
+   */
   let myAgent: AgentPubKey | null = null;
+  const myAgentKey = (): AgentPubKey | null => (myAgent ??= myAgentOf());
 
   const withServices = <A>(
     body: (
@@ -262,8 +272,7 @@ function createMessagingStore(): MessagingStore {
         ]);
         const agentToUser = (agent: AgentPubKey) => agentToUserMap.get(encodeHashToBase64(agent));
 
-        myAgent = yield* E.sync(() => myAgentOf());
-        const local = readFor(myAgent);
+        const local = readFor(myAgentKey());
         const archivedKeys = new Set<ThreadKey>(local.archived);
         outbox = local.outbox;
 
@@ -289,7 +298,7 @@ function createMessagingStore(): MessagingStore {
         // archive them again and the member would lose the same message twice.
         const returned = unarchivedByNewMessages(threads, archivedKeys);
         if (returned.length > 0) {
-          writeFor(myAgent, {
+          writeFor(myAgentKey(), {
             archived: [...archivedKeys].filter((k) => !returned.includes(k))
           });
         }
@@ -330,7 +339,7 @@ function createMessagingStore(): MessagingStore {
       state: 'waiting'
     };
     outbox = [...outbox, item];
-    writeFor(myAgent, { outbox });
+    writeFor(myAgentKey(), { outbox });
   };
 
   /**
@@ -361,7 +370,7 @@ function createMessagingStore(): MessagingStore {
     const sendId = newSendId();
     // The read mark rides along, if this chat sends receipts. One rule decides this and
     // the signal, so a chat set to Off cannot leak through the other path.
-    const local = readFor(myAgent);
+    const local = readFor(myAgentKey());
     const key = threadKeyOf(counterparty);
     const plan = receiptPlan({
       setting: local.receiptsByChat[key],
@@ -454,7 +463,7 @@ function createMessagingStore(): MessagingStore {
 
         if (already.ok && already.hash) {
           outbox = outbox.filter((q) => q.id !== item.id);
-          writeFor(myAgent, { outbox });
+          writeFor(myAgentKey(), { outbox });
           continue;
         }
 
@@ -464,7 +473,7 @@ function createMessagingStore(): MessagingStore {
           outbox = outbox.map((q) =>
             q.id === item.id ? { ...q, state: 'mayNotHaveSent' as const } : q
           );
-          writeFor(myAgent, { outbox });
+          writeFor(myAgentKey(), { outbox });
           break;
         }
 
@@ -487,7 +496,7 @@ function createMessagingStore(): MessagingStore {
 
         if (failure === null) {
           outbox = outbox.filter((q) => q.id !== item.id);
-          writeFor(myAgent, { outbox });
+          writeFor(myAgentKey(), { outbox });
           continue;
         }
 
@@ -504,7 +513,7 @@ function createMessagingStore(): MessagingStore {
         outbox = outbox.map((q) =>
           q.id === item.id ? { ...q, state: 'refused' as const, reason: failure.reason } : q
         );
-        writeFor(myAgent, { outbox });
+        writeFor(myAgentKey(), { outbox });
         break;
       }
     });
@@ -581,7 +590,7 @@ function createMessagingStore(): MessagingStore {
     const thread = threadFor(counterparty);
     if (!thread) return;
 
-    const local = readFor(myAgent);
+    const local = readFor(myAgentKey());
     const previous = local.readUpTo[thread.key] ?? 0;
     // As far as reading can have got: the newest thing in here that counts as unread,
     // cards included. Taking only the newest message left any later card permanently
@@ -591,7 +600,7 @@ function createMessagingStore(): MessagingStore {
     const newest = readableUpTo(thread, me);
     if (newest <= previous) return;
 
-    writeFor(myAgent, { readUpTo: { ...local.readUpTo, [thread.key]: newest } });
+    writeFor(myAgentKey(), { readUpTo: { ...local.readUpTo, [thread.key]: newest } });
     threads = threads.map((t) => (t.key === thread.key ? { ...t, unread: 0 } : t));
 
     // **Only when the mark advances, and only if this chat sends them.** Re-sending an
@@ -630,34 +639,34 @@ function createMessagingStore(): MessagingStore {
       ...thread.messages.filter((m) => m.mine).map((m) => toMillis(m.at))
     );
     const clamped = clampReceipt(claimed, lastSent);
-    const local = readFor(myAgent);
+    const local = readFor(myAgentKey());
     if ((local.theirReadUpTo[thread.key] ?? 0) >= clamped) return;
-    writeFor(myAgent, { theirReadUpTo: { ...local.theirReadUpTo, [thread.key]: clamped } });
+    writeFor(myAgentKey(), { theirReadUpTo: { ...local.theirReadUpTo, [thread.key]: clamped } });
   };
 
   /** How far the other person says they have read, for the Read status on my messages. */
   const theirReadUpTo = (counterparty: ActionHash): number =>
-    readFor(myAgent).theirReadUpTo[threadKeyOf(counterparty)] ?? 0;
+    readFor(myAgentKey()).theirReadUpTo[threadKeyOf(counterparty)] ?? 0;
 
   /** Whether this chat sends receipts, resolved against the overall setting. */
   const receiptsOn = (counterparty: ActionHash): boolean => {
-    const local = readFor(myAgent);
+    const local = readFor(myAgentKey());
     return receiptsEnabledFor(local.receiptsByChat[threadKeyOf(counterparty)], local.receipts);
   };
 
   const setReceiptsOverall = (on: boolean): void => {
-    writeFor(myAgent, { receipts: on });
+    writeFor(myAgentKey(), { receipts: on });
   };
 
   /** What this chat is set to, before the overall setting is applied. */
   const receiptSettingFor = (counterparty: ActionHash): ReceiptSetting =>
-    readFor(myAgent).receiptsByChat[threadKeyOf(counterparty)] ?? 'inherit';
+    readFor(myAgentKey()).receiptsByChat[threadKeyOf(counterparty)] ?? 'inherit';
 
   /** The overall setting, which governs every chat left on `inherit`. */
-  const receiptsOverall = (): boolean => readFor(myAgent).receipts;
+  const receiptsOverall = (): boolean => readFor(myAgentKey()).receipts;
 
   /** Whether this member has already been told what a proposal and a message put out. */
-  const noticeSeen = (): boolean => readFor(myAgent).noticeSeen;
+  const noticeSeen = (): boolean => readFor(myAgentKey()).noticeSeen;
 
   /**
    * Remember that they have.
@@ -667,12 +676,12 @@ function createMessagingStore(): MessagingStore {
    * see it again; saying it twice is the harmless direction.
    */
   const markNoticeSeen = (): void => {
-    writeFor(myAgent, { noticeSeen: true });
+    writeFor(myAgentKey(), { noticeSeen: true });
   };
 
   const setReceiptsForChat = (counterparty: ActionHash, setting: ReceiptSetting): void => {
-    const local = readFor(myAgent);
-    writeFor(myAgent, {
+    const local = readFor(myAgentKey());
+    writeFor(myAgentKey(), {
       receiptsByChat: { ...local.receiptsByChat, [threadKeyOf(counterparty)]: setting }
     });
   };
@@ -689,7 +698,7 @@ function createMessagingStore(): MessagingStore {
       outbox = outbox.map((q) =>
         q.id === id ? { ...q, state: 'waiting' as const, reason: undefined } : q
       );
-      writeFor(myAgent, { outbox });
+      writeFor(myAgentKey(), { outbox });
       yield* flushOutbox();
     });
 
@@ -706,11 +715,11 @@ function createMessagingStore(): MessagingStore {
    */
   const setBlocked = (counterparty: ActionHash, blocked: boolean): void => {
     const key = threadKeyOf(counterparty);
-    const local = readFor(myAgent);
+    const local = readFor(myAgentKey());
     const next = new Set(local.blocked);
     if (blocked) next.add(key);
     else next.delete(key);
-    writeFor(myAgent, {
+    writeFor(myAgentKey(), {
       blocked: [...next],
       blockHistory: [...local.blockHistory, { user: key, blocked, at: Date.now() }]
     });
@@ -718,21 +727,21 @@ function createMessagingStore(): MessagingStore {
   };
 
   const isBlocked = (counterparty: ActionHash): boolean =>
-    readFor(myAgent).blocked.includes(threadKeyOf(counterparty));
+    readFor(myAgentKey()).blocked.includes(threadKeyOf(counterparty));
 
   /** Who is blocked now, as `User` hashes in base64. */
-  const blockedUsers = (): string[] => readFor(myAgent).blocked;
+  const blockedUsers = (): string[] => readFor(myAgentKey()).blocked;
 
   /** Every block and unblock, newest last. */
-  const blockHistory = (): BlockEvent[] => readFor(myAgent).blockHistory;
+  const blockHistory = (): BlockEvent[] => readFor(myAgentKey()).blockHistory;
 
   const setArchived = (counterparty: ActionHash, archived: boolean): void => {
     const key = threadKeyOf(counterparty);
     threads = threads.map((t) => (t.key === key ? { ...t, archived } : t));
-    const current = new Set(readFor(myAgent).archived);
+    const current = new Set(readFor(myAgentKey()).archived);
     if (archived) current.add(key);
     else current.delete(key);
-    writeFor(myAgent, { archived: [...current] });
+    writeFor(myAgentKey(), { archived: [...current] });
   };
 
   return {

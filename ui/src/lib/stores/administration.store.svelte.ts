@@ -410,6 +410,9 @@ const convertToUIStatus = (
   reason: status.reason,
   suspended_until: status.suspended_until,
   duration: timestamp ? calculateDuration(status.suspended_until, timestamp) : undefined,
+  // When this status revision was written, in milliseconds (the action timestamp is in
+  // microseconds). The admin queue compares it with the profile's last edit (#331).
+  created_at: timestamp ? Math.floor(timestamp / 1000) : undefined,
   original_action_hash: original_action_hash!,
   previous_action_hash: previous_action_hash ?? original_action_hash!
 });

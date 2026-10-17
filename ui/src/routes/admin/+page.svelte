@@ -16,6 +16,8 @@
   import { runEffect } from '$lib/utils/effect';
   import UserDetailsModal from '$lib/components/users/UserDetailsModal.svelte';
   import UserName from '$lib/components/users/UserName.svelte';
+  import { useApplicationStages } from '$lib/composables/domain/users/useApplicationStages.svelte';
+  import { APPLICATION_STAGE_LABEL, type ApplicationStage } from '$lib/utils/application-stage';
   import OrganizationDetailsModal from '$lib/components/organizations/OrganizationDetailsModal.svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
@@ -203,6 +205,18 @@
     }
   }
 
+  // Where each pending application stands: new, waiting for the applicant, or answered (#331).
+  const applicationStages = useApplicationStages();
+  $effect(() => {
+    void applicationStages.refresh($state.snapshot(dashboardState.data.pendingUsers) as UIUser[]);
+  });
+
+  const STAGE_CHIP: Record<ApplicationStage, string> = {
+    new: 'variant-soft-primary',
+    waiting: 'variant-soft-warning',
+    responded: 'variant-soft-success'
+  };
+
   onMount(() => {
     // Initial data fetch
     fetchDashboardData();
@@ -297,6 +311,10 @@
                       class="text-primary-400 hover:underline"
                       onclick={() => handleViewUser(user)}><UserName user={user} /></button
                     >
+                    {#if applicationStages.stageOf(user)}
+                      {@const stage = applicationStages.stageOf(user)!}
+                      <span class="chip {STAGE_CHIP[stage]}">{APPLICATION_STAGE_LABEL[stage]}</span>
+                    {/if}
                   </div>
                   <!-- Decided only from the details screen, after reading it (#331) -->
                   <button

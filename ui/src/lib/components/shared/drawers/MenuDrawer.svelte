@@ -82,22 +82,6 @@
           </a>
         {/if}
         <a
-          href="/requests?filter=my"
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-        >
-          <span class="text-lg">📋</span>
-          <span>My Requests</span>
-        </a>
-        <a
-          href="/offers?filter=my"
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-        >
-          <span class="text-lg">🎯</span>
-          <span>My Offers</span>
-        </a>
-        <a
           href="/my-listings"
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"

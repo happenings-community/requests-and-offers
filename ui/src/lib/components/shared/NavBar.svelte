@@ -71,18 +71,6 @@
         description: user ? 'View and edit your profile' : 'Join the community'
       },
       {
-        href: '/requests?filter=my',
-        label: 'My Requests',
-        icon: '📋',
-        description: 'Manage your requests for help'
-      },
-      {
-        href: '/offers?filter=my',
-        label: 'My Offers',
-        icon: '🎯',
-        description: 'Manage your offers to help others'
-      },
-      {
         href: '/my-listings',
         label: 'My Listings',
         icon: '📋',

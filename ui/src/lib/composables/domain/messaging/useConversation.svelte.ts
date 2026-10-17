@@ -33,10 +33,12 @@ export function useConversation(counterpartyB64: string) {
   let draft = $state('');
   let sendError = $state<string | null>(null);
   let sending = $state(false);
+  /** True once this screen's own read has finished. Until then, nothing is an answer. */
+  let loaded = $state(false);
+  /** Why the read failed, when it did. The page shows this instead of the conversation. */
+  let loadError = $state<string | null>(null);
 
-  const thread = $derived<UIThread | undefined>(
-    messagingStore.threads.find((t) => t.key === key)
-  );
+  const thread = $derived<UIThread | undefined>(messagingStore.threads.find((t) => t.key === key));
   const timeline = $derived<TimelineItem[]>(thread ? buildTimeline(thread) : []);
 
   /** Anything for this person that has not gone out, oldest first. */
@@ -68,16 +70,30 @@ export function useConversation(counterpartyB64: string) {
     }
   }
 
+  /**
+   * Read everything this screen shows, and say so if it could not.
+   *
+   * **A failed read is a fault, never an empty conversation.** The empty timeline and the
+   * working composer are what a brand-new conversation looks like, so showing them after
+   * a failed `get_inbox` told a member with forty messages that there was nothing there.
+   * The reason is kept for the page, which offers this same call again.
+   */
   async function initialize(): Promise<void> {
-    await runEffect(messagingStore.loadConversations());
-    const user = await runEffect(usersStore.getUserByActionHash(counterparty));
-    name = user?.name ?? C.someone;
-    myUser = usersStore.currentUser?.original_action_hash;
-    receiptSetting = messagingStore.receiptSettingFor(counterparty);
-    // Opening a conversation is what marks it read. Nothing else does, so a nav badge and
-    // a row always agree about what has been seen.
-    messagingStore.markThreadRead(counterparty);
-    if (thread) await resolveTitles(thread.interests);
+    loadError = null;
+    try {
+      await runEffect(messagingStore.loadConversations());
+      const user = await runEffect(usersStore.getUserByActionHash(counterparty));
+      name = user?.name ?? C.someone;
+      myUser = usersStore.currentUser?.original_action_hash;
+      receiptSetting = messagingStore.receiptSettingFor(counterparty);
+      // Opening a conversation is what marks it read. Nothing else does, so a nav badge
+      // and a row always agree about what has been seen.
+      messagingStore.markThreadRead(counterparty);
+      if (thread) await resolveTitles(thread.interests);
+      loaded = true;
+    } catch (e) {
+      loadError = reasonOf(e);
+    }
   }
 
   async function send(): Promise<void> {
@@ -208,6 +224,12 @@ export function useConversation(counterpartyB64: string) {
     },
     get loading() {
       return messagingStore.loading;
+    },
+    get loaded() {
+      return loaded;
+    },
+    get loadError() {
+      return loadError;
     },
     initialize,
     send,

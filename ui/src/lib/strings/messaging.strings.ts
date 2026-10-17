@@ -108,7 +108,13 @@ export const MESSAGING_STRINGS = {
     shareListing: 'Share a listing',
     shareListingIntro: 'Pick one of your listings to send as a card.',
     sharedByYou: 'You shared a listing',
-    sharedByThem: '{name} shared a listing'
+    sharedByThem: '{name} shared a listing',
+    /**
+     * DRAFT, for Anita. Shown instead of the conversation when it could not be read: a
+     * failed read is a fault with a way to try again, never an empty chat, because an
+     * empty chat is exactly what a new conversation looks like.
+     */
+    loadFailed: "This conversation couldn't be loaded: {reason}"
   },
 
   /**

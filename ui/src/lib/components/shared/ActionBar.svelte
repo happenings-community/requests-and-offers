@@ -21,6 +21,7 @@
   import { useErrorBoundary } from '$lib/composables/ui/useErrorBoundary.svelte';
   import { ADMINISTRATION_CONTEXTS } from '$lib/errors/error-contexts';
   import ErrorDisplay from '$lib/components/shared/ErrorDisplay.svelte';
+  import { reasonFrom } from '$lib/utils/admin-contacts';
 
   type Props = {
     entity: UIUser | UIOrganization;
@@ -147,10 +148,28 @@
       response: async (response) => {
         if (!response) return;
 
-        if (meta.id === 'suspend-temporarily') {
-          await handleSuspendTemporarily(response.data);
-        } else {
-          await handleSuspendIndefinitely(response.data);
+        // Each prompt routes by its own id; nothing falls through to a suspension.
+        switch (meta.id) {
+          case 'suspend-temporarily':
+            await handleSuspendTemporarily(response.data);
+            break;
+          case 'suspend-indefinitely':
+            await handleSuspendIndefinitely(response.data);
+            break;
+          case 'reject-user':
+          case 'reject-organization':
+            await updateStatus({
+              status_type: 'rejected',
+              reason: reasonFrom(response.data)
+            });
+            break;
+          case 'request-information':
+            // Stays pending: the request is recorded as the status reason (#331).
+            await updateStatus({
+              status_type: 'pending',
+              reason: reasonFrom(response.data)
+            });
+            break;
         }
 
         modalStore.close();
@@ -176,10 +195,6 @@
             case 'accept-user':
             case 'accept-organization':
               await updateStatus({ status_type: 'accepted' });
-              break;
-            case 'reject-user':
-            case 'reject-organization':
-              await updateStatus({ status_type: 'rejected' });
               break;
           }
 
@@ -214,11 +229,38 @@
 
   function handleRejectModal() {
     queueAndReverseModal(
-      confirmModal({
+      promptModal({
         id: entityType === AdministrationEntity.Users ? 'reject-user' : 'reject-organization',
-        message: `Are you sure you want to reject this ${entityType === AdministrationEntity.Users ? 'user' : 'organization'}?`,
-        confirmLabel: 'Yes',
-        cancelLabel: 'No'
+        message: `Reject this ${entityType === AdministrationEntity.Users ? 'user' : 'organization'}? The reason is shown to them and kept in the status history.`,
+        inputs: [
+          {
+            name: 'reason',
+            label: 'Reason (optional)',
+            type: 'text',
+            placeholder: 'Why this application is declined',
+            required: false
+          }
+        ]
+      }),
+      modalStore
+    );
+  }
+
+  function handleRequestInformationModal() {
+    queueAndReverseModal(
+      promptModal({
+        id: 'request-information',
+        message:
+          'What do you need to know? The member sees this on their pending screen and answers by editing their profile.',
+        inputs: [
+          {
+            name: 'reason',
+            label: 'Information requested',
+            type: 'text',
+            placeholder: 'e.g. Please add a short bio and where you are based',
+            required: true
+          }
+        ]
       }),
       modalStore
     );
@@ -245,7 +287,7 @@
     );
   }
 
-  async function updateStatus(newStatus: { status_type: string }) {
+  async function updateStatus(newStatus: { status_type: string; reason?: string }) {
     const statusType = newStatus.status_type as StatusType;
 
     console.log('Debug ActionBar - updateStatus called:', {
@@ -273,13 +315,13 @@
             entity.original_action_hash!,
             userStatus.original_action_hash,
             previousActionHash,
-            { status_type: statusType }
+            { status_type: statusType, reason: newStatus.reason }
           )
         : administrationStore.updateOrganizationStatus(
             entity.original_action_hash!,
             userStatus.original_action_hash,
             previousActionHash,
-            { status_type: statusType }
+            { status_type: statusType, reason: newStatus.reason }
           );
 
     // Use error boundary for the update operation
@@ -486,6 +528,12 @@
     {#if userStatus?.status_type === 'pending' || userStatus?.status_type === 'rejected'}
       <button class="variant-filled-success btn rounded-lg" onclick={handleAcceptModal}>
         Accept
+      </button>
+    {/if}
+
+    {#if userStatus?.status_type === 'pending' && entityType === AdministrationEntity.Users}
+      <button class="variant-filled-warning btn rounded-lg" onclick={handleRequestInformationModal}>
+        Request more information
       </button>
     {/if}
 

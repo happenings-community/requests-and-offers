@@ -937,7 +937,9 @@ export const createAdministrationStore = (): E.Effect<
                         user_type: 'advocate',
                         name: `Admin ${entityHash.toString().substring(0, 6)}...`,
                         nickname: `Admin ${entityHash.toString().substring(0, 6)}...`,
-                        email: 'admin@example.com'
+                        // No invented address: members are shown admins' real
+                        // contact details only (#331).
+                        email: ''
                       } as UIUser)
                   )
                 );

@@ -81,17 +81,6 @@ export function chainsOf(list: UIExchange[]): ExchangeChain[] {
   return chains;
 }
 
-/** The chains waiting on this member's move, most recently moved first. */
-export function waitingOnMe(
-  chains: ExchangeChain[],
-  me: ActionHash | undefined,
-  activity: (e: UIExchange) => number
-): ExchangeChain[] {
-  return chains
-    .filter((c) => awaitingMe(c.latest, me))
-    .sort((a, b) => activity(b.latest) - activity(a.latest));
-}
-
 /**
  * The value a chain is grouped by. Service and medium cannot change between
  * rounds (validation refuses it), so a negotiation always sits in one group.

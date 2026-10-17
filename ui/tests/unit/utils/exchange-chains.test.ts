@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  chainsOf,
-  groupChains,
-  roundChanges,
-  roundOutcome,
-  waitingOnMe
-} from '$lib/utils/exchange-chains';
+import { chainsOf, groupChains, roundChanges, roundOutcome } from '$lib/utils/exchange-chains';
 import type { UIExchange } from '$lib/types/ui';
 
 const hash = (n: number) => new Uint8Array([n, n, n, n]);
@@ -116,20 +110,6 @@ describe('chainsOf (#333)', () => {
       round(11, 200, { counters: 10 })
     ]);
     expect(chains.map((c) => ids(c.rounds))).toEqual([[10, 11], [12]]);
-  });
-});
-
-describe('waitingOnMe', () => {
-  it('lists chains whose latest round awaits my move, newest first', () => {
-    const chains = chainsOf([
-      round(10, 100), // sent to me, open
-      round(20, 300), // sent to me, open, newer
-      round(30, 200, { to: bob }) // sent by me, waiting on Bob
-    ]);
-    expect(waitingOnMe(chains, me, byTime).map((c) => c.key)).toEqual([
-      chains[1].key,
-      chains[0].key
-    ]);
   });
 });
 

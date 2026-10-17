@@ -136,7 +136,10 @@ export interface RoundChange {
 
 function quantityText(term: ExchangeTerm): string {
   if (!term.quantity) return 'none';
-  return `${term.quantity.value} ${term.quantity.unit}`;
+  const { value, unit } = term.quantity;
+  // One hour, as termLabel says it; a currency's name is left as it is.
+  const shown = term.resource_kind === 'Service' && value === 1 ? unit.replace(/s$/, '') : unit;
+  return `${value} ${shown}`;
 }
 
 /** What a round changed from the round before it. Empty for a first proposal. */

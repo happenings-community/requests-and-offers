@@ -22,6 +22,7 @@ export const COMMON_STRINGS: {
   someoneInSentence: string;
   something: string;
   loading: string;
+  tryAgain: string;
 } = {
   /**
    * A listing's type, always as label and colour together, never colour alone, and never
@@ -45,5 +46,12 @@ export const COMMON_STRINGS: {
   something: 'A listing',
 
   /** While a page is reading what it needs. */
-  loading: 'Loading…'
+  loading: 'Loading…',
+
+  /**
+   * The way out of a failed read. One word for it everywhere, because a fault that
+   * offers no way to try again is the thing rule 3 forbids. (The exchange module still
+   * carries two copies of its own from before this existed; on the tidy list.)
+   */
+  tryAgain: 'Try again'
 };

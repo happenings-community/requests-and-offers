@@ -74,255 +74,281 @@
     <p class="text-sm text-surface-500">
       {fill(S.conversation.subtitle, { name: conversation.name })}
     </p>
-    <div class="flex flex-wrap items-center gap-2 pt-1">
-      {#if messagingStore.isBlocked(conversation.counterparty)}
-        <span class="variant-soft-error badge"
-          >{fill(S.block.blockedNotice, { name: conversation.name })}</span
-        >
-        <button
-          type="button"
-          class="variant-ghost btn btn-sm"
-          onclick={() => messagingStore.setBlocked(conversation.counterparty, false)}
-          >{S.block.unblock}</button
-        >
-      {:else if confirmingBlock}
-        <!-- Inline, not a modal, as the design has it. -->
-        <span class="text-sm">{fill(S.block.confirm.body, { name: conversation.name })}</span>
-        <button
-          type="button"
-          class="variant-filled-error btn btn-sm"
-          onclick={() => {
-            messagingStore.setBlocked(conversation.counterparty, true);
-            confirmingBlock = false;
-          }}>{fill(S.block.confirm.yes, { name: conversation.name })}</button
-        >
-        <button
-          type="button"
-          class="variant-ghost btn btn-sm"
-          onclick={() => (confirmingBlock = false)}>{S.proposal.declineForm.cancel}</button
-        >
-      {:else}
-        <button
-          type="button"
-          class="variant-ghost btn btn-sm"
-          onclick={() => (confirmingBlock = true)}>{S.block.button}</button
-        >
-      {/if}
+    {#if conversation.loaded}
+      <div class="flex flex-wrap items-center gap-2 pt-1">
+        {#if messagingStore.isBlocked(conversation.counterparty)}
+          <span class="variant-soft-error badge"
+            >{fill(S.block.blockedNotice, { name: conversation.name })}</span
+          >
+          <button
+            type="button"
+            class="variant-ghost btn btn-sm"
+            onclick={() => messagingStore.setBlocked(conversation.counterparty, false)}
+            >{S.block.unblock}</button
+          >
+        {:else if confirmingBlock}
+          <!-- Inline, not a modal, as the design has it. -->
+          <span class="text-sm">{fill(S.block.confirm.body, { name: conversation.name })}</span>
+          <button
+            type="button"
+            class="variant-filled-error btn btn-sm"
+            onclick={() => {
+              messagingStore.setBlocked(conversation.counterparty, true);
+              confirmingBlock = false;
+            }}>{fill(S.block.confirm.yes, { name: conversation.name })}</button
+          >
+          <button
+            type="button"
+            class="variant-ghost btn btn-sm"
+            onclick={() => (confirmingBlock = false)}>{S.proposal.declineForm.cancel}</button
+          >
+        {:else}
+          <button
+            type="button"
+            class="variant-ghost btn btn-sm"
+            onclick={() => (confirmingBlock = true)}>{S.block.button}</button
+          >
+        {/if}
 
-      <!--
+        <!--
         Per chat, in three states. A boolean here would mean the overall setting either
         silently flipped a chat the member had set, or silently failed to reach it.
       -->
-      <label class="ml-auto flex items-center gap-2 text-sm">
-        <span class="text-surface-500">{S.chat.receipts}</span>
-        <select
-          class="select-sm select w-auto"
-          value={conversation.receiptSetting}
-          onchange={(e) => conversation.setReceipts(e.currentTarget.value as ReceiptSetting)}
-          data-testid="chat-receipts"
-        >
-          <option value="inherit">{S.chat.receiptsInherit}</option>
-          <option value="on">{S.chat.receiptsOn}</option>
-          <option value="off">{S.chat.receiptsOff}</option>
-        </select>
-      </label>
-    </div>
+        <label class="ml-auto flex items-center gap-2 text-sm">
+          <span class="text-surface-500">{S.chat.receipts}</span>
+          <select
+            class="select-sm select w-auto"
+            value={conversation.receiptSetting}
+            onchange={(e) => conversation.setReceipts(e.currentTarget.value as ReceiptSetting)}
+            data-testid="chat-receipts"
+          >
+            <option value="inherit">{S.chat.receiptsInherit}</option>
+            <option value="on">{S.chat.receiptsOn}</option>
+            <option value="off">{S.chat.receiptsOff}</option>
+          </select>
+        </label>
+      </div>
+    {/if}
   </header>
 
-  <div class="flex flex-col gap-3" data-testid="timeline">
-    {#each conversation.timeline as item (item.kind + '-' + item.at)}
-      {#if item.kind === 'message' && item.message.listing}
-        <!--
+  {#if conversation.loadError}
+    <!--
+      A failed read is a fault with a way to try again, never an empty chat: an empty
+      chat is what a new conversation looks like, and this one may hold forty messages.
+    -->
+    <aside
+      class="card variant-soft-error flex flex-wrap items-center gap-3 p-4"
+      role="alert"
+      data-testid="conversation-fault"
+    >
+      <span class="text-sm"
+        >{fill(S.conversation.loadFailed, { reason: conversation.loadError })}</span
+      >
+      <button
+        type="button"
+        class="variant-filled btn btn-sm"
+        onclick={() => conversation.initialize()}>{C.tryAgain}</button
+      >
+    </aside>
+  {:else if !conversation.loaded && !conversation.thread}
+    <!-- Not yet read is not an answer either. -->
+    <p class="text-surface-500">{C.loading}</p>
+  {:else}
+    <div class="flex flex-col gap-3" data-testid="timeline">
+      {#each conversation.timeline as item (item.kind + '-' + item.at)}
+        {#if item.kind === 'message' && item.message.listing}
+          <!--
           A card-only message: it carries a listing and no text, so it renders as a card
           rather than as something somebody wrote.
         -->
-        <SharedListingCard
-          listing={item.message.listing}
-          mine={item.message.mine}
-          name={conversation.name}
-        />
-      {:else if item.kind === 'message'}
-        <div class="flex {item.message.mine ? 'justify-end' : 'justify-start'}">
+          <SharedListingCard
+            listing={item.message.listing}
+            mine={item.message.mine}
+            name={conversation.name}
+          />
+        {:else if item.kind === 'message'}
+          <div class="flex {item.message.mine ? 'justify-end' : 'justify-start'}">
+            <div
+              class="max-w-[80%] rounded-2xl px-4 py-2 {item.message.mine
+                ? 'variant-filled-primary'
+                : 'variant-soft-surface'}"
+            >
+              <p class="whitespace-pre-wrap text-sm">{item.message.content}</p>
+              <p class="pt-1 text-right text-xs opacity-70">
+                {whenOf(item.at)}{#if item.message.mine}
+                  · {conversation.statusOf(item.at) === 'read' ? S.status.read : S.status.sent}
+                {/if}
+              </p>
+            </div>
+          </div>
+        {:else if item.kind === 'interest'}
+          <OpeningCard
+            interest={item.interest}
+            name={conversation.name}
+            mine={me !== undefined &&
+              encodeHashToBase64(item.interest.user) === encodeHashToBase64(me)}
+            onWithdraw={conversation.withdrawInterest}
+          />
+        {:else if showsAsAgreement(item.exchange)}
+          <AgreementLine
+            exchange={item.exchange}
+            name={conversation.name}
+            counterparty={conversation.counterparty}
+          />
+        {:else}
+          <ProposalCard
+            exchange={item.exchange}
+            name={conversation.name}
+            {me}
+            onRespond={conversation.respond}
+          />
+        {/if}
+      {/each}
+
+      <!--
+      Messages that have not gone out yet, after everything that has. They are not in the
+      timeline because the timeline is what the DHT holds; these are only on this device.
+    -->
+      {#each conversation.waiting as item (item.id)}
+        <div class="flex justify-end">
           <div
-            class="max-w-[80%] rounded-2xl px-4 py-2 {item.message.mine
-              ? 'variant-filled-primary'
-              : 'variant-soft-surface'}"
+            class="variant-soft-surface max-w-[80%] rounded-2xl border border-dashed border-surface-400 px-4 py-2"
           >
-            <p class="whitespace-pre-wrap text-sm">{item.message.content}</p>
-            <p class="pt-1 text-right text-xs opacity-70">
-              {whenOf(item.at)}{#if item.message.mine}
-                · {conversation.statusOf(item.at) === 'read' ? S.status.read : S.status.sent}
+            {#if item.listing}
+              <!-- A card that has not gone yet is still a card, drawn from the listing. -->
+              <SharedListingCard
+                listing={decodeHashFromBase64(item.listing)}
+                mine={true}
+                name={conversation.name}
+              />
+            {:else}
+              <p class="whitespace-pre-wrap text-sm">{item.content}</p>
+            {/if}
+            <p class="pt-1 text-right text-xs">
+              {#if item.state === 'waiting'}
+                <span class="opacity-70">{S.general.waitingToSend}</span>
+              {:else if item.state === 'mayNotHaveSent'}
+                <button
+                  type="button"
+                  class="text-warning-700 underline dark:text-warning-300"
+                  onclick={() => conversation.retry(item.id)}
+                >
+                  {S.general.mayNotHaveSent}
+                </button>
+              {:else}
+                <span class="text-error-700 dark:text-error-300"
+                  >{fill(S.conversation.sendFailed, { reason: item.reason ?? '' })}</span
+                >
               {/if}
             </p>
           </div>
         </div>
-      {:else if item.kind === 'interest'}
-        <OpeningCard
-          interest={item.interest}
-          name={conversation.name}
-          mine={me !== undefined &&
-            encodeHashToBase64(item.interest.user) === encodeHashToBase64(me)}
-          onWithdraw={conversation.withdrawInterest}
-        />
-      {:else if showsAsAgreement(item.exchange)}
-        <AgreementLine
-          exchange={item.exchange}
-          name={conversation.name}
-          counterparty={conversation.counterparty}
-        />
-      {:else}
-        <ProposalCard
-          exchange={item.exchange}
-          name={conversation.name}
-          {me}
-          onRespond={conversation.respond}
-        />
-      {/if}
-    {/each}
+      {/each}
+    </div>
 
-    <!--
-      Messages that have not gone out yet, after everything that has. They are not in the
-      timeline because the timeline is what the DHT holds; these are only on this device.
-    -->
-    {#each conversation.waiting as item (item.id)}
-      <div class="flex justify-end">
-        <div
-          class="variant-soft-surface max-w-[80%] rounded-2xl border border-dashed border-surface-400 px-4 py-2"
+    {#if sharing}
+      <section class="card flex flex-col gap-2 p-4" data-testid="share-listing">
+        <h2 class="h4">{S.conversation.shareListing}</h2>
+        <p class="text-sm text-surface-500">{S.conversation.shareListingIntro}</p>
+        {#each conversation.shareable as item (encodeHashToBase64(item.hash))}
+          <button
+            type="button"
+            class="card flex items-center gap-3 p-3 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700"
+            onclick={async () => {
+              await conversation.shareListing(item.hash);
+              sharing = false;
+            }}
+          >
+            <span
+              class="badge {item.type === 'Offer'
+                ? 'variant-soft-warning'
+                : 'variant-soft-secondary'}"
+              >{item.type === 'Offer' ? C.listingType.offer : C.listingType.request}</span
+            >
+            <span class="min-w-0 flex-1 truncate">{item.title}</span>
+          </button>
+        {:else}
+          <p class="text-surface-500 text-sm">{S.picker.none}</p>
+        {/each}
+      </section>
+    {/if}
+
+    {#if picking}
+      <ProposalPicker
+        theirs={conversation.proposable.theirs}
+        yours={conversation.proposable.yours}
+        name={conversation.name}
+        titleOf={conversation.titleOf}
+        onClose={() => (picking = false)}
+        counterparty={conversation.counterparty}
+      />
+    {/if}
+
+    {#if conversation.sendError}
+      <aside class="card variant-soft-error p-3 text-sm" role="alert">
+        {#if isTooLong(conversation.sendError)}
+          <!-- The same line the composer shows, computed from what is still in the box. -->
+          {fill(S.conversation.tooLongBy, { percent: over, count: pieces })}
+        {:else}
+          {fill(S.conversation.sendFailed, { reason: conversation.sendError })}
+        {/if}
+      </aside>
+    {/if}
+
+    <form
+      class="flex flex-col gap-2"
+      onsubmit={(e) => {
+        e.preventDefault();
+        conversation.send();
+      }}
+    >
+      <label class="sr-only" for="composer"
+        >{fill(S.conversation.composer.label, { name: conversation.name })}</label
+      >
+      <textarea
+        id="composer"
+        class="textarea"
+        rows="3"
+        bind:value={conversation.draft}
+        placeholder={fill(S.conversation.composer.placeholder, { name: conversation.name })}
+      ></textarea>
+      <div class="flex flex-wrap items-center gap-3">
+        <button
+          type="submit"
+          class="variant-filled-primary btn"
+          disabled={conversation.sending || tooLong}
         >
-          {#if item.listing}
-            <!-- A card that has not gone yet is still a card, drawn from the listing. -->
-            <SharedListingCard
-              listing={decodeHashFromBase64(item.listing)}
-              mine={true}
-              name={conversation.name}
-            />
-          {:else}
-            <p class="whitespace-pre-wrap text-sm">{item.content}</p>
-          {/if}
-          <p class="pt-1 text-right text-xs">
-            {#if item.state === 'waiting'}
-              <span class="opacity-70">{S.general.waitingToSend}</span>
-            {:else if item.state === 'mayNotHaveSent'}
-              <button
-                type="button"
-                class="text-warning-700 underline dark:text-warning-300"
-                onclick={() => conversation.retry(item.id)}
-              >
-                {S.general.mayNotHaveSent}
-              </button>
+          {S.conversation.send}
+        </button>
+        {#if showCounter}
+          <span
+            class="text-sm {tooLong ? 'text-error-700 dark:text-error-300' : 'text-surface-500'}"
+            data-testid="limit-counter"
+            aria-live="polite"
+          >
+            {#if tooLong}
+              {fill(S.conversation.tooLongBy, { percent: over, count: pieces })}
             {:else}
-              <span class="text-error-700 dark:text-error-300"
-                >{fill(S.conversation.sendFailed, { reason: item.reason ?? '' })}</span
-              >
+              {fill(S.conversation.limitUsed, { percent: used })}
             {/if}
-          </p>
-        </div>
-      </div>
-    {/each}
-  </div>
-
-  {#if sharing}
-    <section class="card flex flex-col gap-2 p-4" data-testid="share-listing">
-      <h2 class="h4">{S.conversation.shareListing}</h2>
-      <p class="text-sm text-surface-500">{S.conversation.shareListingIntro}</p>
-      {#each conversation.shareable as item (encodeHashToBase64(item.hash))}
+          </span>
+        {/if}
+        <button type="button" class="variant-ghost btn" onclick={() => (picking = !picking)}>
+          {E.listing.makeProposal}
+        </button>
         <button
           type="button"
-          class="card flex items-center gap-3 p-3 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700"
-          onclick={async () => {
-            await conversation.shareListing(item.hash);
-            sharing = false;
-          }}
+          class="variant-ghost btn"
+          onclick={() => {
+            sharing = !sharing;
+            if (sharing) conversation.loadShareable();
+          }}>{S.conversation.shareListing}</button
         >
-          <span
-            class="badge {item.type === 'Offer'
-              ? 'variant-soft-warning'
-              : 'variant-soft-secondary'}"
-            >{item.type === 'Offer' ? C.listingType.offer : C.listingType.request}</span
-          >
-          <span class="min-w-0 flex-1 truncate">{item.title}</span>
-        </button>
-      {:else}
-        <p class="text-surface-500 text-sm">{S.picker.none}</p>
-      {/each}
-    </section>
-  {/if}
-
-  {#if picking}
-    <ProposalPicker
-      theirs={conversation.proposable.theirs}
-      yours={conversation.proposable.yours}
-      name={conversation.name}
-      titleOf={conversation.titleOf}
-      onClose={() => (picking = false)}
-      counterparty={conversation.counterparty}
-    />
-  {/if}
-
-  {#if conversation.sendError}
-    <aside class="card variant-soft-error p-3 text-sm" role="alert">
-      {#if isTooLong(conversation.sendError)}
-        <!-- The same line the composer shows, computed from what is still in the box. -->
-        {fill(S.conversation.tooLongBy, { percent: over, count: pieces })}
-      {:else}
-        {fill(S.conversation.sendFailed, { reason: conversation.sendError })}
-      {/if}
-    </aside>
-  {/if}
-
-  <form
-    class="flex flex-col gap-2"
-    onsubmit={(e) => {
-      e.preventDefault();
-      conversation.send();
-    }}
-  >
-    <label class="sr-only" for="composer"
-      >{fill(S.conversation.composer.label, { name: conversation.name })}</label
-    >
-    <textarea
-      id="composer"
-      class="textarea"
-      rows="3"
-      bind:value={conversation.draft}
-      placeholder={fill(S.conversation.composer.placeholder, { name: conversation.name })}
-    ></textarea>
-    <div class="flex flex-wrap items-center gap-3">
-      <button
-        type="submit"
-        class="variant-filled-primary btn"
-        disabled={conversation.sending || tooLong}
-      >
-        {S.conversation.send}
-      </button>
-      {#if showCounter}
-        <span
-          class="text-sm {tooLong ? 'text-error-700 dark:text-error-300' : 'text-surface-500'}"
-          data-testid="limit-counter"
-          aria-live="polite"
+        <span class="text-sm text-surface-500"
+          >{fill(S.conversation.encrypted, { name: conversation.name })}
+          {S.receipts.optional}</span
         >
-          {#if tooLong}
-            {fill(S.conversation.tooLongBy, { percent: over, count: pieces })}
-          {:else}
-            {fill(S.conversation.limitUsed, { percent: used })}
-          {/if}
-        </span>
-      {/if}
-      <button type="button" class="variant-ghost btn" onclick={() => (picking = !picking)}>
-        {E.listing.makeProposal}
-      </button>
-      <button
-        type="button"
-        class="variant-ghost btn"
-        onclick={() => {
-          sharing = !sharing;
-          if (sharing) conversation.loadShareable();
-        }}>{S.conversation.shareListing}</button
-      >
-      <span class="text-sm text-surface-500"
-        >{fill(S.conversation.encrypted, { name: conversation.name })}
-        {S.receipts.optional}</span
-      >
-    </div>
-  </form>
+      </div>
+    </form>
+  {/if}
 </section>

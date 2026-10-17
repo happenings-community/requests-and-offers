@@ -159,3 +159,19 @@ describe('the outbox with no conversation open (F1)', () => {
     expect(store.outbox).toHaveLength(0);
   });
 });
+
+describe('a shared listing that has to wait (F2)', () => {
+  it('keeps its listing and goes out as a card, not as an empty message', async () => {
+    const store = await freshStore();
+    sendMessage.mockReturnValueOnce(E.fail(devicesNotFound)).mockReturnValue(E.succeed([]));
+
+    await E.runPromise(store.send(ANITA, '', LISTING));
+    expect(store.outbox[0]?.listing, 'the card is what waits').toBe(encodeHashToBase64(LISTING));
+
+    await E.runPromise(store.flushOutbox());
+
+    const retried = sendMessage.mock.calls[1][0] as { content: string; listing?: Uint8Array };
+    expect(retried.content).toBe('');
+    expect(retried.listing, 'the listing travels with the retry').toEqual(LISTING);
+  });
+});

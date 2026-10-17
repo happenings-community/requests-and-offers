@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { encodeHashToBase64 } from '@holochain/client';
+  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import { useConversation } from '$lib/composables/domain/messaging/useConversation.svelte';
   import OpeningCard from '$lib/components/messaging/OpeningCard.svelte';
   import ProposalCard from '$lib/components/messaging/ProposalCard.svelte';
@@ -189,7 +189,16 @@
         <div
           class="variant-soft-surface max-w-[80%] rounded-2xl border border-dashed border-surface-400 px-4 py-2"
         >
-          <p class="whitespace-pre-wrap text-sm">{item.content}</p>
+          {#if item.listing}
+            <!-- A card that has not gone yet is still a card, drawn from the listing. -->
+            <SharedListingCard
+              listing={decodeHashFromBase64(item.listing)}
+              mine={true}
+              name={conversation.name}
+            />
+          {:else}
+            <p class="whitespace-pre-wrap text-sm">{item.content}</p>
+          {/if}
           <p class="pt-1 text-right text-xs">
             {#if item.state === 'waiting'}
               <span class="opacity-70">{S.general.waitingToSend}</span>

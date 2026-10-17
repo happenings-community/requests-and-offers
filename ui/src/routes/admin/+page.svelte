@@ -119,8 +119,9 @@
     }
   }
 
-  async function refreshUsersData() {
-    sectionLoadingState.users = true;
+  async function refreshUsersData({ quiet = false }: { quiet?: boolean } = {}) {
+    // A background refresh shows no spinner, so the queue doesn't flicker every tick.
+    if (!quiet) sectionLoadingState.users = true;
     try {
       // Only refresh user data, not administrators (admin status doesn't change when approving users)
       const users = await runEffect(administrationStore.fetchAllUsers());
@@ -134,17 +135,20 @@
     } catch (e) {
       const error = e as HolochainClientError;
       console.error('Failed to refresh users data:', error);
-      toastStore.trigger({
-        message: 'Failed to refresh users data.',
-        background: 'variant-filled-error'
-      });
+      // A background refresh fails silently; the next tick tries again.
+      if (!quiet) {
+        toastStore.trigger({
+          message: 'Failed to refresh users data.',
+          background: 'variant-filled-error'
+        });
+      }
     } finally {
-      sectionLoadingState.users = false;
+      if (!quiet) sectionLoadingState.users = false;
     }
   }
 
-  async function refreshOrganizationsData() {
-    sectionLoadingState.organizations = true;
+  async function refreshOrganizationsData({ quiet = false }: { quiet?: boolean } = {}) {
+    if (!quiet) sectionLoadingState.organizations = true;
     try {
       const orgs = await runEffect(administrationStore.fetchAllOrganizations());
 
@@ -157,12 +161,14 @@
     } catch (e) {
       const error = e as HolochainClientError;
       console.error('Failed to refresh organizations data:', error);
-      toastStore.trigger({
-        message: 'Failed to refresh organizations data.',
-        background: 'variant-filled-error'
-      });
+      if (!quiet) {
+        toastStore.trigger({
+          message: 'Failed to refresh organizations data.',
+          background: 'variant-filled-error'
+        });
+      }
     } finally {
-      sectionLoadingState.organizations = false;
+      if (!quiet) sectionLoadingState.organizations = false;
     }
   }
 
@@ -205,6 +211,9 @@
     }
   }
 
+  /** How often the open dashboard re-reads its queue. */
+  const QUEUE_REFRESH_MS = 30_000;
+
   // Where each pending application stands: new, waiting for the applicant, or answered (#331).
   const applicationStages = useApplicationStages();
   $effect(() => {
@@ -235,10 +244,31 @@
       }
     );
 
+    // Keep the moderation queue current while the dashboard is open: new applications
+    // appear and each application's stage updates without a reload (#331). Quiet, so no
+    // spinner or error toast each tick; #51's notifications can replace the timer later.
+    let refreshing = false;
+    const refreshQueue = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        await Promise.all([
+          refreshUsersData({ quiet: true }),
+          refreshOrganizationsData({ quiet: true })
+        ]);
+      } finally {
+        refreshing = false;
+      }
+    };
+    const queueInterval = setInterval(refreshQueue, QUEUE_REFRESH_MS);
+    window.addEventListener('focus', refreshQueue);
+
     // Cleanup event listeners on component unmount
     return () => {
       unsubscribeUserStatus();
       unsubscribeOrganizationStatus();
+      clearInterval(queueInterval);
+      window.removeEventListener('focus', refreshQueue);
     };
   });
 </script>

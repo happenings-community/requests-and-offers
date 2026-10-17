@@ -55,6 +55,19 @@ pub struct Interest {
   pub user: ActionHash,
 }
 
+/// Which proposal a counter-proposal answers, and the decline that closed it.
+///
+/// Both hashes are carried so validation can check the pair from the records
+/// themselves: it reads only what an entry names, never links, so the decline
+/// has to be named to be checked.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct Countering {
+  /// The agreement being countered.
+  pub agreement: ActionHash,
+  /// The countering member's decline of that agreement.
+  pub decline: ActionHash,
+}
+
 /// What two parties agreed off-app, written up by either of them. The
 /// listing, the interest it settles, the two parties as user hashes, and the
 /// terms. The medium is the frame the reciprocal term is read through and is
@@ -73,6 +86,10 @@ pub struct Agreement {
   pub medium: String,
   pub terms: String,
   pub delivery_timeframe: String,
+  /// Set on a counter-proposal: the proposal it answers and the decline that
+  /// closed it. `None` on a first proposal. Rounds of one negotiation form a
+  /// chain through this field (#333).
+  pub counters: Option<Countering>,
 }
 
 /// The other party accepting or declining an agreement.
@@ -142,6 +159,9 @@ pub enum LinkTypes {
   AgreementReviews,
   /// Agreement Create -> Cancellation.
   AgreementCancellations,
+  /// Agreement Create -> the counter-proposal that answers it, so a chain of
+  /// rounds can be read forwards as well as back.
+  AgreementCounters,
 }
 
 #[hdk_extern]
@@ -317,7 +337,91 @@ fn validate_agreement(author: &AgentPubKey, agreement: &Agreement) -> ExternResu
   if agreement.medium.trim().is_empty() {
     return invalid("agreement names no medium of exchange");
   }
-  Ok(ValidateCallbackResult::Valid)
+  match &agreement.counters {
+    None => Ok(ValidateCallbackResult::Valid),
+    Some(countering) => validate_counter(author, agreement, countering),
+  }
+}
+
+/// A counter-proposal answers one proposal (#332, #333).
+///
+/// - It is written by the member that proposal was sent to.
+/// - It carries that member's decline of the proposal, so a counter never
+///   exists beside an open original.
+/// - Everything except the two quantities and the timeframe is the same as the
+///   proposal it answers, and at least one of those three differs. Anything
+///   else needs a new listing.
+fn validate_counter(
+  author: &AgentPubKey,
+  counter: &Agreement,
+  countering: &Countering,
+) -> ExternResult<ValidateCallbackResult> {
+  let (_, countered) = match agreement_at(&countering.agreement)? {
+    Ok(pair) => pair,
+    Err(reason) => return invalid(&reason),
+  };
+  match agent_for_user(&countered.counterparty)? {
+    Ok(agent) if agent == *author => {}
+    Ok(_) => return invalid("only the member a proposal was sent to may counter it"),
+    Err(reason) => return invalid(&reason),
+  }
+
+  let decline_record = match create_record(&countering.decline, "decline")? {
+    Ok(r) => r,
+    Err(reason) => return invalid(&reason),
+  };
+  let decline = match entry_of::<Response>(&decline_record, "decline")? {
+    Ok(r) => r,
+    Err(reason) => return invalid(&reason),
+  };
+  if decline.agreement != countering.agreement {
+    return invalid("a counter's decline must be of the proposal it counters");
+  }
+  if decline.accepted {
+    return invalid("a counter's decline must decline the proposal");
+  }
+  if author_of(&decline_record) != *author {
+    return invalid("a counter's decline must be written by the counter's author");
+  }
+
+  match counter_terms_problem(counter, &countered) {
+    Some(reason) => invalid(reason),
+    None => Ok(ValidateCallbackResult::Valid),
+  }
+}
+
+/// What is wrong with a counter's terms against the proposal it answers, if
+/// anything. Pure, so it is unit-tested without a conductor.
+pub fn counter_terms_problem(counter: &Agreement, countered: &Agreement) -> Option<&'static str> {
+  if counter.listing != countered.listing
+    || counter.listing_type != countered.listing_type
+    || counter.interest != countered.interest
+    || counter.provider != countered.provider
+    || counter.receiver != countered.receiver
+  {
+    return Some("a counter keeps the listing, the interest and the parties of the proposal it answers");
+  }
+  if counter.medium != countered.medium || counter.terms != countered.terms {
+    return Some("a counter keeps the medium of exchange and the terms text");
+  }
+  if !same_except_quantity(&counter.primary, &countered.primary)
+    || !same_except_quantity(&counter.reciprocal, &countered.reciprocal)
+  {
+    return Some("a counter keeps both services; only the quantities may change");
+  }
+  if counter.primary.quantity == countered.primary.quantity
+    && counter.reciprocal.quantity == countered.reciprocal.quantity
+    && counter.delivery_timeframe == countered.delivery_timeframe
+  {
+    return Some("a counter changes a quantity or the timeframe");
+  }
+  None
+}
+
+fn same_except_quantity(a: &ExchangeTerm, b: &ExchangeTerm) -> bool {
+  a.direction == b.direction
+    && a.resource_conforms_to == b.resource_conforms_to
+    && a.resource_kind == b.resource_kind
 }
 
 /// A response is written by the agreement's counterparty.
@@ -393,6 +497,22 @@ fn target_is<T: TryFrom<SerializedBytes, Error = SerializedBytesError>>(
   Ok(entry_of::<T>(&record, what)?.map(|_| ()))
 }
 
+/// The target of an `AgreementCounters` link is a counter whose `counters`
+/// names the link's base.
+fn counter_of(base: &AnyLinkableHash, target: &AnyLinkableHash) -> ExternResult<Result<(), String>> {
+  let (Some(base), Some(target)) = (base.clone().into_action_hash(), target.clone().into_action_hash()) else {
+    return Ok(Err("counter link ends are not action hashes".to_string()));
+  };
+  let (_, counter) = match agreement_at(&target)? {
+    Ok(pair) => pair,
+    Err(reason) => return Ok(Err(reason)),
+  };
+  match counter.counters {
+    Some(c) if c.agreement == base => Ok(Ok(())),
+    _ => Ok(Err("a counter link points at the counter-proposal that answers its base".to_string())),
+  }
+}
+
 fn validate_link(
   link_type: LinkTypes,
   base: &AnyLinkableHash,
@@ -413,6 +533,7 @@ fn validate_link(
     LinkTypes::AgreementCompletions => target_is::<Completion>(target, "completion")?,
     LinkTypes::AgreementReviews => target_is::<Review>(target, "review")?,
     LinkTypes::AgreementCancellations => target_is::<Cancellation>(target, "cancellation")?,
+    LinkTypes::AgreementCounters => counter_of(base, target)?,
   };
   if let Err(reason) = target_check {
     return invalid(&reason);
@@ -482,5 +603,99 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     } => validate_link(link_type, &base_address, &target_address),
     FlatOp::RegisterDeleteLink { .. } => invalid("exchange links are never deleted"),
     _ => Ok(ValidateCallbackResult::Valid),
+  }
+}
+
+#[cfg(test)]
+mod counter_tests {
+  use super::*;
+
+  fn hash(n: u8) -> ActionHash {
+    ActionHash::from_raw_36(vec![n; 36])
+  }
+
+  fn proposal() -> Agreement {
+    Agreement {
+      listing: hash(1),
+      listing_type: ListingType::Request,
+      interest: hash(2),
+      counterparty: hash(3),
+      provider: hash(4),
+      receiver: hash(3),
+      primary: ExchangeTerm {
+        direction: Direction::Provide,
+        resource_conforms_to: "Gardening".into(),
+        resource_kind: ResourceKind::Service,
+        quantity: Some(Quantity { value: 3.0, unit: "hours".into() }),
+      },
+      reciprocal: ExchangeTerm {
+        direction: Direction::Receive,
+        resource_conforms_to: "Time bank hours".into(),
+        resource_kind: ResourceKind::Currency,
+        quantity: Some(Quantity { value: 3.0, unit: "Time bank hours".into() }),
+      },
+      medium: "Time bank hours".into(),
+      terms: "".into(),
+      delivery_timeframe: "Within 2 weeks".into(),
+      counters: None,
+    }
+  }
+
+  #[test]
+  fn a_changed_quantity_or_timeframe_is_a_counter() {
+    let mut c = proposal();
+    c.primary.quantity = Some(Quantity { value: 5.0, unit: "hours".into() });
+    assert_eq!(counter_terms_problem(&c, &proposal()), None);
+    let mut c = proposal();
+    c.reciprocal.quantity = None;
+    assert_eq!(counter_terms_problem(&c, &proposal()), None);
+    let mut c = proposal();
+    c.delivery_timeframe = "Flexible".into();
+    assert_eq!(counter_terms_problem(&c, &proposal()), None);
+  }
+
+  #[test]
+  fn an_unchanged_copy_is_not_a_counter() {
+    assert!(counter_terms_problem(&proposal(), &proposal()).unwrap().contains("changes a quantity"));
+  }
+
+  #[test]
+  fn the_listing_interest_and_parties_are_kept() {
+    for change in [
+      |a: &mut Agreement| a.listing = hash(9),
+      |a: &mut Agreement| a.interest = hash(9),
+      |a: &mut Agreement| a.provider = hash(9),
+      |a: &mut Agreement| a.receiver = hash(9),
+      |a: &mut Agreement| a.listing_type = ListingType::Offer,
+    ] {
+      let mut c = proposal();
+      c.delivery_timeframe = "Flexible".into();
+      change(&mut c);
+      assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("listing, the interest"));
+    }
+  }
+
+  #[test]
+  fn the_medium_and_terms_text_are_kept() {
+    let mut c = proposal();
+    c.delivery_timeframe = "Flexible".into();
+    c.medium = "Pounds".into();
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("medium"));
+    let mut c = proposal();
+    c.delivery_timeframe = "Flexible".into();
+    c.terms = "New words".into();
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("medium"));
+  }
+
+  #[test]
+  fn both_services_are_kept() {
+    let mut c = proposal();
+    c.delivery_timeframe = "Flexible".into();
+    c.primary.resource_conforms_to = "Plumbing".into();
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("both services"));
+    let mut c = proposal();
+    c.delivery_timeframe = "Flexible".into();
+    c.reciprocal.resource_kind = ResourceKind::Gift;
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("both services"));
   }
 }

@@ -308,6 +308,9 @@ async fn only_the_recipient_may_counter() {
     // Alice writing a counter entry alone, with no decline of her own: the
     // counter names a decline that is not a response.
     let mut forged = counter_of(&p, &proposal);
+    // Written by Alice, so Bob is the other party: everything about it is
+    // valid except who wrote it, which is the rule under test.
+    forged.counterparty = proposal.counterparty.clone();
     forged.counters = Some(Countering { agreement: p.clone(), decline: p.clone() });
     let alone = w.conductors[0]
         .call_fallible::<_, ActionHash>(&w.alice.zome("exchanges_probe"), "probe_create_agreement", forged)

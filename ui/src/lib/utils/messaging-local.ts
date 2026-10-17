@@ -30,6 +30,12 @@ export type OutboxItem = {
   /** The counterparty's `User`, base64, which is also the thread key. */
   to: string;
   content: string;
+  /**
+   * The listing this card carries, base64, on a card-only message. Kept with the item so
+   * a card that has to wait is still a card when it goes: without it the retry sent an
+   * empty message and the listing never arrived.
+   */
+  listing?: string;
   /** When the member pressed Send, in milliseconds. */
   queuedAt: number;
   /**

@@ -335,11 +335,12 @@ function createMessagingStore(): MessagingStore {
    */
   const newSendId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-  const queue = (counterparty: ActionHash, content: string, id: string) => {
+  const queue = (counterparty: ActionHash, content: string, id: string, listing?: ActionHash) => {
     const item: OutboxItem = {
       id,
       to: threadKeyOf(counterparty),
       content,
+      ...(listing ? { listing: encodeHashToBase64(listing) } : {}),
       queuedAt: Date.now(),
       state: 'waiting'
     };
@@ -397,13 +398,13 @@ function createMessagingStore(): MessagingStore {
             const failure = classifySendFailure(causeOf(e));
             // Nothing was written, so it is safe to hold and retry.
             if (failure.kind === 'devicesNotFound') {
-              queue(counterparty, content, sendId);
+              queue(counterparty, content, sendId, listing);
               return E.void;
             }
             // No answer: we do not know, and we do not guess. It goes to the outbox with
             // its send id, and the next flush asks the chain whether it went.
             if (failure.kind === 'noAnswer') {
-              queue(counterparty, content, sendId);
+              queue(counterparty, content, sendId, listing);
               return E.void;
             }
             return E.fail(e);
@@ -489,7 +490,8 @@ function createMessagingStore(): MessagingStore {
             .sendMessage({
               toUser: counterparty,
               content: item.content,
-              sendId: item.id
+              sendId: item.id,
+              listing: item.listing ? decodeHashFromBase64(item.listing) : undefined
             } as never)
             .pipe(E.asVoid)
         ).pipe(

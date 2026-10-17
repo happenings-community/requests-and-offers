@@ -257,10 +257,16 @@ async fn review_withdrawn_proposal_through_the_probe() {
     w.sync().await;
     let after = w.view(2, &p).await;
     eprintln!("REVIEW withdrawn: Carol now sees the original as {after:?}");
-    if let Ok(out) = &r {
-        let c = w.view(2, &out.counter).await;
-        eprintln!("REVIEW withdrawn: Carol sees the counter as {c:?}");
-    }
+    // Sam's ruling (17 October): accepted. Validation cannot see a withdrawal
+    // on the proposer's chain, and the two can cross even between honest
+    // members. The original reads as withdrawn and the counter stands as a new
+    // proposal the proposer can decline; the display says it answers a
+    // withdrawn proposal.
+    let out = r.expect("validation accepts a counter of a withdrawn proposal, by ruling");
+    assert_eq!(after.status, "Cancelled", "the original still reads as withdrawn");
+    let c = w.view(2, &out.counter).await;
+    eprintln!("REVIEW withdrawn: Carol sees the counter as {c:?}");
+    assert_eq!(c.status, "Proposed", "the counter stands as an open proposal");
 }
 
 // ---------------------------------------------------------------------------
@@ -342,6 +348,11 @@ async fn review_a_third_member_writes_the_forward_link() {
         .await
         .map_err(|e| format!("{e:?}"));
     eprintln!("REVIEW link: Carol writing the true forward link -> {r:?}");
+    // Ruled 17 October: only the counter's author writes the link.
+    assert!(
+        r.as_ref().is_err_and(|e| e.contains("only the counter's author")),
+        "a third member's forward link must be refused: {r:?}"
+    );
 }
 
 // ---------------------------------------------------------------------------

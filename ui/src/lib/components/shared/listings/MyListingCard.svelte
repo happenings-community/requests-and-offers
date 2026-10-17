@@ -9,7 +9,7 @@
   import { useListingInterest } from '$lib/composables/domain/exchanges/useListingInterest.svelte';
   import { formatWhen, latestOnInterest, statusLabel } from '$lib/utils/exchange-ui';
   import { runEffect } from '$lib/utils/effect';
-  import { queueAndReverseModal } from '$lib/utils';
+  import { getUserPictureUrl, queueAndReverseModal } from '$lib/utils';
   import type { ConfirmModalMeta } from '$lib/types/ui';
   import type { MyListing } from '$lib/utils/my-listings';
 
@@ -154,6 +154,11 @@
         {@const who = interest.personOf(person)}
         {@const exchange = latestOnInterest(person.interest_hash, exchangesStore.exchanges)}
         <li class="flex flex-wrap items-center gap-2">
+          <img
+            src={who ? getUserPictureUrl(who) : '/default_avatar.webp'}
+            alt=""
+            class="h-6 w-6 rounded-full bg-surface-200 object-cover"
+          />
           <a class="anchor" href={`/users/${encodeHashToBase64(person.user)}`}
             >{who?.name ?? 'A member'}</a
           >

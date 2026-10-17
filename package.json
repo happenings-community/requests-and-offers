@@ -23,7 +23,7 @@
     "test:sweettest:requests": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test requests -- --test-threads=1",
     "test:sweettest:offers": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test offers -- --test-threads=1",
     "test:sweettest:mediums-of-exchange": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test mediums_of_exchange -- --test-threads=1",
-    "test:sweettest:exchanges": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test exchanges --test exchanges_attacks -- --test-threads=1",
+    "test:sweettest:exchanges": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test exchanges --test exchanges_attacks --test exchanges_attacks_review -- --test-threads=1",
     "test:ui": "bun t -w ui",
     "test:unit": "cd ui && npm run test:unit",
     "test:integration": "cd ui && npm run test:integration",

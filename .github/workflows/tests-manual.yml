@@ -84,6 +84,7 @@ jobs:
           - offers
           - exchanges
           - exchanges_attacks
+          - exchanges_attacks_review
           - mediums_of_exchange
           - record_op_premise
           - administration_administrator_management

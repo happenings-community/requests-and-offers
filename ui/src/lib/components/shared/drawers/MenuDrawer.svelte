@@ -3,6 +3,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { getUserPictureUrl } from '$lib/utils';
+  import { myMenuItems } from '$lib/navigation/my-menu';
 
   const drawerStore = getDrawerStore();
   const { currentUser } = $derived(usersStore);
@@ -53,41 +54,16 @@
         <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Profile</h3>
       {/if}
       <div class="space-y-2">
-        {#if currentUser}
+        {#each myMenuItems(!!currentUser) as item (item.href)}
           <a
-            href="/user"
+            href={item.href}
             onclick={closeDrawer}
             class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
           >
-            <span class="text-lg">👤</span>
-            <span>My Profile</span>
+            <span class="text-lg">{item.icon}</span>
+            <span>{item.label}</span>
           </a>
-        {:else}
-          <a
-            href="/user/create"
-            onclick={closeDrawer}
-            class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-          >
-            <span class="text-lg">👤</span>
-            <span>Create Profile</span>
-          </a>
-        {/if}
-        <a
-          href="/my-listings"
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-        >
-          <span class="text-lg">📋</span>
-          <span>My Listings</span>
-        </a>
-        <a
-          href="/exchanges"
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-        >
-          <span class="text-xl">🤝</span>
-          <span>My Exchanges</span>
-        </a>
+        {/each}
       </div>
     </div>
 

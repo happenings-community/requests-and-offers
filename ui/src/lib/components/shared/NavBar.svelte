@@ -8,6 +8,7 @@
   } from '@skeletonlabs/skeleton';
   import NavDropdown from '$lib/components/shared/NavDropdown.svelte';
   import { getUserPictureUrl } from '$lib/utils';
+  import { myMenuItems } from '$lib/navigation/my-menu';
   import NetworkStatusPopup from '$lib/components/network/NetworkStatusPopup.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -64,28 +65,10 @@
 
   // Navigation menu configurations
   function profileItems() {
-    const user = currentUser; // dereference the signal
-    return [
-      {
-        href: user ? '/user' : '/user/create',
-        label: user ? 'My Profile' : 'Create Profile',
-        icon: '👤',
-        description: user ? 'View and edit your profile' : 'Join the community'
-      },
-      {
-        href: '/my-listings',
-        label: 'My Listings',
-        icon: '📋',
-        description: 'Manage your requests and offers'
-      },
-      {
-        href: '/exchanges',
-        label: 'My Exchanges',
-        badge: pendingCount,
-        icon: '🤝',
-        description: 'Agreements you are part of'
-      }
-    ];
+    // The shared list, with the count of exchanges waiting on the member.
+    return myMenuItems(!!currentUser).map((item) =>
+      item.href === '/exchanges' ? { ...item, badge: pendingCount } : item
+    );
   }
 
   // Exchanges waiting on this member: derived from the store's read model
@@ -207,19 +190,18 @@
       <NavDropdown title="Resources" items={resourceItems} alignRight={true} />
     </div>
 
-    <!-- Connection Status Indicator -->
-    <div
-      class="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm transition-colors"
+    <!-- Connection Status Indicator: a button, so it reads as one -->
+    <button
+      type="button"
+      class="flex cursor-pointer items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm transition-colors hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-secondary-300"
+      aria-label={`Connection status: ${getConnectionText(finalConnectionStatus)}. Show network details`}
+      title="Network details"
       use:popup={popupStatus}
     >
-      <span
-        class="text-sm"
-        role="img"
-        aria-label={`Connection status: ${getConnectionText(finalConnectionStatus)}`}
-      >
+      <span class="text-sm" aria-hidden="true">
         {getConnectionIcon(finalConnectionStatus)}
       </span>
-    </div>
+    </button>
 
     <!-- Admin Access -->
     {#if agentIsAdministrator}

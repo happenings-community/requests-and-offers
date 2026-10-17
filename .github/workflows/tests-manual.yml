@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:
-      # One red binary must not cancel the other thirteen. Same reason the
+      # One red binary must not cancel the others. Same reason the
       # command carries --no-fail-fast.
       fail-fast: false
       matrix:
@@ -83,6 +83,7 @@ jobs:
           - requests
           - offers
           - exchanges
+          - exchanges_attacks
           - mediums_of_exchange
           - administration_administrator_management
           - administration_progenitor

@@ -1,10 +1,8 @@
 <script lang="ts">
-  import { encodeHashToBase64 } from '@holochain/client';
   import { useExchangesManagement } from '$lib/composables/domain/exchanges/useExchangesManagement.svelte';
   import { type ExchangeTab } from '$lib/utils/exchange-ui';
-  import exchangesStore from '$lib/stores/exchanges.store.svelte';
-  import { chainsOf, groupChains, type GroupKey } from '$lib/utils/exchange-chains';
-  import ExchangeCard from '$lib/components/exchanges/ExchangeCard.svelte';
+  import { groupChains, type GroupKey } from '$lib/utils/exchange-chains';
+  import ExchangeChainCard from '$lib/components/exchanges/ExchangeChainCard.svelte';
   import ExchangeGroup from '$lib/components/exchanges/ExchangeGroup.svelte';
 
   const TABS: { key: ExchangeTab; label: string; icon: string; blurb: string; ring: string }[] = [
@@ -28,22 +26,26 @@
       icon: '\u{1F389}',
       blurb: 'Both parts done; reviews to leave or already given.',
       ring: 'ring-success-500'
+    },
+    {
+      key: 'all',
+      label: 'All',
+      icon: '\u{1F4D2}',
+      blurb: 'Every exchange, including declined, withdrawn and cancelled.',
+      ring: 'ring-surface-500'
     }
   ];
 
   const exchanges = useExchangesManagement();
-  const b64 = encodeHashToBase64;
   const me = $derived(exchanges.me);
 
   /**
-   * Negotiations as chains of rounds (#333), grouped as the member chooses.
-   * The cards and filters choose which negotiations show, by their latest
-   * round; the grouping then arranges them. None is the flat list as before.
+   * Negotiations (#333), grouped as the member chooses. The cards and filters
+   * choose which negotiations show, by their latest proposal; the grouping
+   * then arranges them. None lists them in order, ungrouped.
    */
   let groupBy = $state<GroupKey | 'none'>('person');
-  const chains = $derived(chainsOf(exchangesStore.exchanges));
-  const shownKeys = $derived(new Set(exchanges.shown.map((e) => b64(e.agreement_hash))));
-  const visible = $derived(chains.filter((c) => shownKeys.has(b64(c.latest.agreement_hash))));
+  const visible = $derived(exchanges.shownChains);
   const groups = $derived.by(() => {
     if (groupBy === 'none') return [];
     const list = groupChains(visible, groupBy, me, exchanges.lastActivity);
@@ -55,6 +57,8 @@
       : groupBy === 'listing'
         ? (exchanges.titleOf(g.sample.latest) ?? 'A listing')
         : g.key;
+
+  const tabWord = $derived(exchanges.tab === 'all' ? '' : exchanges.tab);
 
   $effect(() => {
     exchanges.initialize();
@@ -71,7 +75,7 @@
     <p class="text-surface-500">Deals you're proposing, working through, and have completed</p>
   </header>
 
-  <div class="grid gap-4 md:grid-cols-3" role="tablist" aria-label="Exchange groups">
+  <div class="grid gap-4 md:grid-cols-4" role="tablist" aria-label="Exchange groups">
     {#each TABS as t (t.key)}
       <button
         class="card space-y-2 p-4 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {exchanges.tab ===
@@ -146,8 +150,8 @@
     <div class="card space-y-3 p-6 text-center">
       <p class="text-surface-500">
         {exchanges.filtered
-          ? `Nothing ${exchanges.tab} matches those filters.`
-          : `No ${exchanges.tab} exchanges yet.`}
+          ? `Nothing ${tabWord} matches those filters.`
+          : `No ${tabWord} exchanges yet.`}
       </p>
       <a class="variant-filled-primary btn" href="/requests">Browse listings to start one</a>
     </div>
@@ -166,18 +170,16 @@
       {/each}
     </div>
   {:else}
-    <ul class="space-y-3">
-      {#each exchanges.shown as e (b64(e.agreement_hash))}
-        <li>
-          <ExchangeCard
-            exchange={e}
-            {me}
-            other={exchanges.nameOf(e)}
-            title={exchanges.titleOf(e)}
-            when={exchanges.lastActivity(e)}
-          />
-        </li>
+    <div class="space-y-3">
+      {#each visible as chain (chain.key)}
+        <ExchangeChainCard
+          {chain}
+          {me}
+          otherName={exchanges.nameOf(chain.latest) ?? 'them'}
+          title={exchanges.titleOf(chain.latest) ?? 'A listing'}
+          lastMoved={exchanges.lastActivity(chain.latest)}
+        />
       {/each}
-    </ul>
+    </div>
   {/if}
 </section>

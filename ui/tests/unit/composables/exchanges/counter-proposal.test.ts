@@ -77,6 +77,9 @@ vi.mock('$lib/utils/effect', () => ({
       case 'user':
         return { name: 'Agent 2' };
       case 'create':
+        // The app hands the input to a zome call, which clones it. A Svelte state
+        // proxy cannot be cloned, which is how the first walk-through failed.
+        structuredClone(token.input);
         state.calls.push('create');
         if (state.failCreate) throw new Error('create refused');
         return { agreement_hash: hash(11) };

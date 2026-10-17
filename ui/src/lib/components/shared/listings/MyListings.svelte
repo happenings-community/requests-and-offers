@@ -7,6 +7,8 @@
   import OfferCard from '$lib/components/offers/OfferCard.svelte';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
+  import exchangesStore from '$lib/stores/exchanges.store.svelte';
+  import InterestedMembers from '$lib/components/exchanges/InterestedMembers.svelte';
 
   type Props = {
     userHash: Uint8Array;
@@ -81,6 +83,10 @@
   // Initialize
   onMount(() => {
     loadListings();
+    // For where each interest's exchange stands (#344). If this read fails,
+    // Send a proposal shows where a status would have; the propose page then
+    // reads the interest afresh.
+    runEffect(exchangesStore.loadMyExchanges()).catch(() => {});
   });
 
   // Helper function to count active vs archived listings
@@ -312,15 +318,20 @@
     {:else}
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         {#each displayRequests as request}
-          <RequestCard
-            {request}
-            showActions={true}
-            isArchived={currentTab === 'archived'}
-            onUpdate={loadListings}
-            {showBulkSelection}
-            isSelected={selectedRequests.has(request.original_action_hash?.toString() || '')}
-            onSelectionChange={handleRequestSelection}
-          />
+          <div class="space-y-2">
+            <RequestCard
+              {request}
+              showActions={true}
+              isArchived={currentTab === 'archived'}
+              onUpdate={loadListings}
+              {showBulkSelection}
+              isSelected={selectedRequests.has(request.original_action_hash?.toString() || '')}
+              onSelectionChange={handleRequestSelection}
+            />
+            {#if request.original_action_hash}
+              <InterestedMembers listingHash={request.original_action_hash} listingType="Request" />
+            {/if}
+          </div>
         {/each}
       </div>
     {/if}
@@ -387,15 +398,20 @@
     {:else}
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         {#each displayOffers as offer}
-          <OfferCard
-            {offer}
-            showActions={true}
-            isArchived={currentTab === 'archived'}
-            onUpdate={loadListings}
-            {showBulkSelection}
-            isSelected={selectedOffers.has(offer.original_action_hash?.toString() || '')}
-            onSelectionChange={handleOfferSelection}
-          />
+          <div class="space-y-2">
+            <OfferCard
+              {offer}
+              showActions={true}
+              isArchived={currentTab === 'archived'}
+              onUpdate={loadListings}
+              {showBulkSelection}
+              isSelected={selectedOffers.has(offer.original_action_hash?.toString() || '')}
+              onSelectionChange={handleOfferSelection}
+            />
+            {#if offer.original_action_hash}
+              <InterestedMembers listingHash={offer.original_action_hash} listingType="Offer" />
+            {/if}
+          </div>
         {/each}
       </div>
     {/if}

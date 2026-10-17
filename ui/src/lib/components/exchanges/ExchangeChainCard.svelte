@@ -20,12 +20,14 @@
     chain,
     me,
     otherName,
+    otherPicture,
     title,
     lastMoved
   }: {
     chain: ExchangeChain;
     me: ActionHash | undefined;
     otherName: string;
+    otherPicture?: string;
     title: string;
     lastMoved: number;
   } = $props();
@@ -85,6 +87,7 @@
     exchange={latest}
     {me}
     other={otherName}
+    picture={otherPicture}
     {title}
     when={lastMoved}
     {chip}

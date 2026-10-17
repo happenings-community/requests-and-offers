@@ -77,7 +77,7 @@
           Edit Service Type
         {/if}
       </h2>
-      <p class="text-surface-600 dark:text-surface-400">
+      <p class="text-surface-600 dark:text-surface-300">
         {#if mode === 'suggest'}
           Your suggestion will be reviewed by an administrator.
         {:else}

@@ -53,6 +53,25 @@ describe('text contrast in the theme', () => {
     expect(contrast(WHITE, rgb('primary-500'))).toBeGreaterThanOrEqual(AA);
   });
 
+  // A selected option card in the admin's dark mode is the brand colour at
+  // 20% over surface-800 (Skeleton's variant-soft), so text there needs more.
+  const tinted = (token: string) => {
+    const [c, base] = [rgb(token), rgb('surface-800')];
+    return c.map((v, i) => Math.round(0.2 * v + 0.8 * base[i])) as [number, number, number];
+  };
+
+  it.each([['secondary-500'], ['primary-500']])(
+    'dark mode: surface-200 text on a selected %s option card passes AA',
+    (tint) => {
+      expect(contrast(rgb('surface-200'), tinted(tint))).toBeGreaterThanOrEqual(AA);
+    }
+  );
+
+  it('dark mode: primary-300 headings pass AA on the admin background and a selected card', () => {
+    expect(contrast(rgb('primary-300'), rgb('surface-800'))).toBeGreaterThanOrEqual(AA);
+    expect(contrast(rgb('primary-300'), tinted('primary-500'))).toBeGreaterThanOrEqual(AA);
+  });
+
   it('records why the admin needs the dark override: surface-500 on surface-800 fails', () => {
     expect(contrast(rgb('surface-500'), rgb('surface-800'))).toBeLessThan(AA);
   });
@@ -72,15 +91,24 @@ describe('the admin shell (forced dark mode, #205)', () => {
     expect(files.length).toBeGreaterThan(5);
   });
 
-  it('gives every surface-400 or surface-500 text a readable dark shade', () => {
-    const bare = /(?<![\w:-])text-surface-(400|500)(?![\w-])/;
-    const offenders = files.flatMap((file) =>
+  const lines = () =>
+    files.flatMap((file) =>
       readFileSync(file, 'utf8')
         .split('\n')
         .map((line, i) => ({ line, at: `${file}:${i + 1}` }))
-        .filter(({ line }) => bare.test(line) && !line.includes('dark:text-surface'))
-        .map(({ at }) => at)
     );
+
+  it('gives every surface-400 or surface-500 text a readable dark shade', () => {
+    const bare = /(?<![\w:-])text-surface-(400|500)(?![\w-])/;
+    const offenders = lines()
+      .filter(({ line }) => bare.test(line) && !line.includes('dark:text-surface'))
+      .map(({ at }) => at);
     expect(offenders).toEqual([]);
+  });
+
+  it('uses no dark shade too dim for the dark background', () => {
+    // surface-400 is 3.56:1 on surface-800, primary-400 is 2.57:1.
+    const dim = /dark:text-(surface-(400|500|600)|primary-(400|500))(?![\w-])/;
+    expect(lines().filter(({ line }) => dim.test(line)).map(({ at }) => at)).toEqual([]);
   });
 });

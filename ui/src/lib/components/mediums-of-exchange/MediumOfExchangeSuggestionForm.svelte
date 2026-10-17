@@ -119,7 +119,7 @@
 <div class="card space-y-4 p-4">
   <header class="card-header">
     <h3 class="h3">Suggest a New Medium of Exchange</h3>
-    <p class="text-surface-600 dark:text-surface-400">
+    <p class="text-surface-600 dark:text-surface-300">
       Have an idea for a new currency or medium of exchange? Suggest it here. An administrator will
       review it.
     </p>

@@ -20,7 +20,7 @@
   <div class="mb-6 flex items-center justify-between">
     <div>
       <h1 class="h1 text-3xl font-bold">Create Medium of Exchange</h1>
-      <p class="mt-2 text-surface-600 dark:text-surface-400">
+      <p class="mt-2 text-surface-600 dark:text-surface-300">
         Add a new currency or payment method to the system.
       </p>
     </div>

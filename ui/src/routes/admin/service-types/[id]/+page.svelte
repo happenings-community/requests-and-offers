@@ -343,7 +343,7 @@
               </div>
               <MarkdownRenderer
                 content={serviceType.description}
-                class="mb-4 text-lg text-surface-600 dark:text-surface-400"
+                class="mb-4 text-lg text-surface-600 dark:text-surface-300"
               />
             </div>
 
@@ -410,7 +410,7 @@
 
             <div>
               <h3 class="h4 mb-2 font-semibold">Created</h3>
-              <p class="text-surface-600 dark:text-surface-400">{createdAt}</p>
+              <p class="text-surface-600 dark:text-surface-300">{createdAt}</p>
               {#if serviceType.creator}
                 <p class="mt-1 text-xs text-surface-500 dark:text-surface-300">
                   by {serviceType.creator.toString().slice(0, 8)}...
@@ -420,7 +420,7 @@
 
             <div>
               <h3 class="h4 mb-2 font-semibold">Last Updated</h3>
-              <p class="text-surface-600 dark:text-surface-400">{updatedAt}</p>
+              <p class="text-surface-600 dark:text-surface-300">{updatedAt}</p>
             </div>
           </div>
         </section>
@@ -525,7 +525,7 @@
       <!-- Admin Status Information -->
       <div class="card p-6">
         <h3 class="h3 mb-4">Administrative Status</h3>
-        <div class="space-y-3 text-surface-600 dark:text-surface-400">
+        <div class="space-y-3 text-surface-600 dark:text-surface-300">
           {#if serviceType.status === 'pending'}
             <div class="alert variant-soft-warning">
               <p class="font-semibold">Pending Review</p>
@@ -557,7 +557,7 @@
       <!-- Information Section -->
       <div class="card p-6">
         <h3 class="h3 mb-4">About This Service Type</h3>
-        <div class="space-y-3 text-surface-600 dark:text-surface-400">
+        <div class="space-y-3 text-surface-600 dark:text-surface-300">
           <p>
             <strong>{serviceType.name}</strong>
             is a service type category used to organize and categorize requests and offers in the marketplace.
@@ -634,7 +634,7 @@
   {:else}
     <div class="card p-8 text-center">
       <h2 class="h2 mb-4">Service Type Not Found</h2>
-      <p class="mb-4 text-surface-600 dark:text-surface-400">
+      <p class="mb-4 text-surface-600 dark:text-surface-300">
         The requested service type could not be found or may have been removed.
       </p>
       <button class="variant-filled-primary btn" onclick={navigateBack}>

@@ -154,7 +154,7 @@
           Edit Medium of Exchange
         {/if}
       </h2>
-      <p class="text-surface-600 dark:text-surface-400">
+      <p class="text-surface-600 dark:text-surface-300">
         {#if mode === 'suggest'}
           Your suggestion will be reviewed by an administrator.
         {:else}
@@ -190,14 +190,14 @@
                     class="radio mt-1"
                   />
                   <div class="flex-1">
-                    <h4 class="h4 font-semibold text-primary-600 dark:text-primary-400">
+                    <h4 class="h4 font-semibold text-primary-600 dark:text-primary-300">
                       Base Category
                     </h4>
-                    <p class="text-sm text-surface-600 dark:text-surface-400">
+                    <p class="text-sm text-surface-600 dark:text-surface-200">
                       Foundational exchange categories like "Local Currency", "Time Banking", or
                       "Skill Exchange"
                     </p>
-                    <div class="mt-2 text-xs text-surface-500 dark:text-surface-300">
+                    <div class="mt-2 text-xs text-surface-500 dark:text-surface-200">
                       Examples: Local Currency, Time Banking, Skill Exchange, Favor Exchange
                     </div>
                   </div>
@@ -224,11 +224,11 @@
                     <h4 class="h4 font-semibold text-secondary-600 dark:text-secondary-400">
                       Specific Currency
                     </h4>
-                    <p class="text-sm text-surface-600 dark:text-surface-400">
+                    <p class="text-sm text-surface-600 dark:text-surface-200">
                       Specific currencies or payment methods like "USD", "Bitcoin", or "Ithaca
                       HOURS"
                     </p>
-                    <div class="mt-2 text-xs text-surface-500 dark:text-surface-300">
+                    <div class="mt-2 text-xs text-surface-500 dark:text-surface-200">
                       Examples: USD, EUR, Bitcoin, Ithaca HOURS, PayPal
                     </div>
                   </div>

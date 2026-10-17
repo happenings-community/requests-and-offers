@@ -86,7 +86,7 @@
   <div class="mb-6 flex items-center justify-between">
     <div>
       <h1 class="h1 text-3xl font-bold">Manage Mediums of Exchange</h1>
-      <p class="mt-2 text-surface-600 dark:text-surface-400">
+      <p class="mt-2 text-surface-600 dark:text-surface-300">
         Create, review, and manage mediums of exchange. Approve currencies to make them available
         for users when creating offers and requests.
       </p>

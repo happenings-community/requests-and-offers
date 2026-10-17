@@ -22,6 +22,7 @@
     exchange: e,
     me,
     other,
+    picture = '/default_avatar.webp',
     title,
     when,
     chip,
@@ -30,6 +31,8 @@
     exchange: UIExchange;
     me: ActionHash | undefined;
     other: string | undefined;
+    /** The other person's profile picture. */
+    picture?: string;
     title: string | undefined;
     when: number;
     /** An extra chip after the status, such as "Counter-proposal 2". */
@@ -72,11 +75,7 @@
     <span>{other ?? 'They'} {other ? 'gives' : 'give'} {termLabel(get)}</span>
   </div>
   <div class="flex items-center gap-2 text-sm">
-    <span
-      class="flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-xs text-white"
-    >
-      {(other ?? '?')[0]}
-    </span>
+    <img src={picture} alt="" class="h-6 w-6 rounded-full bg-surface-200 object-cover" />
     <span>{other ?? '...'}</span>
     <span class="variant-filled-primary btn btn-sm ml-auto">{actionLabel(e, role)} &rarr;</span>
   </div>

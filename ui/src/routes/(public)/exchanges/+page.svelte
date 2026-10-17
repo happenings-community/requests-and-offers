@@ -164,6 +164,7 @@
           label={groupLabel(group)}
           initial={groupBy === 'person'}
           nameOf={exchanges.nameOf}
+          pictureOf={exchanges.pictureOf}
           titleOf={exchanges.titleOf}
           lastActivity={exchanges.lastActivity}
         />
@@ -176,6 +177,7 @@
           {chain}
           {me}
           otherName={exchanges.nameOf(chain.latest) ?? 'them'}
+          otherPicture={exchanges.pictureOf(chain.latest)}
           title={exchanges.titleOf(chain.latest) ?? 'A listing'}
           lastMoved={exchanges.lastActivity(chain.latest)}
         />

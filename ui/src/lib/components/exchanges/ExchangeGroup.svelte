@@ -17,15 +17,17 @@
     label,
     initial = false,
     nameOf,
+    pictureOf,
     titleOf,
     lastActivity
   }: {
     group: ChainGroup;
     me: ActionHash | undefined;
     label: string;
-    /** Show the label's first letter as an avatar: for a person. */
+    /** Show the person's picture before the label: when grouped by person. */
     initial?: boolean;
     nameOf: (e: UIExchange) => string | undefined;
+    pictureOf: (e: UIExchange) => string;
     titleOf: (e: UIExchange) => string | undefined;
     lastActivity: (e: UIExchange) => number;
   } = $props();
@@ -36,10 +38,11 @@
 <details class="card variant-soft-surface p-4" data-testid="exchange-group" bind:open>
   <summary class="flex cursor-pointer list-none flex-wrap items-center gap-2">
     {#if initial}
-      <span
-        class="flex h-7 w-7 items-center justify-center rounded-full bg-primary-500 text-sm text-white"
-        >{label[0] ?? '?'}</span
-      >
+      <img
+        src={pictureOf(group.sample.latest)}
+        alt=""
+        class="h-7 w-7 rounded-full bg-surface-200 object-cover"
+      />
     {/if}
     <span class="font-semibold">{label}</span>
     <span class="text-sm text-surface-500">
@@ -58,6 +61,7 @@
         {chain}
         {me}
         otherName={nameOf(chain.latest) ?? 'them'}
+        otherPicture={pictureOf(chain.latest)}
         title={titleOf(chain.latest) ?? 'A listing'}
         lastMoved={lastActivity(chain.latest)}
       />

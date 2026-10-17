@@ -35,6 +35,19 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
   Ok(ValidateCallbackResult::Valid)
 }
 
+/// Every rule for a new or updated entry, run for both ops of the write.
+///
+/// Holochain sends the entry op and the record op of a create or update to
+/// different authorities, by entry hash and by action hash, and
+/// `must_get_valid_record` trusts the record authority's verdict. A rule run
+/// on the entry op alone is never seen by the authority that answers for
+/// the record.
+fn validate_entry(app_entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
+  match app_entry {
+    EntryTypes::ServiceType(service_type) => validate_service_type(service_type),
+  }
+}
+
 #[allow(clippy::collapsible_match, clippy::single_match)]
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
@@ -57,15 +70,14 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
       OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
-        match app_entry {
-          EntryTypes::ServiceType(service_type) => {
-            return validate_service_type(service_type);
-          }
-        }
+        return validate_entry(app_entry);
       }
       _ => (),
     },
     FlatOp::CreateRecord(store_record) => match store_record {
+      OpRecord::CreateEntry { app_entry, .. } | OpRecord::UpdateEntry { app_entry, .. } => {
+        return validate_entry(app_entry);
+      }
       OpRecord::DeleteEntry { action } => {
         let original_record = must_get_valid_record(action.deletes_address.clone())?;
         let original_action =

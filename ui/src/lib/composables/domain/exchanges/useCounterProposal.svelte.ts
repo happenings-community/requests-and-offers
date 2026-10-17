@@ -73,7 +73,11 @@ export function useCounterProposal(options: UseCounterProposalOptions) {
     sending = true;
     try {
       const created = await runEffect(
-        exchangesStore.createAgreement(buildCounter(agreement, edits))
+        // A plain copy: the proposal lives in reactive state, and a state proxy
+        // cannot be cloned into the zome call ("An object could not be cloned").
+        exchangesStore.createAgreement(
+          buildCounter($state.snapshot(agreement), $state.snapshot(edits))
+        )
       );
       try {
         await runEffect(exchangesStore.respond(exchange.agreement_hash, false, COUNTERED_NOTE));

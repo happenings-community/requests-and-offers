@@ -250,6 +250,7 @@ export const EXCHANGE_CONTEXTS = {
   GET_INTERESTS: 'Failed to get interests',
   CREATE_AGREEMENT: 'Failed to write up the agreement',
   RESPOND: 'Failed to respond to the agreement',
+  COUNTER: 'Failed to send the counter-proposal',
   COMPLETE: 'Failed to mark the exchange done',
   REVIEW: 'Failed to review the exchange',
   CANCEL: 'Failed to cancel the agreement',

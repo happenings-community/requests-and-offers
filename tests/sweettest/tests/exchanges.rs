@@ -19,6 +19,42 @@ struct Exchange {
     receiver_review: Option<Record>,
     cancellation: Option<Record>,
     status: String,
+    countered_by: Option<ActionHash>,
+}
+
+/// The parts of an `Agreement` entry the counter tests read.
+#[derive(Debug, Serialize, Deserialize)]
+struct AgreementView {
+    delivery_timeframe: String,
+    counters: Option<CounteringView>,
+}
+holochain_serialized_bytes::holochain_serial!(AgreementView);
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CounteringView {
+    agreement: ActionHash,
+    decline: ActionHash,
+}
+
+/// The parts of a `Response` entry the counter tests read.
+#[derive(Debug, Serialize, Deserialize)]
+struct ResponseView {
+    accepted: bool,
+    note: String,
+}
+holochain_serialized_bytes::holochain_serial!(ResponseView);
+
+fn agreement_view(record: &Record) -> AgreementView {
+    record.entry().to_app_option().unwrap().expect("agreement entry")
+}
+
+fn counter_input(agreement: &ActionHash, timeframe: &str) -> Value {
+    json!({
+        "agreement": agreement,
+        "primary_quantity": { "value": 2.0, "unit": "h" },
+        "reciprocal_quantity": null,
+        "delivery_timeframe": timeframe
+    })
 }
 
 fn service_term(direction: &str, what: &str) -> Value {
@@ -399,4 +435,133 @@ async fn exchange_refusals() {
         )
         .await;
     assert!(bad_review.is_err(), "a rating above five must be refused");
+}
+
+/// A counter declines the proposal and answers it in one call, and each round
+/// names the one before it, so a negotiation reads as a chain (#333).
+#[tokio::test(flavor = "multi_thread")]
+async fn counter_proposals_form_a_chain() {
+    let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
+
+    let interest: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_interest", json!({ "listing": offer_hash, "listing_type": "Offer" }))
+        .await;
+    let interest_hash = interest.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Alice proposes; Bob is the counterparty.
+    let first: Record = conductors[0]
+        .call(&alice.zome("exchanges"), "create_agreement", agreement_input(&offer_hash, &interest_hash))
+        .await;
+    let first_hash = first.signed_action.hashed.hash.clone();
+    assert!(agreement_view(&first).counters.is_none(), "a first proposal counters nothing");
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Bob counters with a different timeframe.
+    let second: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "counter_agreement", counter_input(&first_hash, "Within a month"))
+        .await;
+    let second_hash = second.signed_action.hashed.hash.clone();
+    let second_view = agreement_view(&second);
+    assert_eq!(second_view.delivery_timeframe, "Within a month");
+    let countering = second_view.counters.expect("a counter names what it answers");
+    assert_eq!(countering.agreement, first_hash);
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // The original is declined with the counter's note, by Bob, and points forward.
+    let first_ex: Exchange = conductors[0]
+        .call(&alice.zome("exchanges"), "get_exchange", first_hash.clone())
+        .await;
+    assert_eq!(status_of(&first_ex), "Declined");
+    let response = first_ex.response.expect("the original carries the decline");
+    assert_eq!(response.signed_action.hashed.hash, countering.decline);
+    let response_view: ResponseView = response.entry().to_app_option().unwrap().expect("response entry");
+    assert!(!response_view.accepted);
+    assert_eq!(response_view.note, "Countered with a new proposal");
+    assert_eq!(first_ex.countered_by, Some(second_hash.clone()));
+
+    // The counter is open, and Alice is now the one to answer it: she counters back.
+    let second_ex: Exchange = conductors[0]
+        .call(&alice.zome("exchanges"), "get_exchange", second_hash.clone())
+        .await;
+    assert_eq!(status_of(&second_ex), "Proposed");
+    let third: Record = conductors[0]
+        .call(&alice.zome("exchanges"), "counter_agreement", counter_input(&second_hash, "Flexible"))
+        .await;
+    let third_hash = third.signed_action.hashed.hash.clone();
+    assert_eq!(agreement_view(&third).counters.expect("counter").agreement, second_hash);
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Bob accepts the third round; the chain reads first -> second -> third.
+    let _: Record = conductors[1]
+        .call(
+            &bob.zome("exchanges"),
+            "respond_to_agreement",
+            json!({ "agreement": third_hash, "accepted": true, "note": "" }),
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    let second_ex: Exchange = conductors[1]
+        .call(&bob.zome("exchanges"), "get_exchange", second_hash.clone())
+        .await;
+    assert_eq!(status_of(&second_ex), "Declined");
+    assert_eq!(second_ex.countered_by, Some(third_hash.clone()));
+    let third_ex: Exchange = conductors[1]
+        .call(&bob.zome("exchanges"), "get_exchange", third_hash)
+        .await;
+    assert_eq!(status_of(&third_ex), "Agreed");
+    assert_eq!(third_ex.countered_by, None);
+}
+
+/// Who may counter, and when; and a counter that changes nothing.
+#[tokio::test(flavor = "multi_thread")]
+async fn counter_refusals() {
+    let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
+
+    let interest: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_interest", json!({ "listing": offer_hash, "listing_type": "Offer" }))
+        .await;
+    let interest_hash = interest.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let proposal: Record = conductors[0]
+        .call(&alice.zome("exchanges"), "create_agreement", agreement_input(&offer_hash, &interest_hash))
+        .await;
+    let proposal_hash = proposal.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // The proposal's author cannot counter it.
+    let own = conductors[0]
+        .call_fallible::<_, Record>(&alice.zome("exchanges"), "counter_agreement", counter_input(&proposal_hash, "Flexible"))
+        .await;
+    assert!(own.is_err(), "the author of a proposal cannot counter it");
+
+    // A counter that changes nothing is refused, by validation.
+    let unchanged = conductors[1]
+        .call_fallible::<_, Record>(
+            &bob.zome("exchanges"),
+            "counter_agreement",
+            counter_input(&proposal_hash, "Within two weeks"),
+        )
+        .await;
+    assert!(unchanged.is_err(), "a counter must change a quantity or the timeframe");
+
+    // Once the proposal is accepted it cannot be countered.
+    let _: Record = conductors[1]
+        .call(
+            &bob.zome("exchanges"),
+            "respond_to_agreement",
+            json!({ "agreement": proposal_hash, "accepted": true, "note": "" }),
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    let late = conductors[1]
+        .call_fallible::<_, Record>(&bob.zome("exchanges"), "counter_agreement", counter_input(&proposal_hash, "Flexible"))
+        .await;
+    assert!(late.is_err(), "an answered proposal cannot be countered");
+    let ex: Exchange = conductors[0]
+        .call(&alice.zome("exchanges"), "get_exchange", proposal_hash)
+        .await;
+    assert_eq!(status_of(&ex), "Agreed", "a refused counter leaves the proposal as it was");
+    assert_eq!(ex.countered_by, None);
 }

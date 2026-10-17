@@ -108,6 +108,8 @@ export type UIExchange = Timed & {
   provider_review?: import('$lib/types/holochain').ReviewInDHT & Timed;
   receiver_review?: import('$lib/types/holochain').ReviewInDHT & Timed;
   cancellation?: import('$lib/types/holochain').CancellationInDHT & Timed;
+  /** The counter-proposal that answers this one: the next round (#333). */
+  countered_by?: ActionHash;
 };
 
 // ============================================================================

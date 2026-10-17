@@ -25,6 +25,10 @@ export {
   counterProposalHref
 } from './domain/exchanges/useExchangeDetails.svelte';
 export { useListingInterest, proposeHref } from './domain/exchanges/useListingInterest.svelte';
+export {
+  useCounterProposal,
+  COUNTERED_NOTE
+} from './domain/exchanges/useCounterProposal.svelte';
 
 // UI composables - Guard composables
 export { useUserAccessGuard } from './ui/useUserAccessGuard.svelte';

@@ -1,4 +1,9 @@
-import { encodeHashToBase64, type ActionHash, type AgentPubKey } from '@holochain/client';
+import {
+  decodeHashFromBase64,
+  encodeHashToBase64,
+  type ActionHash,
+  type AgentPubKey
+} from '@holochain/client';
 import { Effect as E } from 'effect';
 import {
   MessagingServiceTag,
@@ -116,11 +121,11 @@ export type MessagingStore = {
   isBlocked: (counterparty: ActionHash) => boolean;
   blockedUsers: () => string[];
   blockHistory: () => BlockEvent[];
-  /** Send everything waiting, oldest first. Called when the connection returns. */
+  /** Send everything waiting, oldest first. Called on a timer and when the network returns. */
   flushOutbox: () => E.Effect<void, never>;
-  /** Start the retry timer. Returns the stopper, for the screen's teardown. */
+  /** Start the retry timer, app-wide. Returns the stopper, for the layout's teardown. */
   startRetrying: () => () => void;
-  /** Subscribe to nudges and receipts. Returns the unsubscribe. */
+  /** Subscribe to nudges and receipts, app-wide. Returns the unsubscribe. */
   listen: () => () => void;
   /** Try one message again, because the member asked. */
   retryUnsent: (id: string) => E.Effect<void, never>;
@@ -443,8 +448,10 @@ function createMessagingStore(): MessagingStore {
         .sort((a, b) => a.queuedAt - b.queuedAt);
 
       for (const item of waiting) {
-        const counterparty = threads.find((t) => t.key === item.to)?.counterparty;
-        if (!counterparty) continue;
+        // The item names its own recipient: the thread key is the counterparty's `User`
+        // hash in base64. Looking the thread up instead meant a message to somebody with
+        // no thread loaded yet was skipped for ever, silently.
+        const counterparty = decodeHashFromBase64(item.to) as ActionHash;
 
         // Not `send`: that one queues on failure, which would add a second copy of
         // something already here. This call reports the reason instead, because the
@@ -519,15 +526,6 @@ function createMessagingStore(): MessagingStore {
     });
 
   /**
-   * Try the outbox again on a timer, for as long as anything is waiting.
-   *
-   * The timer is the fallback half of the retry; the other half is the reconnect, which
-   * the screen wires to `flushOutbox` through the client's connection handler. Neither is
-   * sufficient alone: a reconnect never fires if the websocket never dropped, which is the
-   * usual case when it is the internet that went, and a timer alone would wait up to its
-   * full interval after a reconnect.
-   */
-  /**
    * Listen for what other agents send this one directly.
    *
    * **Nudges and receipts arrive the same way**, as a tagged remote signal, so one
@@ -567,6 +565,17 @@ function createMessagingStore(): MessagingStore {
       }
     });
 
+  /**
+   * Try the outbox again on a timer, for as long as anything is waiting.
+   *
+   * **Started by the root layout, not by a conversation.** The outbox belongs to the
+   * member, not to the chat it was written in: a message held while one conversation was
+   * open must still go after they navigate away, reload, or come back tomorrow. The timer
+   * is the fallback half of the retry; the other half is the browser's `online` event,
+   * which the layout also wires to `flushOutbox`. Neither is sufficient alone: the event
+   * never fires if the connection never dropped, and a timer alone would wait up to its
+   * full interval after it came back.
+   */
   const startRetrying = (): (() => void) => {
     if (typeof setInterval === 'undefined') return () => {};
     const handle = setInterval(() => {

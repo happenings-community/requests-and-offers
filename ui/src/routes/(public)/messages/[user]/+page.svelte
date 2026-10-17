@@ -30,16 +30,10 @@
   const conversation = useConversation($page.params.user ?? '');
   const me = $derived(usersStore.currentUser?.original_action_hash);
 
+  // Nudges, receipts and the outbox's retries are the root layout's: they carry on after
+  // this conversation is left, which is what a message waiting to send needs.
   $effect(() => {
     conversation.initialize();
-    // Nudges and receipts both arrive here. Stopped on teardown so a conversation left
-    // behind does not keep a handler alive.
-    const stopListening = messagingStore.listen();
-    const stopRetrying = messagingStore.startRetrying();
-    return () => {
-      stopListening();
-      stopRetrying();
-    };
   });
 
   let picking = $state(false);

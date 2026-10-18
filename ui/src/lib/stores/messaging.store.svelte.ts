@@ -229,6 +229,9 @@ export function createMessagingStore(): MessagingStore {
       return map;
     });
 
+  /** A read from another store, as this store's own fault. */
+  const asFault = (context: string) => (e: unknown) => MessagingError.fromError(e, context);
+
   /**
    * Every interest that concerns me, with the `User` on the other end.
    *
@@ -237,31 +240,44 @@ export function createMessagingStore(): MessagingStore {
    * in mine, where the counterparty is the interested member. Only the first would miss
    * the person who has just pressed Show interest on my offer, which is exactly when a
    * conversation should appear.
+   *
+   * **A read that fails, fails the load.** Each of these used to be read as "none" when
+   * it failed, so a conversation whose only content was an interest vanished from
+   * Messages and from the badge, with no error shown. A listing read and found absent
+   * (`null`) is a different thing and is skipped: there is no one to talk to about it.
    */
-  const loadInterests = (me: ActionHash) =>
+  const loadInterests = (
+    me: ActionHash
+  ): E.Effect<Array<{ interest: UIInterest; counterparty: ActionHash }>, MessagingError> =>
     E.gen(function* () {
       const out: Array<{ interest: UIInterest; counterparty: ActionHash }> = [];
 
-      const mine = yield* exchangesStore.getMyInterests().pipe(E.catchAll(() => E.succeed([])));
+      const mine = yield* exchangesStore
+        .getMyInterests()
+        .pipe(E.mapError(asFault('reading the listings you are interested in')));
       for (const interest of mine) {
         const listing =
           interest.listing_type === 'Request'
             ? yield* requestsStore
                 .getRequest(interest.listing)
-                .pipe(E.catchAll(() => E.succeed(null)))
-            : yield* offersStore.getOffer(interest.listing).pipe(E.catchAll(() => E.succeed(null)));
+                .pipe(E.mapError(asFault('reading a listing you are interested in')))
+            : yield* offersStore
+                .getOffer(interest.listing)
+                .pipe(E.mapError(asFault('reading a listing you are interested in')));
         if (listing?.creator) out.push({ interest, counterparty: listing.creator });
       }
 
       const myListings = [
-        ...(yield* requestsStore.getMyListings(me).pipe(E.catchAll(() => E.succeed([])))),
-        ...(yield* offersStore.getMyListings(me).pipe(E.catchAll(() => E.succeed([]))))
+        ...(yield* requestsStore
+          .getMyListings(me)
+          .pipe(E.mapError(asFault('reading your requests')))),
+        ...(yield* offersStore.getMyListings(me).pipe(E.mapError(asFault('reading your offers'))))
       ];
       for (const listing of myListings) {
         if (!listing.original_action_hash) continue;
         const interests = yield* exchangesStore
           .getInterestsForListing(listing.original_action_hash)
-          .pipe(E.catchAll(() => E.succeed([])));
+          .pipe(E.mapError(asFault('reading who is interested in your listing')));
         for (const interest of interests) {
           out.push({ interest, counterparty: interest.user });
         }
@@ -297,7 +313,7 @@ export function createMessagingStore(): MessagingStore {
 
         const exchanges = yield* exchangesStore
           .loadMyExchanges()
-          .pipe(E.catchAll(() => E.succeed([])));
+          .pipe(E.mapError(asFault('reading your exchanges')));
         const interests = yield* loadInterests(me);
 
         const agentToUserMap = yield* resolveAgents([

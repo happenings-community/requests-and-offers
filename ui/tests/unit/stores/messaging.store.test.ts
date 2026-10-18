@@ -12,26 +12,35 @@ import { createMessagingStore, type MessagingStore } from '$lib/stores/messaging
  * waits with nothing else on screen.
  */
 
-const { hashes, sendMessage, findSent, getInbox, getSent, userByAgent, signalHandlers } =
-  vi.hoisted(() => {
-    const hash = (n: number) => new Uint8Array(Array(39).fill(n));
-    return {
-      hashes: {
-        ME: hash(1),
-        MY_AGENT: hash(2),
-        ANITA: hash(3),
-        LISTING: hash(4),
-        ANITA_AGENT: hash(5)
-      },
-      sendMessage: vi.fn(),
-      findSent: vi.fn(),
-      getInbox: vi.fn(),
-      getSent: vi.fn(),
-      userByAgent: vi.fn(),
-      /** Whatever `listen()` subscribed, so a test can deliver a signal. */
-      signalHandlers: [] as Array<(payload: unknown) => void>
-    };
-  });
+const {
+  hashes,
+  sendMessage,
+  findSent,
+  getInbox,
+  getSent,
+  userByAgent,
+  myInterests,
+  signalHandlers
+} = vi.hoisted(() => {
+  const hash = (n: number) => new Uint8Array(Array(39).fill(n));
+  return {
+    hashes: {
+      ME: hash(1),
+      MY_AGENT: hash(2),
+      ANITA: hash(3),
+      LISTING: hash(4),
+      ANITA_AGENT: hash(5)
+    },
+    sendMessage: vi.fn(),
+    findSent: vi.fn(),
+    getInbox: vi.fn(),
+    getSent: vi.fn(),
+    userByAgent: vi.fn(),
+    myInterests: vi.fn(),
+    /** Whatever `listen()` subscribed, so a test can deliver a signal. */
+    signalHandlers: [] as Array<(payload: unknown) => void>
+  };
+});
 const { MY_AGENT, ANITA, LISTING, ANITA_AGENT } = hashes;
 
 vi.mock('$lib/services/zomes/messaging.service', async () => {
@@ -80,7 +89,7 @@ vi.mock('$lib/stores/exchanges.store.svelte', async () => {
   const { Effect } = await import('effect');
   return {
     default: {
-      getMyInterests: () => Effect.succeed([]),
+      getMyInterests: () => myInterests(),
       getInterestsForListing: () => Effect.succeed([]),
       loadMyExchanges: () => Effect.succeed([])
     }
@@ -121,6 +130,7 @@ beforeEach(() => {
   getInbox.mockReturnValue(E.succeed([]));
   getSent.mockReturnValue(E.succeed([]));
   userByAgent.mockReturnValue(null);
+  myInterests.mockReturnValue(E.succeed([]));
 });
 
 /** Milliseconds, as the screens think; the zome speaks microseconds. */
@@ -185,7 +195,10 @@ describe('the outbox with no conversation open (F1)', () => {
     await E.runPromise(store.flushOutbox());
 
     expect(sendMessage, 'tried again').toHaveBeenCalledTimes(2);
-    expect(sendMessage.mock.calls[1][0]).toMatchObject({ toUser: ANITA, content: 'see you at ten' });
+    expect(sendMessage.mock.calls[1][0]).toMatchObject({
+      toUser: ANITA,
+      content: 'see you at ten'
+    });
     expect(store.outbox, 'gone once it went').toHaveLength(0);
   });
 
@@ -255,3 +268,17 @@ describe('receipts (F5)', () => {
   });
 });
 
+describe('a read that fails during the load (F10)', () => {
+  /**
+   * The interests and the exchanges used to be read as "none" when their read failed, so
+   * a conversation whose only content was an interest vanished with no error shown.
+   */
+  it('fails the load and says why, rather than reading as "no interests"', async () => {
+    myInterests.mockReturnValue(E.fail(new Error('get_my_interests: no answer')));
+    const store = await freshStore();
+
+    await expect(E.runPromise(store.loadConversations())).rejects.toThrow();
+
+    expect(store.error, 'the fault, for the screen').toContain('no answer');
+  });
+});

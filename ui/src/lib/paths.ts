@@ -79,7 +79,7 @@ const HASH_BYTES = 39;
  * link produced a plausible-looking `ActionHash` of the wrong length, and the failure
  * surfaced later as a lookup that found nothing. The length is the check.
  */
-function readHash(raw: string | null): ActionHash | null {
+export function readHash(raw: string | null): ActionHash | null {
   if (!raw) return null;
   try {
     const hash = decodeHashFromBase64(raw);

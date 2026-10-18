@@ -114,7 +114,22 @@ export const MESSAGING_STRINGS = {
      * failed read is a fault with a way to try again, never an empty chat, because an
      * empty chat is exactly what a new conversation looks like.
      */
-    loadFailed: "This conversation couldn't be loaded: {reason}"
+    loadFailed: "This conversation couldn't be loaded: {reason}",
+    /**
+     * DRAFT, for Anita. The address names nobody: either it is not a hash at all, or no
+     * member record answers to it. Two different things, said as two different things,
+     * and neither is shown as a conversation with "A member".
+     */
+    notAnAddress: "That isn't a member's address.",
+    memberNotFound: "That member couldn't be found. They may have left, or the link may be wrong.",
+    /**
+     * DRAFT, for Anita. Shown in place of the composer while this member's own status
+     * has not been read, so a pending member is not told "not accepted" by guesswork.
+     */
+    membershipUnknown: "Your membership status couldn't be read, so sending is off for now.",
+    /** DRAFT, for Anita. A shared card whose listing could not be read, or is gone. */
+    cardReadFailed: "This listing couldn't be read: {reason}",
+    cardGone: 'This listing is no longer available.'
   },
 
   /**

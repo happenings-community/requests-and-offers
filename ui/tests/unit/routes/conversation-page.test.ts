@@ -15,7 +15,15 @@ import ConversationPage from '../../../src/routes/(public)/messages/[user]/+page
 const hash = (n: number) => new Uint8Array(Array(39).fill(n));
 const ANITA = hash(3);
 
-const { loadConversations } = vi.hoisted(() => ({ loadConversations: vi.fn() }));
+const { loadConversations, me, userByHash } = vi.hoisted(() => ({
+  loadConversations: vi.fn(),
+  /** Who is signed in; a test may change their status. */
+  me: {
+    original_action_hash: new Uint8Array(Array(39).fill(4)),
+    status: { status_type: 'accepted' } as { status_type: string } | undefined
+  },
+  userByHash: vi.fn()
+}));
 
 vi.mock('$lib/stores/messaging.store.svelte', () => ({
   default: {
@@ -37,8 +45,10 @@ vi.mock('$lib/stores/messaging.store.svelte', () => ({
 
 vi.mock('$lib/stores/users.store.svelte', () => ({
   default: {
-    currentUser: { original_action_hash: new Uint8Array(Array(39).fill(4)) },
-    getUserByActionHash: () => Promise.resolve({ name: 'Anita Rossi' })
+    get currentUser() {
+      return me;
+    },
+    getUserByActionHash: () => userByHash()
   }
 }));
 
@@ -56,6 +66,8 @@ vi.mock('@skeletonlabs/skeleton', () => ({
 beforeEach(() => {
   cleanup();
   vi.clearAllMocks();
+  me.status = { status_type: 'accepted' };
+  userByHash.mockResolvedValue({ name: 'Anita Rossi' });
   setPage({ user: encodeHashToBase64(ANITA) });
 });
 
@@ -67,7 +79,10 @@ describe('the conversation page when the read fails', () => {
     const fault = await screen.findByRole('alert');
     expect(fault.textContent).toContain("couldn't be loaded");
     expect(fault.textContent, 'the reason, not a shrug').toContain('did not answer');
-    expect(screen.queryByRole('textbox'), 'nothing to write into on a chat nobody could read').toBeNull();
+    expect(
+      screen.queryByRole('textbox'),
+      'nothing to write into on a chat nobody could read'
+    ).toBeNull();
   });
 
   /**
@@ -83,5 +98,62 @@ describe('the conversation page when the read fails', () => {
     expect(await screen.findByRole('textbox')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(loadConversations).toHaveBeenCalledTimes(2);
+  });
+});
+
+/**
+ * **The address is checked, not trusted** (review of 16 October, F16). Read and absent
+ * is its own state, told apart from not yet read and from a read that failed, and none
+ * of them is a conversation with "A member".
+ */
+describe('the conversation page and its address', () => {
+  it('says so when no member answers to the address, and offers no composer', async () => {
+    loadConversations.mockResolvedValue([]);
+    userByHash.mockResolvedValue(null);
+    render(ConversationPage);
+
+    const notice = await screen.findByRole('alert');
+    expect(notice.textContent).toContain("couldn't be found");
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('says so when the address is not a hash at all, without throwing', async () => {
+    setPage({ user: 'not-a-hash' });
+    render(ConversationPage);
+
+    const notice = await screen.findByRole('alert');
+    expect(notice.textContent).toContain("isn't a member's address");
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(
+      loadConversations,
+      'nothing read for an address that names nobody'
+    ).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * **A pending or suspended member reads and does not reply** (rule 7; review F12). The
+ * zome refuses them anyway, but a composer that works until Send is a promise the page
+ * cannot keep.
+ */
+describe('the conversation page for a member who may not send', () => {
+  it('shows why instead of the composer', async () => {
+    loadConversations.mockResolvedValue([]);
+    me.status = { status_type: 'pending' };
+    render(ConversationPage);
+
+    const notice = await screen.findByTestId('cannot-send');
+    expect(notice.textContent).toContain("hasn't been accepted");
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('does not call a member whose status has not been read "not accepted"', async () => {
+    loadConversations.mockResolvedValue([]);
+    me.status = undefined;
+    render(ConversationPage);
+
+    const notice = await screen.findByTestId('cannot-send');
+    expect(notice.textContent).toContain("couldn't be read");
+    expect(screen.queryByRole('textbox')).toBeNull();
   });
 });

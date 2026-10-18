@@ -20,7 +20,8 @@
     messagesNeeded,
     percentOver,
     percentUsed,
-    showsAsAgreement
+    showsAsAgreement,
+    type TimelineItem
   } from '$lib/utils/messaging-threads';
   import { paths } from '$lib/paths';
   import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
@@ -29,6 +30,23 @@
   // honest rather than asserting non-null.
   const conversation = useConversation($page.params.user ?? '');
   const me = $derived(usersStore.currentUser?.original_action_hash);
+
+  /**
+   * Only an accepted member can send; a pending or suspended member reads and does not
+   * reply. The zome refuses them anyway, but a composer that works until Send is a
+   * promise the page cannot keep, and the refusal text does not tell "not allowed" from
+   * "broken". A status not read yet is its own case, not a "not accepted".
+   */
+  const membership = $derived(usersStore.currentUser?.status?.status_type);
+  const canSend = $derived(membership === 'accepted');
+
+  /** Each item by its own hash: two of one kind in the same millisecond are two keys. */
+  const keyOf = (item: TimelineItem): string =>
+    item.kind === 'message'
+      ? encodeHashToBase64(item.message.hash)
+      : item.kind === 'interest'
+        ? encodeHashToBase64(item.interest.interest_hash)
+        : encodeHashToBase64(item.exchange.agreement_hash);
 
   // Nudges, receipts and the outbox's retries are the root layout's: they carry on after
   // this conversation is left, which is what a message waiting to send needs.
@@ -131,7 +149,15 @@
     {/if}
   </header>
 
-  {#if conversation.loadError}
+  {#if conversation.missing === 'address'}
+    <aside class="card variant-soft-error p-4 text-sm" role="alert">
+      {S.conversation.notAnAddress}
+    </aside>
+  {:else if conversation.missing === 'member'}
+    <aside class="card variant-soft-warning p-4 text-sm" role="alert">
+      {S.conversation.memberNotFound}
+    </aside>
+  {:else if conversation.loadError}
     <!--
       A failed read is a fault with a way to try again, never an empty chat: an empty
       chat is what a new conversation looks like, and this one may hold forty messages.
@@ -155,7 +181,7 @@
     <p class="text-surface-500">{C.loading}</p>
   {:else}
     <div class="flex flex-col gap-3" data-testid="timeline">
-      {#each conversation.timeline as item (item.kind + '-' + item.at)}
+      {#each conversation.timeline as item (item.kind + '-' + keyOf(item))}
         {#if item.kind === 'message' && item.message.listing}
           <!--
           A card-only message: it carries a listing and no text, so it renders as a card
@@ -295,60 +321,66 @@
       </aside>
     {/if}
 
-    <form
-      class="flex flex-col gap-2"
-      onsubmit={(e) => {
-        e.preventDefault();
-        conversation.send();
-      }}
-    >
-      <label class="sr-only" for="composer"
-        >{fill(S.conversation.composer.label, { name: conversation.name })}</label
+    {#if canSend}
+      <form
+        class="flex flex-col gap-2"
+        onsubmit={(e) => {
+          e.preventDefault();
+          conversation.send();
+        }}
       >
-      <textarea
-        id="composer"
-        class="textarea"
-        rows="3"
-        bind:value={conversation.draft}
-        placeholder={fill(S.conversation.composer.placeholder, { name: conversation.name })}
-      ></textarea>
-      <div class="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          class="variant-filled-primary btn"
-          disabled={conversation.sending || tooLong}
+        <label class="sr-only" for="composer"
+          >{fill(S.conversation.composer.label, { name: conversation.name })}</label
         >
-          {S.conversation.send}
-        </button>
-        {#if showCounter}
-          <span
-            class="text-sm {tooLong ? 'text-error-700 dark:text-error-300' : 'text-surface-500'}"
-            data-testid="limit-counter"
-            aria-live="polite"
+        <textarea
+          id="composer"
+          class="textarea"
+          rows="3"
+          bind:value={conversation.draft}
+          placeholder={fill(S.conversation.composer.placeholder, { name: conversation.name })}
+        ></textarea>
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            type="submit"
+            class="variant-filled-primary btn"
+            disabled={conversation.sending || tooLong}
           >
-            {#if tooLong}
-              {fill(S.conversation.tooLongBy, { percent: over, count: pieces })}
-            {:else}
-              {fill(S.conversation.limitUsed, { percent: used })}
-            {/if}
-          </span>
-        {/if}
-        <button type="button" class="variant-ghost btn" onclick={() => (picking = !picking)}>
-          {E.listing.makeProposal}
-        </button>
-        <button
-          type="button"
-          class="variant-ghost btn"
-          onclick={() => {
-            sharing = !sharing;
-            if (sharing) conversation.loadShareable();
-          }}>{S.conversation.shareListing}</button
-        >
-        <span class="text-sm text-surface-500"
-          >{fill(S.conversation.encrypted, { name: conversation.name })}
-          {S.receipts.optional}</span
-        >
-      </div>
-    </form>
+            {S.conversation.send}
+          </button>
+          {#if showCounter}
+            <span
+              class="text-sm {tooLong ? 'text-error-700 dark:text-error-300' : 'text-surface-500'}"
+              data-testid="limit-counter"
+              aria-live="polite"
+            >
+              {#if tooLong}
+                {fill(S.conversation.tooLongBy, { percent: over, count: pieces })}
+              {:else}
+                {fill(S.conversation.limitUsed, { percent: used })}
+              {/if}
+            </span>
+          {/if}
+          <button type="button" class="variant-ghost btn" onclick={() => (picking = !picking)}>
+            {E.listing.makeProposal}
+          </button>
+          <button
+            type="button"
+            class="variant-ghost btn"
+            onclick={() => {
+              sharing = !sharing;
+              if (sharing) conversation.loadShareable();
+            }}>{S.conversation.shareListing}</button
+          >
+          <span class="text-sm text-surface-500"
+            >{fill(S.conversation.encrypted, { name: conversation.name })}
+            {S.receipts.optional}</span
+          >
+        </div>
+      </form>
+    {:else}
+      <aside class="card variant-soft-warning p-3 text-sm" data-testid="cannot-send">
+        {membership === undefined ? S.conversation.membershipUnknown : S.general.notAccepted}
+      </aside>
+    {/if}
   {/if}
 </section>

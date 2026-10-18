@@ -474,16 +474,23 @@ struct ExchangeView {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_counter_changes_only_quantities_and_timeframe() {
-    let w = world().await;
+    let mut w = world().await;
     let (p, proposal) = w.propose().await;
     let elsewhere: Record = w.conductors[2]
         .call(&w.carol.zome("offers"), "create_offer", sample_offer("Something else"))
         .await;
     let elsewhere = elsewhere.signed_action.hashed.hash.clone();
+    // Bob may hold one live interest per listing (#354), so he withdraws the
+    // first (the proposal above still names it) before showing interest again.
+    // The later proposals use the new one.
+    let _: ActionHash = w.conductors[1]
+        .call(&w.bob.zome("exchanges"), "withdraw_interest", w.interest.clone())
+        .await;
     let second_interest: Record = w.conductors[1]
         .call(&w.bob.zome("exchanges"), "create_interest", json!({ "listing": w.offer, "listing_type": "Offer" }))
         .await;
     let second_interest = second_interest.signed_action.hashed.hash.clone();
+    w.interest = second_interest.clone();
     w.sync().await;
 
     type Change = (&'static str, &'static str, Box<dyn Fn(&mut Agreement)>);
@@ -495,7 +502,7 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
             Box::new(move |a| a.listing = e.clone())
         }),
         ("the listing type", "listing type", Box::new(|a| a.listing_type = "Request".into())),
-        // Bob's second interest on the same offer: valid on its own, so only
+        // Bob's renewed interest on the same offer: valid on its own, so only
         // the counter rule can catch it.
         ("the interest", "keeps the listing, the interest and the parties", {
             let i = second_interest.clone();

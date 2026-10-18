@@ -16,18 +16,16 @@ import type { ListingType } from '$lib/types/holochain';
  * a required field is missing. The stores use the raw-record read instead, so this applies
  * the same test on this side of the wire.
  *
- * **The discriminator is each entry's own required field**, not an incidental one:
- * `interaction_type` on an offer and `contact_preference` on a request. Neither has a
- * serde default, so a record of the other kind cannot carry it.
+ * **The discriminator is the one required field only a request has**: `contact_preference`
+ * (integrity `request.rs:22`, no serde default). `interaction_type` cannot tell them apart,
+ * because both entries carry it (`request.rs:35`, `offer.rs:25`); testing for its absence
+ * refused every real request, which is what the e2e requests journey caught. An offer is
+ * a record with no `contact_preference` that does carry `interaction_type`, so a record
+ * with neither field is still refused by both.
  *
  * The authoritative check is the record's entry type, which only the zome knows for
  * certain. That belongs with the integrity work in brief G.
  */
-const REQUIRED_FIELD: Record<ListingType, string> = {
-  Offer: 'interaction_type',
-  Request: 'contact_preference'
-};
-
 export function isListingOfType(record: HolochainRecord, type: ListingType): boolean {
   let entry: unknown;
   try {
@@ -37,12 +35,11 @@ export function isListingOfType(record: HolochainRecord, type: ListingType): boo
     return false;
   }
   if (!entry || typeof entry !== 'object') return false;
-  const own = REQUIRED_FIELD[type];
-  const other = REQUIRED_FIELD[type === 'Offer' ? 'Request' : 'Offer'];
   const fields = entry as Record<string, unknown>;
-  // Both tests, so a record carrying neither field is refused rather than passing the
-  // one that happens to look right.
-  return fields[own] !== undefined && fields[other] === undefined;
+  const isRequest = fields.contact_preference !== undefined;
+  // An offer must still show the field it does have, so a record carrying neither is
+  // refused rather than passing as an offer by default.
+  return type === 'Request' ? isRequest : !isRequest && fields.interaction_type !== undefined;
 }
 
 /**

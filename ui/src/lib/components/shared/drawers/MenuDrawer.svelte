@@ -2,11 +2,21 @@
   import { getDrawerStore } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import messagingPresence from '$lib/services/messagingPresence.svelte';
+  import { getUnreadCount } from '$lib/extensions/unread-count';
   import { paths } from '$lib/paths';
 
   const drawerStore = getDrawerStore();
   const { currentUser } = $derived(usersStore);
   const { agentIsAdministrator } = $derived(administrationStore);
+
+  // The same entry the nav bar's Profile menu has, asked for the same way: whether this
+  // network has messaging comes from the one presence module, and the count from the
+  // extension point, so the drawer knows nothing of messaging itself. On a narrow screen
+  // this is the only menu, and without the entry the only way to Messages was a Go to
+  // chat link or the address bar.
+  const unread = getUnreadCount();
+  const unreadCount = $derived(unread());
 
   function closeDrawer() {
     drawerStore.close();
@@ -114,6 +124,20 @@
           <span class="text-xl">🤝</span>
           <span>My Exchanges</span>
         </a>
+        {#if !messagingPresence.isAbsent}
+          <a
+            href={paths.messages()}
+            onclick={closeDrawer}
+            class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
+            data-testid="drawer-messages"
+          >
+            <span class="text-xl">✉️</span>
+            <span>My Messages</span>
+            {#if unreadCount}
+              <span class="variant-filled-secondary badge ml-auto">{unreadCount}</span>
+            {/if}
+          </a>
+        {/if}
       </div>
     </div>
 

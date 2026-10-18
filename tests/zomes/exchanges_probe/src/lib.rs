@@ -19,6 +19,13 @@ pub fn probe_create_response(response: Response) -> ExternResult<ActionHash> {
   create_entry(&EntryTypes::Response(response))
 }
 
+/// An interest entry exactly as given, with no look at the author's own chain
+/// for an earlier one (#354).
+#[hdk_extern]
+pub fn probe_create_interest(interest: Interest) -> ExternResult<ActionHash> {
+  create_entry(&EntryTypes::Interest(interest))
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProbeLink {
   pub base: ActionHash,

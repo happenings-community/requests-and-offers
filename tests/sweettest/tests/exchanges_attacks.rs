@@ -64,6 +64,13 @@ struct Response {
     note: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct Interest {
+    listing: ActionHash,
+    listing_type: String,
+    user: ActionHash,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct ProbeDeclineThenCounter {
     decline: Response,
@@ -658,4 +665,50 @@ async fn a_counter_link_points_at_the_real_counter() {
         )
         .await
         .expect("the true counter link is accepted");
+}
+
+// ---------------------------------------------------------------------------
+// One live interest per member per listing (#354)
+// ---------------------------------------------------------------------------
+
+/// Bob already holds a live interest in Alice's offer (the world's). A second
+/// one written past `create_interest`, so past the coordinator's look at his
+/// own chain, is refused by validation with the rule named. Carol's first
+/// through the same probe is accepted, and once Bob withdraws his, a new one
+/// of his is accepted too.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_second_live_interest_is_refused_past_the_coordinator() {
+    let w = world().await;
+    let bob_user = member_hash(&w.conductors[1], &w.bob).await;
+    let bobs = Interest { listing: w.offer.clone(), listing_type: "Offer".into(), user: bob_user };
+
+    let second = w.conductors[1]
+        .call_fallible::<_, ActionHash>(&w.bob.zome("exchanges_probe"), "probe_create_interest", bobs.clone())
+        .await
+        .map_err(|e| format!("{e:?}"));
+    refused(
+        second,
+        "this member already has an interest in this listing",
+        "a second live interest past the coordinator",
+    );
+
+    // Control: Carol's first interest, through the same probe.
+    let carol_user = member_hash(&w.conductors[2], &w.carol).await;
+    w.conductors[2]
+        .call_fallible::<_, ActionHash>(
+            &w.carol.zome("exchanges_probe"),
+            "probe_create_interest",
+            Interest { listing: w.offer.clone(), listing_type: "Offer".into(), user: carol_user },
+        )
+        .await
+        .expect("a first interest through the probe is accepted");
+
+    // Withdrawn, the slot is free again: Bob's new one through the probe is accepted.
+    let _: ActionHash = w.conductors[1]
+        .call(&w.bob.zome("exchanges"), "withdraw_interest", w.interest.clone())
+        .await;
+    w.conductors[1]
+        .call_fallible::<_, ActionHash>(&w.bob.zome("exchanges_probe"), "probe_create_interest", bobs)
+        .await
+        .expect("after withdrawing, an interest through the probe is accepted");
 }

@@ -47,13 +47,21 @@
   const exchanges = useExchangesManagement();
 
   let view = $state<'exchanges' | 'interested'>('exchanges');
-  let interestCount = $state(0);
+  /** How many listings I am interested in; `null` until read, and again if the read fails. */
+  let interestCount = $state<number | null>(null);
 
-  $effect(() => {
-    (async () => {
+  /** A confident 0 is a claim; an unread or failed count shows the tab without one. */
+  async function countInterests(): Promise<void> {
+    try {
       const mine = await runEffect(exchangesStore.getMyInterests());
       interestCount = mine?.length ?? 0;
-    })();
+    } catch {
+      interestCount = null;
+    }
+  }
+
+  $effect(() => {
+    void countInterests();
   });
 
   const b64 = encodeHashToBase64;
@@ -105,12 +113,15 @@
       onclick={() => (view = 'interested')}
       data-testid="interested-tab"
     >
-      {fill(S.exchanges.tab.interested, { count: interestCount })}
+      {interestCount === null
+        ? S.exchanges.tab.interestedUncounted
+        : fill(S.exchanges.tab.interested, { count: interestCount })}
     </button>
   </div>
 
   {#if view === 'interested'}
-    <InterestedIn />
+    <!-- A withdrawal inside the tab changes the count above it. -->
+    <InterestedIn onchange={countInterests} />
   {:else}
     <div class="grid gap-4 md:grid-cols-3" role="tablist" aria-label="Exchange groups">
       {#each TABS as t (t.key)}

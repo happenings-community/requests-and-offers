@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/svelte';
+import { render, screen, cleanup, waitFor } from '@testing-library/svelte';
 import ShowInterestButton from '$lib/components/exchanges/ShowInterestButton.svelte';
 
 /**
@@ -45,6 +45,13 @@ vi.mock('$lib/utils/effect', () => ({
 const LISTING = new Uint8Array(Array(39).fill(5));
 const AUTHOR = new Uint8Array(Array(39).fill(9));
 
+/** The button once the record has answered that interest is not yet shown. */
+async function readyButton(): Promise<HTMLButtonElement> {
+  const button = (await screen.findByTestId('show-interest')) as HTMLButtonElement;
+  await waitFor(() => expect(button.disabled).toBe(false));
+  return button;
+}
+
 beforeEach(() => {
   cleanup();
   createInterest.mockReset();
@@ -61,7 +68,7 @@ describe('showing interest from a listing card in a conversation', () => {
       props: { listing: LISTING, listingType: 'Offer', author: AUTHOR }
     });
 
-    (await screen.findByTestId('show-interest')).click();
+    (await readyButton()).click();
 
     expect(await screen.findByText("You're interested")).toBeTruthy();
     expect(createInterest).toHaveBeenCalledTimes(1);
@@ -76,7 +83,7 @@ describe('showing interest from a listing card in a conversation', () => {
       props: { listing: LISTING, listingType: 'Offer', author: AUTHOR }
     });
 
-    (await screen.findByTestId('show-interest')).click();
+    (await readyButton()).click();
     await screen.findByText("You're interested");
 
     expect(screen.queryByTestId('go-to-chat'), 'no chat link').toBeNull();
@@ -95,7 +102,7 @@ describe('showing interest from a listing card in a conversation', () => {
       props: { listing: LISTING, listingType: 'Offer', author: AUTHOR }
     });
 
-    (await screen.findByTestId('show-interest')).click();
+    (await readyButton()).click();
     await screen.findByText("You're interested");
 
     expect(container.querySelector('a'), 'nothing links away').toBeNull();
@@ -111,5 +118,46 @@ describe('showing interest from a listing card in a conversation', () => {
     });
 
     expect(screen.queryByTestId('show-interest')).toBeNull();
+  });
+});
+
+/**
+ * **An unread "no" is not a no** (review of 16 October, F9). The zome does not refuse a
+ * second Interest on the same listing, so the button must not offer one while the answer
+ * is unknown or after the read failed.
+ */
+describe('before the record has answered', () => {
+  it('is disabled while the read is in flight, and a press writes nothing', async () => {
+    let answer: (value: unknown[]) => void = () => {};
+    getMyInterests.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    render(ShowInterestButton, {
+      props: { listing: LISTING, listingType: 'Offer', author: AUTHOR }
+    });
+
+    const button = (await screen.findByTestId('show-interest')) as HTMLButtonElement;
+    expect(button.disabled, 'not yet read is not a no').toBe(true);
+    button.click();
+    expect(createInterest).not.toHaveBeenCalled();
+
+    answer([]);
+    await waitFor(() => expect(button.disabled).toBe(false));
+  });
+
+  it('shows the fault with a way to try again when the read fails, and offers no button', async () => {
+    getMyInterests
+      .mockRejectedValueOnce(new Error('get_my_interests: no answer'))
+      .mockResolvedValue([]);
+    render(ShowInterestButton, {
+      props: { listing: LISTING, listingType: 'Offer', author: AUTHOR }
+    });
+
+    const fault = await screen.findByRole('alert');
+    expect(fault.textContent).toContain('no answer');
+    expect(screen.queryByTestId('show-interest'), 'no button that could write twice').toBeNull();
+
+    (await screen.findByRole('button', { name: 'Try again' })).click();
+
+    await readyButton();
+    expect(getMyInterests).toHaveBeenCalledTimes(2);
   });
 });

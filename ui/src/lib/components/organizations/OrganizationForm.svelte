@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { escapeHtml } from '$lib/utils/safe-html';
   import { goto } from '$app/navigation';
   import { FileDropzone, Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
@@ -126,7 +127,7 @@
       modalStore.trigger(
         alertModal({
           id: 'welcome-and-next-steps',
-          message: welcomeAndNextStepsMessage(organization?.name || ''),
+          message: welcomeAndNextStepsMessage(escapeHtml(organization?.name || '')),
           confirmLabel: 'Ok !'
         })
       );

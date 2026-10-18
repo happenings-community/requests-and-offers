@@ -27,7 +27,7 @@
   });
 </script>
 
-<section class="flex flex-col items-center">
+<section class="flex w-full flex-col items-center">
   {#if error}
     <div class="alert variant-filled-error">
       <p>{error}</p>

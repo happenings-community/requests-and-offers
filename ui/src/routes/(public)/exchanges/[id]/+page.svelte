@@ -5,7 +5,11 @@
   import ReachPerson from '$lib/components/exchanges/ReachPerson.svelte';
   import { useExchangeDetails } from '$lib/composables/domain/exchanges/useExchangeDetails.svelte';
   import {
+    CLOSURE_LABEL,
+    closureOf,
     counterpartyOf,
+    exchangeState,
+    isProposal,
     statusLabel,
     exchangeStatusVariant,
     formatWhen,
@@ -122,6 +126,8 @@
     <p class="text-surface-500">Loading the exchange...</p>
   {:else}
     {@const a = exchange.agreement}
+    {@const state = exchangeState(exchange)}
+    {@const closure = closureOf(exchange)}
     <header class="space-y-2">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h1 class="h2"><a class="anchor" href={listingHref}>{listingTitle || '...'}</a></h1>
@@ -162,34 +168,23 @@
           </p>{/if}
         {#if a.terms}
           <p class="text-xs uppercase tracking-wide text-surface-500">
-            {exchange.status === 'Proposed' || exchange.status === 'Declined'
-              ? 'Proposal'
-              : 'Agreement'}
+            {isProposal(state) ? 'Proposal' : 'Agreement'}
           </p>
           <p class="whitespace-pre-line">{a.terms}</p>
         {/if}
       </div>
     {/if}
 
-    {#if exchange.status === 'Declined' && exchange.response}
+    {#if closure}
       <div class="alert variant-soft-surface">
-        <p>Declined on {formatWhen(exchange.response.created_at)}.</p>
-        {#if exchange.response.note}<p class="text-sm">{exchange.response.note}</p>{/if}
-      </div>
-    {:else if exchange.status === 'Cancelled' && exchange.cancellation}
-      <div class="alert variant-soft-surface">
-        <p>
-          {exchange.response ? 'Cancelled' : 'Withdrawn'} on {formatWhen(
-            exchange.cancellation.created_at
-          )}.
-        </p>
-        {#if exchange.cancellation.note}<p class="text-sm">{exchange.cancellation.note}</p>{/if}
+        <p>{CLOSURE_LABEL[closure.kind]} on {formatWhen(closure.at)}.</p>
+        {#if closure.note}<p class="text-sm">{closure.note}</p>{/if}
       </div>
     {/if}
 
     {#if role}
       <div class="card space-y-3 p-4">
-        {#if exchange.status === 'Proposed'}
+        {#if state === 'proposed'}
           {#if iWroteIt}
             <p>Waiting for {other?.name ?? 'them'} to accept, counter or decline.</p>
             <button class="variant-ghost-surface btn btn-sm" onclick={withdraw} disabled={busy}>
@@ -223,7 +218,7 @@
               >
             </div>
           {/if}
-        {:else if exchange.status === 'Agreed' || exchange.status === 'OneSideDone'}
+        {:else if state === 'agreed' || state === 'partlyDone'}
           {#if myDone}
             <p>You have marked your part done. Waiting for {other?.name ?? 'them'}.</p>
           {:else}
@@ -249,7 +244,7 @@
               </button>
             </div>
           </details>
-        {:else if exchange.status === 'Complete'}
+        {:else if state === 'awaitingReviews'}
           {#if myReview}
             <p>Thanks for your review. Waiting for {other?.name ?? 'them'} to review.</p>
           {:else}
@@ -300,7 +295,7 @@
               disabled={busy || !!details.reviewProblem}>Submit review</button
             >
           {/if}
-        {:else if exchange.status === 'Reviewed'}
+        {:else if state === 'reviewed'}
           {@const done = Math.max(
             exchange.provider_done?.created_at ?? 0,
             exchange.receiver_done?.created_at ?? 0
@@ -310,7 +305,7 @@
       </div>
     {/if}
 
-    {#if exchange.status === 'Complete' || exchange.status === 'Reviewed'}
+    {#if state === 'awaitingReviews' || state === 'reviewed'}
       <div class="grid gap-4 md:grid-cols-2">
         {@render reviewCard('Your review', myReviewText)}
         {@render reviewCard(`${other?.name ?? 'Their'} review`, theirReviewText)}
@@ -330,7 +325,8 @@
           Receiver done {formatWhen(exchange.receiver_done.created_at)}
         </p>{/if}
       {#if exchange.cancellation}<p>
-          Cancelled {formatWhen(exchange.cancellation.created_at)}
+          {state === 'withdrawn' ? 'Withdrawn' : 'Cancelled'}
+          {formatWhen(exchange.cancellation.created_at)}
         </p>{/if}
     </div>
   {/if}

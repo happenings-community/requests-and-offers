@@ -179,6 +179,55 @@ export function statusLabel(exchange: UIExchange): string {
   return EXCHANGE_STATE_LABEL[exchangeState(exchange)];
 }
 
+/**
+ * Whether the record is still a proposal: nobody accepted it. Proposed, declined and
+ * withdrawn all read "Proposal" over the terms and "Proposed by" on the card; the three
+ * agreement stages and what follows them do not.
+ */
+export function isProposal(state: ExchangeState): boolean {
+  return state === 'proposed' || state === 'declined' || state === 'withdrawn';
+}
+
+export interface Closure {
+  kind: 'declined' | 'withdrawn' | 'cancelled';
+  at: number;
+  note: string;
+}
+
+export const CLOSURE_LABEL: Record<Closure['kind'], string> = {
+  declined: 'Declined',
+  withdrawn: 'Withdrawn',
+  cancelled: 'Cancelled'
+};
+
+/**
+ * How a record was closed, if it was: what closed it, when, and its note.
+ *
+ * A declined proposal is closed by its decline, even when a cancellation landed on it
+ * afterwards; a withdrawal and a stopped agreement are closed by the cancellation. The
+ * open and finished states have no closure. No `default:` arm, as above.
+ */
+export function closureOf(exchange: UIExchange): Closure | null {
+  const state = exchangeState(exchange);
+  switch (state) {
+    case 'declined':
+      return exchange.response
+        ? { kind: state, at: exchange.response.created_at, note: exchange.response.note }
+        : null;
+    case 'withdrawn':
+    case 'cancelled':
+      return exchange.cancellation
+        ? { kind: state, at: exchange.cancellation.created_at, note: exchange.cancellation.note }
+        : null;
+    case 'proposed':
+    case 'agreed':
+    case 'partlyDone':
+    case 'awaitingReviews':
+    case 'reviewed':
+      return null;
+  }
+}
+
 export type Turn = 'you' | 'them' | 'none';
 
 /** Whose move it is, from the record alone. */

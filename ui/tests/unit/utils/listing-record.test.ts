@@ -16,10 +16,14 @@ const OFFER = {
   time_preference: 'Morning',
   links: []
 };
+// A request carries interaction_type too (integrity `request.rs:35`, no serde default), so
+// a fixture without it is a record the zome never writes. The e2e requests journey went
+// red on exactly that: every real request was refused as "not a request".
 const REQUEST = {
   title: 'Looking for a mentor',
   description: 'Backend development, a few hours a week.',
   contact_preference: 'Email',
+  interaction_type: 'InPerson',
   time_preference: 'Morning',
   links: []
 };
@@ -42,6 +46,15 @@ describe('a read by hash refuses a record of the wrong entry type', () => {
   it('a request is not an offer', () => {
     expect(isListingOfType(recordOf(REQUEST), 'Offer')).toBe(false);
     expect(isListingOfType(recordOf(REQUEST), 'Request')).toBe(true);
+  });
+
+  /**
+   * The field the two entries share cannot tell them apart. Only `contact_preference`
+   * does: a request has it (`request.rs:22`), an offer has no such field (`offer.rs`).
+   */
+  it('a request as the zome writes it, carrying interaction_type, is still a request', () => {
+    expect(isListingOfType(recordOf(REQUEST), 'Request')).toBe(true);
+    expect(listingTypeOf(recordOf(REQUEST))).toBe('Request');
   });
 
   it('an offer is not a request', () => {

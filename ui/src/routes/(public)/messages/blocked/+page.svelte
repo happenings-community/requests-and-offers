@@ -44,8 +44,9 @@
     loading = false;
   }
 
+  // Names for whoever is listed now, and again whenever the list changes: the store's
+  // block list is reactive, so a block lifted here, or on a conversation, is reflected.
   $effect(() => {
-    messagingStore.loadConversations();
     resolve();
   });
 

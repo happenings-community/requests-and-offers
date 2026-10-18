@@ -55,9 +55,14 @@ vi.mock('$lib/stores/users.store.svelte', async () => {
   const { Effect } = await import('effect');
   return {
     default: {
-      currentUser: { original_action_hash: hashes.ME, agents: [hashes.MY_AGENT] },
+      currentUser: {
+        original_action_hash: hashes.ME,
+        agents: [hashes.MY_AGENT],
+        status: { status_type: 'accepted' }
+      },
       getUserByAgentPubKey: () => Effect.succeed(null),
-      getUserByActionHash: () => Effect.succeed({ name: 'Anita Rossi', original_action_hash: hashes.ANITA })
+      getUserByActionHash: () =>
+        Effect.succeed({ name: 'Anita Rossi', original_action_hash: hashes.ANITA })
     }
   };
 });

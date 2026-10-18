@@ -1,4 +1,5 @@
-import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
+import { encodeHashToBase64, type ActionHash } from '@holochain/client';
+import { readHash } from '$lib/paths';
 import messagingStore, { type OutboxItem } from '$lib/stores/messaging.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
 import exchangesStore from '$lib/stores/exchanges.store.svelte';
@@ -25,8 +26,21 @@ import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
  * screen's own state and the calls that change something.
  */
 export function useConversation(counterpartyB64: string) {
-  const counterparty = $derived(decodeHashFromBase64(counterpartyB64) as ActionHash);
-  const key = $derived(threadKeyOf(counterparty));
+  /**
+   * The address, read as `paths` reads one, or `null` when it is not a hash at all.
+   *
+   * **The address is checked, not trusted.** `decodeHashFromBase64` does not throw on
+   * rubbish, it decodes what it can, so the length is the check, as it is in `paths`. A
+   * hash that no member record answers to rendered a full conversation, composer
+   * included, addressed to "A member". Both are their own state now, kept apart from
+   * "not yet read" and "the read failed".
+   */
+  const decoded = $derived(readHash(counterpartyB64));
+  /** Only meaningful once `loaded`; the page reads it in that branch alone. */
+  const counterparty = $derived(decoded as ActionHash);
+  const key = $derived(decoded ? threadKeyOf(decoded) : '');
+  /** Why there is nobody here: the address is not one, or no member answers to it. */
+  let missing = $state<'address' | 'member' | null>(null);
 
   let name = $state(C.someone);
   let myUser = $state<ActionHash | undefined>(undefined);
@@ -80,10 +94,20 @@ export function useConversation(counterpartyB64: string) {
    */
   async function initialize(): Promise<void> {
     loadError = null;
+    missing = null;
+    if (!decoded) {
+      missing = 'address';
+      return;
+    }
     try {
       await runEffect(messagingStore.loadConversations());
-      const user = await runEffect(usersStore.getUserByActionHash(counterparty));
-      name = user?.name ?? C.someone;
+      const user = await runEffect(usersStore.getUserByActionHash(decoded));
+      if (!user) {
+        // Read, and absent: not a fault, and not a conversation either.
+        missing = 'member';
+        return;
+      }
+      name = user.name ?? C.someone;
       myUser = usersStore.currentUser?.original_action_hash;
       receiptSetting = messagingStore.receiptSettingFor(counterparty);
       // Opening a conversation is what marks it read. Nothing else does, so a nav badge
@@ -230,6 +254,9 @@ export function useConversation(counterpartyB64: string) {
     },
     get loadError() {
       return loadError;
+    },
+    get missing() {
+      return missing;
     },
     initialize,
     send,

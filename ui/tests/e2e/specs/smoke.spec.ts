@@ -1,6 +1,6 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import type { AppWebsocket } from '@holochain/client';
-import { gotoApp, createTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
+import { gotoApp, createTestClient, closeTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
 
 // ============================================================================
 // SMOKE
@@ -96,7 +96,7 @@ test.describe.serial('smoke — every core route mounts against the live conduct
   });
 
   test.afterAll(async () => {
-    await client.client.close();
+    await closeTestClient(client);
   });
 
   for (const route of SMOKE_ROUTES) {

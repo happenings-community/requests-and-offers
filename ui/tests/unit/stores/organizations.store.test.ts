@@ -46,7 +46,7 @@ const createMockRecord = (
     signed_action: {
       hashed: {
         hash: actionHash,
-        content: { timestamp: Date.now() * 1000 }
+        content: { header: { timestamp: Date.now() * 1000 }, data: { type: 'Create' } }
       }
     },
     entry: {
@@ -194,16 +194,18 @@ describe('OrganizationsStore', () => {
       const updateHash = new Uint8Array(39).fill(2); // simulated update hash
       const memberHash = new Uint8Array(39).fill(3); // simulated member hash
 
-      // Simulate an Update record (has type + original_action_address)
+      // Simulate an Update record (data carries type + original_action_address)
       const updateRecord = {
         ...createMockRecord(testOrganizations.main, updateHash),
         signed_action: {
           hashed: {
             hash: updateHash,
             content: {
-              type: 'Update',
-              original_action_address: originalHash, // points back to creation hash
-              timestamp: Date.now() * 1000
+              header: { timestamp: Date.now() * 1000 },
+              data: {
+                type: 'Update',
+                original_action_address: originalHash // points back to creation hash
+              }
             }
           }
         }

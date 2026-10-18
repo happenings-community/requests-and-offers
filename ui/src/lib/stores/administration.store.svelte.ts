@@ -329,8 +329,8 @@ const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
       suspended_until: suspended_until || undefined,
       original_action_hash: record.signed_action.hashed.hash,
       previous_action_hash: record.signed_action.hashed.hash,
-      created_at: record.signed_action.hashed.content.timestamp,
-      updated_at: record.signed_action.hashed.content.timestamp
+      created_at: record.signed_action.hashed.content.header.timestamp,
+      updated_at: record.signed_action.hashed.content.header.timestamp
     };
 
     console.log('🎉 createUIStatusFromRecord - final result:', result);
@@ -999,7 +999,7 @@ export const createAdministrationStore = (): E.Effect<
 
           return convertToUIStatus(
             decodedStatus,
-            action.timestamp,
+            action.header.timestamp,
             currentStatusActionHash, // This is the "original" action hash for this status
             currentStatusActionHash // This is also the "previous" action hash for updates
           );
@@ -1598,8 +1598,8 @@ export const createAdministrationStore = (): E.Effect<
                       // Sort records chronologically
                       const sortedRecords = (allRecords as HolochainRecord[]).sort(
                         (a: HolochainRecord, b: HolochainRecord) =>
-                          a.signed_action.hashed.content.timestamp -
-                          b.signed_action.hashed.content.timestamp
+                          a.signed_action.hashed.content.header.timestamp -
+                          b.signed_action.hashed.content.header.timestamp
                       );
 
                       console.log(
@@ -1610,7 +1610,7 @@ export const createAdministrationStore = (): E.Effect<
                       const revisions = sortedRecords
                         .map((record: HolochainRecord, index) => {
                           const uiStatus = createUIStatusFromRecord(record);
-                          const timestamp = record.signed_action.hashed.content.timestamp;
+                          const timestamp = record.signed_action.hashed.content.header.timestamp;
 
                           if (!uiStatus) {
                             console.warn(

@@ -12,7 +12,7 @@ So this is not a greenfield proposal. It is finishing a half-built path, and the
 
 ## What the client actually gives you
 
-Verified against the pinned `@holochain/client` 0.20.5:
+Verified against `@holochain/client` 0.20.5, and unchanged in 0.21.0, the release paired with Holochain 0.7 that the project now pins:
 
 ```ts
 // lib/api/app/types.d.ts
@@ -33,7 +33,7 @@ export interface AppClient {
 
 Three consequences for the design. The outer union is already discriminated, so no decoding is needed to route App versus System. The `payload` is `unknown` and msgpack-decoded by the client, so Schema decoding starts there and nowhere else. `on` returns an `UnsubscribeFunction`, which makes the subscription a natural scoped resource.
 
-**Pin deliberately.** This version names the field `payload`. The client's `main` branch renames it to `signal`. `holochain-open-dev`'s `ZomeClient.onSignal` reads `signal.value.payload`, matching 0.20.5. Any client upgrade must check this field name.
+**Pin deliberately.** Both 0.20.5 and 0.21.0 name the decoded field `payload`; only the raw `EncodedAppSignal`, before msgpack decoding, carries it as `signal: Uint8Array`. `holochain-open-dev`'s `ZomeClient.onSignal` reads `signal.value.payload`, matching both. Any client upgrade must check this field name: 0.22.0 adds an `AppDirect` signal variant, which breaks an exhaustive switch over `SignalType`.
 
 **Signals are send-and-forget.** The Holochain docs state that they do not wait for receiver confirmation and do not store messages if the receiver is unavailable, and no ordering guarantees are documented. A signal is a hint that something changed, never a record of what the state now is.
 
@@ -150,7 +150,7 @@ A signal carries hashes, not entities. Routing therefore has to fetch before emi
 
 **Paid.** Much less than first estimated, because the emitting side exists. A signal referring to an entry the local agent cannot yet fetch is normal and must be tolerated. Echo suppression is needed, since an agent receives signals for its own writes and would otherwise double-apply them; suppress by action hash against a short-lived set of locally originated hashes.
 
-**Version risk, and it is imminent.** Issue #193 upgrades `@holochain/client` to `0.21.0`, marked P1-critical. The client's signal payload field is named `payload` in the pinned 0.20.5 and `signal` on the client's `main` branch. Decoding in one place means that upgrade touches one file. Wiring signals ad hoc across the chat work first means it touches all of them.
+**Version risk.** Issue #193's upgrade to `@holochain/client` `0.21.0` kept the decoded signal field as `payload`, so it did not touch signal handling. The next release does: 0.22.0 adds an `AppDirect` signal variant. Decoding in one place means that upgrade touches one file. Wiring signals ad hoc across the chat work first means it touches all of them.
 
 ## Alternatives considered
 

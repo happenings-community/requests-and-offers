@@ -141,8 +141,12 @@ export class Message extends Schema.Class<Message>('Message')({
  * surfaced as a fault row rather than dropped, and it is deliberately not counted as
  * new.
  */
+// `Read` spreads the class's fields rather than extending the class: `Schema.extend` on a
+// `Schema.Class` throws "Unsupported schema or overlapping types" the moment this module
+// is evaluated. Nothing noticed while every import of it was type-only; the first value
+// import would have taken the app down at start-up.
 export const InboxEntrySchema = Schema.Union(
-  Schema.Struct({ type: Schema.Literal('Read') }).pipe(Schema.extend(Message)),
+  Schema.Struct({ type: Schema.Literal('Read'), ...Message.fields }),
   Schema.Struct({
     type: Schema.Literal('Unreadable'),
     hash: ActionHashSchema,
@@ -164,7 +168,7 @@ export const MessageReadSchema = Schema.Union(
   Schema.Struct({ type: Schema.Literal('NotFound') }),
   Schema.Struct({ type: Schema.Literal('Withheld') }),
   Schema.Struct({ type: Schema.Literal('Unreadable') }),
-  Schema.Struct({ type: Schema.Literal('Read') }).pipe(Schema.extend(Message))
+  Schema.Struct({ type: Schema.Literal('Read'), ...Message.fields })
 );
 export type MessageRead = Schema.Schema.Type<typeof MessageReadSchema>;
 

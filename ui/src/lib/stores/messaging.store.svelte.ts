@@ -14,8 +14,9 @@ import holochainClientService, {
   HolochainClientServiceLive,
   HolochainClientServiceTag
 } from '$lib/services/HolochainClientService.svelte';
+import { Schema } from 'effect';
 import { MessagingError } from '$lib/errors/messaging.errors';
-import type { Message } from '$lib/schemas/messaging.schemas';
+import { MessagingSignalSchema, type Message } from '$lib/schemas/messaging.schemas';
 import type { UIInterest } from '$lib/types/ui';
 import {
   EMPTY_LOCAL,
@@ -131,7 +132,8 @@ export type MessagingStore = {
   retryUnsent: (id: string) => E.Effect<void, never>;
 };
 
-function createMessagingStore(): MessagingStore {
+/** Exported for the unit tests, which want a store that has loaded nothing yet. */
+export function createMessagingStore(): MessagingStore {
   let threads = $state<UIThread[]>([]);
   let faults = $state<Fault[]>([]);
   let outbox = $state<OutboxItem[]>([]);
@@ -298,6 +300,17 @@ function createMessagingStore(): MessagingStore {
           archivedKeys
         });
         faults = seenFaults;
+
+        // **The mark that rides in a message body.** A reader's `read_up_to` reaches this
+        // agent in the body of their next message as well as by signal, which is what
+        // brings a receipt lost while this agent was offline. It is recorded exactly as
+        // a signal is: resolved to the person, then clamped to what was actually sent
+        // them. Nothing here was read before, so Read could only ever come by signal.
+        for (const m of visibleInbox) {
+          if (m.readUpTo === undefined) continue;
+          const person = agentToUser(m.from);
+          if (person) receiveReceipt(person, toMillis(m.readUpTo));
+        }
 
         // A new message brought these back to All. Persist it, or the next load would
         // archive them again and the member would lose the same message twice.
@@ -540,11 +553,17 @@ function createMessagingStore(): MessagingStore {
    */
   const listen = (): (() => void) =>
     holochainClientService.onZomeSignal('messaging', (payload) => {
-      const signal = payload as
-        | { type: 'Nudge'; hash: ActionHash; from: AgentPubKey }
-        | { type: 'Receipt'; readUpTo: number; from: AgentPubKey }
-        | undefined;
-      if (!signal) return;
+      // Decoded against the schema rather than cast: a payload whose shape has drifted
+      // from what this reads is dropped here, where a test can see it, instead of
+      // arriving as `undefined` fields that quietly become NaN and then 0. That is
+      // exactly how Read never appeared: the wire said `read_up_to` and this read
+      // `readUpTo`.
+      const decoded = Schema.decodeUnknownEither(MessagingSignalSchema)(payload);
+      if (decoded._tag === 'Left') {
+        console.warn('messaging: a signal arrived in a shape this build does not read', payload);
+        return;
+      }
+      const signal = decoded.right;
 
       if (signal.type === 'Nudge') {
         void E.runPromise(loadConversations().pipe(E.catchAll(() => E.void)));

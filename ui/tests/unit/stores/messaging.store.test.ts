@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Effect as E } from 'effect';
 import { encodeHashToBase64 } from '@holochain/client';
 import { localKey } from '$lib/utils/messaging-local';
-import type { MessagingStore } from '$lib/stores/messaging.store.svelte';
+import { createMessagingStore, type MessagingStore } from '$lib/stores/messaging.store.svelte';
 
 /**
  * The messaging store around the outbox and the local state, with the zome stood in for.
@@ -12,15 +12,27 @@ import type { MessagingStore } from '$lib/stores/messaging.store.svelte';
  * waits with nothing else on screen.
  */
 
-const { hashes, sendMessage, findSent } = vi.hoisted(() => {
-  const hash = (n: number) => new Uint8Array(Array(39).fill(n));
-  return {
-    hashes: { ME: hash(1), MY_AGENT: hash(2), ANITA: hash(3), LISTING: hash(4) },
-    sendMessage: vi.fn(),
-    findSent: vi.fn()
-  };
-});
-const { MY_AGENT, ANITA, LISTING } = hashes;
+const { hashes, sendMessage, findSent, getInbox, getSent, userByAgent, signalHandlers } =
+  vi.hoisted(() => {
+    const hash = (n: number) => new Uint8Array(Array(39).fill(n));
+    return {
+      hashes: {
+        ME: hash(1),
+        MY_AGENT: hash(2),
+        ANITA: hash(3),
+        LISTING: hash(4),
+        ANITA_AGENT: hash(5)
+      },
+      sendMessage: vi.fn(),
+      findSent: vi.fn(),
+      getInbox: vi.fn(),
+      getSent: vi.fn(),
+      userByAgent: vi.fn(),
+      /** Whatever `listen()` subscribed, so a test can deliver a signal. */
+      signalHandlers: [] as Array<(payload: unknown) => void>
+    };
+  });
+const { MY_AGENT, ANITA, LISTING, ANITA_AGENT } = hashes;
 
 vi.mock('$lib/services/zomes/messaging.service', async () => {
   const { Context, Effect, Layer } = await import('effect');
@@ -28,8 +40,8 @@ vi.mock('$lib/services/zomes/messaging.service', async () => {
   const service = {
     sendMessage: (...a: unknown[]) => sendMessage(...a),
     findSent: (...a: unknown[]) => findSent(...a),
-    getInbox: () => Effect.succeed([]),
-    getSent: () => Effect.succeed([]),
+    getInbox: () => getInbox(),
+    getSent: () => getSent(),
     sendReceipt: () => Effect.void
   };
   return { MessagingServiceTag, MessagingServiceLive: Layer.succeed(MessagingServiceTag, service) };
@@ -41,7 +53,10 @@ vi.mock('$lib/services/HolochainClientService.svelte', async () => {
   const client = {
     isConnected: true,
     getNetworkPeerStatus: () => Promise.resolve({ reachable: 1, known: 1 }),
-    onZomeSignal: () => () => {}
+    onZomeSignal: (_zome: string, handler: (payload: unknown) => void) => {
+      signalHandlers.push(handler);
+      return () => {};
+    }
   };
   return {
     default: client,
@@ -55,7 +70,7 @@ vi.mock('$lib/stores/users.store.svelte', async () => {
   return {
     default: {
       currentUser: { original_action_hash: hashes.ME, agents: [hashes.MY_AGENT] },
-      getUserByAgentPubKey: () => Effect.succeed(null),
+      getUserByAgentPubKey: (agent: unknown) => Effect.succeed(userByAgent(agent)),
       getUserByActionHash: () => Effect.succeed(null)
     }
   };
@@ -95,14 +110,43 @@ const devicesNotFound = {
 
 /** A store that has loaded nothing yet, as on a cold page. */
 async function freshStore(): Promise<MessagingStore> {
-  vi.resetModules();
-  return (await import('$lib/stores/messaging.store.svelte')).default;
+  return createMessagingStore();
 }
 
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
+  signalHandlers.length = 0;
   findSent.mockReturnValue(E.succeed(null));
+  getInbox.mockReturnValue(E.succeed([]));
+  getSent.mockReturnValue(E.succeed([]));
+  userByAgent.mockReturnValue(null);
+});
+
+/** Milliseconds, as the screens think; the zome speaks microseconds. */
+const T_SENT = 1_760_000_000_000;
+const micros = (ms: number) => ms * 1000;
+
+/** One of mine to Anita's agent, as `get_sent` returns it. */
+const mineToAnita = () => ({
+  hash: hashes.LISTING,
+  from: MY_AGENT,
+  to: ANITA_AGENT,
+  at: micros(T_SENT),
+  content: 'see you at ten',
+  sendId: 'send-1'
+});
+
+/** One of Anita's to me, carrying her mark, as `get_inbox` returns it. */
+const fromAnitaWithMark = (readUpToMs: number) => ({
+  type: 'Read',
+  hash: hashes.ME,
+  from: ANITA_AGENT,
+  to: MY_AGENT,
+  at: micros(T_SENT + 60_000),
+  content: 'ok',
+  sendId: 'send-2',
+  readUpTo: micros(readUpToMs)
 });
 
 afterEach(() => {
@@ -175,3 +219,39 @@ describe('a shared listing that has to wait (F2)', () => {
     expect(retried.listing, 'the listing travels with the retry').toEqual(LISTING);
   });
 });
+
+describe('receipts (F5)', () => {
+  /**
+   * The zome emits `{ type: 'Receipt', readUpTo, from }`; `from` is an agent and a thread
+   * is a person, so the agent is resolved first. The claim is clamped to the last thing
+   * this agent actually sent them, so a receipt cannot say more was read than was sent.
+   */
+  it('a receipt signal marks my messages read, clamped to what I sent', async () => {
+    getSent.mockReturnValue(E.succeed([mineToAnita()]));
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    const store = await freshStore();
+    await E.runPromise(store.loadConversations());
+    store.listen();
+    expect(signalHandlers, 'listening').toHaveLength(1);
+
+    signalHandlers[0]({ type: 'Receipt', readUpTo: micros(T_SENT + 5_000), from: ANITA_AGENT });
+
+    await vi.waitFor(() => expect(store.theirReadUpTo(ANITA)).toBe(T_SENT));
+  });
+
+  /**
+   * The same mark rides in the body of the reader's next message, which is what brings a
+   * receipt lost while this agent was offline. Nothing read it before.
+   */
+  it('the mark in a message body counts as a receipt too', async () => {
+    getSent.mockReturnValue(E.succeed([mineToAnita()]));
+    getInbox.mockReturnValue(E.succeed([fromAnitaWithMark(T_SENT + 5_000)]));
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    const store = await freshStore();
+
+    await E.runPromise(store.loadConversations());
+
+    expect(store.theirReadUpTo(ANITA), 'read, as far as I had sent').toBe(T_SENT);
+  });
+});
+

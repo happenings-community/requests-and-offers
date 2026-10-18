@@ -39,11 +39,14 @@ export type OutboxItem = {
   /** When the member pressed Send, in milliseconds. */
   queuedAt: number;
   /**
-   * What the app may do next, which follows from whether the message may already have
-   * been written (Sam, 4 October).
+   * What the app may do next (Sam, 4 October, revised with send ids).
    *
-   * - `waiting` — the zome refused before committing, so retrying is safe and automatic.
-   * - `mayNotHaveSent` — no answer came back. It **may** have committed, so it is never
+   * - `waiting` — retried automatically. Either the zome refused before committing, or
+   *   no answer came back; in the second case the retry first asks the chain for this
+   *   send id and drops the item if the message is found, so nothing is sent twice. If
+   *   the call did commit, the message shows in the timeline and here until that check
+   *   runs, up to one retry interval.
+   * - `mayNotHaveSent` — that check itself failed, so whether it went is unknown. Never
    *   retried by itself; the member is asked.
    * - `refused` — the zome answered no. Nothing was written and trying again would fail
    *   the same way, so `reason` is shown and there is no retry.

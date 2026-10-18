@@ -2,8 +2,6 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { decodeHashFromBase64 } from '@holochain/client';
-  import { getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
-  import ContactModal from '$lib/components/shared/listings/ContactModal.svelte';
   import ReachPerson from '$lib/components/exchanges/ReachPerson.svelte';
   import { useExchangeDetails } from '$lib/composables/domain/exchanges/useExchangeDetails.svelte';
   import {
@@ -16,8 +14,6 @@
   import type { ReviewInDHT } from '$lib/types/holochain';
   import { paths, readOrigin, routeBack } from '$lib/paths';
   import { getBackToChat } from '$lib/extensions/back-to-chat';
-
-  const modalStore = getModalStore();
 
   const agreementHash = $derived.by(() => {
     try {
@@ -50,20 +46,6 @@
   async function counter() {
     const href = await details.counter();
     if (href) await goto(href);
-  }
-
-  function discuss() {
-    if (!other || !exchange) return;
-    const component: ModalComponent = {
-      ref: ContactModal,
-      props: {
-        user: other,
-        organization: null,
-        listingType: exchange.agreement.listing_type === 'Offer' ? 'offer' : 'request',
-        listingTitle
-      }
-    };
-    modalStore.trigger({ type: 'component', component, meta: { title: '', body: '' } });
   }
 
   $effect(() => {
@@ -214,6 +196,11 @@
               Withdraw proposal
             </button>
           {:else}
+            <!--
+              No Discuss here: the one way to reach the other person is the control at the
+              top of the page, Go to chat where this network has messaging and Contact
+              where it has not. A second door beside the actions showed both at once.
+            -->
             <p>
               {other?.name ?? 'They'} sent this proposal. Accept it to form the agreement, counter with
               your own, or decline.
@@ -225,9 +212,6 @@
               placeholder="A note, if declining"
             ></textarea>
             <div class="flex flex-wrap gap-2">
-              <button class="variant-soft-primary btn" onclick={discuss} disabled={busy || !other}
-                >Discuss</button
-              >
               <button class="variant-filled-secondary btn" onclick={counter} disabled={busy}
                 >Counter</button
               >

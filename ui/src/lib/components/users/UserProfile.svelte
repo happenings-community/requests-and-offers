@@ -144,7 +144,7 @@
   });
 </script>
 
-<section class="container mx-auto max-w-4xl space-y-6 p-4">
+<section class="container mx-auto space-y-6 p-4">
   <div class="flex items-center justify-between gap-2">
     <BackButton fallback="/users" />
     {#if isCurrentUser}

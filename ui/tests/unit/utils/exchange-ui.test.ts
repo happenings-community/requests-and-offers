@@ -16,11 +16,13 @@ import {
   TAB_OF_STATE,
   actionLabel,
   awaitingMe,
+  closureOf,
   counterpartyOf,
   doneBy,
   exchangeState,
   exchangeStatusVariant,
   formatWhen,
+  isProposal,
   namedInterest,
   otherRole,
   reciprocalTermFor,
@@ -516,5 +518,70 @@ describe('namedInterest, matching a link against the records', () => {
   it('and nothing when the link names none at all', () => {
     expect(namedInterest(listed, null)).toBeUndefined();
     expect(namedInterest([], INTEREST)).toBeUndefined();
+  });
+});
+
+/**
+ * The exchange pages used to ask `exchange.status` for themselves in several places,
+ * each with its own reading of `Cancelled` (#308 review, F15). The two readings the pages
+ * need beyond the state itself live here, so a withdrawn proposal reads as a proposal
+ * everywhere and a decline stays a decline whatever lands on it afterwards.
+ */
+describe('the exchange pages read the state, not the status', () => {
+  it('calls proposed, declined and withdrawn a proposal, and nothing once accepted', () => {
+    expect(isProposal('proposed')).toBe(true);
+    expect(isProposal('declined')).toBe(true);
+    expect(isProposal('withdrawn'), 'taken back, but it only ever was a proposal').toBe(true);
+    for (const state of [
+      'agreed',
+      'partlyDone',
+      'awaitingReviews',
+      'reviewed',
+      'cancelled'
+    ] as const) {
+      expect(isProposal(state), state).toBe(false);
+    }
+  });
+
+  /**
+   * **To make this go red:** read `exchange.status` instead of the state. A withdrawn
+   * proposal has status `Cancelled`, so it is announced as "Cancelled on", and a declined
+   * proposal that was then cancelled is announced as cancelled rather than declined.
+   */
+  it('closes a withdrawn proposal by its cancellation, named as a withdrawal', () => {
+    const withdrawn = exchange({
+      status: 'Cancelled',
+      cancellation: { agreement: hash(9), note: 'Changed my mind', created_at: 7 }
+    });
+    expect(closureOf(withdrawn)).toEqual({ kind: 'withdrawn', at: 7, note: 'Changed my mind' });
+  });
+
+  it('keeps a declined proposal closed by its decline when a cancellation lands on top', () => {
+    const declinedThenCancelled = exchange({
+      status: 'Cancelled',
+      response: declined,
+      cancellation: { agreement: hash(9), note: '', created_at: 9 }
+    });
+    expect(closureOf(declinedThenCancelled)).toEqual({ kind: 'declined', at: 1, note: 'no' });
+    expect(closureOf(exchange({ status: 'Declined', response: declined }))).toEqual({
+      kind: 'declined',
+      at: 1,
+      note: 'no'
+    });
+  });
+
+  it('closes a stopped agreement by its cancellation', () => {
+    const stopped = exchange({
+      status: 'Cancelled',
+      response: accepted,
+      cancellation: { agreement: hash(9), note: 'Ill', created_at: 5 }
+    });
+    expect(closureOf(stopped)).toEqual({ kind: 'cancelled', at: 5, note: 'Ill' });
+  });
+
+  it('has no closure while a record is open or finished', () => {
+    expect(closureOf(exchange({ status: 'Proposed' }))).toBeNull();
+    expect(closureOf(exchange({ status: 'Agreed', response: accepted }))).toBeNull();
+    expect(closureOf(exchange({ status: 'Reviewed', response: accepted }))).toBeNull();
   });
 });

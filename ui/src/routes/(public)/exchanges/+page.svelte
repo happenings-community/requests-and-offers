@@ -9,8 +9,10 @@
   import {
     actionLabel,
     counterpartyOf,
+    exchangeState,
     exchangeStatusVariant,
     formatWhen,
+    isProposal,
     roleOf,
     statusLabel,
     termLabel,
@@ -223,7 +225,7 @@
                 <span class="text-surface-500"
                   >{role === 'provider' ? 'You provide' : 'You receive'}</span
                 >
-                {#if e.status === 'Proposed' || e.status === 'Declined'}
+                {#if isProposal(exchangeState(e))}
                   <span class="text-surface-500"
                     >Proposed by {wroteIt(e, me) ? 'you' : (other ?? '...')}</span
                   >

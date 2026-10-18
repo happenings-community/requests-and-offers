@@ -39,7 +39,13 @@ export const EXCHANGE_STRINGS = {
      * what it means.
      */
     interestNoted:
-      'You showed interest on {date}. {name} can see it, and either of you can make a proposal.'
+      'You showed interest on {date}. {name} can see it, and either of you can make a proposal.',
+    /**
+     * DRAFT, for Anita. A read that fails is a fault with a way to try again, never
+     * "nobody is interested" or a button that may write a duplicate.
+     */
+    interestReadFailed: "Couldn't check whether you've shown interest: {reason}",
+    interestsReadFailed: "Couldn't read who's interested: {reason}"
   },
 
   /**
@@ -87,7 +93,12 @@ export const EXCHANGE_STRINGS = {
     yourTurn: 'Your turn',
     title: 'My exchanges',
     intro: "Every exchange you're part of, and the listings you've shown interest in.",
-    tab: { exchanges: 'Exchanges ({count})', interested: 'Interested in ({count})' },
+    tab: {
+      exchanges: 'Exchanges ({count})',
+      interested: 'Interested in ({count})',
+      /** The same tab before the count has been read, or when it could not be. */
+      interestedUncounted: 'Interested in'
+    },
     inProgress: 'In progress',
     completed: 'Completed',
     open: 'Open'
@@ -135,6 +146,8 @@ export const EXCHANGE_STRINGS = {
     intro:
       'Showing interest opens a conversation with the listing’s author and lets either of you propose an exchange from it. It works as your saved listings too.',
     since: 'Interested since {date}',
+    /** DRAFT, for Anita. */
+    loadFailed: "Couldn't read the listings you're interested in: {reason}",
     count: '{count} members interested',
     noProposal: 'No proposal yet',
     archived: 'Archived by its author',

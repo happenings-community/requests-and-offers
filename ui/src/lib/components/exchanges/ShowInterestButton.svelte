@@ -4,7 +4,8 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { reasonOf } from '$lib/utils/error-shape';
-  import { EXCHANGE_STRINGS as S } from '$lib/strings/exchanges.strings';
+  import { EXCHANGE_STRINGS as S, fill } from '$lib/strings/exchanges.strings';
+  import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
   import type { ListingType } from '$lib/types/holochain';
 
   type Props = {
@@ -18,23 +19,40 @@
   const me = $derived(usersStore.currentUser?.original_action_hash);
   const mine = $derived(!!me && !!author && encodeHashToBase64(author) === encodeHashToBase64(me));
 
-  let already = $state(false);
+  /**
+   * Whether this member has already shown interest in this listing: not read yet, could
+   * not be read, no, or yes.
+   *
+   * **Four states, not a boolean.** With `false` until the read came back, the button
+   * was enabled while the answer was unknown and stayed enabled when the read failed,
+   * and one press in that window wrote a second Interest on the same listing: two
+   * opening cards, two in the count, and Withdraw removing one. The zome does not
+   * refuse a duplicate, so the button must not offer one.
+   */
+  let known = $state<'unknown' | 'failed' | 'no' | 'yes'>('unknown');
+  let readError = $state<string | null>(null);
   let busy = $state(false);
   let error = $state<string | null>(null);
 
-  /**
-   * Whether this member has already shown interest in this listing.
-   *
-   * Read once on mount rather than assumed from a local flag, so the button tells the
-   * truth after a reload or on a second device.
-   */
-  $effect(() => {
-    (async () => {
+  /** Read from the record rather than a local flag, so a reload or a second device agrees. */
+  async function readMine(): Promise<void> {
+    known = 'unknown';
+    readError = null;
+    try {
       const mine = await runEffect(exchangesStore.getMyInterests());
-      already = (mine ?? []).some(
+      known = (mine ?? []).some(
         (i) => encodeHashToBase64(i.listing) === encodeHashToBase64(listing)
-      );
-    })();
+      )
+        ? 'yes'
+        : 'no';
+    } catch (e) {
+      known = 'failed';
+      readError = reasonOf(e);
+    }
+  }
+
+  $effect(() => {
+    void readMine();
   });
 
   /**
@@ -47,12 +65,12 @@
    * the state, with the way to reach the other person beside it.
    */
   async function show() {
-    if (busy || mine || !author) return;
+    if (busy || mine || !author || known !== 'no') return;
     busy = true;
     error = null;
     try {
       await runEffect(exchangesStore.createInterest(listing, listingType));
-      already = true;
+      known = 'yes';
     } catch (e) {
       error = reasonOf(e);
     } finally {
@@ -63,18 +81,25 @@
 
 {#if !mine && author}
   <div class="flex flex-wrap items-center gap-2">
-    {#if already}
+    {#if known === 'yes'}
       <!--
         The badge is the whole of it. This button is only ever shown on a listing card
         inside a conversation, so a link to that conversation would point at the page the
         member is already reading.
       -->
       <span class="variant-soft-success badge">{S.listing.interestShown}</span>
+    {:else if known === 'failed'}
+      <span class="text-sm text-error-700 dark:text-error-300" role="alert"
+        >{fill(S.listing.interestReadFailed, { reason: readError ?? '' })}</span
+      >
+      <button type="button" class="variant-ghost btn btn-sm" onclick={readMine}>{C.tryAgain}</button
+      >
     {:else}
+      <!-- Disabled until the record has answered: an unread "no" is not a no. -->
       <button
         type="button"
         class="variant-filled-primary btn btn-sm"
-        disabled={busy}
+        disabled={busy || known !== 'no'}
         onclick={show}
         data-testid="show-interest"
       >

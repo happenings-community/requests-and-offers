@@ -6,6 +6,7 @@
   import { formatWhen } from '$lib/utils/exchange-ui';
   import { paths } from '$lib/paths';
   import { EXCHANGE_STRINGS as S, fill } from '$lib/strings/exchanges.strings';
+  import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
   import ReachPerson from './ReachPerson.svelte';
   import { getFirstContact } from '$lib/extensions/first-contact';
 
@@ -64,6 +65,7 @@
   const others = $derived(interest.others);
   const me = $derived(interest.me);
   const loaded = $derived(interest.loaded);
+  const loadError = $derived(interest.loadError);
   const busy = $derived(interest.busy);
 
   $effect(() => {
@@ -72,7 +74,15 @@
   });
 </script>
 
-{#if loaded}
+{#if loadError}
+  <!-- The door is still here when the read fails: the fault, and the way to try again. -->
+  <div class="alert variant-soft-error flex flex-wrap items-center gap-3" role="alert">
+    <span class="text-sm">{fill(S.listing.interestsReadFailed, { reason: loadError })}</span>
+    <button type="button" class="variant-filled btn btn-sm" onclick={interest.load}
+      >{C.tryAgain}</button
+    >
+  </div>
+{:else if loaded}
   {#if isCreator}
     <div class="card space-y-3 p-4">
       <h3 class="h3">Interested members</h3>

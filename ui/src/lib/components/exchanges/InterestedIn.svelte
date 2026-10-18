@@ -6,6 +6,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { EXCHANGE_STRINGS as S, fill } from '$lib/strings/exchanges.strings';
+  import { reasonOf } from '$lib/utils/error-shape';
   import ReachPerson from './ReachPerson.svelte';
   import { statusLabel } from '$lib/utils/exchange-ui';
   import { ListingStatus } from '$lib/types/holochain';
@@ -21,11 +22,27 @@
     archivedByAuthor: boolean;
   };
 
+  /** Told when a withdrawal changes the list, so a count above it can follow. */
+  const { onchange }: { onchange?: () => void } = $props();
+
   let rows = $state<Row[]>([]);
   let loading = $state(true);
+  /** Why the list could not be read. Shown with a way to try again, never as "Loading…" for ever. */
+  let loadError = $state<string | null>(null);
 
   async function load() {
     loading = true;
+    loadError = null;
+    try {
+      await read();
+    } catch (e) {
+      loadError = reasonOf(e);
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function read() {
     const mine = (await runEffect(exchangesStore.getMyInterests())) ?? [];
     const built: Row[] = [];
     for (const interest of mine) {
@@ -46,7 +63,6 @@
       });
     }
     rows = built;
-    loading = false;
   }
 
   $effect(() => {
@@ -71,6 +87,7 @@
   async function withdraw(interest: ActionHash) {
     await runEffect(exchangesStore.withdrawInterest(interest));
     await load();
+    onchange?.();
   }
 </script>
 
@@ -80,7 +97,12 @@
     <p class="text-sm text-surface-500">{S.interested.intro}</p>
   </div>
 
-  {#if loading}
+  {#if loadError}
+    <div class="alert variant-soft-error flex flex-wrap items-center gap-3" role="alert">
+      <span class="text-sm">{fill(S.interested.loadFailed, { reason: loadError })}</span>
+      <button type="button" class="variant-filled btn btn-sm" onclick={load}>{C.tryAgain}</button>
+    </div>
+  {:else if loading}
     <p class="text-surface-500">{C.loading}</p>
   {:else if rows.length === 0}
     <div class="card p-6 text-center">

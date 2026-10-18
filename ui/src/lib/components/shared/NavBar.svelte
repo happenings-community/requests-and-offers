@@ -236,25 +236,14 @@
 
     <!-- Admin Access -->
     {#if agentIsAdministrator}
-      <span class="group relative">
-        <a
-          href="/admin"
-          class="variant-ringed-secondary btn border-2 px-4 py-2 text-sm text-white transition-colors hover:variant-filled-secondary"
-          aria-label="Access administration panel"
-          aria-keyshortcuts={ADMIN_SHORTCUT_ARIA}
-          aria-describedby="admin-shortcut-hint"
-        >
-          ⚙️ Admin
-        </a>
-        <span
-          id="admin-shortcut-hint"
-          role="tooltip"
-          data-testid="admin-shortcut-hint"
-          class="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden whitespace-nowrap rounded-container-token border border-surface-300 bg-surface-50 px-2 py-1 text-xs text-surface-900 shadow-md group-focus-within:block group-hover:block"
-        >
-          Admin <kbd class="kbd text-xs">Alt</kbd> + <kbd class="kbd text-xs">A</kbd>
-        </span>
-      </span>
+      <a
+        href="/admin"
+        class="variant-ringed-secondary btn border-2 px-4 py-2 text-sm text-white transition-colors hover:variant-filled-secondary"
+        aria-label="Access administration panel"
+        aria-keyshortcuts={ADMIN_SHORTCUT_ARIA}
+      >
+        ⚙️ Admin
+      </a>
     {/if}
   </div>
 

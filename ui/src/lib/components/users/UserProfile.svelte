@@ -1,492 +1,334 @@
 <script lang="ts">
+  import { encodeHashToBase64 } from '@holochain/client';
   import {
     getModalStore,
     getToastStore,
-    Avatar,
     type ModalComponent,
-    type ModalSettings,
-    TabGroup,
-    Tab
+    type ModalSettings
   } from '@skeletonlabs/skeleton';
+  import { Effect as E } from 'effect';
   import usersStore from '$lib/stores/users.store.svelte';
-  import UserName from '$lib/components/users/UserName.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import requestsStore from '$lib/stores/requests.store.svelte';
-  import offersStore from '@/lib/stores/offers.store.svelte';
-  import StatusHistoryModal from '$lib/components/shared/status/StatusHistoryModal.svelte';
-  import UserOrganizationsTable from '$lib/components/organizations/UserOrganizationsTable.svelte';
-  import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
-  import OffersTable from '$lib/components/offers/OffersTable.svelte';
-  import {
-    OrganizationRole,
-    type UIOrganization,
-    type UIRequest,
-    type UIOffer,
-    type UIUser,
-    type Revision
-  } from '$lib/types/ui';
-  import { runEffect } from '$lib/utils/effect';
-  import { Effect as E } from 'effect';
+  import offersStore from '$lib/stores/offers.store.svelte';
+  import exchangesStore from '$lib/stores/exchanges.store.svelte';
+  import BackButton from '$lib/components/shared/BackButton.svelte';
+  import ListingCard from '$lib/components/shared/listings/ListingCard.svelte';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
+  import StatusHistoryModal from '$lib/components/shared/status/StatusHistoryModal.svelte';
   import ProgenitorBadge from '$lib/components/users/ProgenitorBadge.svelte';
+  import UserName from '$lib/components/users/UserName.svelte';
+  import type { Revision, UIOffer, UIOrganization, UIRequest, UIUser } from '$lib/types/ui';
+  import { runEffect } from '$lib/utils/effect';
+  import { getOrganizationLogoUrl } from '$lib/utils';
+  import {
+    detailsLine,
+    exchangesWith,
+    exchangesWithLabel,
+    statusChip,
+    type ProfileView
+  } from '$lib/utils/profile';
 
-  // Props
-  let { user, isCurrentUser = false } = $props<{ user: UIUser; isCurrentUser?: boolean }>();
+  /**
+   * A member's profile (#350), as the design system lays it out: picture,
+   * name, chips and details; the bio; then their listings and organisations.
+   * On your own profile the counts lead to My Listings and My Exchanges
+   * instead of repeating them.
+   */
+  let { user, isCurrentUser = false }: { user: UIUser; isCurrentUser?: boolean } = $props();
 
   const { isProgenitor } = $derived(administrationStore);
-
   const modalStore = getModalStore();
   const toastStore = getToastStore();
 
-  let error = $state<string | null>(null);
-  let suspensionDate = $state('');
-  let isExpired = $state(false);
-  let tabSet = $state(0);
-  let userPictureUrl = $state('/default_avatar.webp');
+  let picture = $state('/default_avatar.webp');
+  let requests = $state<UIRequest[]>([]);
+  let offers = $state<UIOffer[]>([]);
+  let organisations = $state<{ org: UIOrganization; coordinator: boolean }[]>([]);
+  let loading = $state(true);
+  let failed = $state(false);
+  let view = $state<ProfileView>('requests');
 
-  // Data for tabs
-  let userOrganizations: UIOrganization[] = $state([]);
-  let userCoordinatedOrganizations: UIOrganization[] = $state([]);
-  let userRequests: UIRequest[] = $state([]);
-  let userOffers: UIOffer[] = $state([]);
-  let isLoadingRequests = $state(false);
-  let isLoadingOffers = $state(false);
-
-  // Tab state for requests and offers
-  let requestsListingTab: 'active' | 'archived' = $state('active');
-  let offersListingTab: 'active' | 'archived' = $state('active');
-
-  async function fetchOrganizationsData() {
-    try {
-      if (!user) {
-        error = 'User not found';
-        return;
-      }
-
-      // Set user picture URL
-      if (user.picture) {
-        userPictureUrl = URL.createObjectURL(new Blob([new Uint8Array(user.picture)]));
-      }
-
-      // Fetch organizations
-      const allUserOrganizations = await E.runPromise(
-        organizationsStore.getUserOrganizations(user.original_action_hash!)
-      );
-
-      // Distinguish between coordinator and member roles
-      const coordinated: UIOrganization[] = [];
-      const memberOrgs: UIOrganization[] = [];
-
-      for (const org of allUserOrganizations) {
-        if (org.original_action_hash) {
-          try {
-            // Only check coordinator status if user has an action hash
-            const isCoordinator = user.original_action_hash
-              ? await E.runPromise(
-                  organizationsStore.isOrganizationCoordinator(
-                    org.original_action_hash,
-                    user.original_action_hash
-                  )
-                )
-              : false;
-
-            if (isCoordinator) {
-              coordinated.push(org);
-            } else {
-              memberOrgs.push(org);
-            }
-          } catch (err) {
-            console.warn('Error checking coordinator status, defaulting to member role:', err);
-            memberOrgs.push(org);
-          }
-        }
-      }
-
-      userCoordinatedOrganizations = coordinated;
-      userOrganizations = memberOrgs;
-    } catch (err) {
-      console.error('Failed to fetch organizations data:', err);
-      error = 'Failed to load user data. Please try again later.';
-    }
-  }
-
-  async function fetchRequestsData() {
-    try {
-      if (!user) {
-        return;
-      }
-
-      // Fetch requests based on current tab
-      isLoadingRequests = true;
-      const userRequestsResult = await runEffect(
-        requestsListingTab === 'active'
-          ? requestsStore.getUserActiveRequests(user.original_action_hash!)
-          : requestsStore.getUserArchivedRequests(user.original_action_hash!)
-      );
-      userRequests = userRequestsResult;
-      isLoadingRequests = false;
-    } catch (err) {
-      console.error('Failed to fetch requests data:', err);
-      error = 'Failed to load user data. Please try again later.';
-      isLoadingRequests = false;
-    }
-  }
-
-  async function fetchOffersData() {
-    try {
-      if (!user) {
-        return;
-      }
-
-      // Fetch offers based on current tab
-      isLoadingOffers = true;
-      const userOffersResult = await runEffect(
-        offersListingTab === 'active'
-          ? offersStore.getUserActiveOffers(user.original_action_hash!)
-          : offersStore.getUserArchivedOffers(user.original_action_hash!)
-      );
-      userOffers = userOffersResult;
-      isLoadingOffers = false;
-    } catch (err) {
-      console.error('Failed to fetch offers data:', err);
-      error = 'Failed to load user data. Please try again later.';
-      isLoadingOffers = false;
-    }
-  }
-
-  async function fetchUserData() {
-    await fetchOrganizationsData();
-    await fetchRequestsData();
-    await fetchOffersData();
-  }
-
-  // Tab switcher functions that reload data when tab changes
-  async function setRequestsListingTab(tab: 'active' | 'archived') {
-    if (requestsListingTab !== tab) {
-      requestsListingTab = tab;
-      await fetchRequestsData();
-    }
-  }
-
-  async function setOffersListingTab(tab: 'active' | 'archived') {
-    if (offersListingTab !== tab) {
-      offersListingTab = tab;
-      await fetchOffersData();
-    }
-  }
+  const me = $derived(usersStore.currentUser?.original_action_hash);
+  const status = $derived(statusChip(user.status));
+  const details = $derived(detailsLine(user));
+  const withYou = $derived(exchangesWith(exchangesStore.exchanges, me, user.original_action_hash));
+  const canCreate = $derived(isCurrentUser && user.status?.status_type === 'accepted');
 
   $effect(() => {
-    fetchUserData();
+    if (!user.picture) return;
+    const url = URL.createObjectURL(new Blob([new Uint8Array(user.picture)]));
+    picture = url;
+    return () => URL.revokeObjectURL(url);
   });
 
-  // Clean up blob URLs when component is destroyed
+  async function loadOrganisations(hash: Uint8Array) {
+    const orgs = await E.runPromise(organizationsStore.getUserOrganizations(hash));
+    return Promise.all(
+      orgs
+        .filter((org) => org.original_action_hash)
+        .map(async (org) => ({
+          org,
+          coordinator: await E.runPromise(
+            organizationsStore.isOrganizationCoordinator(org.original_action_hash!, hash)
+          ).catch(() => false)
+        }))
+    );
+  }
+
+  async function load() {
+    const hash = user.original_action_hash;
+    loading = true;
+    failed = false;
+    try {
+      [requests, offers, organisations] = await Promise.all([
+        runEffect(requestsStore.getUserActiveRequests(hash)),
+        runEffect(offersStore.getUserActiveOffers(hash)),
+        loadOrganisations(hash),
+        runEffect(exchangesStore.loadMyExchanges()).catch(() => [])
+      ]);
+    } catch (err) {
+      console.error('Failed to load profile:', err);
+      failed = true;
+    } finally {
+      loading = false;
+    }
+  }
+
   $effect(() => {
-    return () => {
-      if (userPictureUrl && userPictureUrl !== '/default_avatar.webp') {
-        URL.revokeObjectURL(userPictureUrl);
-      }
-    };
+    user.original_action_hash;
+    load();
   });
 
   const statusHistoryModalComponent: ModalComponent = { ref: StatusHistoryModal };
-  const statusHistoryModal = (statusHistory: Revision[]): ModalSettings => {
-    return {
-      type: 'component',
-      component: statusHistoryModalComponent,
-      meta: {
-        statusHistory: [...statusHistory] // Sanitize for Svelte 5 state proxies
-      }
-    };
-  };
+  const statusHistoryModal = (statusHistory: Revision[]): ModalSettings => ({
+    type: 'component',
+    component: statusHistoryModalComponent,
+    meta: { statusHistory: [...statusHistory] }
+  });
 
-  async function handleStatusHistoryModal() {
+  async function openStatusHistory() {
     try {
-      const statusLink = await runEffect(usersStore.getUserStatusLink(user?.original_action_hash));
+      const statusLink = await runEffect(usersStore.getUserStatusLink(user.original_action_hash));
       if (!statusLink) return;
-
-      // Fetch proper status history directly as Revision[]
-      const statusHistory = await runEffect(administrationStore.getEntityStatusHistory(user!));
+      const statusHistory = await runEffect(administrationStore.getEntityStatusHistory(user));
       modalStore.trigger(statusHistoryModal(statusHistory));
       modalStore.update((modals) => modals.reverse());
     } catch (err) {
       console.error('Failed to fetch status history:', err);
       toastStore.trigger({
-        message: 'Failed to load status history. Please try again.',
+        message: "Couldn't load the status history. Try again.",
         background: 'variant-filled-error',
         autohide: true,
         timeout: 5000
       });
     }
   }
+
+  const count = (n: number) => (loading ? '…' : n);
+
+  const VIEWS: { key: ProfileView; label: string; icon: string; ring: string }[] = [
+    { key: 'requests', label: 'Requests', icon: '\u{1F4DD}', ring: 'ring-secondary-500' },
+    { key: 'offers', label: 'Offers', icon: '\u{1F4A1}', ring: 'ring-warning-500' },
+    { key: 'organisations', label: 'Organisations', icon: '\u{1F3E2}', ring: 'ring-tertiary-500' }
+  ];
+  const viewCount = (key: ProfileView) =>
+    key === 'requests' ? requests.length : key === 'offers' ? offers.length : organisations.length;
+
+  const firstName = $derived(user.nickname || user.name);
+  const emptyText = $derived<Record<ProfileView, string>>({
+    requests: `${firstName} has no active requests.`,
+    offers: `${firstName} has no active offers.`,
+    organisations: `${firstName} isn't in any organisations.`
+  });
 </script>
 
-<section class="flex flex-col items-center px-4 sm:px-6">
-  {#if error}
-    <div class="alert variant-filled-error">
-      <p>{error}</p>
-    </div>
-  {:else if !user}
-    <p class="mb-4 text-center text-xl">Loading user profile...</p>
-  {:else}
-    <!-- Title row -->
-    <div class="mb-6 flex w-full items-center justify-between">
-      <h1 class="h1">
-        {#if isCurrentUser}
-          Welcome <span class="font-bold text-primary-500"><UserName user={user} /></span>!
-        {:else}
-          <span class="font-bold text-primary-500"><UserName user={user} /></span>'s Profile
+<section class="container mx-auto max-w-4xl space-y-6 p-4">
+  <div class="flex items-center justify-between gap-2">
+    <BackButton fallback="/users" />
+    {#if isCurrentUser}
+      <a href="/user/edit" class="variant-filled-primary btn">Edit profile</a>
+    {/if}
+  </div>
+
+  <!-- Who they are -->
+  <div class="card space-y-4 p-4 md:p-6" data-testid="profile-header">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
+      <img
+        src={picture}
+        alt=""
+        class="h-24 w-24 shrink-0 rounded-full object-cover"
+        data-testid="profile-picture"
+      />
+      <div class="min-w-0 flex-1 space-y-2">
+        <div>
+          <h1 class="h2"><UserName {user} /></h1>
+          {#if user.nickname}
+            <p class="text-surface-600 dark:text-surface-300">{user.nickname}</p>
+          {/if}
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-sm">
+          {#if status}
+            <span class="badge {status.variant}" data-testid="status-chip">{status.label}</span>
+          {/if}
+          {#if isCurrentUser}
+            <span class="variant-soft-primary badge">You</span>
+          {/if}
+          {#if isCurrentUser && isProgenitor}
+            <ProgenitorBadge />
+          {/if}
+          {#if !isCurrentUser && withYou.length > 0}
+            <a
+              href="/exchanges"
+              class="variant-filled-primary badge ml-auto"
+              data-testid="exchanges-with-you">{exchangesWithLabel(withYou.length)}</a
+            >
+          {/if}
+        </div>
+        {#if details.length}
+          <p class="text-sm text-surface-600 dark:text-surface-300">{details.join(' · ')}</p>
         {/if}
-      </h1>
-      {#if isCurrentUser}
-        <a href="/user/edit" class="variant-filled-primary btn">Edit Profile</a>
-      {/if}
-    </div>
-
-    <!-- Main profile card -->
-    <div class="card w-full p-4 md:p-6">
-      <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-        <Avatar src={userPictureUrl} width="w-24" background="none" />
-        <div class="flex-1">
-          <div class="flex items-center gap-3">
-            <h2 class="h2">{user.nickname}</h2>
-            {#if isCurrentUser && isProgenitor}
-              <ProgenitorBadge />
-            {/if}
-          </div>
-          <MarkdownRenderer content={user.bio || ''} class="mt-4 text-lg" />
-          <!-- Status section -->
-          <div class="mt-4 flex flex-col gap-2">
-            <h3 class="h3 text-wrap">
-              <b>Status :</b>
-              <span
-                class:text-primary-500={user!.status?.status_type === 'pending'}
-                class:text-error-500={user!.status?.status_type === 'rejected' ||
-                  user!.status?.status_type === 'suspended indefinitely'}
-                class:text-green-400={user!.status?.status_type === 'accepted'}
-                class:text-warning-500={user!.status?.status_type === `suspended temporarily`}
-              >
-                {#if !suspensionDate}
-                  {user!.status?.status_type}
-                {:else}
-                  {isExpired ? 'In review' : 'suspended temporarily'}
-                {/if}
-              </span>
-            </h3>
-            {#if user?.status?.status_type && user.status.status_type.startsWith('suspended')}
-              <p><b>Reason :</b> {user.status.reason}</p>
-              {#if suspensionDate}
-                <p><b>Suspended until :</b> {suspensionDate}</p>
-              {/if}
-            {/if}
-            <button class="variant-filled-secondary btn w-fit" onclick={handleStatusHistoryModal}>
-              Status History
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <!-- Details grid -->
-      <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div class="card p-4">
-          <h3 class="h3 mb-2">Contact</h3>
-          <p><strong>Type :</strong> {user.user_type}</p>
-          <p><strong>Email :</strong> {user.email}</p>
-          {#if user.phone}
-            <p><strong>Phone :</strong> {user.phone}</p>
-          {/if}
-        </div>
-        <div class="card p-4">
-          <h3 class="h3 mb-2">Location</h3>
-          {#if user.time_zone}
-            <p><strong>Timezone :</strong> {user.time_zone}</p>
-          {/if}
-          {#if user.location}
-            <p><strong>Location :</strong> {user.location}</p>
-          {/if}
-        </div>
+        {#if user.email || user.phone}
+          <p class="text-sm text-surface-600 dark:text-surface-300">
+            {[user.email, user.phone].filter(Boolean).join(' · ')}
+          </p>
+        {/if}
+        {#if status?.label === 'Suspended' && user.status?.reason}
+          <p class="text-sm"><strong>Reason:</strong> {user.status.reason}</p>
+        {/if}
+        {#if status?.until}
+          <p class="text-sm"><strong>Suspended until:</strong> {status.until}</p>
+        {/if}
+        <button
+          type="button"
+          class="anchor text-sm"
+          onclick={openStatusHistory}
+          data-testid="status-history-link">Status history ›</button
+        >
       </div>
     </div>
 
-    <!-- Tabs card -->
-    <div class="card mt-6 w-full p-4 md:p-6">
-      <TabGroup
-        justify="justify-center"
-        border="border-none"
-        rounded="rounded-container-token"
-        active="bg-primary-500 text-white"
-        hover="hover:bg-primary-400-500-token"
-        class="bg-surface-100-800-token/90 p-2 rounded-container-token"
-      >
-        <Tab bind:group={tabSet} name="organizations" value={0}>Organizations</Tab>
-        <Tab bind:group={tabSet} name="requests" value={1}
-          >{isCurrentUser ? 'My Requests' : 'Requests'}</Tab
-        >
-        <Tab bind:group={tabSet} name="offers" value={2}
-          >{isCurrentUser ? 'My Offers' : 'Offers'}</Tab
-        >
+    {#if user.bio}
+      <div class="space-y-1 border-t border-surface-300 pt-4 dark:border-surface-600">
+        <h2 class="h4">About</h2>
+        <MarkdownRenderer content={user.bio} />
+      </div>
+    {/if}
+  </div>
 
-        <!-- Tab Panels -->
-        <svelte:fragment slot="panel">
-          {#if tabSet === 0}
-            <!-- Organizations Tab -->
-            <div
-              class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
-            >
-              <div class="space-y-4">
-                {#if userOrganizations?.length > 0 || userCoordinatedOrganizations?.length > 0}
-                  {#if userCoordinatedOrganizations?.length > 0}
-                    <UserOrganizationsTable
-                      title={isCurrentUser
-                        ? 'My Coordinated Organizations'
-                        : 'Coordinated Organizations'}
-                      organizations={userCoordinatedOrganizations}
-                      role={OrganizationRole.Coordinator}
-                      userActionHash={user.original_action_hash}
-                    />
-                  {/if}
-                  {#if userOrganizations?.length > 0}
-                    <UserOrganizationsTable
-                      title={isCurrentUser ? 'My Organizations' : 'Member Organizations'}
-                      organizations={userOrganizations}
-                      role={OrganizationRole.Member}
-                    />
-                  {/if}
-                {:else}
-                  <div class="flex flex-col items-center justify-center p-8">
-                    <p class="mb-4 text-center text-lg">
-                      {#if isCurrentUser}
-                        You are not a member of any organizations yet.
-                      {:else}
-                        This user is not a member of any organizations.
-                      {/if}
-                    </p>
-                    {#if isCurrentUser}
-                      <a href="/organizations" class="variant-filled-primary btn"
-                        >Browse Organizations</a
-                      >
-                    {/if}
-                  </div>
-                {/if}
-              </div>
-            </div>
-          {:else if tabSet === 1}
-            <!-- Requests Tab -->
-            <div
-              class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
-            >
-              <div class="mb-4 flex items-center justify-between">
-                <div class="flex gap-2">
-                  <button
-                    class="btn btn-sm"
-                    class:variant-filled-primary={requestsListingTab === 'active'}
-                    class:variant-ghost-primary={requestsListingTab !== 'active'}
-                    onclick={() => setRequestsListingTab('active')}
-                  >
-                    📋 Active
-                  </button>
-                  <button
-                    class="btn btn-sm"
-                    class:variant-filled-warning={requestsListingTab === 'archived'}
-                    class:variant-ghost-warning={requestsListingTab !== 'archived'}
-                    onclick={() => setRequestsListingTab('archived')}
-                  >
-                    📦 Archived
-                  </button>
-                </div>
-                <div>
-                  <h3 class="h3">{isCurrentUser ? 'My Requests' : 'Requests'}</h3>
-                  {#if isCurrentUser && user.status?.status_type === 'accepted'}
-                    <a href="/requests/create" class="variant-filled-primary btn"
-                      >Create New Request</a
-                    >
-                  {/if}
-                </div>
-              </div>
-
-              {#if isLoadingRequests}
-                <div class="flex items-center justify-center p-8">
-                  <p>Loading requests...</p>
-                </div>
-              {:else if userRequests.length === 0}
-                <div class="flex flex-col items-center justify-center p-8">
-                  <p class="mb-4 text-center text-lg">
-                    {#if isCurrentUser}
-                      {#if requestsListingTab === 'active'}
-                        You haven't created any active requests yet.
-                      {:else}
-                        You haven't created any archived requests yet.
-                      {/if}
-                    {:else if requestsListingTab === 'active'}
-                      This user hasn't created any active requests yet.
-                    {:else}
-                      This user hasn't created any archived requests yet.
-                    {/if}
-                  </p>
-                </div>
-              {:else}
-                <RequestsTable requests={userRequests} />
-              {/if}
-            </div>
-          {:else if tabSet === 2}
-            <!-- Offers Tab -->
-            <div
-              class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
-            >
-              <div class="mb-4 flex items-center justify-between">
-                <div class="flex gap-2">
-                  <button
-                    class="btn btn-sm"
-                    class:variant-filled-primary={offersListingTab === 'active'}
-                    class:variant-ghost-primary={offersListingTab !== 'active'}
-                    onclick={() => setOffersListingTab('active')}
-                  >
-                    📋 Active
-                  </button>
-                  <button
-                    class="btn btn-sm"
-                    class:variant-filled-warning={offersListingTab === 'archived'}
-                    class:variant-ghost-warning={offersListingTab !== 'archived'}
-                    onclick={() => setOffersListingTab('archived')}
-                  >
-                    📦 Archived
-                  </button>
-                </div>
-                <div>
-                  <h3 class="h3">{isCurrentUser ? 'My Offers' : 'Offers'}</h3>
-                  {#if isCurrentUser && user.status?.status_type === 'accepted'}
-                    <a href="/offers/create" class="variant-filled-primary btn">Create New Offer</a>
-                  {/if}
-                </div>
-              </div>
-
-              {#if isLoadingOffers}
-                <div class="flex items-center justify-center p-8">
-                  <p>Loading offers...</p>
-                </div>
-              {:else if userOffers.length === 0}
-                <div class="flex flex-col items-center justify-center p-8">
-                  <p class="mb-4 text-center text-lg">
-                    {#if isCurrentUser}
-                      {#if offersListingTab === 'active'}
-                        You haven't created any active offers yet.
-                      {:else}
-                        You haven't created any archived offers yet.
-                      {/if}
-                    {:else if offersListingTab === 'active'}
-                      This user hasn't created any active offers yet.
-                    {:else}
-                      This user hasn't created any archived offers yet.
-                    {/if}
-                  </p>
-                </div>
-              {:else}
-                <OffersTable offers={userOffers} />
-              {/if}
-            </div>
-          {/if}
-        </svelte:fragment>
-      </TabGroup>
+  {#if failed}
+    <div class="card space-y-3 p-6 text-center">
+      <p>Couldn't load {isCurrentUser ? 'your' : 'their'} listings and organisations.</p>
+      <button class="variant-filled-primary btn" onclick={load}>Try again</button>
     </div>
+  {:else if isCurrentUser}
+    <!-- Your own profile: the counts lead to the pages where you manage them -->
+    <div class="grid gap-4 sm:grid-cols-3" data-testid="profile-doorways">
+      <a href="/my-listings?view=requests" class="card card-hover space-y-1 p-4">
+        <div class="flex items-start justify-between">
+          <span class="text-2xl">📝</span>
+          <span class="text-3xl font-bold">{count(requests.length)}</span>
+        </div>
+        <h2 class="h4">Active requests</h2>
+        <p class="text-sm text-surface-600 dark:text-surface-300">In My Listings</p>
+      </a>
+      <a href="/my-listings?view=offers" class="card card-hover space-y-1 p-4">
+        <div class="flex items-start justify-between">
+          <span class="text-2xl">💡</span>
+          <span class="text-3xl font-bold">{count(offers.length)}</span>
+        </div>
+        <h2 class="h4">Active offers</h2>
+        <p class="text-sm text-surface-600 dark:text-surface-300">In My Listings</p>
+      </a>
+      <a href="/exchanges" class="card card-hover space-y-1 p-4">
+        <div class="flex items-start justify-between">
+          <span class="text-2xl">🤝</span>
+          <span class="text-3xl font-bold">{count(exchangesStore.exchanges.length)}</span>
+        </div>
+        <h2 class="h4">Exchanges</h2>
+        <p class="text-sm text-surface-600 dark:text-surface-300">In My Exchanges</p>
+      </a>
+    </div>
+
+    <div class="space-y-3">
+      <h2 class="h3">Your organisations</h2>
+      {#if loading}
+        <p class="text-surface-600 dark:text-surface-300">Loading your organisations...</p>
+      {:else if organisations.length === 0}
+        <div class="card space-y-3 p-6 text-center">
+          <p class="text-surface-600 dark:text-surface-300">You aren't in any organisations yet.</p>
+          <a href="/organizations" class="variant-filled-tertiary btn">Browse organisations</a>
+        </div>
+      {:else}
+        {@render orgList()}
+      {/if}
+    </div>
+    {#if canCreate}
+      <div class="flex flex-wrap gap-2">
+        <a href="/requests/create" class="variant-filled-secondary btn">Create a request</a>
+        <a href="/offers/create" class="variant-filled-warning btn">Create an offer</a>
+      </div>
+    {/if}
+  {:else}
+    <!-- Someone else's profile: the counts choose what is shown -->
+    <div class="grid gap-4 sm:grid-cols-3" role="tablist" aria-label="Profile views">
+      {#each VIEWS as v (v.key)}
+        <button
+          class="card space-y-1 p-4 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {view ===
+          v.key
+            ? `ring-2 ${v.ring}`
+            : ''}"
+          role="tab"
+          aria-selected={view === v.key}
+          onclick={() => (view = v.key)}
+        >
+          <div class="flex items-start justify-between">
+            <span class="text-2xl">{v.icon}</span>
+            <span class="text-3xl font-bold">{count(viewCount(v.key))}</span>
+          </div>
+          <h2 class="h4">{v.label}</h2>
+        </button>
+      {/each}
+    </div>
+
+    {#if loading}
+      <p class="text-surface-600 dark:text-surface-300">Loading...</p>
+    {:else if viewCount(view) === 0}
+      <div class="card p-6 text-center">
+        <p class="text-surface-600 dark:text-surface-300">{emptyText[view]}</p>
+      </div>
+    {:else if view === 'organisations'}
+      {@render orgList()}
+    {:else}
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {#each view === 'requests' ? requests : offers as listing (listing.original_action_hash.toString())}
+          <ListingCard kind={view === 'requests' ? 'Request' : 'Offer'} {listing} />
+        {/each}
+      </div>
+    {/if}
   {/if}
 </section>
+
+{#snippet orgList()}
+  <ul class="grid grid-cols-1 gap-4 md:grid-cols-2">
+    {#each organisations as { org, coordinator } (org.original_action_hash!.toString())}
+      <li class="card flex items-center gap-3 p-4">
+        <img
+          src={getOrganizationLogoUrl(org)}
+          alt=""
+          class="h-12 w-12 shrink-0 rounded-full object-cover"
+        />
+        <div class="min-w-0 flex-1">
+          <a
+            class="h4 hover:underline"
+            href="/organizations/{encodeHashToBase64(org.original_action_hash!)}">{org.name}</a
+          >
+        </div>
+        <span class="badge {coordinator ? 'variant-soft-tertiary' : 'variant-soft-surface'}"
+          >{coordinator ? 'Coordinator' : 'Member'}</span
+        >
+      </li>
+    {/each}
+  </ul>
+{/snippet}

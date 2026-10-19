@@ -39,7 +39,7 @@ mod status_tests {
     assert_eq!(status.reason, None);
     assert_eq!(status.suspended_until, None);
 
-    let now = Timestamp::from_micros(chrono::UTC::now().timestamp_subsec_micros() as i64);
+    let now = hours(10);
     status = Status::suspend("test", Some((Duration::days(7), &now)));
     assert_eq!(status.status_type, "suspended temporarily");
     assert_eq!(status.reason, Some("test".to_string()));

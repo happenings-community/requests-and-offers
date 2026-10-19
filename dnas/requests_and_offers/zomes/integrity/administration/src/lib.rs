@@ -1,8 +1,11 @@
-use hdi::prelude::*;
 use concurrence::*;
+use grants::*;
+use hdi::prelude::*;
 use status::*;
+use utils::grants::{Role, RoleGrant, RoleRevocation};
 
 pub mod concurrence;
+pub mod grants;
 pub mod status;
 mod tests;
 
@@ -23,6 +26,14 @@ pub enum EntryTypes {
 
   /// A second signatory's agreement to a motion.
   Concurrence(Concurrence),
+
+  /// One agent holding one role in one scope, and what authorised it: the
+  /// chain of grants. `utils::grants` has the type; this zome
+  /// registers it, at the index `utils::grants::ROLE_GRANT_ENTRY_INDEX`.
+  RoleGrant(RoleGrant),
+
+  /// A grant withdrawn. The grant and the acts made under it stand.
+  RoleRevocation(RoleRevocation),
 }
 
 /// Registry of all link types defined in this integrity zome.
@@ -73,6 +84,18 @@ pub enum LinkTypes {
   /// Index link from a motion's action hash to the concurrence that carried it.
   /// A motion with no such link is still pending; the state derives from the records.
   MotionConcurrences,
+
+  /// Index link from a holder's public key to one of their grants; the tag carries the
+  /// grant's hash. What `can` reads.
+  AgentGrants,
+
+  /// Index link from the `"grants.{role}"` path to a grant, for listing every grant of a
+  /// role. The tag carries the grant's hash.
+  AllGrants,
+
+  /// Index link from a grant to a revocation of it. `can` treats a grant with one as
+  /// withdrawn.
+  GrantRevocations,
 }
 
 #[hdk_extern]
@@ -81,75 +104,73 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
 }
 
 // ============================================================================
-// AllAdministrators LINK VALIDATION
+// ROLE INDEX LINKS
 // ============================================================================
+//
+// Every link that indexes a role holder carries, in its tag, the grant it
+// indexes, and is written by the agent who wrote that grant. The grant is
+// what the network trusts; the links are how a holder is found quickly.
+//
+// Deleting these links is coordinator-only: a delete-link action has no tag of
+// its own and carries no grant, so validation cannot see who is removing an
+// index entry. A vandal can damage the index; the grants stand, and `can`
+// reads grants. Stated as the limit rather than hidden.
 
-/// Validates `AllAdministrators` link creation.
-///
-/// Authorization is enforced by the coordinator layer (`add_administrator` →
-/// `check_if_agent_is_administrator`). Integrity defaults to `Valid` unconditionally
-/// because `get_links` is not available in HDI 0.7.0 validation callbacks —
-/// dynamic admin-membership checks require DHT reads which cannot be performed here.
-///
-/// NOTE: `is_progenitor` is intentionally not called here. It would return `Valid`
-/// in both branches, making it dead code. If HDI ever exposes `get_links`, this
-/// function is the right place to add real membership enforcement.
+/// `AllAdministrators`: path to a user entity, tag the new admin's grant.
 fn validate_create_link_all_administrators(
-  _action: TypedAction<CreateLinkData>,
-  _base_address: AnyLinkableHash,
-  _target_address: AnyLinkableHash,
-  _tag: LinkTag,
+  link_author: &AgentPubKey,
+  tag: &LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Valid)
+  validate_roster_link(link_author, tag, Role::Admin)
 }
 
-/// Validates `AllAdministrators` link deletion.
-///
-/// Deletion authorization (caller must be an existing admin) is enforced by the
-/// coordinator layer. Integrity returns `Valid` unconditionally because `get_links`
-/// is not available in HDI 0.7.0 validation callbacks.
-fn validate_delete_link_all_administrators(
-  _action: TypedAction<DeleteLinkData>,
-  _original_action: TypedAction<CreateLinkData>,
-  _base: AnyLinkableHash,
-  _target: AnyLinkableHash,
-  _tag: LinkTag,
-) -> ExternResult<ValidateCallbackResult> {
-  // Deletion authorization (admin-only) is enforced by the coordinator.
-  Ok(ValidateCallbackResult::Valid)
-}
-
-// ============================================================================
-// AgentAdministrators LINK VALIDATION
-// ============================================================================
-
-/// Validates `AgentAdministrators` link creation.
-///
-/// Same default-allow policy as [`validate_create_link_all_administrators`]:
-/// authorization is enforced by the coordinator layer. See that function's doc
-/// for the HDI 0.7.0 rationale.
+/// `AgentAdministrators`: holder's key to the path, tag the holder's grant.
 fn validate_create_link_agent_administrators(
-  _action: TypedAction<CreateLinkData>,
-  _base_address: AnyLinkableHash,
-  _target_address: AnyLinkableHash,
-  _tag: LinkTag,
+  link_author: &AgentPubKey,
+  base_address: &AnyLinkableHash,
+  tag: &LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Valid)
+  validate_holder_role_link(link_author, base_address, tag, Role::Admin)
 }
 
-/// Validates `AgentAdministrators` link deletion.
-///
-/// Authorization is enforced by the coordinator layer. Integrity returns `Valid`
-/// unconditionally because `get_links` is not available in HDI 0.7.0 validation
-/// callbacks.
-fn validate_delete_link_agent_administrators(
-  _action: TypedAction<DeleteLinkData>,
-  _original_action: TypedAction<CreateLinkData>,
-  _base: AnyLinkableHash,
-  _target: AnyLinkableHash,
-  _tag: LinkTag,
+/// `AllPermissionHolders`: permission path to a user entity, tag the grant. The
+/// one named permission with a grant behind it is `steward`.
+fn validate_create_link_all_permission_holders(
+  link_author: &AgentPubKey,
+  tag: &LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Valid)
+  validate_roster_link(link_author, tag, Role::Steward)
+}
+
+/// `AgentPermissions`: holder's key to the permission path, tag the grant.
+fn validate_create_link_agent_permissions(
+  link_author: &AgentPubKey,
+  base_address: &AnyLinkableHash,
+  tag: &LinkTag,
+) -> ExternResult<ValidateCallbackResult> {
+  validate_holder_role_link(link_author, base_address, tag, Role::Steward)
+}
+
+/// The original entry a delete points at, read back as one of this zome's types.
+fn deleted_entry(action: &TypedAction<DeleteData>) -> ExternResult<Result<EntryTypes, String>> {
+  let original = must_get_valid_record(action.deletes_address.clone())?;
+  let Ok(creation) = TypedAction::<EntryCreationData>::try_from(original.action().clone()) else {
+    return Ok(Err(
+      "Original action for a delete must be a Create or Update action".to_string(),
+    ));
+  };
+  let EntryType::App(def) = creation.entry_type() else {
+    return Ok(Err("a delete in this zome points at an app entry".to_string()));
+  };
+  let Some(entry) = original.entry().as_option() else {
+    return Ok(Err("Original record for a delete must contain an entry".to_string()));
+  };
+  match EntryTypes::deserialize_from_type(*def.zome_index, def.entry_index, entry)? {
+    Some(app_entry) => Ok(Ok(app_entry)),
+    None => Ok(Err(
+      "Original app entry must be one of the defined entry types for this zome".to_string(),
+    )),
+  }
 }
 
 /// Every rule for a new or updated entry, run for both ops of the write.
@@ -159,11 +180,17 @@ fn validate_delete_link_agent_administrators(
 /// `must_get_valid_record` trusts the record authority's verdict. A rule run
 /// on the entry op alone is never seen by the authority that answers for
 /// the record.
-fn validate_entry(app_entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
+fn validate_entry(
+  app_entry: EntryTypes,
+  author: &AgentPubKey,
+  is_update: bool,
+) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
-    EntryTypes::Status(status) => validate_status(status),
+    EntryTypes::Status(status) => validate_status(status, author, is_update),
     EntryTypes::Motion(motion) => validate_motion(motion),
     EntryTypes::Concurrence(concurrence) => validate_concurrence(concurrence),
+    EntryTypes::RoleGrant(grant) => validate_role_grant(author, &grant),
+    EntryTypes::RoleRevocation(revocation) => validate_role_revocation(author, &revocation),
   }
 }
 
@@ -195,67 +222,85 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
-        validate_entry(app_entry)
+      OpEntry::CreateEntry { app_entry, action } => validate_entry(app_entry, action.author(), false),
+      OpEntry::UpdateEntry { app_entry, action, .. } => {
+        validate_entry(app_entry, action.author(), true)
       }
       _ => Ok(ValidateCallbackResult::Valid),
     },
     FlatOp::CreateRecord(store_record) => match store_record {
-      OpRecord::CreateEntry { app_entry, .. } | OpRecord::UpdateEntry { app_entry, .. } => {
-        validate_entry(app_entry)
+      OpRecord::CreateEntry { app_entry, action } => {
+        validate_entry(app_entry, action.author(), false)
       }
+      OpRecord::UpdateEntry { app_entry, action, .. } => {
+        validate_entry(app_entry, action.author(), true)
+      }
+      // Nothing in this zome is deleted: a status is a history, a grant or a
+      // revocation is the record an act rests on, a motion and its concurrence
+      // are the decision. Routed here rather than left to fall through (#234).
+      OpRecord::DeleteEntry { action } => match deleted_entry(&action)? {
+        Ok(EntryTypes::Status(_)) => Ok(ValidateCallbackResult::Invalid(String::from(
+          "Status cannot be deleted",
+        ))),
+        Ok(EntryTypes::RoleGrant(_)) | Ok(EntryTypes::RoleRevocation(_)) => {
+          Ok(ValidateCallbackResult::Invalid(String::from(
+            "A grant or a revocation is a record and cannot be deleted; revoke a grant instead",
+          )))
+        }
+        Ok(EntryTypes::Motion(_)) | Ok(EntryTypes::Concurrence(_)) => {
+          Ok(ValidateCallbackResult::Invalid(String::from(
+            "A motion and its concurrence are the record of a decision and cannot be deleted",
+          )))
+        }
+        Err(reason) => Ok(ValidateCallbackResult::Invalid(reason)),
+      },
       _ => Ok(ValidateCallbackResult::Valid),
     },
     FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
-      let base_address = action.base_address.clone();
-      let target_address = action.target_address.clone();
-      let tag = action.tag.clone();
+      let author = action.author();
+      let base = &action.base_address;
+      let target = &action.target_address;
+      let tag = &action.tag;
       match link_type {
-        LinkTypes::AllAdministrators => {
-          validate_create_link_all_administrators(action, base_address, target_address, tag)
-        }
+        LinkTypes::AllAdministrators => validate_create_link_all_administrators(author, tag),
         LinkTypes::AgentAdministrators => {
-          validate_create_link_agent_administrators(action, base_address, target_address, tag)
+          validate_create_link_agent_administrators(author, base, tag)
         }
-        LinkTypes::StatusUpdates => {
-          validate_create_link_status_updates(action, base_address, target_address, tag)
+        LinkTypes::AllPermissionHolders => {
+          validate_create_link_all_permission_holders(author, tag)
         }
-        _ => Ok(ValidateCallbackResult::Valid),
+        LinkTypes::AgentPermissions => validate_create_link_agent_permissions(author, base, tag),
+        LinkTypes::AgentGrants => validate_grant_index_link(author, base, target, tag, true),
+        LinkTypes::AllGrants => validate_grant_index_link(author, base, target, tag, false),
+        LinkTypes::GrantRevocations => validate_grant_revocation_link(author, base, target),
+        LinkTypes::EntityStatus => validate_create_link_entity_status(author, target),
+        LinkTypes::AcceptedEntity => validate_create_link_accepted_entity(author, tag),
+        LinkTypes::StatusUpdates => validate_create_link_status_updates(
+          action.clone(),
+          base.clone(),
+          target.clone(),
+          tag.clone(),
+        ),
+        LinkTypes::AllStatuses | LinkTypes::SubjectMotions | LinkTypes::MotionConcurrences => {
+          Ok(ValidateCallbackResult::Valid)
+        }
       }
     }
     FlatOp::Link(OpLink::DeleteLink {
       link_type,
       action,
       original_action,
-    }) => {
-      let base_address = action.base_address.clone();
-      let target_address = original_action.target_address.clone();
-      let tag = original_action.tag.clone();
-      match link_type {
-        LinkTypes::AllAdministrators => validate_delete_link_all_administrators(
-          action,
-          original_action,
-          base_address,
-          target_address,
-          tag,
-        ),
-        LinkTypes::AgentAdministrators => validate_delete_link_agent_administrators(
-          action,
-          original_action,
-          base_address,
-          target_address,
-          tag,
-        ),
-        LinkTypes::StatusUpdates => validate_delete_link_status_updates(
-          action,
-          original_action,
-          base_address,
-          target_address,
-          tag,
-        ),
-        _ => Ok(ValidateCallbackResult::Valid),
-      }
-    }
+    }) => match link_type {
+      LinkTypes::StatusUpdates => validate_delete_link_status_updates(
+        action.clone(),
+        original_action.clone(),
+        action.base_address.clone(),
+        original_action.target_address.clone(),
+        original_action.tag.clone(),
+      ),
+      // Index links come and go with the coordinator (see ROLE INDEX LINKS).
+      _ => Ok(ValidateCallbackResult::Valid),
+    },
     _ => Ok(ValidateCallbackResult::Valid),
   }
 }
@@ -276,6 +321,7 @@ mod record_op_tests {
       status_type: "bogus".to_string(),
       reason: None,
       suspended_until: None,
+      grant: None,
     }
     .try_into()
     .unwrap()

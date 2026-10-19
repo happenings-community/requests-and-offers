@@ -3,12 +3,16 @@ use chrono::Duration;
 use hdk::prelude::*;
 use status::*;
 use utils::{
-  errors::{AdministrationError, CommonError, StatusError},
-  find_original_action_hash, get_all_revisions_for_entry, EntityActionHash, EntityAgent,
-  OriginalActionHash, PreviousActionHash,
+  errors::{CommonError, StatusError},
+  find_original_action_hash, get_all_revisions_for_entry,
+  grants::{grant_tag, Ability, Authority, Role},
+  EntityActionHash, OriginalActionHash, PreviousActionHash,
 };
 
-use crate::administration::check_if_agent_is_administrator;
+use crate::{
+  external_calls::get_user_agents,
+  grants::{live_grants_of, require, revoke_all, write_grant},
+};
 
 /// Creates the initial `Status` entry (always `"pending"`) for the entity identified by
 /// `input.entity_original_action_hash`.
@@ -195,15 +199,17 @@ pub fn get_latest_status_for_entity(input: EntityActionHash) -> ExternResult<Opt
 }
 
 /// Creates an `AcceptedEntity` link from `"{entity}.status.accepted"` path → entity original
-/// action hash, registering the entity in the accepted-entity index.
+/// action hash, registering the entity in the accepted-entity index. The link carries the
+/// caller's admin or steward grant in its tag: the index is a role act.
 #[hdk_extern]
 pub fn create_accepted_entity_link(input: EntityActionHash) -> ExternResult<bool> {
+  let grant = require(Ability::ChangeStatus, None)?;
   let path = Path::from(format!("{}.status.accepted", input.entity));
   create_link(
     path.path_entry_hash()?,
     input.entity_original_action_hash,
     LinkTypes::AcceptedEntity,
-    (),
+    grant_tag(&grant),
   )?;
   Ok(true)
 }
@@ -306,8 +312,14 @@ pub struct UpdateEntityActionHash {
 
 /// Updates the status of the entity identified by `input.entity_original_action_hash`.
 ///
-/// Requires the caller to be an administrator of `input.entity`. Returns
+/// A status change is a role act: the caller needs an admin or steward grant, the new
+/// `Status` carries it, and its validator checks it. Returns
 /// `Err(AdministrationError::Unauthorized)` otherwise.
+///
+/// What a change issues: accepting a member writes a member grant for
+/// each of their agents, and any other status revokes it; accepting an organisation
+/// writes its creator's coordinator grant and the coordinator link, which is what makes
+/// them coordinator.
 ///
 /// Two branches:
 /// - **No existing status link** — creates a new `Status` entry plus `AllStatuses` and
@@ -319,27 +331,12 @@ pub struct UpdateEntityActionHash {
 /// if `input.new_status.status_type == "accepted"`.
 #[hdk_extern]
 pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Record> {
-  let caller = agent_info()?.agent_initial_pubkey;
-
-  let is_admin = check_if_agent_is_administrator(EntityAgent {
-    agent_pubkey: caller.clone(),
-    entity: input.entity.clone(),
-  })?;
-
   // Stewards may change a member's status because suspension is a stewarding act, not an
   // administrative one. Administration configures the network; stewarding supports the
-  // people in it. Without this a concurred suspension would record its decision and then
-  // fail to apply it.
-  let is_steward = crate::permissions::check_if_agent_has_permission(
-    crate::permissions::AgentPermission {
-      permission: crate::permissions::PERMISSION_STEWARD.to_string(),
-      agent_pubkey: caller,
-    },
-  )?;
-
-  if !is_admin && !is_steward {
-    return Err(AdministrationError::Unauthorized.into());
-  }
+  // people in it. `ChangeStatus` is answered by an admin or a steward grant.
+  let authority = require(Ability::ChangeStatus, None)?;
+  let mut new_status = input.new_status.clone();
+  new_status.grant = Some(authority.clone());
 
   // Resolve the original action hash in case we received an updated action hash
   let resolved_original_action_hash =
@@ -358,7 +355,7 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
 
   if entity_links.is_empty() {
     // Entity has no status yet, create initial status
-    let new_status_hash = create_entry(&EntryTypes::Status(input.new_status.clone()))?;
+    let new_status_hash = create_entry(&EntryTypes::Status(new_status.clone()))?;
     action_hash = new_status_hash;
 
     // Create the path link
@@ -381,7 +378,7 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
     // Entity has existing status, update it
     action_hash = update_entry(
       input.status_previous_action_hash.clone().into(),
-      input.new_status.clone(),
+      new_status.clone(),
     )?;
 
     // Anchor the StatusUpdates link at the status chain's true root. Callers pass
@@ -425,11 +422,23 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
     entity: input.entity.clone(),
   })?;
 
-  if input.new_status.status_type == "accepted" {
+  let accepted = new_status.status_type == "accepted";
+  if accepted {
     create_accepted_entity_link(EntityActionHash {
-      entity_original_action_hash: resolved_original_action_hash,
-      entity: input.entity,
+      entity_original_action_hash: resolved_original_action_hash.clone(),
+      entity: input.entity.clone(),
     })?;
+  }
+
+  match input.entity.as_str() {
+    "users" => {
+      if accepted {
+        issue_member_grants(&resolved_original_action_hash.0, &authority)?;
+      } else {
+        revoke_member_grants(&resolved_original_action_hash.0, &new_status.status_type)?;
+      }
+    }
+    _ => {}
   }
 
   let record = get(action_hash.clone(), GetOptions::default())?
@@ -598,4 +607,32 @@ pub fn delete_status(input: EntityActionHash) -> ExternResult<bool> {
   delete_entry(hash)?;
 
   Ok(true)
+}
+
+/// Accepting a member issues a member grant to each of their agents, resting on the
+/// accepter's grant. An agent who already holds one keeps it.
+fn issue_member_grants(user: &ActionHash, authority: &ActionHash) -> ExternResult<()> {
+  for agent in get_user_agents(user.clone())? {
+    let held = live_grants_of(&agent)?
+      .into_iter()
+      .any(|(_, g)| g.parsed_role() == Ok(Role::Member));
+    if !held {
+      write_grant(
+        Role::Member,
+        agent,
+        None,
+        Authority::Grant(authority.clone()),
+      )?;
+    }
+  }
+  Ok(())
+}
+
+/// Any status other than accepted withdraws the member's grants: the app refuses their
+/// writes from here on, and what they wrote while accepted stands.
+fn revoke_member_grants(user: &ActionHash, status_type: &str) -> ExternResult<()> {
+  for agent in get_user_agents(user.clone())? {
+    revoke_all(&agent, Role::Member, &None, status_type)?;
+  }
+  Ok(())
 }

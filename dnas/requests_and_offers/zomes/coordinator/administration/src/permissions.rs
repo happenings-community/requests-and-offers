@@ -1,11 +1,14 @@
+use std::str::FromStr;
+
 use administration_integrity::*;
 use hdk::prelude::*;
 use utils::{
-  errors::AdministrationError,
-  EntityAgent, OriginalActionHash,
+  errors::CommonError,
+  grants::{grant_tag, Ability, Role},
+  OriginalActionHash,
 };
 
-use crate::administration::check_if_agent_is_administrator;
+use crate::grants::{authority_for, require, revoke_all, write_grant};
 
 /// The steward permission: supporting members, handling flags, and acting on cases.
 /// Distinct from administration, which configures and deploys the network.
@@ -52,54 +55,60 @@ pub fn get_all_permission_holders_links(permission: String) -> ExternResult<Vec<
   Ok(links)
 }
 
+/// The role behind a named permission. With the chain of grants every permission is a
+/// role; `steward` is the one named permission so far.
+fn role_of(permission: &str) -> ExternResult<Role> {
+  Role::from_str(permission)
+    .ok()
+    .filter(|role| *role == Role::Steward)
+    .ok_or_else(|| CommonError::InvalidData(format!("no such permission: {}", permission)).into())
+}
+
 /// Grants a named permission to one or more agents.
 ///
-/// The caller must be an administrator. Granting is a single-signature act: the authority
-/// gradient belongs on irreversible acts, not on role membership, and a grant is reversible
-/// by [`revoke_permission`].
+/// Each agent gets a grant for the permission's role, resting on the caller's authority
+/// (an admin or a steward may grant `steward`, from the 18 October table). Granting is a
+/// single-signature act: the authority gradient belongs on irreversible acts, not on role
+/// membership, and a grant is reversible by [`revoke_permission`]. The index links carry
+/// the grants in their tags, which is what their validators check.
 #[hdk_extern]
 pub fn grant_permission(input: PermissionActionHashAgents) -> ExternResult<bool> {
-  if !check_if_agent_is_administrator(EntityAgent {
-    entity: "network".to_string(),
-    agent_pubkey: agent_info()?.agent_initial_pubkey,
-  })? {
-    return Err(AdministrationError::Unauthorized.into());
-  }
-
+  let role = role_of(&input.permission)?;
   let path_hash = permission_path_hash(&input.permission)?;
 
-  create_link(
-    path_hash.clone(),
-    input.holder_original_action_hash.0.clone(),
-    LinkTypes::AllPermissionHolders,
-    (),
-  )?;
-
+  let mut first_grant = None;
   for agent_pubkey in input.agent_pubkeys {
+    let authority = authority_for(role, &None, &agent_pubkey)?;
+    let grant = write_grant(role, agent_pubkey.clone(), None, authority)?;
     create_link(
       agent_pubkey,
       path_hash.clone(),
       LinkTypes::AgentPermissions,
-      (),
+      grant_tag(&grant),
     )?;
+    first_grant.get_or_insert(grant);
   }
+  let roster_grant = first_grant
+    .ok_or_else(|| CommonError::InvalidData("a permission needs an agent key".to_string()))?;
+  create_link(
+    path_hash,
+    input.holder_original_action_hash.0.clone(),
+    LinkTypes::AllPermissionHolders,
+    grant_tag(&roster_grant),
+  )?;
 
   Ok(true)
 }
 
 /// Revokes a named permission from one or more agents.
 ///
-/// The caller must be an administrator. There is no last-holder guard: a network may hold
-/// zero stewards. The plural acts that require two stewards simply become impossible, since
-/// there is nobody to concur.
+/// The caller needs a grant that could have given the role. There is no last-holder
+/// guard: a network may hold zero stewards. The plural acts that require two stewards
+/// simply become impossible, since there is nobody to concur.
 #[hdk_extern]
 pub fn revoke_permission(input: PermissionActionHashAgents) -> ExternResult<bool> {
-  if !check_if_agent_is_administrator(EntityAgent {
-    entity: "network".to_string(),
-    agent_pubkey: agent_info()?.agent_initial_pubkey,
-  })? {
-    return Err(AdministrationError::Unauthorized.into());
-  }
+  let role = role_of(&input.permission)?;
+  require(Ability::Grant(role), None)?;
 
   let path_hash = permission_path_hash(&input.permission)?;
 
@@ -112,6 +121,8 @@ pub fn revoke_permission(input: PermissionActionHashAgents) -> ExternResult<bool
   }
 
   for agent_pubkey in input.agent_pubkeys {
+    revoke_all(&agent_pubkey, role, &None, "permission revoked")?;
+
     let link_type_filter = LinkTypes::AgentPermissions
       .try_into_filter()
       .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;

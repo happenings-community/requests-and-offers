@@ -1,5 +1,7 @@
 pub mod administration;
 pub mod concurrence;
+pub mod external_calls;
+pub mod grants;
 pub mod permissions;
 pub mod status;
 

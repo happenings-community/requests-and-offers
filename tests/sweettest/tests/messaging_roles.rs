@@ -458,8 +458,8 @@ async fn a_case_reaches_every_holder_and_the_reply_comes_back() {
 /// administrator, cannot reply on her case: `send_role_message` refuses him as a
 /// non-holder before anything is delivered, so this half proves the path and not the
 /// gate in `deliver`. Alice, the administrator, can, and Carol reads the reply, which
-/// is the point of letting her receive it. The gate's own refusal is covered on the
-/// personal path, in `messaging_inbox`.
+/// is the point of letting her receive it, and not her own opener (R129). The gate's own
+/// refusal is covered on the personal path, in `messaging_inbox`.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_holder_may_reply_to_an_opener_who_is_no_longer_accepted() {
     let (conductors, alice, bob, carol) = setup_three_agents_with_alice_as_progenitor().await;
@@ -555,10 +555,10 @@ async fn a_holder_may_reply_to_an_opener_who_is_no_longer_accepted() {
         .await
         .unwrap();
 
-    // Carol's own opening message is not in what she reads: the read side drops every
-    // message whose author is not accepted *now*, and that is her. Only the reply is
-    // asserted on, because that is the claim. Whether a member should still see their own
-    // words after being rejected is a question for the read rule, not for this gate.
+    // Carol reads the reply and not her own opener (R129): while a member is not
+    // accepted they see only what administrators send them, their own earlier messages
+    // included, so the read side drops every message whose author is not accepted *now*,
+    // and that is her. Both halves are asserted.
     let mine: Vec<RoleCorrespondence> = conductors[2]
         .call(&carol.zome("messaging"), "get_my_role_correspondence", ())
         .await;
@@ -577,6 +577,15 @@ async fn a_holder_may_reply_to_an_opener_who_is_no_longer_accepted() {
             )
         });
     assert_eq!(reply.content, "which town should it say?");
+    assert!(
+        mine[0]
+            .cases[0]
+            .messages
+            .iter()
+            .all(|m| &m.from != carol.agent_pubkey()),
+        "Carol, no longer accepted, should not read her own opener (R129); got {:?}",
+        mine[0].cases[0].messages
+    );
 }
 
 /// Claiming, completing, reopening and handing over, as one fold.

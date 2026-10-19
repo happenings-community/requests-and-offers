@@ -887,7 +887,7 @@ struct SendReceiptInput {
 /// decodes as nothing this mirror knows, and the wait runs out.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_receipt_arrives_as_read_up_to_from_its_sender() {
-    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+    let (conductors, alice, _bob, _alice_user, bob_user) = two_accepted_members().await;
 
     // Subscribe before sending, as the nudge cases do.
     let mut bob_signals =

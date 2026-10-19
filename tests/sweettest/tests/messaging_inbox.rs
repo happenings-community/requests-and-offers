@@ -170,7 +170,7 @@ async fn user_hash_of(conductor: &SweetConductor, cell: &SweetCell) -> ActionHas
     links[0].target.clone().into_action_hash().unwrap()
 }
 
-/// P1: the recipient reads what was sent.
+/// The recipient reads what was sent.
 #[tokio::test(flavor = "multi_thread")]
 async fn recipient_reads_the_message() {
     let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
@@ -207,7 +207,7 @@ async fn recipient_reads_the_message() {
         "content should round-trip through encryption"
     );
     // What the conversation ID used to prove here is gone with it: a thread is keyed by
-    // the counterparty and carries no context (decision 1). What is worth proving instead
+    // the counterparty and carries no context. What is worth proving instead
     // is that an ordinary message claims no role, because that is what keeps it in
     // `get_inbox` and out of every role reader.
     assert!(
@@ -224,7 +224,7 @@ async fn recipient_reads_the_message() {
     );
 }
 
-/// P2: the sender reads their own sent copy.
+/// The sender reads their own sent copy.
 ///
 /// This is the shared-key assumption, and the reason it is a test rather than a comment:
 /// `get_sent` decrypts the recipient's copy by passing the sender as recipient and the
@@ -265,7 +265,7 @@ async fn sender_reads_their_own_sent_message() {
     );
 }
 
-/// P3: a third member holds the entry and cannot read it.
+/// A third member holds the entry and cannot read it.
 ///
 /// Carol is an accepted member on the same DNA, so she gossips the same public entry.
 /// The assertion is in two halves: she can fetch the record, proving the entry really is
@@ -337,7 +337,7 @@ async fn a_third_member_cannot_read_the_message() {
     }
 }
 
-/// P4: the recipient can be offline when the message is sent.
+/// The recipient can be offline when the message is sent.
 ///
 /// The stored entry is the delivery guarantee, so a message written while Bob is down
 /// should be waiting for him when he comes back. Nothing here depends on the nudge,
@@ -372,7 +372,7 @@ async fn a_message_waits_for_an_offline_recipient() {
     assert_eq!(inbox[0].content, "sent while you were out");
 }
 
-/// P5: the sender can be offline when the recipient reads.
+/// The sender can be offline when the recipient reads.
 ///
 /// This is the dependency worth proving rather than assuming: the guarantee is the
 /// stored entry, but a DHT still needs *somebody* holding it to be online. Carol is that
@@ -475,8 +475,8 @@ async fn a_message_arrives_with_the_sender_offline() {
 
     // Bob is up but not yet talking to anyone. `get_inbox` reads from the network, so
     // without this it can return nothing simply because there is no peer to ask, which is
-    // what failed on a hosted runner where reconnecting is slower than here. P4 restarts
-    // Bob the same way and waits, which is why it passed.
+    // what failed on a hosted runner where reconnecting is slower than here. The
+    // offline-recipient case restarts Bob the same way and waits, which is why it passed.
     //
     // Alice is offline by this point, so consistency can only be reached through Carol.
     // That makes the wait part of the claim rather than a delay bolted on: it proves Bob is
@@ -793,7 +793,7 @@ async fn send_one(
         .clone()
 }
 
-/// P7: blocking hides stored messages and drops nudges; unblocking restores both.
+/// Blocking hides stored messages and drops nudges; unblocking restores both.
 ///
 /// The negative step is the hard one. An earlier version waited a flat ten seconds and
 /// used consistency as its clock. Two things were wrong with that, and one of them is

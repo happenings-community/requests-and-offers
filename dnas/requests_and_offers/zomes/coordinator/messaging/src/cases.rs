@@ -12,8 +12,8 @@ pub const MAX_CASE_ID_BYTES: usize = 64;
 
 /// What a case is about.
 ///
-/// Kept on the case from the start so that brief C can add `ServiceTypeSuggestion` and
-/// `MediumOfExchangeSuggestion` without reshaping anything.
+/// Kept on the case from the start so that service type and medium of exchange
+/// suggestions can be added later without reshaping anything.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum CaseKind {
@@ -23,7 +23,7 @@ pub enum CaseKind {
 }
 
 /// How a case ended. No findings and no concurrence: admin work is technical, not
-/// arbitration (decision 15). Stewarding adds those in alpha 3.
+/// arbitration. Stewarding adds findings and concurrence later.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum CaseOutcome {
@@ -39,7 +39,7 @@ pub enum CaseOutcome {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum CaseEvent {
   /// I am dealing with this. Claims inform and never block, so several may stand at
-  /// once (decision 14).
+  /// once.
   Claim,
   /// I am no longer dealing with this.
   Release,
@@ -174,8 +174,7 @@ pub(crate) fn assemble_cases(messages: Vec<(Message, CaseRef)>) -> ExternResult<
       }
       Some(CaseEvent::HandOverAccept) => {
         // Only the holder the offer named may take it. An offer that names a person and
-        // that anybody may accept would not be a hand-over. The brief does not spell
-        // this out; see CHECK.md.
+        // that anybody may accept would not be a hand-over.
         let accepter = users.user(&author)?;
         let matches = match (&case.pending_hand_over, &accepter) {
           (Some(offer), Some(user)) => &offer.to == user,
@@ -245,13 +244,13 @@ pub struct RoleCorrespondence {
 /// A member's own role conversations, grouped by role.
 ///
 /// What they sent to a role and what holders sent back, for the member's "Admin and
-/// steward messages" area (decision 12). No role check: these are this member's own
+/// steward messages" area. No role check: these are this member's own
 /// cases, and a member is not a holder of anything.
 ///
 /// Every copy this reads is in the caller's own inbox, including the ones they wrote
 /// themselves, because a role message is encrypted to its sender's agents as well as to
 /// the holders. That is what keeps this a single inbox read with no chain walk and no
-/// duplicate collapsing: see CHECK.md on the self-copy.
+/// duplicate collapsing.
 #[hdk_extern]
 pub fn get_my_role_correspondence(_: ()) -> ExternResult<Vec<RoleCorrespondence>> {
   let me = agent_info()?.agent_initial_pubkey;

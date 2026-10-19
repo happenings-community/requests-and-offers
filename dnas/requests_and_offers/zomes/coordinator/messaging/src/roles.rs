@@ -83,7 +83,7 @@ pub fn require_enabled(role: &RoleRef) -> ExternResult<()> {
 /// Every holder of `role`, by `User` original action hash, minus `exclude`.
 ///
 /// The exclusion list is the conflict-of-interest hook stewards need in alpha 3, and is
-/// empty for admins (decision 16). It exists from the start so that the signature does
+/// empty for admins. It exists from the start so that the signature does
 /// not change when stewarding arrives.
 ///
 /// Returns `User` hashes rather than the brief's `Vec<User>`: every caller here fans a
@@ -114,7 +114,7 @@ pub fn role_holders(role: &RoleRef, exclude: &[ActionHash]) -> ExternResult<Vec<
 
 /// Whether `agent` holds `role` right now.
 ///
-/// This is the check decision 11 turns on: a role label inside a ciphertext is a claim,
+/// A role label inside a ciphertext is a claim,
 /// and every reader tests it against the DHT at the moment of reading. A role that is
 /// not enabled yet answers `false` rather than erroring, because this runs on the
 /// reading path: a body carrying a role this build does not understand must be withheld,

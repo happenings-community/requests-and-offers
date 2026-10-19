@@ -2,7 +2,9 @@ use hdk::prelude::*;
 use messaging_integrity::{EncryptedMessage, EntryTypes, LinkTypes};
 
 use crate::cases::{CaseEvent, CaseKind, CaseRef, MAX_CASE_ID_BYTES};
-use crate::external_calls::{check_if_entity_is_accepted, get_agent_user, get_user_agents};
+use crate::external_calls::{
+  check_if_agent_is_administrator, check_if_entity_is_accepted, get_agent_user, get_user_agents,
+};
 use crate::roles::{require_enabled, require_holder, role_holders, RoleDirection, RoleRef};
 use crate::{send_nudge, SendNudgeInput};
 
@@ -231,6 +233,44 @@ fn require_content_within_bound(content: &str) -> ExternResult<()> {
   Ok(())
 }
 
+/// You must be accepted to send a message, but not to receive one. A member waiting
+/// for approval can therefore be written to, so an administrator can ask what their
+/// application is missing, and a suspended member can be told why; neither can write
+/// back. Only an administrator may write to a member who is not accepted, so pending,
+/// rejected and suspended members are not open to messages from everyone on the
+/// network. Stewards join administrators here when that role exists.
+///
+/// Checked in `deliver`, the one path every send takes, over the members the sender
+/// addressed **as people**: the recipient of a personal message, and the member who
+/// opened the case when a holder replies on it. Holders reached through their role are
+/// not members the sender wrote to, and their own status is the administration zome's
+/// business: an administrator whose `User` is suspended is still a holder, and a
+/// member's message to the role must not fail over that. A member writing to a role
+/// addresses nobody as a person, and the only other recipient is themselves.
+fn require_may_write_to(
+  me: &AgentPubKey,
+  body: &MessageBody,
+  recipients: &[ActionHash],
+) -> ExternResult<()> {
+  let addressed: Vec<&ActionHash> = match &body.case {
+    None => recipients.iter().collect(),
+    Some(case) if body.direction == Some(RoleDirection::FromHolder) => vec![&case.opener],
+    Some(_) => Vec::new(),
+  };
+  for user in addressed {
+    if !check_if_entity_is_accepted("users".to_string(), user.clone())?
+      && !check_if_agent_is_administrator(me.clone())?
+    {
+      return Err(wasm_error!(WasmErrorInner::Guest(
+        "That member is not accepted yet, and only a network administrator can write to \
+         them"
+          .to_string()
+      )));
+    }
+  }
+  Ok(())
+}
+
 /// Encrypt and store one copy of `body` for every agent of every recipient `User`, then
 /// nudge each one.
 ///
@@ -253,6 +293,8 @@ fn deliver(
   body: &MessageBody,
   recipients: &[ActionHash],
 ) -> ExternResult<Vec<SentMessage>> {
+  require_may_write_to(me, body, recipients)?;
+
   let plaintext = XSalsa20Poly1305Data::from(
     ExternIO::encode(body)
       .map_err(|e| wasm_error!(WasmErrorInner::Guest(format!("Could not encode message: {e:?}"))))?

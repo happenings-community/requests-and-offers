@@ -2,7 +2,7 @@
   // InputChip import removed as tags functionality has been removed
   import { useServiceTypeFormManagement } from '$lib/composables';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
-  import { createMockedServiceTypes } from '$lib/utils/mocks';
+  import { loadMocks } from '$lib/utils/load-mocks';
   import type { UIServiceType } from '$lib/types/ui';
 
   type Props = {
@@ -50,6 +50,7 @@
    */
   async function handleMockSubmit(event: Event) {
     event.preventDefault();
+    const { createMockedServiceTypes } = await loadMocks();
     const mockedServiceType = (await createMockedServiceTypes(1))[0];
 
     // Update form state with mocked data

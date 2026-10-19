@@ -43,13 +43,18 @@ describe('recheckAdminStatusNow (#206)', () => {
 });
 
 describe('the profile form re-checks after creating a profile', () => {
-  it('UserForm.svelte calls recheckAdminStatusNow on both create paths', async () => {
+  it('UserForm.svelte re-checks admin status and re-reads the profile on both create paths', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const form = readFileSync(
       resolve(__dirname, '../../../src/lib/components/users/UserForm.svelte'),
       'utf8'
     );
-    expect(form.match(/await recheckAdminStatusNow\(\)/g)?.length).toBe(2);
+    // Both create paths go through one helper, which does both reads.
+    expect(form.match(/await refreshAfterCreate\(\)/g)?.length).toBe(2);
+    const helper = form.slice(form.indexOf('async function refreshAfterCreate'));
+    const body = helper.slice(0, helper.indexOf('\n  }\n') + 4);
+    expect(body).toContain('await recheckAdminStatusNow()');
+    expect(body).toContain('usersStore.refreshCurrentUser()');
   });
 });

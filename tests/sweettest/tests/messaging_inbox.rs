@@ -512,53 +512,6 @@ async fn a_message_arrives_with_the_sender_offline() {
     );
 }
 
-/// Set an entity's status to rejected, as an admin.
-///
-/// Mirrors `accept_entity`, which only ever sets "accepted". Local to this file because
-/// nothing else needs it yet; if a second suite wants it, move it to `common`.
-async fn reject_entity(
-    admin_conductor: &SweetConductor,
-    admin_cell: &SweetCell,
-    entity: &str,
-    entity_hash: ActionHash,
-    reason: &str,
-) {
-    let status_record: Option<Record> = admin_conductor
-        .call(
-            &admin_cell.zome("administration"),
-            "get_latest_status_record_for_entity",
-            serde_json::json!({
-                "entity": entity,
-                "entity_original_action_hash": entity_hash
-            }),
-        )
-        .await;
-    let status_hash = status_record
-        .unwrap_or_else(|| panic!("no status record for {entity}, so it cannot be rejected"))
-        .signed_action
-        .hashed
-        .hash
-        .clone();
-
-    let _: Record = admin_conductor
-        .call(
-            &admin_cell.zome("administration"),
-            "update_entity_status",
-            serde_json::json!({
-                "entity": entity,
-                "entity_original_action_hash": entity_hash,
-                "status_original_action_hash": status_hash,
-                "status_previous_action_hash": status_hash,
-                "new_status": {
-                    "status_type": "rejected",
-                    "reason": reason,
-                    "suspended_until": null
-                }
-            }),
-        )
-        .await;
-}
-
 /// P6a: a sender who is not an accepted member is refused.
 #[tokio::test(flavor = "multi_thread")]
 async fn an_unaccepted_sender_is_refused() {
@@ -602,6 +555,85 @@ async fn an_unaccepted_sender_is_refused() {
         err.contains("not accepted"),
         "the refusal should say the profile is not accepted, so the UI can explain it; got {err}"
     );
+}
+
+/// P6c: you must be accepted to send, not to receive, and only an administrator may
+/// write to a member who is not accepted.
+///
+/// A member waiting for approval can be asked what their application is missing, but
+/// not by everyone: Bob, an accepted member who is not an administrator, is refused,
+/// and Alice, the administrator, is not. Carol, still pending, can read what Alice
+/// wrote, which is the point of letting her receive it.
+#[tokio::test(flavor = "multi_thread")]
+async fn only_an_administrator_may_write_to_a_member_who_is_not_accepted() {
+    let (conductors, alice, bob, carol) = setup_three_agents_with_alice_as_progenitor().await;
+
+    for (i, (cell, name)) in [(&alice, "Alice"), (&bob, "Bob"), (&carol, "Carol")]
+        .into_iter()
+        .enumerate()
+    {
+        conductors[i]
+            .call::<_, Record>(
+                &cell.zome("users_organizations"),
+                "create_user",
+                sample_user(name),
+            )
+            .await;
+    }
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // Alice and Bob accepted; Carol left pending. Alice is the progenitor, so
+    // `create_user` made her the network administrator.
+    let alice_user = user_hash_of(&conductors[0], &alice).await;
+    let bob_user = user_hash_of(&conductors[1], &bob).await;
+    let carol_user = user_hash_of(&conductors[2], &carol).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user).await;
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // Bob is accepted but not an administrator: refused.
+    let refused = conductors[1]
+        .call_fallible::<_, Vec<SentMessage>>(
+            &bob.zome("messaging"),
+            "send_message",
+            plain(carol_user.clone(), "hello"),
+        )
+        .await;
+    let err = match refused {
+        Err(e) => format!("{e:?}"),
+        Ok(sent) => panic!(
+            "a member who is not an administrator should not reach a pending member, but \
+             the send returned {sent:?}"
+        ),
+    };
+    assert!(
+        err.contains("only a network administrator"),
+        "the refusal should say who may write to a member who is not accepted; got {err}"
+    );
+
+    // Alice, the administrator, can write to Carol.
+    let sent: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(carol_user, "what does your application leave out?"),
+        )
+        .await;
+    assert_eq!(sent.len(), 1, "Carol has one agent, so one copy is written");
+    let hash = sent[0].hash.clone();
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // And Carol, still pending, reads it.
+    let read: MessageRead = conductors[2]
+        .call(&carol.zome("messaging"), "get_message", hash)
+        .await;
+    match read {
+        MessageRead::Read(message) => assert_eq!(
+            message.content, "what does your application leave out?",
+            "a pending member reads what an administrator wrote to them"
+        ),
+        other => panic!("Carol should be able to read Alice's message, got {other:?}"),
+    }
 }
 
 /// P6b: a message from an author who is no longer accepted disappears from the inbox.

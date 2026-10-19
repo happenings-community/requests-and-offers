@@ -105,6 +105,22 @@ pub fn check_link_deleter_is_author(
   ValidateCallbackResult::Valid
 }
 
+/// An `Inbox` link's tag must be empty.
+///
+/// `send_message` writes an empty tag. Without this rule a modified client could put
+/// arbitrary bytes on a link that lands in someone else's `get_links`, which is the
+/// one thing the design rules out: an inbox link carries the hash and nothing else,
+/// the same promise a nudge makes.
+pub fn check_inbox_tag_is_empty(tag: &LinkTag) -> ValidateCallbackResult {
+  if !tag.0.is_empty() {
+    return ValidateCallbackResult::Invalid(format!(
+      "An Inbox link's tag must be empty, and this one is {} bytes",
+      tag.0.len()
+    ));
+  }
+  ValidateCallbackResult::Valid
+}
+
 pub fn validate_encrypted_message(message: EncryptedMessage) -> ExternResult<ValidateCallbackResult> {
   Ok(check_ciphertext_size(
     message.encrypted.as_encrypted_data_ref().len(),
@@ -156,6 +172,19 @@ mod tests {
       check_ciphertext_size(MAX_CIPHERTEXT_BYTES + 1),
       "a ciphertext one byte over the bound",
       "over the",
+    );
+  }
+
+  #[test]
+  fn an_inbox_link_tag_must_be_empty() {
+    assert_valid(
+      check_inbox_tag_is_empty(&LinkTag::new(Vec::<u8>::new())),
+      "an Inbox link with an empty tag",
+    );
+    assert_invalid(
+      check_inbox_tag_is_empty(&LinkTag::new(vec![1u8])),
+      "an Inbox link carrying one byte in its tag",
+      "must be empty",
     );
   }
 

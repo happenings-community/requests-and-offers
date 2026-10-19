@@ -450,6 +450,135 @@ async fn a_case_reaches_every_holder_and_the_reply_comes_back() {
     );
 }
 
+/// You must be accepted to send, not to receive, on the role path too: a holder may
+/// reply to a member who opened a case and has since stopped being accepted, and a
+/// member who is not a holder may not.
+///
+/// Carol opens a case while accepted and is then rejected. Bob, accepted but not an
+/// administrator, cannot reply on her case: `send_role_message` refuses him as a
+/// non-holder before anything is delivered, so this half proves the path and not the
+/// gate in `deliver`. Alice, the administrator, can, and Carol reads the reply, which
+/// is the point of letting her receive it. The gate's own refusal is covered on the
+/// personal path, in `messaging_inbox`.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_holder_may_reply_to_an_opener_who_is_no_longer_accepted() {
+    let (conductors, alice, bob, carol) = setup_three_agents_with_alice_as_progenitor().await;
+
+    for (i, cell, name) in [
+        (0usize, &alice, "Alice"),
+        (1, &bob, "Bob"),
+        (2, &carol, "Carol"),
+    ] {
+        conductors[i]
+            .call::<_, Record>(
+                &cell.zome("users_organizations"),
+                "create_user",
+                sample_user(name),
+            )
+            .await;
+    }
+    await_consistency_s(15, [&alice, &bob, &carol])
+        .await
+        .unwrap();
+
+    // All three accepted; Alice is the progenitor, so `create_user` made her the
+    // network administrator, and Bob is an ordinary member.
+    let alice_user = user_hash_of(&conductors[0], &alice).await;
+    let bob_user = user_hash_of(&conductors[1], &bob).await;
+    let carol_user = user_hash_of(&conductors[2], &carol).await;
+    for user in [&alice_user, &bob_user, &carol_user] {
+        accept_entity(&conductors[0], &alice, ENTITY_USERS, user.clone()).await;
+    }
+    await_consistency_s(15, [&alice, &bob, &carol])
+        .await
+        .unwrap();
+
+    // Carol opens a case while she is accepted.
+    conductors[2]
+        .call::<_, Vec<SentMessage>>(
+            &carol.zome("messaging"),
+            "send_role_message",
+            open_case("case-1", "my application says the wrong town"),
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob, &carol])
+        .await
+        .unwrap();
+
+    // Then she stops being accepted.
+    reject_entity(
+        &conductors[0],
+        &alice,
+        ENTITY_USERS,
+        carol_user.clone(),
+        "wrong town",
+    )
+    .await;
+    await_consistency_s(15, [&alice, &bob, &carol])
+        .await
+        .unwrap();
+
+    // Bob is accepted but holds no role: refused, as a non-holder.
+    let refused = conductors[1]
+        .call_fallible::<_, Vec<SentMessage>>(
+            &bob.zome("messaging"),
+            "send_role_message",
+            on_case("case-1", &carol_user, "I can fix that", None),
+        )
+        .await;
+    let err = match refused {
+        Err(e) => format!("{e:?}"),
+        Ok(sent) => panic!(
+            "a member who holds no role should not reach a case opener who is not accepted, \
+             but the send returned {sent:?}"
+        ),
+    };
+    assert!(
+        err.contains("reply on another member's case as that role"),
+        "the refusal should say Bob is not a holder; got {err}"
+    );
+
+    // Alice, the administrator, replies, and the reply reaches Carol.
+    let sent: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_role_message",
+            on_case("case-1", &carol_user, "which town should it say?", None),
+        )
+        .await;
+    assert_eq!(
+        sent.len(),
+        2,
+        "one copy for Alice's own agent and one for Carol's; got {sent:?}"
+    );
+    await_consistency_s(15, [&alice, &bob, &carol])
+        .await
+        .unwrap();
+
+    // Carol's own opening message is not in what she reads: the read side drops every
+    // message whose author is not accepted *now*, and that is her. Only the reply is
+    // asserted on, because that is the claim. Whether a member should still see their own
+    // words after being rejected is a question for the read rule, not for this gate.
+    let mine: Vec<RoleCorrespondence> = conductors[2]
+        .call(&carol.zome("messaging"), "get_my_role_correspondence", ())
+        .await;
+    assert_eq!(mine.len(), 1, "one role, Admin; got {mine:?}");
+    assert_eq!(mine[0].cases.len(), 1, "Carol's one case");
+    let reply = mine[0]
+        .cases[0]
+        .messages
+        .iter()
+        .find(|m| &m.from == alice.agent_pubkey())
+        .unwrap_or_else(|| {
+            panic!(
+                "Carol, no longer accepted, should still read the administrator's reply on \
+                 her case; got {:?}",
+                mine[0].cases[0].messages
+            )
+        });
+    assert_eq!(reply.content, "which town should it say?");
+}
+
 /// Claiming, completing, reopening and handing over, as one fold.
 ///
 /// One case rather than three, because each of these is a step in the same event log and

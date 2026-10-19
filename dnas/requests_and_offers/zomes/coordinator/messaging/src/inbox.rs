@@ -43,11 +43,15 @@ pub struct Message {
 
 /// One item in this agent's inbox.
 ///
-/// `Unreadable` is a fault here, unlike in `get_message`. Every `Inbox` link points at a
-/// message that was encrypted **to this agent**, so failing to decrypt one means
-/// something is wrong: the encryption arguments the wrong way round, a sender that
-/// encrypted to the wrong key, or corrupt data. Dropping it silently would hide exactly
-/// that class of bug, so it is returned and logged instead, with enough to chase it.
+/// `Unreadable` here means a fault, or a sender that sealed it wrongly, unlike in
+/// `get_message`. An honest sender encrypts every message **to the agent its `Inbox`
+/// link names**, so failing to decrypt one means either something is wrong (the
+/// encryption arguments the wrong way round, or corrupt data) or the sender's client did
+/// not do that. Validation cannot tell the two apart: it proves the link's author wrote
+/// the message, not who the ciphertext was sealed to. Dropping it silently would hide
+/// the first case, so it is returned and logged instead, with enough to chase it; in the
+/// second case, blocking the sender removes it, because the block filter runs before
+/// decryption.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum InboxEntry {
@@ -293,12 +297,13 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
         }))
       }
       None => {
-        // A fault, not a filter: this message was linked to this agent's own inbox, so
-        // it was encrypted to this agent. Surfaced rather than dropped, so that a
-        // decrypt-order mistake cannot hide as an empty inbox.
+        // A fault, or a sender that sealed it wrongly; not a filter. An honest sender
+        // encrypted it to this agent, since the link is in this agent's inbox. Surfaced
+        // rather than dropped, so that a decrypt-order mistake cannot hide as an empty
+        // inbox.
         warn!(
-          "Inbox message {hash:?} from {from:?} could not be decrypted, though every \
-           inbox link is encrypted to this agent"
+          "Inbox message {hash:?} from {from:?} could not be decrypted: a fault, or a \
+           sender that did not seal it to this agent"
         );
         out.push(InboxEntry::Unreadable { hash, from, at });
       }

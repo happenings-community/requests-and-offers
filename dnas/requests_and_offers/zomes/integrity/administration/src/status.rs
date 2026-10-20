@@ -213,17 +213,6 @@ pub fn validate_status(status: Status) -> ExternResult<ValidateCallbackResult> {
   Ok(ValidateCallbackResult::Valid)
 }
 
-/// Validates a `Status` update. Currently a pass-through stub — update validation is
-/// handled by field-level checks in [`validate_status`] applied to the new entry.
-pub fn validate_update_user(
-  _action: Update,
-  _status: Status,
-  _original_action: TypedAction<EntryCreationData>,
-  _original_status: Status,
-) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Valid)
-}
-
 /// Validates a `Status` delete — always returns `Invalid`.
 ///
 /// Status entries are append-only; deletion is not permitted. Use

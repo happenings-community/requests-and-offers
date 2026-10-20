@@ -41,13 +41,6 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
   Ok(ValidateCallbackResult::Valid)
 }
 
-pub fn validate_agent_joining(
-  _agent_pub_key: AgentPubKey,
-  _membrane_proof: &Option<MembraneProof>,
-) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Valid)
-}
-
 /// Every rule for a new or updated entry, run for both ops of the write.
 ///
 /// Holochain sends the entry op and the record op of a create or update to

@@ -73,7 +73,17 @@ export async function startConductor(): Promise<void> {
   // want a bare conductor — that's `hc sandbox create`, not `generate`.
   // `--piped` reads the lair-keystore passphrase from stdin instead of
   // prompting interactively, which would hang with no TTY attached.
-  execSync(`nix develop --command hc sandbox --piped create --root "${TEST_WORKDIR}"`, {
+  // `network -b http://127.0.0.1:1/`: the suite's conductor must be alone. With
+  // the default config it registers at the public dev bootstrap server, where
+  // every conductor built from the same zomes (the hApp's network seed is
+  // fixed) is a peer: a parallel CI job, the previous job for up to five
+  // minutes, a developer's own app. A peer that holds `network.administrators`
+  // means the first user here is never made administrator, and a dead peer
+  // makes every network read wait on the transport (measured on 19 October,
+  // notes/2026-10-20-aria-e2e-baseline.md). A closed local port as bootstrap
+  // means no peer is ever found. The transport subcommand is required by the
+  // CLI and does not change the 0.7 config.
+  execSync(`nix develop --command hc sandbox --piped create --root "${TEST_WORKDIR}" network -b http://127.0.0.1:1/ mem`, {
     cwd: PROJECT_ROOT,
     stdio: 'pipe',
     input: `${LAIR_PASSPHRASE}\n`
@@ -151,7 +161,9 @@ export async function setupHapp(): Promise<{ appPort: number; tokenBase64: strin
     console.log('[e2e] Installing hApp...');
     await admin.installApp({
       source: { type: 'path', value: happPath },
-      installed_app_id: 'requests_and_offers'
+      installed_app_id: 'requests_and_offers',
+      // One network per run: a seed no other conductor has, so the DNA hash is unique and no peer can share it.
+      network_seed: `e2e-${Date.now()}`
     });
 
     await admin.enableApp({ installed_app_id: 'requests_and_offers' });

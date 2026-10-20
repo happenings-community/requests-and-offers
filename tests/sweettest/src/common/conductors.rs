@@ -303,3 +303,95 @@ pub async fn setup_two_agents_with_alice_as_progenitor() -> (
 
     (conductors, cell_alice, cell_bob)
 }
+
+// ── A modified client ───────────────────────────────────────────────────────
+
+/// Path to the compiled `forge` zome (`tests/forge`), built to wasm beside the
+/// real zomes by `bun run build:zomes` and never packed into the DNA.
+pub const FORGE_WASM_PATH: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../target/wasm32-unknown-unknown/release/forge.wasm"
+);
+
+/// The same DNA with the `forge` coordinator zome added beside the real ones.
+///
+/// Coordinator zomes are not part of the DNA hash, so this conductor joins the
+/// same network as the others and its writes reach them, exactly as a modified
+/// client's would. The forge zome depends on every integrity zome, so it may
+/// write any of their types.
+pub async fn with_forge(dna: &DnaFile) -> DnaFile {
+    let code = std::fs::read(FORGE_WASM_PATH).unwrap_or_else(|e| {
+        panic!(
+            "Failed to read the forge zome at {FORGE_WASM_PATH}: {e}\n\
+             Did you run `bun run build:zomes`?"
+        )
+    });
+    let wasm = DnaWasm::from(code);
+    let hashed = DnaWasmHashed::from_content(wasm.clone()).await;
+    let dependencies: Vec<ZomeName> = dna
+        .dna_def()
+        .integrity_zomes
+        .iter()
+        .map(|(name, _)| name.clone())
+        .collect();
+    let def = CoordinatorZomeDef::from(ZomeDef::Wasm(WasmZomeDef::new(
+        hashed.as_hash().clone(),
+        Some(dependencies),
+    )));
+    let mut forged = dna.clone();
+    forged
+        .update_coordinators(vec![("forge".into(), def)], vec![wasm])
+        .await
+        .expect("the forge zome should attach to the DNA");
+    forged
+}
+
+/// `real` conductors with the real app, and one more, Mallory, with the real
+/// app plus the `forge` zome, all on one network. With `alice_is_progenitor`
+/// the first real agent's key is the progenitor key in the DNA properties;
+/// otherwise no key is configured, as in development.
+///
+/// Returns `(conductors, real_cells, mallory_cell)`; Mallory is the last
+/// conductor.
+pub async fn setup_agents_and_a_forger(
+    real: usize,
+    alice_is_progenitor: bool,
+) -> (SweetConductorBatch, Vec<SweetCell>, SweetCell) {
+    let mut conductors = SweetConductorBatch::from_config_rendezvous(
+        real + 1,
+        SweetConductorConfig::standard(),
+    )
+    .await;
+
+    let (dna, alice_key) = if alice_is_progenitor {
+        let alice_key = SweetAgents::one(conductors[0].keystore()).await;
+        (build_dna(alice_key.to_string()).await, Some(alice_key))
+    } else {
+        (build_dna_no_progenitor().await, None)
+    };
+    let forged = with_forge(&dna).await;
+
+    let mut cells = Vec::with_capacity(real);
+    for i in 0..real {
+        let app = match (&alice_key, i) {
+            (Some(key), 0) => conductors[i]
+                .setup_app_for_agent("requests_and_offers", key.clone(), &[dna.clone()])
+                .await
+                .expect("Failed to install app for Alice"),
+            _ => conductors[i]
+                .setup_app("requests_and_offers", &[dna.clone()])
+                .await
+                .expect("Failed to install app"),
+        };
+        let (cell,) = app.into_tuple();
+        cells.push(cell);
+    }
+    let mallory_app = conductors[real]
+        .setup_app("requests_and_offers", &[forged])
+        .await
+        .expect("Failed to install the forged app for Mallory");
+    let (mallory,) = mallory_app.into_tuple();
+
+    conductors.exchange_peer_info().await;
+    (conductors, cells, mallory)
+}

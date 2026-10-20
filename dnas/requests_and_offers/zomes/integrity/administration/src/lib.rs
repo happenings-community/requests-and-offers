@@ -54,13 +54,6 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
   Ok(ValidateCallbackResult::Valid)
 }
 
-pub fn validate_agent_joining(
-  _agent_pub_key: AgentPubKey,
-  _membrane_proof: &Option<MembraneProof>,
-) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Valid)
-}
-
 // ============================================================================
 // AllAdministrators LINK VALIDATION
 // ============================================================================

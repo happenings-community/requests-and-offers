@@ -30,6 +30,13 @@ use crate::{external_local_call, DnaProperties};
 /// same shape written under another zome's type is not mistaken for a grant.
 pub const ADMINISTRATION_INTEGRITY_ZOME: &str = "administration_integrity";
 
+/// The integrity zome that registers organisations and their membership links.
+pub const USERS_ORGANIZATIONS_INTEGRITY_ZOME: &str = "users_organizations_integrity";
+
+/// `OrganizationMembers`' position in `users_organizations_integrity::LinkTypes`.
+/// Checked by a unit test in that crate.
+pub const ORGANIZATION_MEMBERS_LINK_TYPE: u8 = 9;
+
 /// `RoleGrant`'s position in `administration_integrity::EntryTypes`, after
 /// `Status`. Checked by a unit test in that crate.
 pub const ROLE_GRANT_ENTRY_INDEX: u8 = 1;
@@ -261,19 +268,57 @@ pub fn root_signature_is_valid<D: Serialize + std::fmt::Debug>(
   }
 }
 
-/// The index of the administration integrity zome in this DNA.
-fn administration_zome_index() -> ExternResult<ZomeIndex> {
+/// The index of an integrity zome in this DNA, by its name.
+fn zome_index_of(zome: &str) -> ExternResult<ZomeIndex> {
   let names = dna_info()?.zome_names;
   let position = names
     .iter()
-    .position(|name| name.0.as_ref() == ADMINISTRATION_INTEGRITY_ZOME)
+    .position(|name| name.0.as_ref() == zome)
     .ok_or_else(|| {
       wasm_error!(WasmErrorInner::Guest(format!(
         "{} is not an integrity zome of this DNA",
-        ADMINISTRATION_INTEGRITY_ZOME
+        zome
       )))
     })?;
   Ok(ZomeIndex(position as u8))
+}
+
+fn administration_zome_index() -> ExternResult<ZomeIndex> {
+  zome_index_of(ADMINISTRATION_INTEGRITY_ZOME)
+}
+
+/// Whether a valid `OrganizationMembers` link admits `author` to `organization`:
+/// the link is a record, read with `must_get_valid_record`, whose base is the
+/// organisation and whose target is a user entity the author created. What a
+/// listing posted on an organisation's behalf carries, since validation
+/// cannot look links up and can only follow one it is handed. A link that has
+/// since been deleted still reads as valid here, the same limit as a revoked
+/// grant: the app refuses, the network cannot see the removal.
+pub fn membership_admits(
+  link: &ActionHash,
+  organization: &ActionHash,
+  author: &AgentPubKey,
+) -> ExternResult<Result<(), String>> {
+  let record = must_get_valid_record(link.clone())?;
+  let ActionData::CreateLink(create) = &record.action().data else {
+    return Ok(Err("a membership is an OrganizationMembers link".to_string()));
+  };
+  if create.zome_index != zome_index_of(USERS_ORGANIZATIONS_INTEGRITY_ZOME)?
+    || create.link_type != LinkType(ORGANIZATION_MEMBERS_LINK_TYPE)
+  {
+    return Ok(Err("a membership is an OrganizationMembers link".to_string()));
+  }
+  if create.base_address != AnyLinkableHash::from(organization.clone()) {
+    return Ok(Err("the membership named is in another organisation".to_string()));
+  }
+  let Some(user) = create.target_address.clone().into_action_hash() else {
+    return Ok(Err("the membership named has no member".to_string()));
+  };
+  match creator_of(&user)? {
+    Ok(creator) if &creator == author => Ok(Ok(())),
+    Ok(_) => Ok(Err("the membership named is someone else's".to_string())),
+    Err(reason) => Ok(Err(reason)),
+  }
 }
 
 /// Whether an action created an entry of the given type in the administration

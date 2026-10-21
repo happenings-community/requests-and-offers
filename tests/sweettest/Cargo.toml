@@ -95,3 +95,7 @@ path = "tests/record_op_premise.rs"
 [[test]]
 name = "grants"
 path = "tests/grants.rs"
+
+[[test]]
+name = "listing_removal"
+path = "tests/listing_removal.rs"

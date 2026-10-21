@@ -225,6 +225,20 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 }
 
 #[cfg(test)]
+mod link_index_tests {
+  //! `utils::grants::membership_admits` recognises an `OrganizationMembers` link
+  //! by its index in this zome, so the constant there must match the enum here.
+  use utils::grants::ORGANIZATION_MEMBERS_LINK_TYPE;
+
+  use crate::LinkTypes;
+
+  #[test]
+  fn the_members_link_index_other_zomes_rely_on_is_right() {
+    assert_eq!(LinkTypes::OrganizationMembers as u8, ORGANIZATION_MEMBERS_LINK_TYPE);
+  }
+}
+
+#[cfg(test)]
 mod record_op_tests {
   //! A create or update reaches the DHT as two ops that go to different
   //! authorities, `CreateEntry` by entry hash and `CreateRecord` by action hash,

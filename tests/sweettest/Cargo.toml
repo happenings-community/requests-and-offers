@@ -95,3 +95,7 @@ path = "tests/messaging.rs"
 [[test]]
 name = "record_op_premise"
 path = "tests/record_op_premise.rs"
+
+[[test]]
+name = "grants"
+path = "tests/grants.rs"

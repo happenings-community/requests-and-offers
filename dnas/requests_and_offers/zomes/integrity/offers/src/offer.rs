@@ -1,5 +1,5 @@
 use hdi::prelude::*;
-use utils::listing_rules::{amount_problem, hours_problem, timeframe_problem};
+use utils::listing_rules::{amount_problem, hours_problem, links_problem, timeframe_problem};
 use utils::{InteractionType, Quantity, TimePreference, TimeZone, Timeframe};
 
 /// Represents the status of a listing
@@ -69,6 +69,9 @@ pub fn validate_offer(offer: Offer) -> ExternResult<ValidateCallbackResult> {
     return Ok(ValidateCallbackResult::Invalid(reason));
   }
   if let Some(reason) = amount_problem(&offer.amount) {
+    return Ok(ValidateCallbackResult::Invalid(reason));
+  }
+  if let Some(reason) = links_problem(&offer.links) {
     return Ok(ValidateCallbackResult::Invalid(reason));
   }
 

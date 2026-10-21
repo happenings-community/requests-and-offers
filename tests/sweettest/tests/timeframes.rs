@@ -1,7 +1,8 @@
 //! Timeframes and quantities on listings (#370, #307): the honest paths
 //! read back by a second conductor, every refusal with its reason, and the
 //! update rule: dates are checked when set or changed, never when left as
-//! they were, so an expired listing can still be archived.
+//! they were, so an expired listing can still be archived. Links on
+//! listings and organisations must be web addresses.
 
 use holochain::prelude::*;
 use holochain::sweettest::*;
@@ -180,6 +181,55 @@ async fn hours_and_amounts_must_be_figures() {
             .map_err(|e| format!("{e:?}"));
         refused(result, reason, &format!("an offer with {what}"));
     }
+}
+
+/// Links that are not web addresses, on a request, an offer and an
+/// organisation; a web address and a bare one are accepted on each.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_link_must_be_a_web_address() {
+    let (conductors, alice, _bob) = two_members().await;
+    let attacks = [
+        ("a javascript: link", "javascript:alert(1)", "must be a web address"),
+        ("a data: link", "data:text/html,<script>alert(1)</script>", "must be a web address"),
+        ("a link with a tab in its scheme", "java\tscript:alert(1)", "control characters"),
+    ];
+    for (what, link, reason) in attacks {
+        let links = vec!["https://example.org".to_string(), link.to_string()];
+        let mut request = sample_request("Help with gardening");
+        request.request.links = links.clone();
+        let result = conductors[0]
+            .call_fallible::<_, Record>(&alice.zome("requests"), "create_request", request)
+            .await
+            .map_err(|e| format!("{e:?}"));
+        refused(result, reason, &format!("a request with {what}"));
+        let mut offer = sample_offer("Web design review");
+        offer.offer.links = links.clone();
+        let result = conductors[0]
+            .call_fallible::<_, Record>(&alice.zome("offers"), "create_offer", offer)
+            .await
+            .map_err(|e| format!("{e:?}"));
+        refused(result, reason, &format!("an offer with {what}"));
+        let mut organization = sample_organization("Gardeners");
+        organization.urls = links;
+        let result = conductors[0]
+            .call_fallible::<_, Record>(&alice.zome("users_organizations"), "create_organization", organization)
+            .await
+            .map_err(|e| format!("{e:?}"));
+        refused(result, reason, &format!("an organisation with {what}"));
+    }
+
+    let good = vec!["https://example.org/about".to_string(), "example.org".to_string()];
+    let mut request = sample_request("Help with gardening");
+    request.request.links = good.clone();
+    let _: Record = conductors[0].call(&alice.zome("requests"), "create_request", request).await;
+    let mut offer = sample_offer("Web design review");
+    offer.offer.links = good.clone();
+    let _: Record = conductors[0].call(&alice.zome("offers"), "create_offer", offer).await;
+    let mut organization = sample_organization("Gardeners");
+    organization.urls = good;
+    let _: Record = conductors[0]
+        .call(&alice.zome("users_organizations"), "create_organization", organization)
+        .await;
 }
 
 /// The update rule: a window left as it was is not re-checked, so an expired

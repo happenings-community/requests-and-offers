@@ -16,8 +16,8 @@ use hdk::prelude::*;
 use utils::{
   errors::{AdministrationError, CommonError},
   grants::{
-    grant_covers, grant_tag, Ability, Authority, CanInput, GrantBody, Role, RoleGrant,
-    RoleRevocation,
+    grant_covers, grant_tag, Ability, Authority, CanInput, GrantBody, GrantRoleInput,
+    RevokeRolesOfInput, Role, RoleGrant, RoleRevocation,
   },
   DnaProperties,
 };
@@ -148,14 +148,6 @@ pub fn write_grant(
   Ok(hash)
 }
 
-/// Input for `grant_role`.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GrantRoleInput {
-  pub role: Role,
-  pub holder: AgentPubKey,
-  pub scope: Option<ActionHash>,
-}
-
 /// Gives an agent a role, resting on the caller's authority. Returns the grant
 /// already held if there is one, so a second grant is never written for the
 /// same role and scope.
@@ -219,6 +211,13 @@ pub fn revoke_all(
     }
   }
   Ok(revoked)
+}
+
+/// Withdraws every live grant of one role an agent holds in a scope, for another
+/// zome: an organisation removing a coordinator. Returns how many were revoked.
+#[hdk_extern]
+pub fn revoke_roles_of(input: RevokeRolesOfInput) -> ExternResult<usize> {
+  revoke_all(&input.holder, input.role, &input.scope, &input.reason)
 }
 
 /// Every live grant an agent holds, as records, for the interface.

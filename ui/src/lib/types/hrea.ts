@@ -66,6 +66,8 @@ export interface GraphQLCommitmentResponse {
   resourceConformsTo?: Ref;
   resourceQuantity?: RawMeasure;
   due?: string | null;
+  hasBeginning?: string | null;
+  hasEnd?: string | null;
   finished?: boolean | null;
   note?: string | null;
   agreedIn?: string | null;

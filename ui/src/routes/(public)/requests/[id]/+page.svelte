@@ -13,6 +13,7 @@
   import { isUserApproved } from '$lib/utils';
   import type { UIRequest, UIUser, UIOrganization } from '$lib/types/ui';
   import { ListingStatus, TimePreferenceHelpers } from '$lib/types/holochain';
+  import { timeframeLabel } from '$lib/utils/counter-proposal';
   import { runEffect } from '$lib/utils/effect';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
@@ -349,23 +350,12 @@
 
         <!-- Request Details Grid -->
         <section class="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <!-- Date Range -->
-          {#if request.date_range}
+          <!-- Timeframe -->
+          {#if request.timeframe}
             <div>
-              <h3 class="h4 mb-2 font-semibold">Date Range</h3>
-              <p>
-                {#if request.date_range.start && request.date_range.end}
-                  {formatDate(new Date(request.date_range.start))} to {formatDate(
-                    new Date(request.date_range.end)
-                  )}
-                {:else if request.date_range.start}
-                  Starting {formatDate(new Date(request.date_range.start))}
-                {:else if request.date_range.end}
-                  Until {formatDate(new Date(request.date_range.end))}
-                {:else}
-                  No date range specified
-                {/if}
-              </p>
+              <!-- DRAFT copy -->
+              <h3 class="h4 mb-2 font-semibold">Timeframe</h3>
+              <p>{timeframeLabel(request.timeframe)}</p>
             </div>
           {/if}
 

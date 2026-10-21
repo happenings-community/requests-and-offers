@@ -1,4 +1,6 @@
 import { Schema } from 'effect';
+import { TimeframeSchema } from './common.schemas';
+import { ExchangeQuantity } from './exchanges.schemas';
 
 // Form validation schemas
 export const EmailSchema = Schema.String.pipe(
@@ -119,17 +121,16 @@ export const CreateRequestFormSchema = Schema.Struct({
   ),
 
   // Optional fields with validation
-  date_range: Schema.optional(
-    Schema.Struct({
-      start: Schema.NullOr(Schema.Number),
-      end: Schema.NullOr(Schema.Number)
-    }).pipe(
+  timeframe: Schema.optional(
+    TimeframeSchema.pipe(
       Schema.annotations({
-        title: 'Date Range',
+        title: 'Timeframe',
         description: 'When you need this request fulfilled'
       })
     )
   ),
+
+  amount: Schema.optional(ExchangeQuantity),
 
   time_estimate_hours: Schema.optional(
     Schema.Number.pipe(

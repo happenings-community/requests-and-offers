@@ -55,10 +55,7 @@ describe('StoreEventBus', () => {
       title: 'Need React Developer',
       description: 'Looking for a skilled React developer',
       contact_preference: 'Email',
-      date_range: {
-        start: Date.now(),
-        end: Date.now() + 86400000
-      },
+      timeframe: { Preset: 'WithinAFewDays' },
       time_estimate_hours: 2,
       time_preference: 'Morning',
       time_zone: 'UTC',

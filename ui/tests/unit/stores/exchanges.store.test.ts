@@ -31,7 +31,7 @@ const agreement: AgreementInDHT = {
   reciprocal: { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Gift', quantity: null },
   medium: 'Free/Pay it Forward',
   terms: 'Saturday, bring gloves',
-  delivery_timeframe: 'Within 2 weeks',
+  delivery_timeframe: { Preset: 'WithinTwoWeeks' },
   counters: null
 };
 

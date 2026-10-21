@@ -3,7 +3,12 @@
   import { goto } from '$app/navigation';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import { useCounterProposal } from '$lib/composables/domain/exchanges/useCounterProposal.svelte';
-  import { describeQuantity, NOTHING_CHANGED } from '$lib/utils/counter-proposal';
+  import {
+    describeQuantity,
+    NOTHING_CHANGED,
+    sameTimeframe,
+    timeframeLabel
+  } from '$lib/utils/counter-proposal';
   import { termLabel } from '$lib/utils/exchange-ui';
 
   const agreementHash = $derived.by(() => {
@@ -132,10 +137,18 @@
 
       <label class="label">
         <span>Delivery timeframe</span>
-        <select class="select" bind:value={counter.timeframe} data-testid="counter-timeframe">
-          {#each counter.timeframes as t (t)}<option value={t}>{t}</option>{/each}
+        <!-- Bound by index: a timeframe is an object, and a select matches its options by identity. -->
+        <select
+          class="select"
+          bind:value={
+            () => counter.timeframes.findIndex((t) => sameTimeframe(t.value, counter.timeframe)),
+            (i: number) => (counter.timeframe = counter.timeframes[i].value)
+          }
+          data-testid="counter-timeframe"
+        >
+          {#each counter.timeframes as t, i (t.label)}<option value={i}>{t.label}</option>{/each}
         </select>
-        <span class="text-xs text-surface-500">Proposed: {a.delivery_timeframe || '—'}</span>
+        <span class="text-xs text-surface-500">Proposed: {timeframeLabel(a.delivery_timeframe)}</span>
       </label>
 
       <p class="text-xs text-surface-500">

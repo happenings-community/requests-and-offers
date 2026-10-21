@@ -174,6 +174,49 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           "coordinators",
         );
       }
+      // The update-chain rules, routed as they are (#234): both ends of the
+      // link are records of this type.
+      LinkTypes::UserUpdates => {
+        return validate_create_link_user_updates(
+          action.clone(),
+          action.base_address.clone(),
+          action.target_address.clone(),
+          action.tag.clone(),
+        );
+      }
+      LinkTypes::OrganizationUpdates => {
+        return validate_create_link_organization_updates(
+          action.clone(),
+          action.base_address.clone(),
+          action.target_address.clone(),
+          action.tag.clone(),
+        );
+      }
+      _ => (),
+    },
+    FlatOp::Link(OpLink::DeleteLink {
+      link_type,
+      action,
+      original_action,
+    }) => match link_type {
+      LinkTypes::UserUpdates => {
+        return validate_delete_link_user_updates(
+          action.clone(),
+          original_action.clone(),
+          action.base_address.clone(),
+          original_action.target_address.clone(),
+          original_action.tag.clone(),
+        );
+      }
+      LinkTypes::OrganizationUpdates => {
+        return validate_delete_link_organization_updates(
+          action.clone(),
+          original_action.clone(),
+          action.base_address.clone(),
+          original_action.target_address.clone(),
+          original_action.tag.clone(),
+        );
+      }
       _ => (),
     },
     _ => (),

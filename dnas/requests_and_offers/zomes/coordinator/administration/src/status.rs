@@ -589,13 +589,15 @@ pub fn unsuspend_entity(input: UpdateInput) -> ExternResult<bool> {
   Ok(update_entity_status(update_status_input).is_ok())
 }
 
-/// Deletes the `EntityStatus` link and the underlying `Status` entry for the given entity.
+/// Takes an entity out of the status index: its `EntityStatus` link and any
+/// `AcceptedEntity` link. Its `Status` entries stand; statuses are never deleted
+/// (`validate` refuses the delete). Until #234 passed, this deleted the entity's own
+/// record instead of its status, so deleting an organisation tombed it twice and left
+/// its status index in place.
 ///
-/// Also removes any `AcceptedEntity` link so the entity no longer appears in the accepted
-/// index. Note: `Status` entries themselves are immutable by integrity validation
-/// (`validate_delete_status` always returns `Invalid`), so this operation will fail at the
-/// DHT validation layer — this function exists for coordinator-level cleanup scenarios
-/// where entry deletion is permitted by a future policy change.
+/// Deleting an organisation (two role holders) comes later. Until then
+/// `delete_organization` clears the organisation's links, calls this, and tombs the
+/// organisation record itself.
 #[hdk_extern]
 pub fn delete_status(input: EntityActionHash) -> ExternResult<bool> {
   let link = get_entity_status_link(input.clone())?;
@@ -606,8 +608,6 @@ pub fn delete_status(input: EntityActionHash) -> ExternResult<bool> {
   })?;
 
   delete_link(link.create_link_hash, GetOptions::default())?;
-  let hash: ActionHash = input.entity_original_action_hash.into();
-  delete_entry(hash)?;
 
   Ok(true)
 }

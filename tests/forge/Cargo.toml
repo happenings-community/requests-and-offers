@@ -1,0 +1,18 @@
+[package]
+name = "forge"
+version = "0.0.1"
+edition = "2021"
+
+# A test-only coordinator zome: a modified client, for Sweettest. It writes
+# entries and links by zome and type index, past every rule the real
+# coordinators enforce, so the integrity zomes' rules can be shown to hold on
+# their own. Never part of the DNA bundle; Sweettest swaps it into a conductor
+# with `DnaFile::update_coordinators`, which leaves the DNA hash as it is.
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "forge"
+
+[dependencies]
+hdk = { workspace = true }
+serde = { workspace = true }

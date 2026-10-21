@@ -2,6 +2,7 @@ use hdk::prelude::*;
 use offers_integrity::*;
 use utils::{
   errors::{AdministrationError, CommonError, UsersError},
+  grants::{require_grant, Ability},
   resolve_chain_root, EntityActionHash, GetMediumOfExchangeForEntityInput,
   GetServiceTypeForEntityInput, MediumOfExchangeLinkInput, OriginalActionHash, PreviousActionHash,
   ServiceTypeLinkInput, UpdateMediumOfExchangeLinksInput, UpdateServiceTypeLinksInput,
@@ -43,7 +44,12 @@ pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
     return Err(AdministrationError::EntityNotAccepted("users".to_string()).into());
   }
 
-  let offer_hash = create_entry(&EntryTypes::Offer(input.offer))?;
+  // The validator checks a member grant; the profile checks above give the
+  // clearer error first.
+  let grant = require_grant(Ability::Participate, None)?;
+  let mut offer = input.offer;
+  offer.grant = Some(grant);
+  let offer_hash = create_entry(&EntryTypes::Offer(offer))?;
 
   let record = get(offer_hash.clone(), GetOptions::default())?.ok_or(
     CommonError::EntryNotFound("Could not find the newly created offer".to_string()),
@@ -350,8 +356,17 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
   )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
-  // Check if the agent is the author or an administrator
-  let author = original_record.action().author().clone();
+  // Check if the agent is the author or an administrator. The author is the
+  // offer's creator, as the validator reads it: the client's "original" may be
+  // a revision an admin wrote, so read the chain's root.
+  let creator_record = get(
+    resolve_chain_root(input.original_action_hash.0.clone()),
+    GetOptions::default(),
+  )?
+  .ok_or(CommonError::EntryNotFound(
+    "Could not find the original offer".to_string(),
+  ))?;
+  let author = creator_record.action().author().clone();
   let is_author = author == agent_pubkey;
   let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
 
@@ -373,7 +388,14 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
   }
 
   let previous_hash = input.previous_action_hash.0.clone();
-  let updated_offer_hash = update_entry(input.previous_action_hash.into(), &input.updated_offer)?;
+  // The creator needs no grant; an admin carries theirs. Never the client's.
+  let mut updated_offer = input.updated_offer;
+  updated_offer.grant = if is_author {
+    None
+  } else {
+    Some(require_grant(Ability::Administer, None)?)
+  };
+  let updated_offer_hash = update_entry(input.previous_action_hash.into(), &updated_offer)?;
 
   // Update the ActiveOffers link in "offers.active" to point to the new record.
   // create_offer uses Path::from("offers.active") + LinkTypes::ActiveOffers, so
@@ -585,8 +607,16 @@ pub fn archive_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
   )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
-  // Check if the agent is the author or an administrator
-  let author = latest_record.action().author().clone();
+  // Check if the agent is the author or an administrator. The author is the
+  // offer's creator, as the validator reads it, not the latest revision's.
+  let creator_record = get(
+    resolve_chain_root(original_action_hash.clone()),
+    GetOptions::default(),
+  )?
+  .ok_or(CommonError::EntryNotFound(
+    "Could not find the original offer".to_string(),
+  ))?;
+  let author = creator_record.action().author().clone();
   let is_author = author == agent_pubkey;
   let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
 
@@ -606,6 +636,12 @@ pub fn archive_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
   // Update the offer with archived status
   let mut updated_offer = current_offer.clone();
   updated_offer.status = ListingStatus::Archived;
+  // The creator needs no grant; an admin carries theirs, not the last writer's.
+  updated_offer.grant = if is_author {
+    None
+  } else {
+    Some(require_grant(Ability::Administer, None)?)
+  };
 
   // Create update entry - use the LATEST action hash as previous
   let latest_action_hash = latest_record.signed_action.hashed.hash.clone();

@@ -342,11 +342,16 @@ pub fn check_act(
 /// updated. Every record on the way has passed validation. Bounded by the
 /// chain's length.
 pub fn creator_of(action_hash: &ActionHash) -> ExternResult<Result<AgentPubKey, String>> {
+  Ok(chain_root(action_hash)?.map(|(_, creator)| creator))
+}
+
+/// The root of an update chain and its author, reached the same way.
+pub fn chain_root(action_hash: &ActionHash) -> ExternResult<Result<(ActionHash, AgentPubKey), String>> {
   let mut current = action_hash.clone();
   loop {
-    let record = must_get_valid_record(current)?;
+    let record = must_get_valid_record(current.clone())?;
     match &record.action().data {
-      ActionData::Create(_) => return Ok(Ok(record.action().author().clone())),
+      ActionData::Create(_) => return Ok(Ok((current, record.action().author().clone()))),
       ActionData::Update(update) => current = update.original_action_address.clone(),
       _ => return Ok(Err("an entity's chain holds creates and updates only".to_string())),
     }
@@ -378,6 +383,23 @@ pub fn grant_tag(grant: &ActionHash) -> LinkTag {
 pub fn grant_from_tag(tag: &LinkTag) -> Result<ActionHash, String> {
   ActionHash::try_from_raw_39(tag.0.clone())
     .map_err(|_| "the link's tag does not carry a grant".to_string())
+}
+
+/// Input to the administration coordinator's `revoke_roles_of`.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RevokeRolesOfInput {
+  pub holder: AgentPubKey,
+  pub role: Role,
+  pub scope: Option<ActionHash>,
+  pub reason: String,
+}
+
+/// Input to the administration coordinator's `grant_role`.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GrantRoleInput {
+  pub role: Role,
+  pub holder: AgentPubKey,
+  pub scope: Option<ActionHash>,
 }
 
 /// Input to the administration coordinator's `can`.

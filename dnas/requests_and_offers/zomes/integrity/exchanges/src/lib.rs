@@ -1,5 +1,6 @@
 use hdi::prelude::*;
 use utils::errors::CommonError;
+use utils::grants::{check_act, Ability};
 
 /// Which kind of listing an exchange settles. Carried on entries so the
 /// coordinator looks the listing up in the right zome and a cross-zome error
@@ -53,6 +54,9 @@ pub struct Interest {
   pub listing_type: ListingType,
   /// The interested member's user hash, so a listing's author sees who.
   pub user: ActionHash,
+  /// The grant this write rests on: member held by the author.
+  #[serde(default)]
+  pub grant: Option<ActionHash>,
 }
 
 /// What two parties agreed off-app, written up by either of them. The
@@ -73,6 +77,9 @@ pub struct Agreement {
   pub medium: String,
   pub terms: String,
   pub delivery_timeframe: String,
+  /// The grant this write rests on: member held by the author.
+  #[serde(default)]
+  pub grant: Option<ActionHash>,
 }
 
 /// The other party accepting or declining an agreement.
@@ -236,10 +243,14 @@ fn validate_interest(author: &AgentPubKey, interest: &Interest) -> ExternResult<
     return invalid(&reason);
   }
   match agent_for_user(&interest.user)? {
-    Ok(agent) if agent == *author => Ok(ValidateCallbackResult::Valid),
-    Ok(_) => invalid("an interest names its own author's user"),
-    Err(reason) => invalid(&reason),
+    Ok(agent) if agent == *author => {}
+    Ok(_) => return invalid("an interest names its own author's user"),
+    Err(reason) => return invalid(&reason),
   }
+  if let Err(reason) = check_act(&interest.grant, author, &Ability::Participate, &None)? {
+    return invalid(&format!("an interest is a role act: {}", reason));
+  }
+  Ok(ValidateCallbackResult::Valid)
 }
 
 /// An agreement points at an interest on the same listing. Its author is the
@@ -316,6 +327,9 @@ fn validate_agreement(author: &AgentPubKey, agreement: &Agreement) -> ExternResu
   }
   if agreement.medium.trim().is_empty() {
     return invalid("agreement names no medium of exchange");
+  }
+  if let Err(reason) = check_act(&agreement.grant, author, &Ability::Participate, &None)? {
+    return invalid(&format!("an agreement is a role act: {}", reason));
   }
   Ok(ValidateCallbackResult::Valid)
 }
@@ -425,6 +439,20 @@ fn validate_link(
 // except ops this zome has no opinion on.
 // ---------------------------------------------------------------------------
 
+/// Every rule for a new entry, run for both ops of the write. The entry op
+/// and the record op go to different authorities, and `must_get_valid_record`
+/// trusts the record authority's verdict (#348).
+fn validate_entry(app_entry: EntryTypes, author: &AgentPubKey) -> ExternResult<ValidateCallbackResult> {
+  match app_entry {
+    EntryTypes::Interest(i) => validate_interest(author, &i),
+    EntryTypes::Agreement(a) => validate_agreement(author, &a),
+    EntryTypes::Response(r) => validate_response(author, &r),
+    EntryTypes::Completion(c) => validate_party_entry(author, &c.agreement, "completion"),
+    EntryTypes::Review(r) => validate_review(author, &r),
+    EntryTypes::Cancellation(c) => validate_party_entry(author, &c.agreement, "cancellation"),
+  }
+}
+
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
   // Fast path. `op.flattened()` below is the expensive call. Agent-activity
@@ -442,21 +470,12 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, action } => {
-        let author = action.author();
-        match app_entry {
-          EntryTypes::Interest(i) => validate_interest(author, &i),
-          EntryTypes::Agreement(a) => validate_agreement(author, &a),
-          EntryTypes::Response(r) => validate_response(author, &r),
-          EntryTypes::Completion(c) => validate_party_entry(author, &c.agreement, "completion"),
-          EntryTypes::Review(r) => validate_review(author, &r),
-          EntryTypes::Cancellation(c) => validate_party_entry(author, &c.agreement, "cancellation"),
-        }
-      }
+      OpEntry::CreateEntry { app_entry, action } => validate_entry(app_entry, action.author()),
       OpEntry::UpdateEntry { .. } => invalid("exchange records are append-only; nothing is updated"),
       _ => Ok(ValidateCallbackResult::Valid),
     },
     FlatOp::CreateRecord(store_record) => match store_record {
+      OpRecord::CreateEntry { app_entry, action } => validate_entry(app_entry, action.author()),
       // An interest may be withdrawn by its author; nothing else is deleted.
       OpRecord::DeleteEntry { action } => {
         let original = must_get_valid_record(action.deletes_address.clone())?;

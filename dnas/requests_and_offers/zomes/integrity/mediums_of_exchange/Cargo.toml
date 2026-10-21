@@ -8,9 +8,7 @@ crate-type = ["cdylib", "rlib"]
 name = "mediums_of_exchange_integrity"
 
 [dependencies]
+utils = { workspace = true }
 hdi = { workspace = true }
 holochain_serialized_bytes = { workspace = true }
 serde = { workspace = true }
-
-[dev-dependencies]
-utils = { workspace = true }

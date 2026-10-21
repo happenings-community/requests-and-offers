@@ -2,6 +2,7 @@ use hdk::prelude::*;
 use service_types_integrity::{EntryTypes, LinkTypes, ServiceType};
 use utils::{
   errors::{AdministrationError, CommonError, ServiceTypeError},
+  grants::{can_i, require_grant, Ability},
   resolve_chain_root, GetServiceTypeForEntityInput, OriginalActionHash, PreviousActionHash,
   ServiceTypeLinkInput, UpdateServiceTypeLinksInput,
 };
@@ -35,8 +36,12 @@ pub fn create_service_type(input: ServiceTypeInput) -> ExternResult<Record> {
     return Err(AdministrationError::Unauthorized.into());
   }
 
+  // Validation reads the grant, so it is ours, never the caller's.
+  let mut service_type = input.service_type;
+  service_type.grant = Some(require_grant(Ability::Administer, None)?);
+
   // Create the service type entry
-  let service_type_hash = create_entry(EntryTypes::ServiceType(input.service_type.clone()))?;
+  let service_type_hash = create_entry(EntryTypes::ServiceType(service_type))?;
 
   // Get the created record
   let record = get(service_type_hash.clone(), GetOptions::default())?.ok_or(
@@ -92,8 +97,16 @@ pub fn suggest_service_type(input: ServiceTypeInput) -> ExternResult<Record> {
     }
   }
 
+  // Validation reads the grant, so it is ours, never the caller's: an admin
+  // grant if we hold one, else a member grant.
+  let mut service_type = input.service_type;
+  service_type.grant = Some(match can_i(Ability::Administer, None)? {
+    Some(grant) => grant,
+    None => require_grant(Ability::Participate, None)?,
+  });
+
   // Create the service type entry
-  let service_type_hash = create_entry(EntryTypes::ServiceType(input.service_type.clone()))?;
+  let service_type_hash = create_entry(EntryTypes::ServiceType(service_type))?;
 
   // Get the created record
   let record = get(service_type_hash.clone(), GetOptions::default())?.ok_or(
@@ -174,11 +187,12 @@ pub fn update_service_type(input: UpdateServiceTypeInput) -> ExternResult<Action
     return Err(AdministrationError::Unauthorized.into());
   }
 
+  // Validation reads the grant, so it is ours, never the caller's.
+  let mut updated_service_type = input.updated_service_type;
+  updated_service_type.grant = Some(require_grant(Ability::Administer, None)?);
+
   // Update the service type entry
-  let updated_action_hash = update_entry(
-    input.previous_action_hash.into(),
-    &input.updated_service_type,
-  )?;
+  let updated_action_hash = update_entry(input.previous_action_hash.into(), &updated_service_type)?;
 
   // Create a link from the original service type to the updated one. The caller's
   // "original" may itself be a revision (list surfaces hand back the latest record),

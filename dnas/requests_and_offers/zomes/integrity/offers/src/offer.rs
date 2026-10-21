@@ -1,6 +1,6 @@
 use hdi::prelude::*;
 use utils::{
-  grants::{check_act, check_author_or_act, Ability},
+  grants::{chain_root, check_act, membership_admits, Ability},
   InteractionType, TimePreference, TimeZone,
 };
 
@@ -33,10 +33,25 @@ pub struct Offer {
   pub status: ListingStatus,
   /// The grant this write rests on: a member grant held by the
   /// author on a create; on an update, an admin grant when the author is not
-  /// the offer's creator.
+  /// the offer's creator, or, for a removal, a coordinator grant for
+  /// `organization`.
   #[serde(default)]
   pub grant: Option<ActionHash>,
+  /// The organisation this offer is posted on behalf of, if any. Set at
+  /// creation and never changed by an update.
+  #[serde(default)]
+  pub organization: Option<ActionHash>,
+  /// With `organization`: the `OrganizationMembers` link that admits the author
+  /// to it, as its action hash, which validation reads to prove membership.
+  #[serde(default)]
+  pub membership: Option<ActionHash>,
+  /// Why a role holder removed this offer. Required when a status of
+  /// `Deleted` is written by anyone but the creator; the remover is the
+  /// update's author.
+  #[serde(default)]
+  pub removal_reason: Option<String>,
 }
+
 
 /// Default function for listing status
 fn default_listing_status() -> ListingStatus {
@@ -69,26 +84,86 @@ pub fn validate_offer(offer: Offer) -> ExternResult<ValidateCallbackResult> {
   Ok(ValidateCallbackResult::Valid)
 }
 
-/// The grant rule for an offer, run after the field rules.
-/// A create needs a member grant held by the author. An update (`update` is the
-/// action it updates) needs the offer's creator, or an admin grant.
-pub fn validate_offer_grant(
-  grant: &Option<ActionHash>,
+/// The role rule for an offer, run after the field rules.
+///
+/// A create needs a member grant held by the author; posted on an organisation's
+/// behalf, it carries the membership link that admits the author to it.
+///
+/// An update (`update` is the action it updates) keeps `organization` as the
+/// original has it. By the creator it needs no grant (their own delete is a
+/// hard delete and never comes here). By anyone else: an edit needs an admin
+/// grant; a removal, the new status being `Deleted`, needs an admin grant or a
+/// coordinator grant for the offer's organisation, and a reason.
+pub fn validate_offer_write(
+  offer: &Offer,
   author: &AgentPubKey,
   update: Option<&ActionHash>,
 ) -> ExternResult<ValidateCallbackResult> {
-  let (act, verdict) = match update {
-    None => (
-      "Posting an offer",
-      check_act(grant, author, &Ability::Participate, &None)?.map(|_| ()),
-    ),
-    Some(original) => (
-      "Changing an offer",
-      check_author_or_act(original, grant, author, &Ability::Administer, &None)?,
-    ),
+  let refuse = |act: &str, reason: String| {
+    Ok(ValidateCallbackResult::Invalid(format!(
+      "{} is a role act: {}",
+      act, reason
+    )))
   };
-  Ok(match verdict {
-    Ok(()) => ValidateCallbackResult::Valid,
-    Err(reason) => ValidateCallbackResult::Invalid(format!("{} is a role act: {}", act, reason)),
-  })
+  let Some(previous) = update else {
+    if let Err(reason) = check_act(&offer.grant, author, &Ability::Participate, &None)? {
+      return refuse("Posting an offer", reason);
+    }
+    if let Some(organization) = &offer.organization {
+      let Some(membership) = &offer.membership else {
+        return refuse(
+          "Posting an offer for an organisation",
+          "it names no membership".to_string(),
+        );
+      };
+      if let Err(reason) = membership_admits(membership, organization, author)? {
+        return refuse("Posting an offer for an organisation", reason);
+      }
+    }
+    return Ok(ValidateCallbackResult::Valid);
+  };
+
+  let (root, creator) = match chain_root(previous)? {
+    Ok(found) => found,
+    Err(reason) => return refuse("Changing an offer", reason),
+  };
+  let original: Offer = match must_get_valid_record(root)?.entry().to_app_option() {
+    Ok(Some(original)) => original,
+    _ => return refuse("Changing an offer", "its original does not read".to_string()),
+  };
+  if offer.organization != original.organization {
+    return refuse(
+      "Changing an offer",
+      "an offer stays in the organisation it was posted for".to_string(),
+    );
+  }
+  if &creator == author {
+    return Ok(ValidateCallbackResult::Valid);
+  }
+  if offer.status != ListingStatus::Deleted {
+    return match check_act(&offer.grant, author, &Ability::Administer, &None)? {
+      Ok(_) => Ok(ValidateCallbackResult::Valid),
+      Err(reason) => refuse("Changing an offer", reason),
+    };
+  }
+  // A removal by a role holder: who is the update's author, why is the reason.
+  if offer.removal_reason.as_deref().map(str::trim).unwrap_or("").is_empty() {
+    return refuse(
+      "Removing an offer",
+      "a removal by anyone but its author says why".to_string(),
+    );
+  }
+  let as_admin = check_act(&offer.grant, author, &Ability::Administer, &None)?;
+  if as_admin.is_ok() {
+    return Ok(ValidateCallbackResult::Valid);
+  }
+  match offer.organization.clone() {
+    Some(organization) => {
+      match check_act(&offer.grant, author, &Ability::Coordinate, &Some(organization))? {
+        Ok(_) => Ok(ValidateCallbackResult::Valid),
+        Err(reason) => refuse("Removing an offer", reason),
+      }
+    }
+    None => refuse("Removing an offer", as_admin.err().unwrap_or_default()),
+  }
 }

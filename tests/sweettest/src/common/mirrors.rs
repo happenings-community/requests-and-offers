@@ -117,6 +117,12 @@ pub struct Request {
     pub status: String,
     #[serde(default)]
     pub grant: Option<ActionHash>,
+    #[serde(default)]
+    pub organization: Option<ActionHash>,
+    #[serde(default)]
+    pub membership: Option<ActionHash>,
+    #[serde(default)]
+    pub removal_reason: Option<String>,
 }
 holochain_serialized_bytes::holochain_serial!(Request);
 

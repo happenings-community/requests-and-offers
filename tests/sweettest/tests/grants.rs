@@ -105,6 +105,9 @@ fn a_request(title: &str, grant: Option<ActionHash>) -> Request {
         links: vec![],
         status: "Active".to_string(),
         grant,
+        organization: None,
+        membership: None,
+        removal_reason: None,
     }
 }
 

@@ -61,6 +61,8 @@ vi.mock('$lib/services/HolochainClientService.svelte', async () => {
   const HolochainClientServiceTag = Context.GenericTag<unknown>('HolochainClientService');
   const client = {
     isConnected: true,
+    // The app's own agent, as the real client gives it.
+    client: { myPubKey: hashes.MY_AGENT },
     getNetworkPeerStatus: () => Promise.resolve({ reachable: 1, known: 1 }),
     onZomeSignal: (_zome: string, handler: (payload: unknown) => void) => {
       signalHandlers.push(handler);
@@ -78,7 +80,9 @@ vi.mock('$lib/stores/users.store.svelte', async () => {
   const { Effect } = await import('effect');
   return {
     default: {
-      currentUser: { original_action_hash: hashes.ME, agents: [hashes.MY_AGENT] },
+      // As the real store holds it: the profile record, with no `agents` list. A mock
+      // that supplied one hid that local state was never saved in the running app.
+      currentUser: { original_action_hash: hashes.ME },
       getUserByAgentPubKey: (agent: unknown) => Effect.succeed(userByAgent(agent)),
       getUserByActionHash: () => Effect.succeed(null)
     }
@@ -280,5 +284,17 @@ describe('a read that fails during the load (F10)', () => {
     await expect(E.runPromise(store.loadConversations())).rejects.toThrow();
 
     expect(store.error, 'the fault, for the screen').toContain('no answer');
+  });
+});
+
+describe('blocking', () => {
+  it('a block is kept on this device, and survives the reload it starts', async () => {
+    const store = await freshStore();
+    store.setBlocked(ANITA, true);
+    await E.runPromise(store.loadConversations());
+    expect(store.isBlocked(ANITA)).toBe(true);
+    expect(store.blockedUsers()).toEqual([encodeHashToBase64(ANITA)]);
+    const saved = localStorage.getItem(localKey(encodeHashToBase64(MY_AGENT)));
+    expect(saved).toContain(encodeHashToBase64(ANITA));
   });
 });

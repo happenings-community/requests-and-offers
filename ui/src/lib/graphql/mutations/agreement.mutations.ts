@@ -43,6 +43,8 @@ export const CREATE_COMMITMENT_MUTATION = gql`
           }
         }
         due
+        hasBeginning
+        hasEnd
         finished
         note
         agreedIn

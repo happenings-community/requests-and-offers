@@ -9,8 +9,9 @@ import {
   ContactPreferenceSchema,
   TimePreferenceSchema,
   InteractionTypeSchema,
-  DateRangeSchema
+  TimeframeSchema
 } from './common.schemas';
+import { ExchangeQuantity } from './exchanges.schemas';
 
 /**
  * Request schemas using Effect class-based approach following Service Types patterns
@@ -35,8 +36,9 @@ export class RequestInDHT extends Schema.Class<RequestInDHT>('RequestInDHT')({
     })
   ),
   contact_preference: ContactPreferenceSchema,
-  date_range: Schema.optional(DateRangeSchema),
-  time_estimate_hours: Schema.optional(Schema.Number.pipe(Schema.positive())),
+  timeframe: Schema.optional(TimeframeSchema),
+  time_estimate_hours: Schema.optional(Schema.Number.pipe(Schema.finite(), Schema.nonNegative())),
+  amount: Schema.optional(ExchangeQuantity),
   time_preference: TimePreferenceSchema,
   time_zone: Schema.optional(Schema.String),
   interaction_type: InteractionTypeSchema,
@@ -53,8 +55,9 @@ export class RequestInput extends Schema.Class<RequestInput>('RequestInput')({
   title: Schema.String.pipe(Schema.minLength(3), Schema.maxLength(100)),
   description: Schema.String.pipe(Schema.minLength(10), Schema.maxLength(1000)),
   contact_preference: ContactPreferenceSchema,
-  date_range: Schema.optional(DateRangeSchema),
-  time_estimate_hours: Schema.optional(Schema.Number.pipe(Schema.positive())),
+  timeframe: Schema.optional(TimeframeSchema),
+  time_estimate_hours: Schema.optional(Schema.Number.pipe(Schema.finite(), Schema.nonNegative())),
+  amount: Schema.optional(ExchangeQuantity),
   time_preference: TimePreferenceSchema,
   time_zone: Schema.optional(Schema.String),
   interaction_type: InteractionTypeSchema,
@@ -79,8 +82,9 @@ export class UIRequest extends Schema.Class<UIRequest>('UIRequest')({
   title: Schema.String.pipe(Schema.minLength(3), Schema.maxLength(100)),
   description: Schema.String.pipe(Schema.minLength(10), Schema.maxLength(1000)),
   contact_preference: ContactPreferenceSchema,
-  date_range: Schema.optional(DateRangeSchema),
-  time_estimate_hours: Schema.optional(Schema.Number.pipe(Schema.positive())),
+  timeframe: Schema.optional(TimeframeSchema),
+  time_estimate_hours: Schema.optional(Schema.Number.pipe(Schema.finite(), Schema.nonNegative())),
+  amount: Schema.optional(ExchangeQuantity),
   time_preference: TimePreferenceSchema,
   time_zone: Schema.optional(Schema.String),
   interaction_type: InteractionTypeSchema,

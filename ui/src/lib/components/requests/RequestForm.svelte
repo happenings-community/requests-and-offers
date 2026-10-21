@@ -334,6 +334,10 @@
         time_zone: timeZone,
         interaction_type: interactionType,
         time_estimate_hours: timeEstimateHours,
+        // Part 1 has no inputs for these; an edit carries the request's own
+        // values through unchanged so it cannot erase them (#370).
+        timeframe: request?.timeframe,
+        amount: request?.amount,
         links: [...links],
         service_type_hashes: [...serviceTypeHashes],
         medium_of_exchange_hashes: [...selectedMediumOfExchange],

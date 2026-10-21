@@ -1,7 +1,7 @@
 import { Effect as E, pipe, Data } from 'effect';
 import type { ActionHash } from '@holochain/client';
 import type { UIRequest, UIOrganization } from '$lib/types/ui';
-import type { RequestInput, DateRange, ContactPreference } from '$lib/types/holochain';
+import type { RequestInput, ContactPreference } from '$lib/types/holochain';
 import requestsStore from '$lib/stores/requests.store.svelte';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
@@ -55,8 +55,6 @@ export interface RequestFormManagementState {
   selectedOrganizationHash?: ActionHash;
 
   // Extended form state
-  dateRangeStart: string | null;
-  dateRangeEnd: string | null;
   timeEstimateHours: number | undefined;
   contactPreferenceType: 'Email' | 'Phone' | 'Other';
   contactPreferenceOther: string;
@@ -93,8 +91,6 @@ export interface RequestFormManagementActions {
   setSelectedOrganization: (hash?: ActionHash) => void;
 
   // Extended form field setters
-  setDateRangeStart: (date: string | null) => void;
-  setDateRangeEnd: (date: string | null) => void;
   setTimeEstimateHours: (hours: number | undefined) => void;
   setContactPreferenceType: (type: 'Email' | 'Phone' | 'Other') => void;
   setContactPreferenceOther: (value: string) => void;
@@ -170,8 +166,6 @@ export function useRequestFormManagement(
     selectedOrganizationHash: undefined,
 
     // Extended form state
-    dateRangeStart: null,
-    dateRangeEnd: null,
     timeEstimateHours: undefined,
     contactPreferenceType: 'Email',
     contactPreferenceOther: '',
@@ -276,14 +270,6 @@ export function useRequestFormManagement(
   }
 
   // Extended form field setters
-  function setDateRangeStart(date: string | null): void {
-    state.dateRangeStart = date;
-  }
-
-  function setDateRangeEnd(date: string | null): void {
-    state.dateRangeEnd = date;
-  }
-
   function setTimeEstimateHours(hours: number | undefined): void {
     state.timeEstimateHours = hours;
   }
@@ -353,8 +339,6 @@ export function useRequestFormManagement(
     state.selectedOrganizationHash = undefined;
 
     // Extended fields
-    state.dateRangeStart = null;
-    state.dateRangeEnd = null;
     state.timeEstimateHours = undefined;
     state.contactPreferenceType = 'Email';
     state.contactPreferenceOther = '';
@@ -378,10 +362,6 @@ export function useRequestFormManagement(
     state.submissionError = null;
 
     try {
-      const date_range: DateRange = {} as DateRange;
-      if (state.dateRangeStart) date_range.start = new Date(state.dateRangeStart).getTime();
-      if (state.dateRangeEnd) date_range.end = new Date(state.dateRangeEnd).getTime();
-
       const time_preference =
         state.timePreferenceType === 'Other'
           ? TimePreferenceHelpers.createOther(state.timePreferenceOther)
@@ -396,7 +376,6 @@ export function useRequestFormManagement(
         contact_preference: state.contactPreference.valueOf() as ContactPreference,
         interaction_type: state.interactionType,
         links: [...state.links], // Spread to remove proxy wrapper
-        date_range: Object.keys(date_range).length > 0 ? date_range : undefined,
         time_estimate_hours: state.timeEstimateHours,
         time_preference: time_preference,
         time_zone: state.timeZone,
@@ -477,18 +456,6 @@ export function useRequestFormManagement(
       setLinks(randomMockRequest.links);
       setTimeEstimateHours(randomMockRequest.time_estimate_hours);
 
-      // Set date range if provided
-      if (randomMockRequest.date_range) {
-        const startDate = randomMockRequest.date_range.start
-          ? new Date(randomMockRequest.date_range.start).toISOString().split('T')[0]
-          : null;
-        const endDate = randomMockRequest.date_range.end
-          ? new Date(randomMockRequest.date_range.end).toISOString().split('T')[0]
-          : null;
-        setDateRangeStart(startDate);
-        setDateRangeEnd(endDate);
-      }
-
       // Handle time preference
       if (typeof randomMockRequest.time_preference === 'string') {
         setTimePreferenceType(
@@ -560,12 +527,6 @@ export function useRequestFormManagement(
     },
 
     // Extended state
-    get dateRangeStart() {
-      return state.dateRangeStart;
-    },
-    get dateRangeEnd() {
-      return state.dateRangeEnd;
-    },
     get timeEstimateHours() {
       return state.timeEstimateHours;
     },
@@ -623,8 +584,6 @@ export function useRequestFormManagement(
     setSelectedOrganization,
 
     // Extended actions
-    setDateRangeStart,
-    setDateRangeEnd,
     setTimeEstimateHours,
     setContactPreferenceType,
     setContactPreferenceOther,

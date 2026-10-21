@@ -1,4 +1,4 @@
-import { HreaServiceTag, HreaServiceLive } from '$lib/services/hrea.service';
+import { HreaServiceTag, HreaServiceLive, type CommitmentInput } from '$lib/services/hrea.service';
 import {
   MediumsOfExchangeServiceTag,
   MediumsOfExchangeServiceLive
@@ -12,6 +12,7 @@ import {
   mapAgreementToHrea,
   mapCompletionToEvent,
   rnoAgreementRef,
+  writeCommitment,
   type ResolvedParties,
   type ResolvedSpecs,
   setUnitRegistry
@@ -2011,14 +2012,26 @@ export const createHreaStore = (): E.Effect<
         console.warn('hREA Store: exchange parties have no hREA agents yet, not mirroring', ref);
         return E.succeed(null);
       }
-      const mapped = mapAgreementToHrea(exchange, parties, resolveSpecs(exchange));
+      // The acceptance time anchors a preset's due date; a missing response
+      // falls back to now.
+      const mapped = mapAgreementToHrea(
+        exchange,
+        parties,
+        resolveSpecs(exchange),
+        exchange.response?.created_at
+      );
       if (!mapped) return E.succeed(null);
+
+      // A date hREA refuses must not cost the Commitment; a timeout must not
+      // write it twice. writeCommitment holds that rule.
+      const createCommitment = (input: CommitmentInput) =>
+        writeCommitment(hreaService.createCommitment, input, ref);
 
       return pipe(
         hreaService.createAgreement(mapped.agreement),
         E.flatMap((agreement) =>
           pipe(
-            hreaService.createCommitment({ ...mapped.primary, clauseOf: agreement.id }),
+            createCommitment({ ...mapped.primary, clauseOf: agreement.id }),
             E.flatMap(
               (
                 primary
@@ -2028,7 +2041,7 @@ export const createHreaStore = (): E.Effect<
               > =>
               mapped.reciprocal
                 ? pipe(
-                    hreaService.createCommitment({ ...mapped.reciprocal, clauseOf: agreement.id }),
+                    createCommitment({ ...mapped.reciprocal, clauseOf: agreement.id }),
                     E.map((reciprocal) => ({ agreement, primary, reciprocal }))
                   )
                 : E.succeed({ agreement, primary, reciprocal: undefined })

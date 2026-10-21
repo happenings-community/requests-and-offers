@@ -48,7 +48,7 @@ const exchange = (over: Partial<UIExchange> = {}, agreementOver = {}): UIExchang
       },
       medium: 'Free/Pay it Forward',
       terms: '',
-      delivery_timeframe: 'Within 2 weeks',
+      delivery_timeframe: { Preset: 'WithinTwoWeeks' },
       ...agreementOver
     },
     status: 'Proposed',

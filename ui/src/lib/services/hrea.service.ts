@@ -56,6 +56,8 @@ export function normalizeCommitmentResponse(raw: GraphQLCommitmentResponse): Com
       ? { hasNumericalValue: raw.resourceQuantity.hasNumericalValue, hasUnit: raw.resourceQuantity.hasUnit?.id ?? '' }
       : undefined,
     due: raw.due ?? undefined,
+    hasBeginning: raw.hasBeginning ?? undefined,
+    hasEnd: raw.hasEnd ?? undefined,
     finished: raw.finished ?? undefined,
     note: raw.note ?? undefined,
     agreedIn: raw.agreedIn ?? undefined,
@@ -188,6 +190,8 @@ export type CommitmentInput = {
   resourceConformsTo?: string;
   resourceQuantity?: MeasureInput;
   due?: string;
+  hasBeginning?: string;
+  hasEnd?: string;
   finished?: boolean;
   note?: string;
   agreedIn?: string;

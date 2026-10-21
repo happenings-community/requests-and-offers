@@ -31,7 +31,7 @@ const agreement = {
   reciprocal: currency,
   medium: 'CAD',
   terms: 'Two sessions, remote.',
-  delivery_timeframe: 'Within 2 weeks'
+  delivery_timeframe: { Preset: 'WithinTwoWeeks' }
 };
 
 /** The message a failed decode would put in front of the member. */
@@ -120,6 +120,19 @@ describe('create agreement input schema', () => {
   it('refuses an agreement that names no medium', () => {
     const result = decodeCreateAgreementInput({ ...agreement, medium: '   ' });
     expect(failure(result)).toContain('how this exchange is settled');
+  });
+
+  it('accepts a window of dates as the timeframe', () => {
+    const result = decodeCreateAgreementInput({
+      ...agreement,
+      delivery_timeframe: { Dates: { start: null, end: 1_800_000_000_000_000 } }
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it('refuses a timeframe written as free text', () => {
+    const result = decodeCreateAgreementInput({ ...agreement, delivery_timeframe: 'Within 2 weeks' });
+    expect(Either.isLeft(result)).toBe(true);
   });
 });
 

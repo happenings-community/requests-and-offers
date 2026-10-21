@@ -6,7 +6,7 @@
 //! rests on those, so they come first and they run first.
 //!
 //! The entry is public: sender, recipient and timestamp are on the DHT for the life of
-//! the network, and only the content is private. That is the trade recorded in the brief,
+//! the network, and only the content is private. That is a deliberate trade,
 //! and the third case is what demonstrates the private half actually holds.
 //!
 //! Role messages and cases are in `messaging_roles.rs`. Everything here is personal chat,

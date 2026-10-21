@@ -2,6 +2,7 @@ use hdk::prelude::*;
 use requests_integrity::*;
 use utils::{
   errors::{AdministrationError, CommonError, UsersError},
+  grants::{require_grant, Ability},
   resolve_chain_root, EntityActionHash, GetMediumOfExchangeForEntityInput,
   GetServiceTypeForEntityInput, MediumOfExchangeLinkInput, OriginalActionHash, PreviousActionHash,
   ServiceTypeLinkInput, UpdateMediumOfExchangeLinksInput, UpdateServiceTypeLinksInput,
@@ -45,7 +46,12 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
     return Err(AdministrationError::EntityNotAccepted("users".to_string()).into());
   }
 
-  let request_hash = create_entry(&EntryTypes::Request(input.request))?;
+  // The validator checks a member grant; the profile checks above give the
+  // clearer error first.
+  let grant = require_grant(Ability::Participate, None)?;
+  let mut request = input.request;
+  request.grant = Some(grant);
+  let request_hash = create_entry(&EntryTypes::Request(request))?;
 
   let record = get(request_hash.clone(), GetOptions::default())?.ok_or(
     CommonError::EntryNotFound("Could not find the newly created request".to_string()),
@@ -346,8 +352,17 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
   )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
-  // Check if the agent is the author or an administrator
-  let author = original_record.action().author().clone();
+  // Check if the agent is the author or an administrator. The author is the
+  // request's creator, as the validator reads it: the client's "original" may be
+  // a revision an admin wrote, so read the chain's root.
+  let creator_record = get(
+    resolve_chain_root(input.original_action_hash.0.clone()),
+    GetOptions::default(),
+  )?
+  .ok_or(CommonError::EntryNotFound(
+    "Could not find the original request".to_string(),
+  ))?;
+  let author = creator_record.action().author().clone();
   let is_author = author == agent_pubkey;
   let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
 
@@ -369,8 +384,14 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
   }
 
   let previous_hash = input.previous_action_hash.0.clone();
-  let updated_request_hash =
-    update_entry(input.previous_action_hash.into(), &input.updated_request)?;
+  // The creator needs no grant; an admin carries theirs. Never the client's.
+  let mut updated_request = input.updated_request;
+  updated_request.grant = if is_author {
+    None
+  } else {
+    Some(require_grant(Ability::Administer, None)?)
+  };
+  let updated_request_hash = update_entry(input.previous_action_hash.into(), &updated_request)?;
 
   // Update the ActiveRequests link in "requests.active" to point to the new record.
   // create_request uses Path::from("requests.active") + LinkTypes::ActiveRequests, so
@@ -582,8 +603,16 @@ pub fn archive_request(original_action_hash: ActionHash) -> ExternResult<bool> {
   )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
-  // Check if the agent is the author or an administrator
-  let author = latest_record.action().author().clone();
+  // Check if the agent is the author or an administrator. The author is the
+  // request's creator, as the validator reads it, not the latest revision's.
+  let creator_record = get(
+    resolve_chain_root(original_action_hash.clone()),
+    GetOptions::default(),
+  )?
+  .ok_or(CommonError::EntryNotFound(
+    "Could not find the original request".to_string(),
+  ))?;
+  let author = creator_record.action().author().clone();
   let is_author = author == agent_pubkey;
   let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
 
@@ -603,6 +632,12 @@ pub fn archive_request(original_action_hash: ActionHash) -> ExternResult<bool> {
   // Update the request with archived status
   let mut updated_request = current_request.clone();
   updated_request.status = ListingStatus::Archived;
+  // The creator needs no grant; an admin carries theirs, not the last writer's.
+  updated_request.grant = if is_author {
+    None
+  } else {
+    Some(require_grant(Ability::Administer, None)?)
+  };
 
   // Create update entry - use the LATEST action hash as previous
   let latest_action_hash = latest_record.signed_action.hashed.hash.clone();

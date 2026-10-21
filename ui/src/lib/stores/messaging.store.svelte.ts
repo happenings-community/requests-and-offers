@@ -377,9 +377,16 @@ export function createMessagingStore(): MessagingStore {
       )
     );
 
-  /** My own agent key, from whichever of my agents this installation runs. */
+  /**
+   * My own agent key: the one this installation's client runs as.
+   *
+   * Read from the client, not the profile. `currentUser` is the profile record, and
+   * nothing fills its `agents` list, so asking it gave `null`: every local write was
+   * refused, and the next load replaced what the screen had just shown with an empty
+   * state. Blocks, archives, read marks, receipt settings and the outbox were never saved.
+   */
   const myAgentOf = (): AgentPubKey | null =>
-    (usersStore.currentUser?.agents?.[0] as AgentPubKey | undefined) ?? null;
+    (holochainClientService.client?.myPubKey as AgentPubKey | undefined) ?? null;
 
   const threadFor = (counterparty: ActionHash) =>
     threads.find((t) => t.key === threadKeyOf(counterparty));

@@ -41,6 +41,8 @@ vi.mock('$lib/services/HolochainClientService.svelte', async () => {
   const HolochainClientServiceTag = Context.GenericTag<unknown>('HolochainClientService');
   const client = {
     isConnected: true,
+    // The app's own agent, as the real client gives it.
+    client: { myPubKey: hashes.MY_AGENT },
     getNetworkPeerStatus: () => Promise.resolve({ reachable: 1, known: 1 }),
     onZomeSignal: () => () => {}
   };
@@ -56,8 +58,8 @@ vi.mock('$lib/stores/users.store.svelte', async () => {
   return {
     default: {
       currentUser: {
+        // As the real store holds it: no `agents` list on the profile.
         original_action_hash: hashes.ME,
-        agents: [hashes.MY_AGENT],
         status: { status_type: 'accepted' }
       },
       getUserByAgentPubKey: () => Effect.succeed(null),

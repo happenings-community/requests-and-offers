@@ -6,7 +6,7 @@ use hdi::prelude::*;
 /// belongs to is inside the encrypted payload, not beside it, so the DHT does not
 /// carry the grouping. What the DHT does carry, for the life of the network, is the
 /// action: author, recipient (via the `Inbox` link base) and timestamp. That is a
-/// deliberate trade recorded in the brief, not an oversight.
+/// deliberate trade, not an oversight.
 #[derive(Clone, PartialEq)]
 #[hdk_entry_helper]
 pub struct EncryptedMessage {

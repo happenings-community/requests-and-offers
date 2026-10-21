@@ -1,6 +1,9 @@
 pub mod dna_properties;
 pub mod errors;
 pub mod types;
+/// Host-only helpers for calling an integrity zome's `validate` with one op.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod validation_harness;
 
 pub use dna_properties::DnaProperties;
 use errors::CommonError;

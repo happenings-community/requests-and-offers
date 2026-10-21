@@ -46,6 +46,7 @@ import {
   type UIThread
 } from '$lib/utils/messaging-threads';
 import usersStore from '$lib/stores/users.store.svelte';
+import { getMyAgentPubKey } from '$lib/utils/holochain-client.utils';
 import exchangesStore from '$lib/stores/exchanges.store.svelte';
 import requestsStore from '$lib/stores/requests.store.svelte';
 import offersStore from '$lib/stores/offers.store.svelte';
@@ -385,8 +386,7 @@ export function createMessagingStore(): MessagingStore {
    * refused, and the next load replaced what the screen had just shown with an empty
    * state. Blocks, archives, read marks, receipt settings and the outbox were never saved.
    */
-  const myAgentOf = (): AgentPubKey | null =>
-    (holochainClientService.client?.myPubKey as AgentPubKey | undefined) ?? null;
+  const myAgentOf = (): AgentPubKey | null => getMyAgentPubKey();
 
   const threadFor = (counterparty: ActionHash) =>
     threads.find((t) => t.key === threadKeyOf(counterparty));

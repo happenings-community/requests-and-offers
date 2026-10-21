@@ -160,7 +160,9 @@ fn action_hash(fill: u8) -> ActionHash {
   ActionHash::from_raw_36(vec![fill; 36])
 }
 
-fn when() -> Timestamp {
+/// The timestamp every action the harness builds carries, so a test can set a
+/// rule that depends on it, such as a timeframe, either side of it.
+pub fn when() -> Timestamp {
   Timestamp::from_micros(1_760_000_000_000_000)
 }
 

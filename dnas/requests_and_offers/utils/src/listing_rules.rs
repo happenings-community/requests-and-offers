@@ -55,6 +55,45 @@ pub fn amount_problem(amount: &Option<Quantity>) -> Option<String> {
   None
 }
 
+/// The longest link a listing or organisation may carry.
+pub const MAX_LINK_LENGTH: usize = 2048;
+
+/// Links a member typed on a listing or an organisation: each one a web
+/// address. Other members' apps open these, so a `javascript:` or `data:`
+/// "link" would run as code in the reader's window. An address that names a
+/// scheme must name `http` or `https`; a bare address (`example.org/about`)
+/// names none and is opened as `https://`. Spaces and control characters are
+/// refused anywhere inside, since a browser drops some of them before reading
+/// the scheme (`java\tscript:`).
+pub fn links_problem(links: &[String]) -> Option<String> {
+  links.iter().find_map(|link| link_problem(link))
+}
+
+fn link_problem(link: &str) -> Option<String> {
+  let link = link.trim();
+  if link.len() > MAX_LINK_LENGTH {
+    return Some(format!("a link cannot exceed {MAX_LINK_LENGTH} characters"));
+  }
+  if link.chars().any(|c| c.is_whitespace() || c.is_control()) {
+    return Some("a link cannot contain spaces or control characters".to_string());
+  }
+  let scheme = scheme_of(link)?.to_ascii_lowercase();
+  if scheme != "http" && scheme != "https" {
+    return Some("a link must be a web address (http or https)".to_string());
+  }
+  None
+}
+
+/// The scheme a browser would read: the text before the first `:`, when that
+/// text is a letter followed by letters, digits, `+`, `-` or `.`.
+fn scheme_of(link: &str) -> Option<&str> {
+  let (scheme, _) = link.split_once(':')?;
+  let mut chars = scheme.chars();
+  let first = chars.next()?;
+  let rest_ok = chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'));
+  (first.is_ascii_alphabetic() && rest_ok).then_some(scheme)
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -127,5 +166,62 @@ mod tests {
     for bad in [q(0.0, "hours"), q(-3.0, "hours"), q(f64::NAN, "hours"), q(f64::INFINITY, "hours"), q(3.0, "")] {
       assert!(amount_problem(&bad).unwrap().contains("above zero"));
     }
+  }
+
+  fn links(list: &[&str]) -> Vec<String> {
+    list.iter().map(|l| l.to_string()).collect()
+  }
+
+  #[test]
+  fn web_addresses_pass() {
+    let good = links(&[
+      "https://example.org",
+      "http://example.org/a?b=c#d",
+      "HTTPS://Example.org",
+      "  https://example.org  ",
+      "example.org",
+      "www.example.org/about",
+      "example.org/a:b",
+    ]);
+    assert_eq!(links_problem(&good), None);
+    assert_eq!(links_problem(&[]), None);
+  }
+
+  #[test]
+  fn other_schemes_are_refused() {
+    for bad in [
+      "javascript:alert(1)",
+      "JavaScript:alert(1)",
+      " javascript:alert(1)",
+      "data:text/html,<script>alert(1)</script>",
+      "vbscript:msgbox(1)",
+      "file:///etc/passwd",
+      "mailto:someone@example.org",
+      "example.org:8080",
+    ] {
+      let reason = links_problem(&links(&["https://example.org", bad])).expect(bad);
+      assert!(reason.contains("web address"), "{bad}: {reason}");
+    }
+  }
+
+  #[test]
+  fn spaces_and_control_characters_inside_are_refused() {
+    for bad in [
+      "java\tscript:alert(1)",
+      "java\nscript:alert(1)",
+      "java\u{0}script:alert(1)",
+      "https://exa mple.org",
+    ] {
+      let reason = links_problem(&links(&[bad])).expect(bad);
+      assert!(reason.contains("control characters"), "{bad:?}: {reason}");
+    }
+  }
+
+  #[test]
+  fn an_overlong_link_is_refused() {
+    let long = format!("https://example.org/{}", "a".repeat(MAX_LINK_LENGTH));
+    assert!(links_problem(&[long]).unwrap().contains("cannot exceed"));
+    let fits = format!("https://example.org/{}", "a".repeat(MAX_LINK_LENGTH - 20));
+    assert_eq!(links_problem(&[fits]), None);
   }
 }

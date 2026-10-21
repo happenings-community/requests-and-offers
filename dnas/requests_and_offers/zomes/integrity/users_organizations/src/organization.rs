@@ -1,6 +1,6 @@
 use email_address::EmailAddress;
 use hdi::prelude::*;
-use utils::{errors::CommonError, is_image};
+use utils::{errors::CommonError, is_image, listing_rules::links_problem};
 
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
@@ -33,6 +33,10 @@ pub fn validate_organization(organization: Organization) -> ExternResult<Validat
     return Ok(ValidateCallbackResult::Invalid(String::from(
       "Email is not valid",
     )));
+  }
+
+  if let Some(reason) = links_problem(&organization.urls) {
+    return Ok(ValidateCallbackResult::Invalid(reason));
   }
 
   Ok(ValidateCallbackResult::Valid)

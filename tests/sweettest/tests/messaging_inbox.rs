@@ -7,7 +7,7 @@
 //!
 //! The entry is public: sender, recipient and timestamp are on the DHT for the life of
 //! the network, and only the content and the conversation grouping are private. That is
-//! the trade recorded in the brief, and the third case is what demonstrates the private
+//! a deliberate trade, and the third case is what demonstrates the private
 //! half actually holds.
 //!
 //! Each conductor's first zome call costs about twenty seconds on a developer machine,

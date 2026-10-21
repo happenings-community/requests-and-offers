@@ -442,7 +442,7 @@ pub fn get_sent(_: ()) -> ExternResult<Vec<Message>> {
       None => {
         // The same reasoning as `get_inbox`: every `Inbox` link on this chain was written
         // by this agent, so a message it cannot decrypt is a fault rather than somebody
-        // else's mail. The return type stays `Vec<Message>` until the interface bundle
+        // else's mail. The return type stays `Vec<Message>` until the interface
         // needs to show these.
         warn!(
           "Sent message {hash:?} to {to:?} could not be decrypted, though this agent \

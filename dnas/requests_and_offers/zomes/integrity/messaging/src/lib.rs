@@ -51,22 +51,18 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     // -- entries --
+    // A create or update is published as two ops: `CreateEntry` to the entry's
+    // authority and `CreateRecord` to the action's. `must_get_valid_record`, which the
+    // `Inbox` link rule uses, asks the action's authority, so both ops run the same
+    // rules.
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, .. } => match app_entry {
-        EntryTypes::EncryptedMessage(message) => validate_encrypted_message(message),
-        // The private entries hold an agent key or a read position, and are only ever
-        // on their author's own chain. There is nothing for a third party to check, and
-        // no other agent can see them.
-        EntryTypes::Block(_) | EntryTypes::Unblock(_) | EntryTypes::ReadMarker(_) => {
-          Ok(ValidateCallbackResult::Valid)
-        }
-      },
-      // A message is not editable. Editing one would leave the recipient holding a
-      // different message from the one they were nudged about, with no way to tell.
-      // Send another instead.
-      OpEntry::UpdateEntry { .. } => Ok(ValidateCallbackResult::Invalid(
-        "Messaging entries cannot be updated".to_string(),
-      )),
+      OpEntry::CreateEntry { app_entry, .. } => validate_entry(app_entry),
+      OpEntry::UpdateEntry { .. } => Ok(refuse_update()),
+      _ => Ok(ValidateCallbackResult::Valid),
+    },
+    FlatOp::CreateRecord(store_record) => match store_record {
+      OpRecord::CreateEntry { app_entry, .. } => validate_entry(app_entry),
+      OpRecord::UpdateEntry { .. } | OpRecord::UpdatePrivateEntry { .. } => Ok(refuse_update()),
       _ => Ok(ValidateCallbackResult::Valid),
     },
 
@@ -108,6 +104,26 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
     _ => Ok(ValidateCallbackResult::Valid),
   }
+}
+
+/// The rules for a new entry, run on both the entry op and the record op.
+fn validate_entry(app_entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
+  match app_entry {
+    EntryTypes::EncryptedMessage(message) => validate_encrypted_message(message),
+    // The private entries hold an agent key or a read position, and are only ever
+    // on their author's own chain. There is nothing for a third party to check, and
+    // no other agent can see them.
+    EntryTypes::Block(_) | EntryTypes::Unblock(_) | EntryTypes::ReadMarker(_) => {
+      Ok(ValidateCallbackResult::Valid)
+    }
+  }
+}
+
+/// A message is not editable. Editing one would leave the recipient holding a
+/// different message from the one they were nudged about, with no way to tell.
+/// Send another instead. Nothing in this zome updates its private entries either.
+fn refuse_update() -> ValidateCallbackResult {
+  ValidateCallbackResult::Invalid("Messaging entries cannot be updated".to_string())
 }
 
 /// An `Inbox` link is only valid if it points a recipient at a message its own
@@ -170,4 +186,66 @@ fn validate_create_inbox_link(
     &link_author,
     record.action().author(),
   ))
+}
+
+#[cfg(test)]
+mod record_op_tests {
+  //! A create or update reaches the DHT as two ops that go to different
+  //! authorities, `CreateEntry` by entry hash and `CreateRecord` by action hash,
+  //! and `must_get_valid_record` asks the record authority. The `Inbox` link rule
+  //! reads its target with `must_get_valid_record`, so every rule the entry op runs
+  //! must give the same verdict on the record op.
+  use hdi::prelude::*;
+  use utils::validation_harness::{create_ops, set_zome_types, update_ops};
+
+  use crate::{validate, EncryptedMessage, EntryTypes, LinkTypes, MAX_CIPHERTEXT_BYTES};
+
+  fn message(ciphertext_bytes: usize) -> SerializedBytes {
+    EncryptedMessage {
+      encrypted: XSalsa20Poly1305EncryptedData::new(
+        holochain_integrity_types::x_salsa20_poly1305::nonce::XSalsa20Poly1305Nonce::from([0u8; 24]),
+        vec![0u8; ciphertext_bytes],
+      ),
+    }
+    .try_into()
+    .unwrap()
+  }
+
+  fn verdicts((entry_op, record_op): (Op, Op)) -> (ValidateCallbackResult, ValidateCallbackResult) {
+    set_zome_types(EntryTypes::ENUM_LEN, LinkTypes::ENUM_LEN);
+    let entry = validate(entry_op).unwrap();
+    let record = validate(record_op).unwrap();
+    println!("entry op:  {entry:?}\nrecord op: {record:?}");
+    (entry, record)
+  }
+
+  #[test]
+  fn a_message_within_the_limit_is_valid_on_both_ops() {
+    let (entry, record) = verdicts(create_ops(0, message(MAX_CIPHERTEXT_BYTES)));
+    assert_eq!(entry, ValidateCallbackResult::Valid);
+    assert_eq!(record, entry);
+  }
+
+  #[test]
+  fn an_oversized_message_the_entry_op_refuses_is_refused_on_the_record_op_too() {
+    let (entry, record) = verdicts(create_ops(0, message(MAX_CIPHERTEXT_BYTES + 1)));
+    assert_eq!(
+      entry,
+      ValidateCallbackResult::Invalid(format!(
+        "Encrypted message is {} bytes, over the {MAX_CIPHERTEXT_BYTES} byte limit",
+        MAX_CIPHERTEXT_BYTES + 1
+      ))
+    );
+    assert_eq!(record, entry);
+  }
+
+  #[test]
+  fn an_update_the_entry_op_refuses_is_refused_on_the_record_op_too() {
+    let (entry, record) = verdicts(update_ops(0, message(16)));
+    assert_eq!(
+      entry,
+      ValidateCallbackResult::Invalid("Messaging entries cannot be updated".into())
+    );
+    assert_eq!(record, entry);
+  }
 }

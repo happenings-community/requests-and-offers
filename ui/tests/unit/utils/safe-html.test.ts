@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import DOMPurify from 'dompurify';
 import { escapeHtml, safeHtml } from '$lib/utils/safe-html';
 
 const render = (html: string) => {
@@ -44,6 +45,22 @@ describe('safeHtml', () => {
     ).not.toBeNull();
     expect(render('<img src="https://tracker.example/p.gif">').querySelector('img')).toBeNull();
     expect(render('<img src="//tracker.example/p.gif">').querySelector('img')).toBeNull();
+  });
+
+  it('refuses an image address the browser reads as another site', () => {
+    // A backslash after the first slash reads as a second slash in a URL.
+    expect(render('<img src="/\\evil.example/p.gif">').querySelector('img')).toBeNull();
+    expect(render('<img src="data:image/gif;base64,R0lGOD">').querySelector('img')).toBeNull();
+  });
+
+  it('leaves the shared DOMPurify alone, so Markdown renders the same after a dialog', () => {
+    const markdown =
+      '<p><img src="https://example.org/avatar.png" alt="x"> <a href="https://example.org">site</a></p>';
+    safeHtml('<p>a dialog</p>');
+    const div = document.createElement('div');
+    div.innerHTML = DOMPurify.sanitize(markdown);
+    expect(div.querySelector('img')?.getAttribute('src')).toBe('https://example.org/avatar.png');
+    expect(div.querySelector('a')?.hasAttribute('target')).toBe(false);
   });
 
   it('keeps simple formatting and line breaks', () => {

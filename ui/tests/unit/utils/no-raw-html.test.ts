@@ -27,4 +27,20 @@ describe('raw HTML in components', () => {
     }
     expect(offenders).toEqual([]);
   });
+
+  // Skeleton's own confirm, alert and prompt dialogs render their title and body
+  // with {@html} inside the library, where the check above cannot see. Every
+  // dialog goes through our components (AlertModal, ConfirmModal, PromptModal),
+  // which sanitise with safeHtml.
+  it("never opens Skeleton's built-in dialogs", () => {
+    const sources = [...files, ...globSync('src/**/*.ts')];
+    const offenders: string[] = [];
+    for (const file of sources) {
+      const source = readFileSync(file, 'utf8');
+      for (const match of source.matchAll(/type:\s*['"](confirm|alert|prompt)['"]/g)) {
+        offenders.push(`${file}: type: '${match[1]}'`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
 });

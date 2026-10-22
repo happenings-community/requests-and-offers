@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { marked } from 'marked';
-  import DOMPurify from 'dompurify';
+  import { renderMarkdown } from '$lib/utils/markdown';
 
   type Props = {
     content: string;
@@ -9,12 +8,7 @@
 
   const { content, class: className = '' }: Props = $props();
 
-  marked.setOptions({
-    breaks: true,
-    gfm: true
-  });
-
-  const html = $derived(DOMPurify.sanitize(marked.parse(content || '') as string));
+  const html = $derived(renderMarkdown(content));
 </script>
 
 <div

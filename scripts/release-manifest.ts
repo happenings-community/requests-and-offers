@@ -74,7 +74,7 @@ export type ReleaseManifest = {
   happ: { file: string; sha256: string };
   webhapp: { file: string; sha256: string };
   dna: { file: string; hash: string; appliesModifiers: false };
-  /** The seeds the hApp bundle ships with. Edge nodes run these. */
+  /** The per-role seeds the hApp bundle ships with, which only a development sandbox runs. Edge nodes run the desktop seed. */
   network: { requestsAndOffersSeed: string; hreaSeed: string };
   /** What a desktop install actually runs: the wrapper's seed, not the hApp's. */
   desktop: {

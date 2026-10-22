@@ -106,7 +106,6 @@ export const renderNotes = ({ template, changelog, version, manifest }: NotesInp
     // is the one the note names for the desktop; the hApp's own default is what
     // an edge node runs, and is named separately.
     DESKTOP_NETWORK: manifest.desktop.networkSeed,
-    EDGE_NETWORK: manifest.network.requestsAndOffersSeed,
     HOLOCHAIN_VERSION: manifest.holochainVersion,
   };
 

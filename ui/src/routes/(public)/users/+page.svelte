@@ -67,7 +67,7 @@
     </div>
   {/if}
 
-  <div class="flex w-full gap-4">
+  <div class="flex w-full justify-center gap-4">
     {#if !currentUser}
       <NavButton href="/user/create">Create Profile</NavButton>
     {/if}
@@ -112,11 +112,11 @@
   {#if filteredUsers.length}
     <UsersTable users={filteredUsers} />
   {:else if error}
-    <p class="h3 text-error-500">{error}</p>
+    <p class="h3 text-center text-error-500">{error}</p>
   {:else if acceptedUsers.length > 0}
-    <p class="h3 text-error-500">No users found matching your criteria.</p>
+    <p class="h3 text-center text-error-500">No users found matching your criteria.</p>
   {:else}
-    <p class="h3 text-error-500">No users found.</p>
+    <p class="h3 text-center text-error-500">No users found.</p>
   {/if}
   {#if loading && acceptedUsers.length === 0}
     <ConicGradient stops={conicStops} spin>Loading</ConicGradient>

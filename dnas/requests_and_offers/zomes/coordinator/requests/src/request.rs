@@ -121,6 +121,13 @@ pub fn get_request(action_hash: ActionHash) -> ExternResult<Option<Record>> {
 
 #[hdk_extern]
 pub fn get_latest_request_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+  let latest_action_hash = latest_request_action_hash(original_action_hash)?;
+  get(latest_action_hash, GetOptions::default())
+}
+
+/// The hash of the latest revision of a request: the newest `RequestUpdates` target, or the
+/// original hash when it was never updated.
+fn latest_request_action_hash(original_action_hash: ActionHash) -> ExternResult<ActionHash> {
   let link_type_filter = LinkTypes::RequestUpdates
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
@@ -131,15 +138,36 @@ pub fn get_latest_request_record(original_action_hash: ActionHash) -> ExternResu
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
-  let latest_action_hash = match latest_link {
+  Ok(match latest_link {
     Some(link) => link
       .target
       .clone()
       .into_action_hash()
       .ok_or(CommonError::ActionHashNotFound("request".to_string()))?,
-    None => original_action_hash.clone(),
-  };
-  get(latest_action_hash, GetOptions::default())
+    None => original_action_hash,
+  })
+}
+
+/// Resolve each link target to its latest revision, then fetch them all in one batched
+/// `get` (#186). A target whose update links cannot be read is skipped rather than failing
+/// the whole list (#233); targets that are not found are dropped, as before #184.
+fn get_latest_request_records(links: Vec<Link>) -> ExternResult<Vec<Record>> {
+  let get_input: Vec<GetInput> = links
+    .into_iter()
+    .filter_map(|link| link.target.into_action_hash())
+    .filter_map(|original_action_hash| {
+      latest_request_action_hash(original_action_hash.clone())
+        .inspect_err(|err| warn!("Skipping request {original_action_hash} in a list: {err:?}"))
+        .ok()
+    })
+    .map(|latest_action_hash| GetInput::new(latest_action_hash.into(), GetOptions::default()))
+    .collect();
+  let records = HDK
+    .with(|hdk| hdk.borrow().get(get_input))?
+    .into_iter()
+    .flatten()
+    .collect();
+  Ok(records)
 }
 
 #[hdk_extern]
@@ -171,15 +199,7 @@ pub fn get_active_requests(_: ()) -> ExternResult<Vec<Record>> {
   )?;
   // Resolve the LATEST record per link target so edits are visible on list
   // surfaces (Bug 4 fix).
-  let mut records = Vec::new();
-  for link in links {
-    if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if let Some(record) = get_latest_request_record(target_hash)? {
-        records.push(record);
-      }
-    }
-  }
-  Ok(records)
+  get_latest_request_records(links)
 }
 
 #[hdk_extern]
@@ -193,15 +213,7 @@ pub fn get_archived_requests(_: ()) -> ExternResult<Vec<Record>> {
     LinkQuery::new(path_hash.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
-  let mut records = Vec::new();
-  for link in links {
-    if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if let Some(record) = get_latest_request_record(target_hash)? {
-        records.push(record);
-      }
-    }
-  }
-  Ok(records)
+  get_latest_request_records(links)
 }
 
 #[hdk_extern]
@@ -215,15 +227,7 @@ pub fn get_user_requests(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
     LinkQuery::new(user_hash.clone(), link_type_filter),
     GetStrategy::Local,
   )?;
-  let mut records = Vec::new();
-  for link in links {
-    if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if let Some(record) = get_latest_request_record(target_hash)? {
-        records.push(record);
-      }
-    }
-  }
-  Ok(records)
+  get_latest_request_records(links)
 }
 
 #[hdk_extern]

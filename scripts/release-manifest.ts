@@ -80,6 +80,8 @@ export type ReleaseManifest = {
   desktop: {
     networkSeed: string;
     networkSeedSource: string;
+    /** The conductor the wrapper bundles, checked against `holochainVersion` above. */
+    holochainVersion: string;
     /** Predicted, per role. See the header: confirm against the `databases` folder names. */
     installedDnaHashes: { requests_and_offers: string; hrea: string };
   };
@@ -129,7 +131,7 @@ export const versionFromTag = (tag: string, packageVersion: string): string => {
   if (version !== packageVersion) {
     throw new Error(
       `tag ${tag} says version ${version} but package.json says ${packageVersion}. ` +
-        `Bump package.json and ui/package.json before tagging.`
+        `Bump package.json before tagging.`
     );
   }
   return version;
@@ -183,6 +185,31 @@ const defaultInstalledHash = (dnaPath: string, modifiers: InstalledModifiers): s
   }
 };
 
+/** The conductor the wrapper bundles, out of `bins.holochainVersion` in `kangaroo.config.ts`. */
+export const parseWrapperHolochainVersion = (configSource: string): string => {
+  const match = configSource.match(/^\s*holochainVersion:\s*(['"])([^'"\n]+)\1/m);
+  if (!match) {
+    throw new Error("no `holochainVersion: '...'` found in the wrapper's kangaroo.config.ts");
+  }
+  return match[2];
+};
+
+/**
+ * A webhapp runs only in a conductor of the Holochain line it was packed with:
+ * 0.7 changes the manifest format and every DNA hash. alpha.1 shipped desktop
+ * builds whose conductor could not read the hApp (#260), so a mismatch stops the
+ * release here, before anything is published (#261).
+ */
+export const checkHolochainPairing = (happ: string, wrapper: string): void => {
+  const line = (version: string) => version.split('.').slice(0, 2).join('.');
+  if (line(happ) !== line(wrapper)) {
+    throw new Error(
+      `the hApp is packed with Holochain ${happ} but the wrapper bundles ${wrapper}. ` +
+        `Move the wrapper's release branch to Holochain ${line(happ)} before tagging.`
+    );
+  }
+};
+
 export const buildManifest = (input: ManifestInputs): ReleaseManifest => {
   const run = input.run ?? defaultRun;
   const readBytes = input.readBytes ?? defaultReadBytes;
@@ -196,12 +223,15 @@ export const buildManifest = (input: ManifestInputs): ReleaseManifest => {
   ).version;
   const happYaml = readFileSync(`${input.root}/workdir/happ.yaml`, 'utf8');
   const desktopSeed = parseWrapperSeed(input.wrapperConfig);
+  const holochainVersion = parseHolochainVersion(run('hc', ['--version']));
+  const wrapperHolochainVersion = parseWrapperHolochainVersion(input.wrapperConfig);
+  checkHolochainPairing(holochainVersion, wrapperHolochainVersion);
 
   return {
     version: versionFromTag(input.tag, packageVersion),
     tag: input.tag,
     generatedAt: now().toISOString(),
-    holochainVersion: parseHolochainVersion(run('hc', ['--version'])),
+    holochainVersion,
     happ: { file: basename(input.happPath), sha256: sha256(input.happPath) },
     webhapp: { file: basename(input.webhappPath), sha256: sha256(input.webhappPath) },
     dna: {
@@ -216,6 +246,7 @@ export const buildManifest = (input: ManifestInputs): ReleaseManifest => {
     desktop: {
       networkSeed: desktopSeed,
       networkSeedSource: input.wrapperConfigSource,
+      holochainVersion: wrapperHolochainVersion,
       installedDnaHashes: {
         requests_and_offers: installedHash(input.dnaPath, {
           networkSeed: desktopSeed,

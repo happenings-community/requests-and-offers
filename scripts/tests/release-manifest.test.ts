@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import {
   buildManifest,
+  checkHolochainPairing,
   parseHolochainVersion,
+  parseWrapperHolochainVersion,
   parseWrapperSeed,
   propertiesForRole,
   seedForRole,
@@ -139,7 +141,8 @@ describe('buildManifest', () => {
     webhappPath: '/tmp/requests_and_offers.webhapp',
     dnaPath: '/tmp/requests_and_offers.dna',
     hreaDnaPath: '/tmp/hrea.dna',
-    wrapperConfig: "export default defineConfig({\n  networkSeed: 'alpha1-iroh-2026',\n});",
+    wrapperConfig:
+      "export default defineConfig({\n  networkSeed: 'alpha1-iroh-2026',\n  bins: {\n    holochainVersion: '0.6.1',\n  },\n});",
     wrapperConfigSource: 'happenings-community/requests-and-offers-kangaroo-electron@release:kangaroo.config.ts',
     // Stands in for the unpack, patch, pack, hash round trip, and records what
     // it was asked to hash so the test can see the wrapper's seed arrive.
@@ -177,6 +180,7 @@ describe('buildManifest', () => {
         networkSeed: 'alpha1-iroh-2026',
         networkSeedSource:
           'happenings-community/requests-and-offers-kangaroo-electron@release:kangaroo.config.ts',
+        holochainVersion: '0.6.1',
         installedDnaHashes: {
           requests_and_offers: 'installed(requests_and_offers.dna,alpha1-iroh-2026)',
           hrea: 'installed(hrea.dna,alpha1-iroh-2026)',
@@ -197,7 +201,34 @@ describe('buildManifest', () => {
     expect(manifest.desktop.networkSeed).toBe('alpha1-iroh-2026');
   });
 
+  it('refuses to describe a webhapp the wrapper cannot run (#260, #261)', () => {
+    const wrapperOnOtherLine = inputs.wrapperConfig.replace("'0.6.1'", "'0.7.0'");
+    expect(() => buildManifest({ ...inputs, wrapperConfig: wrapperOnOtherLine })).toThrow(
+      /Holochain 0\.6\.1 .* bundles 0\.7\.0/
+    );
+  });
+
   it('refuses to build a manifest for a tag package.json does not agree with', () => {
     expect(() => buildManifest({ ...inputs, tag: 'v9.9.9' })).toThrow(/Bump package\.json/);
+  });
+});
+
+describe('parseWrapperHolochainVersion', () => {
+  it("reads the bundled conductor out of the wrapper's bins block", () => {
+    expect(parseWrapperHolochainVersion("  bins: {\n    holochainVersion: '0.7.0',\n  },")).toBe('0.7.0');
+  });
+
+  it('refuses a config with no conductor version rather than skipping the check', () => {
+    expect(() => parseWrapperHolochainVersion("  networkSeed: 'x',")).toThrow(/holochainVersion/);
+  });
+});
+
+describe('checkHolochainPairing', () => {
+  it('accepts a patch difference on the same line', () => {
+    expect(() => checkHolochainPairing('0.7.0', '0.7.1')).not.toThrow();
+  });
+
+  it('refuses a different minor, the alpha.1 failure', () => {
+    expect(() => checkHolochainPairing('0.7.0', '0.6.1')).toThrow(/0\.7\.0 .* bundles 0\.6\.1/);
   });
 });

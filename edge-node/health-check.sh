@@ -118,11 +118,16 @@ if [ -n "$MANIFEST" ]; then
     # Its config sets one seed for the whole app, as the desktop wrapper does,
     # so the hApp's two per-role defaults could never both match anyway. A node
     # on any other seed is alone on its own network, whatever else is right.
-    HAVE_SEED=$(docker exec "$CONTAINER" sh -c \
-        'cat /home/nonroot/ro_config.json 2>/dev/null || true' \
-        | jq -r '.app.modifiers.networkSeed // empty')
-    if [ -z "$HAVE_SEED" ]; then
-        echo -e "${YELLOW}⚠ Could not read this node's network seed${NC}"
+    NODE_CONFIG=$(docker exec "$CONTAINER" sh -c \
+        'cat /home/nonroot/ro_config.json 2>/dev/null || true')
+    HAVE_SEED=$(printf '%s' "$NODE_CONFIG" | jq -r '.app.modifiers.networkSeed // empty' 2>/dev/null || true)
+    if [ -z "$NODE_CONFIG" ]; then
+        echo -e "${YELLOW}⚠ Could not read this node's config, so its network seed is unchecked${NC}"
+    elif [ -z "$HAVE_SEED" ]; then
+        # No seed modifier means the hApp's per-role defaults: never the desktop network.
+        echo -e "${RED}✗ This node sets no network seed, so it runs the hApp's defaults, not the desktop network '${WANT_SEED}'${NC}"
+        echo "  Set app.modifiers.networkSeed in its config to that seed and reinstall the hApp."
+        exit 1
     elif [ "$HAVE_SEED" = "$WANT_SEED" ]; then
         echo -e "${GREEN}✓ Network seed matches the desktop network (${HAVE_SEED})${NC}"
     else

@@ -144,15 +144,18 @@ describe('MarkdownRenderer Component Logic', () => {
       expect(anchor.getAttribute('rel')).toBe('noopener noreferrer');
     });
 
-    it.each(['[req](/requests/abc)', '[top](#top)', '[next](?page=2)', '[rel](./x)'])(
-      'keeps the in-app link %s routing inside the app',
-      (markdown) => {
-        const anchor = anchorOf(markdown);
-        const href = /\(([^)]*)\)/.exec(markdown)?.[1];
-        expect(anchor.getAttribute('href')).toBe(href);
-        expect(anchor.hasAttribute('target')).toBe(false);
-      }
-    );
+    it.each([
+      '[req](/requests/abc)',
+      '[top](#top)',
+      '[next](?page=2)',
+      '[rel](./x)',
+      '[rel](requests/abc)'
+    ])('keeps the in-app link %s routing inside the app', (markdown) => {
+      const anchor = anchorOf(markdown);
+      const href = /\(([^)]*)\)/.exec(markdown)?.[1];
+      expect(anchor.getAttribute('href')).toBe(href);
+      expect(anchor.hasAttribute('target')).toBe(false);
+    });
 
     it.each(['[mail](mailto:someone@example.com)', '[call](tel:+15145550000)'])(
       'keeps %s as it was written',
@@ -170,6 +173,8 @@ describe('MarkdownRenderer Component Logic', () => {
       '<a href="/\\evil.example/x">a</a>',
       '<a href="\\\\evil.example/x">a</a>',
       '<a href="/\t/evil.example/x">a</a>',
+      '<a href="\u0001//evil.example/x">a</a>',
+      '<a href=" //evil.example/x">a</a>',
       '[x](javascript:alert(1))',
       '<a href="java\tscript:alert(1)">x</a>',
       '<a href="vbscript:msgbox(1)">x</a>',
@@ -179,6 +184,22 @@ describe('MarkdownRenderer Component Logic', () => {
       const anchor = anchorOf(markdown);
       expect(anchor.hasAttribute('href')).toBe(false);
       expect(anchor.hasAttribute('target')).toBe(false);
+    });
+
+    // Clickable elements that are not HTML anchors: an SVG `<a>` (with `href` or
+    // `xlink:href`), an image-map `<area>`, and a form whose submit leaves the app.
+    it.each([
+      '<svg><a href="//evil.example"><text>click</text></a></svg>',
+      '<svg><a xlink:href="//evil.example"><text>click</text></a></svg>',
+      '<svg><a href="example.org"><text>click</text></a></svg>',
+      '<math><mi href="//evil.example">x</mi></math>',
+      '<img src="/x.png" usemap="#m"><map name="m"><area shape="default" href="//evil.example"></map>',
+      '<form action="//evil.example"><button>go</button></form>'
+    ])('leaves nothing in %s that can navigate', (markdown) => {
+      const container = document.createElement('div');
+      container.innerHTML = renderMarkdown(markdown);
+      expect(container.querySelector('svg, math, area, map, form')).toBeNull();
+      expect(container.querySelector('[href], [xlink\\:href], [action]')).toBeNull();
     });
 
     it('does not leave the link hook registered on DOMPurify', async () => {

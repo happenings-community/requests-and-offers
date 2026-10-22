@@ -4,6 +4,7 @@
   import type { Snippet } from 'svelte';
   import { getModalStore } from '@skeletonlabs/skeleton';
   import ContactAdminsModal from '$lib/components/users/ContactAdminsModal.svelte';
+  import { headingFor, isBlockedState, lineFor, statusLabel } from '$lib/utils/profile-status';
 
   type Props = {
     children: Snippet;
@@ -11,6 +12,8 @@
     allowCreating?: boolean;
     title?: string;
     description?: string;
+    /** What the page blocks, as a verb phrase ("create requests"), for a member whose profile is not accepted. */
+    blockedAction?: string;
     showProfileActions?: boolean;
     redirectToProfile?: boolean;
   };
@@ -21,6 +24,7 @@
     allowCreating = false,
     title = 'Profile Required',
     description = 'A user profile is required to access this feature.',
+    blockedAction = 'use this feature',
     showProfileActions = true,
     redirectToProfile = false
   }: Props = $props();
@@ -251,6 +255,13 @@
 
   const modalStore = getModalStore();
 
+  // The state as a BlockedState when the member has a profile that is not accepted,
+  // so the template can hand it to the typed wording helpers (#331 follow-up).
+  const blockedState = $derived(() => {
+    const state = profileState().state;
+    return isBlockedState(state) ? state : null;
+  });
+
   function handlePrimaryAction() {
     const action = primaryAction();
     if (action?.href) {
@@ -353,11 +364,22 @@
         {/if}
       </div>
 
-      <h1 class="h1 mb-4">{title}</h1>
+      <!-- A member with a profile is told about their status, not about a missing profile (#331) -->
+      {#if blockedState()}
+        <h1 class="h1 mb-4">{headingFor(blockedState()!)}</h1>
+      {:else}
+        <h1 class="h1 mb-4">{title}</h1>
+      {/if}
 
       <div class="space-y-4 text-surface-600">
-        <p class="text-lg">{description}</p>
-        <p class="text-base">{profileState().message}</p>
+        {#if blockedState()}
+          <p class="text-lg">
+            {lineFor(blockedState()!, blockedAction, profileState().user?.status?.suspended_until)}
+          </p>
+        {:else}
+          <p class="text-lg">{description}</p>
+          <p class="text-base">{profileState().message}</p>
+        {/if}
 
         {#if profileState().state === 'missing'}
           <div class="bg-surface-100-800-token rounded-lg p-4">
@@ -464,7 +486,7 @@
           </p>
           <p class="text-sm text-surface-500">
             <strong>Status:</strong>
-            {profileState().user?.status?.status_type || 'Unknown'}
+            {statusLabel(profileState().user?.status?.status_type)}
           </p>
         </div>
       {/if}

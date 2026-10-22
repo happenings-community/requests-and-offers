@@ -4,6 +4,7 @@
   import { useServiceTypeDetails } from '$lib/composables';
   import { showToast } from '$lib/utils';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
+  import { runEffect } from '$lib/utils/effect';
 
   // Initialize the composable with edit-specific behavior
   const serviceTypeDetails = useServiceTypeDetails({
@@ -21,10 +22,12 @@
     }
 
     try {
-      await serviceTypesStore.updateServiceType(
-        serviceType.original_action_hash,
-        serviceType.previous_action_hash,
-        updatedServiceType
+      await runEffect(
+        serviceTypesStore.updateServiceType(
+          serviceType.original_action_hash,
+          serviceType.previous_action_hash,
+          updatedServiceType
+        )
       );
 
       showToast('Service type updated successfully');

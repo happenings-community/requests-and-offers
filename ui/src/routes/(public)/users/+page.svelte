@@ -55,7 +55,7 @@
   }
 </script>
 
-<section class="flex flex-col gap-4">
+<section class="container mx-auto flex flex-col gap-4 p-4">
   <h2 class="h1 text-center">Users</h2>
 
   <!-- Test mode banner -->

@@ -87,7 +87,7 @@ if [ -n "$MANIFEST" ]; then
 
     WANT_VERSION=$(jq -r .version "$MANIFEST")
     WANT_HAPP_SHA=$(jq -r .happ.sha256 "$MANIFEST")
-    WANT_SEED=$(jq -r .network.requestsAndOffersSeed "$MANIFEST")
+    WANT_SEED=$(jq -r .desktop.networkSeed "$MANIFEST")
     echo -e "${BOLD}Release ${WANT_VERSION}${NC}"
 
     # The hApp file the node installed from, read out of its own config rather
@@ -114,21 +114,22 @@ if [ -n "$MANIFEST" ]; then
         exit 1
     fi
 
-    # The seed is reported, not asserted. The desktop wrapper overrides the
-    # hApp's own seed at install time, so an edge node deliberately joining the
-    # desktop network will differ from the manifest and still be correct. Only a
-    # human knows which network this node is meant to be on.
+    # An edge node serves the desktop testers, so it runs the desktop seed.
+    # Its config sets one seed for the whole app, as the desktop wrapper does,
+    # so the hApp's two per-role defaults could never both match anyway. A node
+    # on any other seed is alone on its own network, whatever else is right.
     HAVE_SEED=$(docker exec "$CONTAINER" sh -c \
         'cat /home/nonroot/ro_config.json 2>/dev/null || true' \
         | jq -r '.app.modifiers.networkSeed // empty')
     if [ -z "$HAVE_SEED" ]; then
         echo -e "${YELLOW}⚠ Could not read this node's network seed${NC}"
     elif [ "$HAVE_SEED" = "$WANT_SEED" ]; then
-        echo -e "${GREEN}✓ Network seed matches the hApp default (${HAVE_SEED})${NC}"
+        echo -e "${GREEN}✓ Network seed matches the desktop network (${HAVE_SEED})${NC}"
     else
-        echo -e "${YELLOW}⚠ Network seed is '${HAVE_SEED}', the hApp default is '${WANT_SEED}'${NC}"
-        echo "  Expected when this node joins the desktop app's network on purpose."
-        echo "  Check it against the seed named in the release notes."
+        echo -e "${RED}✗ Network seed is '${HAVE_SEED}', the desktop network is '${WANT_SEED}'${NC}"
+        echo "  This node cannot reach the desktop testers. Set app.modifiers.networkSeed"
+        echo "  in its config to the seed above and reinstall the hApp."
+        exit 1
     fi
 fi
 

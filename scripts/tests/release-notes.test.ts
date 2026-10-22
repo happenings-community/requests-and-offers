@@ -87,15 +87,14 @@ describe('renderNotes', () => {
     expect(notes).not.toMatch(/\{[A-Z_]+\}/);
     expect(notes).toContain('## 🚀 The Second One');
     expect(notes).toContain('Body of the second one.');
-    expect(notes).toContain('**Network seed (desktop apps)**: `alpha1-iroh-2026`');
-    expect(notes).toContain('**Network seed (edge nodes, hApp default)**: `requests_and_offers_alpha`');
+    expect(notes).toContain('**Network seed (desktop apps and edge nodes)**: `alpha1-iroh-2026`');
     expect(notes).toContain('**Holochain**: 0.6.1');
     expect(notes).toContain('compare/v0.6.0...v0.7.0');
   });
 
-  it('names the wrapper seed, not the hApp seed, for the desktop network', () => {
+  it('names the wrapper seed, not the hApp seed, for desktop apps and edge nodes', () => {
     const notes = renderNotes({ template: realTemplate, changelog, version: '0.7.0', manifest });
-    const desktopLine = notes.split('\n').find((line) => line.includes('Network seed (desktop apps)'));
+    const desktopLine = notes.split('\n').find((line) => line.includes('Network seed (desktop apps and edge nodes)'));
     expect(desktopLine).toContain('alpha1-iroh-2026');
     expect(desktopLine).not.toContain('requests_and_offers_alpha');
   });

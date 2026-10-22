@@ -31,7 +31,9 @@ on:
         default: false
 
 concurrency:
-  group: release-${{ inputs.tag || github.ref }}
+  # ref_name, not ref: a dispatch for v1.2.3 and the tag push of v1.2.3 are the
+  # same release and must queue behind each other.
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 # Read-only by default. Each job asks for exactly what it uses, so the build
@@ -100,6 +102,11 @@ jobs:
         env:
           TAG: ${{ inputs.tag || github.ref_name }}
         run: echo "value=$TAG" >> "$GITHUB_OUTPUT"
+
+      # The same check CI and the heavy suites run: the published artefact must
+      # not be built from a vendored tarball nobody checked.
+      - name: Verify the vendored hREA adapter
+        run: cd vendor && sha256sum -c valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz.sha256
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -192,15 +199,26 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
           PRERELEASE: ${{ needs.build.outputs.prerelease == 'true' && '--prerelease' || '' }}
         run: |
-          # PRERELEASE is unquoted on purpose: empty must vanish, not become "".
-          gh release create "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "v$VERSION" \
-            --notes-file release-notes.md \
-            $PRERELEASE \
-            workdir/requests_and_offers.happ \
-            workdir/requests_and_offers.webhapp \
-            release-manifest.json
+          set -euo pipefail
+          # A re-run after a later job failed finds the release already there:
+          # replace its files and notes rather than failing on create.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
+              workdir/requests_and_offers.happ \
+              workdir/requests_and_offers.webhapp \
+              release-manifest.json
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file release-notes.md
+          else
+            # PRERELEASE is unquoted on purpose: empty must vanish, not become "".
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "v$VERSION" \
+              --notes-file release-notes.md \
+              $PRERELEASE \
+              workdir/requests_and_offers.happ \
+              workdir/requests_and_offers.webhapp \
+              release-manifest.json
+          fi
 
   desktop:
     name: Hand off to the desktop wrapper
@@ -219,10 +237,54 @@ jobs:
       # `fetch-webhapp.js` refuses to run when a .webhapp is already sitting in
       # pouch/, so the same commit removes the committed binary. That is the
       # switch from a 13.8 MB file in git to a URL, and it happens once.
+      # Only the handoff script: the job runs no build and needs nothing else.
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/release-wrapper.ts
+          sparse-checkout-cone-mode: false
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+
+      # The wrapper's publish workflow only uploads to `v$VERSION`; it never
+      # creates the release. Create it first, as a prerelease when the version
+      # is one, or every installer upload fails.
+      - name: Create the wrapper release
+        env:
+          # A token with contents: write on the wrapper repository. Soushi adds
+          # it; nothing in this repository reads or creates it.
+          GH_TOKEN: ${{ secrets.KANGAROO_PAT }}
+          VERSION: ${{ needs.build.outputs.version }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease == 'true' && '--prerelease' || '' }}
+        run: |
+          set -euo pipefail
+          WRAPPER=happenings-community/requests-and-offers-kangaroo-electron
+          if gh release view "v$VERSION" --repo "$WRAPPER" >/dev/null 2>&1; then
+            echo "v$VERSION already exists on $WRAPPER"
+          else
+            # PRERELEASE is unquoted on purpose: empty must vanish, not become "".
+            gh release create "v$VERSION" \
+              --repo "$WRAPPER" \
+              --target release \
+              --title "v$VERSION" \
+              --notes "Desktop installers for Requests and Offers v$VERSION. Release notes: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" \
+              $PRERELEASE
+          fi
+
+      # One commit, no binary. The wrapper's own `publish` workflow triggers on a
+      # push to `release`, and its `yarn setup` step already runs `fetch:webhapp`,
+      # which downloads the URL below and verifies it against the sha256 before
+      # packaging. That digest is the one this run measured, so a mismatched
+      # webhapp stops the build there rather than shipping.
+      #
+      # `fetch-webhapp.js` refuses to run when a .webhapp is already sitting in
+      # pouch/, so the same commit removes the committed binary. That is the
+      # switch from a 13.8 MB file in git to a URL, and it happens once.
       - name: Point the wrapper at this release
         env:
-          # A token with push access to the wrapper repository. Soushi adds it;
-          # nothing in this repository reads or creates it.
           GH_TOKEN: ${{ secrets.KANGAROO_PAT }}
           VERSION: ${{ needs.build.outputs.version }}
           SHA256: ${{ needs.build.outputs.webhapp_sha256 }}
@@ -230,38 +292,31 @@ jobs:
         run: |
           set -euo pipefail
           WRAPPER=happenings-community/requests-and-offers-kangaroo-electron
-          export URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/requests_and_offers.webhapp"
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/requests_and_offers.webhapp"
 
-          git clone --depth 1 --branch release \
-            "https://x-access-token:${GH_TOKEN}@github.com/${WRAPPER}.git" wrapper
+          # The token goes in a header, never in the remote URL, where it would
+          # be written to wrapper/.git/config.
+          BASIC=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$BASIC"
+          AUTH="AUTHORIZATION: basic $BASIC"
+          git -c "http.https://github.com/.extraheader=$AUTH" \
+            clone --depth 1 --branch release "https://github.com/${WRAPPER}.git" wrapper
+
+          rm -f wrapper/pouch/*.webhapp
+          bun scripts/release-wrapper.ts \
+            --config wrapper/kangaroo.config.ts \
+            --version "$VERSION" --url "$URL" --sha256 "$SHA256"
+
           cd wrapper
-
-          rm -f pouch/*.webhapp
-
-          node - <<'NODE'
-          const fs = require('node:fs');
-          const path = 'kangaroo.config.ts';
-          const version = process.env.VERSION;
-          const url = process.env.URL;
-          const sha256 = process.env.SHA256;
-          let source = fs.readFileSync(path, 'utf8');
-
-          const before = source;
-          source = source.replace(/version:\s*'[^']*'/, `version: '${version}'`);
-          if (source === before) throw new Error('no version field matched in kangaroo.config.ts');
-
-          const webhapp = `webhapp: {\n    url: '${url}',\n    sha256: '${sha256}',\n  },`;
-          source = /webhapp:\s*\{[^}]*\},?/.test(source)
-            ? source.replace(/webhapp:\s*\{[^}]*\},?/, webhapp)
-            : source.replace(/(version:\s*'[^']*',\n)/, `$1  ${webhapp}\n`);
-
-          fs.writeFileSync(path, source);
-          console.log(source.split('\n').slice(0, 20).join('\n'));
-          NODE
-
           git config user.name "requests-and-offers release"
           git config user.email "noreply@happenings.community"
           git add -A
-          git commit -m "release: v${VERSION} webhapp from the main repository"
-          git push origin release
+          # A re-run finds the wrapper already pointed at this release. The push
+          # is what starts the installer build, so it still happens, empty.
+          if git diff --cached --quiet; then
+            git commit --allow-empty -m "release: rebuild v${VERSION} installers"
+          else
+            git commit -m "release: v${VERSION} webhapp from the main repository"
+          fi
+          git -c "http.https://github.com/.extraheader=$AUTH" push origin release
         shell: bash

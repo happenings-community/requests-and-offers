@@ -102,9 +102,8 @@ export const renderNotes = ({ template, changelog, version, manifest }: NotesInp
       .trim(),
     VERSION: version,
     PREV_VERSION: previous ?? version,
-    // Two networks, two seeds. A desktop tester runs the wrapper's seed, so that
-    // is the one the note names for the desktop; the hApp's own default is what
-    // an edge node runs, and is named separately.
+    // Desktop testers and edge nodes both run the wrapper's seed, so it is the
+    // one seed the note names; the hApp's per-role defaults are for development.
     DESKTOP_NETWORK: manifest.desktop.networkSeed,
     HOLOCHAIN_VERSION: manifest.holochainVersion,
   };

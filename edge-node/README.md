@@ -12,7 +12,7 @@ Configuration and tooling for running an always-on edge node for Requests & Offe
 ## happ-config.json fields
 
 - `app.version` — hApp version; update to match the release you installed (e.g. `"0.5.1"`)
-- `app.modifiers.networkSeed` — must match the network seed for the target version (e.g. `"Requests and Offers-0.5.x"`)
+- `app.modifiers.networkSeed` — the desktop network's seed for the release you install, named in its release notes (e.g. `"alpha2-holochain07-2026"`); `health-check.sh --manifest` fails a node on any other
 - `env.holochain.bootstrapUrl` / `signalServerUrl` — the bootstrap and signal servers:
   - **0.5.x dev-test network**: `https://dev-test-bootstrap2.holochain.org/`
   - **Production network**: `https://holostrap.elohim.host/`

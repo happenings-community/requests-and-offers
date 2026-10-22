@@ -228,15 +228,6 @@ jobs:
     # Pushes with KANGAROO_PAT, not the workflow token, which needs nothing here.
     permissions: {}
     steps:
-      # One commit, no binary. The wrapper's own `publish` workflow triggers on a
-      # push to `release`, and its `yarn setup` step already runs `fetch:webhapp`,
-      # which downloads the URL below and verifies it against the sha256 before
-      # packaging. That digest is the one this run measured, so a mismatched
-      # webhapp stops the build there rather than shipping.
-      #
-      # `fetch-webhapp.js` refuses to run when a .webhapp is already sitting in
-      # pouch/, so the same commit removes the committed binary. That is the
-      # switch from a 13.8 MB file in git to a URL, and it happens once.
       # Only the handoff script: the job runs no build and needs nothing else.
       - uses: actions/checkout@v5
         with:
@@ -248,32 +239,6 @@ jobs:
         with:
           bun-version: '1.4.2'
 
-      # The wrapper's publish workflow only uploads to `v$VERSION`; it never
-      # creates the release. Create it first, as a prerelease when the version
-      # is one, or every installer upload fails.
-      - name: Create the wrapper release
-        env:
-          # A token with contents: write on the wrapper repository. Soushi adds
-          # it; nothing in this repository reads or creates it.
-          GH_TOKEN: ${{ secrets.KANGAROO_PAT }}
-          VERSION: ${{ needs.build.outputs.version }}
-          TAG: ${{ github.ref_name }}
-          PRERELEASE: ${{ needs.build.outputs.prerelease == 'true' && '--prerelease' || '' }}
-        run: |
-          set -euo pipefail
-          WRAPPER=happenings-community/requests-and-offers-kangaroo-electron
-          if gh release view "v$VERSION" --repo "$WRAPPER" >/dev/null 2>&1; then
-            echo "v$VERSION already exists on $WRAPPER"
-          else
-            # PRERELEASE is unquoted on purpose: empty must vanish, not become "".
-            gh release create "v$VERSION" \
-              --repo "$WRAPPER" \
-              --target release \
-              --title "v$VERSION" \
-              --notes "Desktop installers for Requests and Offers v$VERSION. Release notes: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" \
-              $PRERELEASE
-          fi
-
       # One commit, no binary. The wrapper's own `publish` workflow triggers on a
       # push to `release`, and its `yarn setup` step already runs `fetch:webhapp`,
       # which downloads the URL below and verifies it against the sha256 before
@@ -283,12 +248,23 @@ jobs:
       # `fetch-webhapp.js` refuses to run when a .webhapp is already sitting in
       # pouch/, so the same commit removes the committed binary. That is the
       # switch from a 13.8 MB file in git to a URL, and it happens once.
-      - name: Point the wrapper at this release
+      #
+      # The wrapper's publish workflow only uploads to `v$VERSION`; it never
+      # creates the release. So it is created right after the push, on the
+      # pushed commit, which makes its tag hold the config that built the
+      # installers, as a prerelease when the version is one. The installer
+      # builds take minutes before their first upload, so the release exists
+      # by then; created before the push instead, it would sit published and
+      # empty, and tag a commit without the webhapp.
+      - name: Point the wrapper at this release and create its release
         env:
+          # A token with contents: write on the wrapper repository. Soushi adds
+          # it; nothing in this repository reads or creates it.
           GH_TOKEN: ${{ secrets.KANGAROO_PAT }}
           VERSION: ${{ needs.build.outputs.version }}
           SHA256: ${{ needs.build.outputs.webhapp_sha256 }}
           TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease == 'true' && '--prerelease' || '' }}
         run: |
           set -euo pipefail
           WRAPPER=happenings-community/requests-and-offers-kangaroo-electron
@@ -319,4 +295,16 @@ jobs:
             git commit -m "release: v${VERSION} webhapp from the main repository"
           fi
           git -c "http.https://github.com/.extraheader=$AUTH" push origin release
+
+          if gh release view "v$VERSION" --repo "$WRAPPER" >/dev/null 2>&1; then
+            echo "v$VERSION already exists on $WRAPPER"
+          else
+            # PRERELEASE is unquoted on purpose: empty must vanish, not become "".
+            gh release create "v$VERSION" \
+              --repo "$WRAPPER" \
+              --target "$(git rev-parse HEAD)" \
+              --title "v$VERSION" \
+              --notes "Desktop installers for Requests and Offers v$VERSION. Release notes: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" \
+              $PRERELEASE
+          fi
         shell: bash

@@ -16,12 +16,13 @@
  * TWO NETWORKS, TWO SEEDS
  *
  * The hApp bundle carries a default network seed per role (`workdir/happ.yaml`),
- * and that is what an edge node runs. The desktop wrapper does not: its
+ * which only a development sandbox runs. The desktop wrapper does not: its
  * `kangaroo.config.ts` sets `networkSeed`, which it passes to `installApp` and
  * which replaces the seed for the whole app at install time. A desktop tester is
  * therefore never on the hApp's seed. The manifest records both, under
- * `network` (the hApp's) and `desktop` (the wrapper's), and the release note
- * names the desktop one wherever it describes the desktop network.
+ * `network` (the hApp's) and `desktop` (the wrapper's). Edge nodes serve the
+ * desktop testers and set one seed for the whole app too, so they run the
+ * desktop seed, and the release note names that one seed for both.
  *
  * WHAT `dna.hash` IS AND IS NOT
  *

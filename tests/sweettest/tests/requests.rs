@@ -153,6 +153,21 @@ async fn request_archive_and_delete() {
         archived.unwrap().entry().to_app_option().unwrap().expect("entry");
     assert_eq!(archived_req.status, "Archived");
 
+    // archive_request moves the listing onto the archived path, and the archived
+    // list resolves it to its latest revision like every other list.
+    let _: bool = conductors[0]
+        .call(&alice.zome("requests"), "archive_request", req_hash.clone())
+        .await;
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let archived_list: Vec<Record> = conductors[0]
+        .call(&alice.zome("requests"), "get_archived_requests", ())
+        .await;
+    assert_eq!(archived_list.len(), 1, "one archived request");
+    let listed: Request = archived_list[0].entry().to_app_option().unwrap().expect("entry");
+    assert_eq!(listed.status, "Archived");
+
     // Delete the request.
     let _: bool = conductors[0]
         .call(&alice.zome("requests"), "delete_request", req_hash.clone())

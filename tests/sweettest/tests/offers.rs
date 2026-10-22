@@ -147,6 +147,21 @@ async fn offer_archive_and_delete() {
         archived.unwrap().entry().to_app_option().unwrap().expect("entry");
     assert_eq!(archived_offer.status, "Archived");
 
+    // archive_offer moves the listing onto the archived path, and the archived
+    // list resolves it to its latest revision like every other list.
+    let _: bool = conductors[0]
+        .call(&alice.zome("offers"), "archive_offer", offer_hash.clone())
+        .await;
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let archived_list: Vec<Record> = conductors[0]
+        .call(&alice.zome("offers"), "get_archived_offers", ())
+        .await;
+    assert_eq!(archived_list.len(), 1, "one archived offer");
+    let listed: Offer = archived_list[0].entry().to_app_option().unwrap().expect("entry");
+    assert_eq!(listed.status, "Archived");
+
     // Delete the offer.
     let _: bool = conductors[0]
         .call(&alice.zome("offers"), "delete_offer", offer_hash.clone())

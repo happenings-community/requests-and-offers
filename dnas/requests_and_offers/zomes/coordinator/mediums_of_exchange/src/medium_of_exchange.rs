@@ -260,7 +260,8 @@ fn latest_medium_of_exchange_action_hash(
 
 /// Resolve each link target to its latest revision, then fetch them all in one batched
 /// `get` (#186). A target whose update links cannot be read is skipped rather than failing
-/// the whole list (#233); targets that are not found are dropped, as before #184.
+/// the whole list (#233); targets that are not found are dropped, as before #184. A fetch
+/// error on any one record still fails the batch, which is also the pre-#184 contract.
 fn get_latest_medium_of_exchange_records(links: Vec<Link>) -> ExternResult<Vec<Record>> {
   let get_input: Vec<GetInput> = links
     .into_iter()

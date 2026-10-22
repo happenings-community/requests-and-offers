@@ -174,17 +174,17 @@ Input/Output structs are defined in Rust for type safety and clarity.
 - **`get_pending_mediums_of_exchange() -> ExternResult<Vec<Record>>`**
   - **Description**: Retrieves all `MediumOfExchange` entries currently linked to the `mediums_of_exchange.status.pending` anchor.
   - **Access Control**: Admin only.
-  - **Returns**: A vector of `Record`s.
+  - **Returns**: A vector of `Record`s: the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails.
 
 - **`get_approved_mediums_of_exchange() -> ExternResult<Vec<Record>>`**
   - **Description**: Retrieves all `MediumOfExchange` entries currently linked to the `mediums_of_exchange.status.approved` anchor.
   - **Access Control**: Public (essential for UI selectors).
-  - **Returns**: A vector of `Record`s.
+  - **Returns**: A vector of `Record`s: the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails.
 
 - **`get_rejected_mediums_of_exchange() -> ExternResult<Vec<Record>>`**
   - **Description**: Retrieves all `MediumOfExchange` entries currently linked to the `mediums_of_exchange.status.rejected` anchor.
   - **Access Control**: Admin only.
-  - **Returns**: A vector of `Record`s.
+  - **Returns**: A vector of `Record`s: the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails.
 
 #### Entity Linking Functions
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { page } from '$app/state';
   import { getModalStore, getToastStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
   import type { Revision, UIOrganization, UIRequest, UIOffer } from '$lib/types/ui';
@@ -175,7 +176,8 @@
   $inspect(organization?.contact);
   // Load organization when the component mounts
   $effect(() => {
-    Promise.all([loadOrganization(), usersStore.refreshCurrentUser()]);
+    // untrack: the refresh writes the current user, which must not re-run this effect
+    untrack(() => Promise.all([loadOrganization(), runEffect(usersStore.refreshCurrentUser())]));
   });
 
   let organizationLogoUrl = $derived.by(() =>

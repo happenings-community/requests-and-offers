@@ -2,14 +2,14 @@ use hdk::prelude::*;
 use requests_integrity::*;
 use utils::{
   errors::{AdministrationError, CommonError, UsersError},
-  grants::{require_grant, Ability},
+  grants::{can_i, require_grant, Ability},
   resolve_chain_root, EntityActionHash, GetMediumOfExchangeForEntityInput,
   GetServiceTypeForEntityInput, MediumOfExchangeLinkInput, OriginalActionHash, PreviousActionHash,
   ServiceTypeLinkInput, UpdateMediumOfExchangeLinksInput, UpdateServiceTypeLinksInput,
 };
 
 use crate::external_calls::{
-  check_if_agent_is_administrator, check_if_entity_is_accepted,
+  check_if_agent_is_administrator, check_if_entity_is_accepted, get_organization_members_links,
   delete_all_medium_of_exchange_links_for_entity, delete_all_service_type_links_for_entity,
   get_agent_user, link_to_medium_of_exchange, link_to_service_type,
   update_medium_of_exchange_links, update_service_type_links,
@@ -49,6 +49,24 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
   let grant = require_grant(Ability::Participate, None)?;
   let mut request = input.request;
   request.grant = Some(grant);
+  // Posted on an organisation's behalf: the author must be one of its members, and
+  // the request carries the membership link that admits them, which validation
+  // reads. Set here, never from the client.
+  request.organization = input.organization.clone();
+  request.membership = match &input.organization {
+    None => None,
+    Some(organization) => {
+      let my_user = user_links[0].target.clone();
+      let admitted = get_organization_members_links(organization.clone())?
+        .into_iter()
+        .find(|link| link.target == my_user)
+        .ok_or_else(|| {
+          AdministrationError::EntityNotAccepted("organization member".to_string())
+        })?;
+      Some(admitted.create_link_hash)
+    }
+  };
+  request.removal_reason = None;
   let request_hash = create_entry(&EntryTypes::Request(request))?;
 
   let record = get(request_hash.clone(), GetOptions::default())?.ok_or(
@@ -391,6 +409,16 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
   } else {
     Some(require_grant(Ability::Administer, None)?)
   };
+  // The organisation and the membership are the original's, never the client's;
+  // an edit is not a removal.
+  let creator_request: Request = creator_record
+    .entry()
+    .to_app_option()
+    .map_err(CommonError::Serialize)?
+    .ok_or(CommonError::EntryNotFound("request".to_string()))?;
+  updated_request.organization = creator_request.organization;
+  updated_request.membership = creator_request.membership;
+  updated_request.removal_reason = None;
   let updated_request_hash = update_entry(input.previous_action_hash.into(), &updated_request)?;
 
   // Update the ActiveRequests link in "requests.active" to point to the new record.
@@ -637,6 +665,7 @@ pub fn archive_request(original_action_hash: ActionHash) -> ExternResult<bool> {
   } else {
     Some(require_grant(Ability::Administer, None)?)
   };
+  updated_request.removal_reason = None;
 
   // Create update entry - use the LATEST action hash as previous
   let latest_action_hash = latest_record.signed_action.hashed.hash.clone();
@@ -724,4 +753,64 @@ pub fn get_requests_by_tag(tag: String) -> ExternResult<Vec<Record>> {
   }
 
   Ok(all_requests)
+}
+
+/// Input for `remove_request`.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RemoveRequestInput {
+  pub original_action_hash: ActionHash,
+  pub reason: String,
+}
+
+/// Removes a request as a role holder: an administrator, or a coordinator of
+/// the organisation it was posted for. The request is updated to `Deleted` carrying
+/// the remover's grant and the reason, so who and why are on the record, and it
+/// leaves the active list. Its creator deletes it with `delete_request` instead.
+#[hdk_extern]
+pub fn remove_request(input: RemoveRequestInput) -> ExternResult<Record> {
+  if input.reason.trim().is_empty() {
+    return Err(CommonError::InvalidData("a removal says why".to_string()).into());
+  }
+  let root = resolve_chain_root(input.original_action_hash.clone());
+  let latest = get_latest_request_record(root.clone())?.ok_or(CommonError::EntryNotFound(
+    "Could not find the request".to_string(),
+  ))?;
+  let current: Request = latest
+    .entry()
+    .to_app_option()
+    .map_err(CommonError::Serialize)?
+    .ok_or(CommonError::EntryNotFound("request".to_string()))?;
+  if current.status == ListingStatus::Deleted {
+    return Err(CommonError::InvalidData("that request is already removed".to_string()).into());
+  }
+  let grant = match can_i(Ability::Administer, None)? {
+    Some(grant) => grant,
+    None => match &current.organization {
+      Some(organization) => require_grant(Ability::Coordinate, Some(organization.clone()))?,
+      None => return Err(AdministrationError::Unauthorized.into()),
+    },
+  };
+
+  let mut removed = current;
+  removed.status = ListingStatus::Deleted;
+  removed.grant = Some(grant);
+  removed.removal_reason = Some(input.reason.trim().to_string());
+  let latest_hash = latest.action_address().clone();
+  let removed_hash = update_entry(latest_hash.clone(), &removed)?;
+  create_link(root, removed_hash.clone(), LinkTypes::RequestUpdates, ())?;
+
+  // Out of the active list; the creator's and the organisation's links stay, so
+  // they still find it and read why.
+  let active_path_hash = Path::from("requests.active").path_entry_hash()?;
+  let filter = LinkTypes::ActiveRequests
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  for link in get_links(LinkQuery::new(active_path_hash, filter), GetStrategy::Local)? {
+    if link.target.clone().into_action_hash() == Some(latest_hash.clone()) {
+      delete_link(link.create_link_hash, GetOptions::default())?;
+    }
+  }
+
+  get(removed_hash, GetOptions::default())?
+    .ok_or(CommonError::EntryNotFound("Could not find the removed request".to_string()).into())
 }

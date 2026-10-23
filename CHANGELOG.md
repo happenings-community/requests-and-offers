@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ⚠️ Network reset
 
-Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty network: profiles, organisations, requests, offers, exchanges and messages from alpha 1 do not carry over. Alpha data stays disposable until the breaking-version migration lands (#144). Notice to testers: `documentation/releases/v0.6.0-alpha.2-network-reset.md` (#195).
+Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty network: profiles, organisations, requests, offers and exchanges from alpha 1 do not carry over. Alpha data stays disposable until the breaking-version migration lands (#144). Notice to testers: `documentation/releases/v0.6.0-alpha.2-network-reset.md` (#195).
 
 ### Documentation
 

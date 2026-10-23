@@ -1,7 +1,6 @@
 ---
 manifest_version: "0"
 name: requests_and_offers
-description: "Requests and offers distributed marketplace."
 ui:
   path: "../ui/dist.zip"
 happ:

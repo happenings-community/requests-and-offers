@@ -124,9 +124,14 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
       timeout: 15_000
     });
 
-    await page.getByRole('button', { name: 'Approve' }).first().click();
+    // Decisions are made from the details screen, after the application (#331).
+    await page.getByRole('button', { name: 'Review application' }).first().click();
+    await page.getByRole('button', { name: 'Approve', exact: true }).click();
 
-    await expect(page.locator('text=User approved.').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=User status updated successfully.').first()).toBeVisible({
+      timeout: 10_000
+    });
+    await page.getByRole('button', { name: 'Close' }).click();
     await expect(page.locator('text=No pending users.')).toBeVisible({ timeout: 10_000 });
   });
 

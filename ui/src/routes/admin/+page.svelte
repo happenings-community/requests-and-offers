@@ -16,6 +16,8 @@
   import { runEffect } from '$lib/utils/effect';
   import UserDetailsModal from '$lib/components/users/UserDetailsModal.svelte';
   import UserName from '$lib/components/users/UserName.svelte';
+  import { useApplicationStages } from '$lib/composables/domain/users/useApplicationStages.svelte';
+  import { APPLICATION_STAGE_LABEL, type ApplicationStage } from '$lib/utils/application-stage';
   import OrganizationDetailsModal from '$lib/components/organizations/OrganizationDetailsModal.svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
@@ -34,7 +36,10 @@
       modalStore.trigger({
         type: 'component',
         component: modalComponent,
-        meta: { user }
+        meta: { user },
+        // A decision is made inside the details screen (#331): refresh the queue
+        // when it closes, however it closes.
+        response: () => refreshUsersData()
       });
     } else {
       goto(`/users/${encodeHashToBase64(user.original_action_hash)}`);
@@ -48,7 +53,8 @@
       modalStore.trigger({
         type: 'component',
         component: orgModalComponent,
-        meta: { organization: org }
+        meta: { organization: org },
+        response: () => refreshOrganizationsData()
       });
     } else {
       goto(`/organizations/${encodeHashToBase64(org.original_action_hash)}`);
@@ -113,32 +119,9 @@
     }
   }
 
-  async function approveUser(user: UIUser) {
-    await runEffect(administrationStore.approveUser(user));
-    toastStore.trigger({ message: 'User approved.', background: 'variant-filled-success' });
-    refreshUsersData();
-  }
-
-  async function rejectUser(user: UIUser) {
-    await runEffect(administrationStore.rejectUser(user));
-    toastStore.trigger({ message: 'User rejected.', background: 'variant-filled-warning' });
-    refreshUsersData();
-  }
-
-  async function approveOrganization(org: UIOrganization) {
-    await runEffect(administrationStore.approveOrganization(org));
-    toastStore.trigger({ message: 'Organization approved.', background: 'variant-filled-success' });
-    refreshOrganizationsData();
-  }
-
-  async function rejectOrganization(org: UIOrganization) {
-    await runEffect(administrationStore.rejectOrganization(org));
-    toastStore.trigger({ message: 'Organization rejected.', background: 'variant-filled-warning' });
-    refreshOrganizationsData();
-  }
-
-  async function refreshUsersData() {
-    sectionLoadingState.users = true;
+  async function refreshUsersData({ quiet = false }: { quiet?: boolean } = {}) {
+    // A background refresh shows no spinner, so the queue doesn't flicker every tick.
+    if (!quiet) sectionLoadingState.users = true;
     try {
       // Only refresh user data, not administrators (admin status doesn't change when approving users)
       const users = await runEffect(administrationStore.fetchAllUsers());
@@ -152,17 +135,20 @@
     } catch (e) {
       const error = e as HolochainClientError;
       console.error('Failed to refresh users data:', error);
-      toastStore.trigger({
-        message: 'Failed to refresh users data.',
-        background: 'variant-filled-error'
-      });
+      // A background refresh fails silently; the next tick tries again.
+      if (!quiet) {
+        toastStore.trigger({
+          message: 'Failed to refresh users data.',
+          background: 'variant-filled-error'
+        });
+      }
     } finally {
-      sectionLoadingState.users = false;
+      if (!quiet) sectionLoadingState.users = false;
     }
   }
 
-  async function refreshOrganizationsData() {
-    sectionLoadingState.organizations = true;
+  async function refreshOrganizationsData({ quiet = false }: { quiet?: boolean } = {}) {
+    if (!quiet) sectionLoadingState.organizations = true;
     try {
       const orgs = await runEffect(administrationStore.fetchAllOrganizations());
 
@@ -175,12 +161,14 @@
     } catch (e) {
       const error = e as HolochainClientError;
       console.error('Failed to refresh organizations data:', error);
-      toastStore.trigger({
-        message: 'Failed to refresh organizations data.',
-        background: 'variant-filled-error'
-      });
+      if (!quiet) {
+        toastStore.trigger({
+          message: 'Failed to refresh organizations data.',
+          background: 'variant-filled-error'
+        });
+      }
     } finally {
-      sectionLoadingState.organizations = false;
+      if (!quiet) sectionLoadingState.organizations = false;
     }
   }
 
@@ -223,6 +211,21 @@
     }
   }
 
+  /** How often the open dashboard re-reads its queue. */
+  const QUEUE_REFRESH_MS = 30_000;
+
+  // Where each pending application stands: new, waiting for the applicant, or answered (#331).
+  const applicationStages = useApplicationStages();
+  $effect(() => {
+    void applicationStages.refresh($state.snapshot(dashboardState.data.pendingUsers) as UIUser[]);
+  });
+
+  const STAGE_CHIP: Record<ApplicationStage, string> = {
+    new: 'variant-soft-primary',
+    waiting: 'variant-soft-warning',
+    responded: 'variant-soft-success'
+  };
+
   onMount(() => {
     // Initial data fetch
     fetchDashboardData();
@@ -241,10 +244,31 @@
       }
     );
 
+    // Keep the moderation queue current while the dashboard is open: new applications
+    // appear and each application's stage updates without a reload (#331). Quiet, so no
+    // spinner or error toast each tick; #51's notifications can replace the timer later.
+    let refreshing = false;
+    const refreshQueue = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        await Promise.all([
+          refreshUsersData({ quiet: true }),
+          refreshOrganizationsData({ quiet: true })
+        ]);
+      } finally {
+        refreshing = false;
+      }
+    };
+    const queueInterval = setInterval(refreshQueue, QUEUE_REFRESH_MS);
+    window.addEventListener('focus', refreshQueue);
+
     // Cleanup event listeners on component unmount
     return () => {
       unsubscribeUserStatus();
       unsubscribeOrganizationStatus();
+      clearInterval(queueInterval);
+      window.removeEventListener('focus', refreshQueue);
     };
   });
 </script>
@@ -317,17 +341,16 @@
                       class="text-primary-400 hover:underline"
                       onclick={() => handleViewUser(user)}><UserName user={user} /></button
                     >
+                    {#if applicationStages.stageOf(user)}
+                      {@const stage = applicationStages.stageOf(user)!}
+                      <span class="chip {STAGE_CHIP[stage]}">{APPLICATION_STAGE_LABEL[stage]}</span>
+                    {/if}
                   </div>
-                  <div class="flex gap-2">
-                    <button
-                      class="variant-filled-success btn btn-sm"
-                      onclick={() => approveUser(user)}>Approve</button
-                    >
-                    <button
-                      class="variant-filled-warning btn btn-sm"
-                      onclick={() => rejectUser(user)}>Reject</button
-                    >
-                  </div>
+                  <!-- Decided only from the details screen, after reading it (#331) -->
+                  <button
+                    class="variant-filled-primary btn btn-sm"
+                    onclick={() => handleViewUser(user)}>Review application</button
+                  >
                 </div>
               {:else}
                 <p>No pending users.</p>
@@ -345,16 +368,10 @@
                     onclick={() => handleViewOrganization(org)}>{org.name}</button
                   >
                 </div>
-                <div class="flex gap-2">
-                  <button
-                    class="variant-filled-success btn btn-sm"
-                    onclick={() => approveOrganization(org)}>Approve</button
-                  >
-                  <button
-                    class="variant-filled-warning btn btn-sm"
-                    onclick={() => rejectOrganization(org)}>Reject</button
-                  >
-                </div>
+                <button
+                  class="variant-filled-primary btn btn-sm"
+                  onclick={() => handleViewOrganization(org)}>Review application</button
+                >
               </div>
             {:else}
               <p>No pending organizations.</p>

@@ -5,6 +5,7 @@ import { ArrayFormatter, type ParseError } from 'effect/ParseResult';
 import { ExchangeError } from '$lib/errors/exchanges.errors';
 import { EXCHANGE_CONTEXTS } from '$lib/errors/error-contexts';
 import type {
+  CounterAgreementInput,
   CreateAgreementInput,
   ExchangeReadModel,
   ListingType,
@@ -13,6 +14,7 @@ import type {
 import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 import {
   decodeCancelAgreementInput,
+  decodeCounterAgreementInput,
   decodeCreateAgreementInput,
   decodeCreateInterestInput,
   decodeRespondToAgreementInput,
@@ -64,6 +66,8 @@ export interface ExchangesService {
     accepted: boolean,
     note: string
   ) => E.Effect<Record, ExchangeError>;
+  /** Declines a proposal and answers it with a counter-proposal, in one commit (#333). */
+  readonly counterAgreement: (input: CounterAgreementInput) => E.Effect<Record, ExchangeError>;
   readonly completeAgreement: (agreement: ActionHash) => E.Effect<Record, ExchangeError>;
   readonly reviewAgreement: (
     agreement: ActionHash,
@@ -152,6 +156,14 @@ export const ExchangesServiceLive: Layer.Layer<
         )
       );
 
+    const counterAgreement = (input: CounterAgreementInput) =>
+      pipe(
+        validated(decodeCounterAgreementInput(input), EXCHANGE_CONTEXTS.COUNTER),
+        E.flatMap(() =>
+          wrapZomeCall<Record>('counter_agreement', input, EXCHANGE_CONTEXTS.COUNTER)
+        )
+      );
+
     const completeAgreement = (agreement: ActionHash) =>
       wrapZomeCall<Record>('complete_agreement', agreement, EXCHANGE_CONTEXTS.COMPLETE);
 
@@ -195,6 +207,7 @@ export const ExchangesServiceLive: Layer.Layer<
       getMyInterests,
       createAgreement,
       respondToAgreement,
+      counterAgreement,
       completeAgreement,
       reviewAgreement,
       cancelAgreement,

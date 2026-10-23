@@ -80,6 +80,10 @@ name = "exchanges"
 path = "tests/exchanges.rs"
 
 [[test]]
+name = "timeframes"
+path = "tests/timeframes.rs"
+
+[[test]]
 name = "exchanges_attacks"
 path = "tests/exchanges_attacks.rs"
 

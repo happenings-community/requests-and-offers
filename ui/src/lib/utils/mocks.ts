@@ -63,10 +63,7 @@ export function createMockedRequests(): Promise<RequestInDHT[]> {
       title: 'Web Development Assistance',
       description: 'Need help building a responsive website for my small business',
       contact_preference: 'Email',
-      date_range: {
-        start: Date.now() + 7 * 24 * 60 * 60 * 1000, // 1 week from now
-        end: Date.now() + 14 * 24 * 60 * 60 * 1000 // 2 weeks from now
-      },
+      timeframe: { Preset: 'WithinTwoWeeks' },
       time_estimate_hours: 5,
       time_preference: 'Evening',
       time_zone: 'America/New_York',
@@ -89,10 +86,7 @@ export function createMockedRequests(): Promise<RequestInDHT[]> {
       title: 'Graphic Design for Logo',
       description: 'Need a professional logo design for my startup',
       contact_preference: 'Phone',
-      date_range: {
-        start: Date.now() + 3 * 24 * 60 * 60 * 1000, // 3 days from now
-        end: Date.now() + 10 * 24 * 60 * 60 * 1000 // 10 days from now
-      },
+      timeframe: { Preset: 'WithinTwoWeeks' },
       time_estimate_hours: 12,
       time_preference: 'Morning',
       time_zone: 'Australia/Sydney',

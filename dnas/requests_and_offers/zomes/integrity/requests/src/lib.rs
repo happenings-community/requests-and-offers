@@ -47,13 +47,16 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
-        match app_entry {
-          EntryTypes::Request(request) => {
-            return validate_request(request);
-          }
+      OpEntry::CreateEntry { app_entry, action } => match app_entry {
+        EntryTypes::Request(request) => {
+          return validate_request_create(request, action.timestamp());
         }
-      }
+      },
+      OpEntry::UpdateEntry { app_entry, action } => match app_entry {
+        EntryTypes::Request(request) => {
+          return validate_request_update(request, &action.original_action_address, action.timestamp());
+        }
+      },
       _ => (),
     },
     FlatOp::CreateRecord(store_record) => match store_record {

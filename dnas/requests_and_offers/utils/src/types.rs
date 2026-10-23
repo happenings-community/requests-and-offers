@@ -100,11 +100,35 @@ pub enum TimePreference {
   Other(String),
 }
 
-/// Input for a date range
+/// How soon: the four presets the propose and counter pages offer. A preset's
+/// due date is counted from acceptance (3, 14 or 30 days; Flexible has none)
+/// on read and by the hREA mirror; nothing in the DNA records it.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct DateRange {
-  pub start: Option<Timestamp>,
-  pub end: Option<Timestamp>,
+pub enum TimeframePreset {
+  WithinAFewDays,
+  WithinTwoWeeks,
+  WithinAMonth,
+  Flexible,
+}
+
+/// When a listing is needed or offered, or an agreement delivered: a
+/// preset, or a window of dates whose `end` is its due date. Typed
+/// timestamps, never text.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum Timeframe {
+  Preset(TimeframePreset),
+  Dates {
+    start: Option<Timestamp>,
+    end: Timestamp,
+  },
+}
+
+/// A figure with its unit: the hours or amount on a listing, and on each side
+/// of an agreement, so a proposal copies a listing's figure straight across.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct Quantity {
+  pub value: f64,
+  pub unit: String,
 }
 
 // Type alias for TimeZone

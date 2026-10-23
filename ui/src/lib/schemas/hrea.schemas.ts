@@ -64,6 +64,8 @@ export const CommitmentSchema = Schema.Struct({
   resourceConformsTo: Schema.optional(Schema.String),
   resourceQuantity: Schema.optional(MeasureSchema),
   due: Schema.optional(Schema.String),
+  hasBeginning: Schema.optional(Schema.String),
+  hasEnd: Schema.optional(Schema.String),
   finished: Schema.optional(Schema.Boolean),
   note: Schema.optional(Schema.String),
   agreedIn: Schema.optional(Schema.String),

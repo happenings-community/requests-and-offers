@@ -52,7 +52,7 @@ struct Agreement {
     reciprocal: ExchangeTerm,
     medium: String,
     terms: String,
-    delivery_timeframe: String,
+    delivery_timeframe: Timeframe,
     counters: Option<Countering>,
 }
 holochain_serialized_bytes::holochain_serial!(Agreement);
@@ -137,7 +137,7 @@ impl World {
                     },
                     "medium": "Time bank hours",
                     "terms": "Two hours over a call.",
-                    "delivery_timeframe": "Within 2 weeks"
+                    "delivery_timeframe": { "Preset": "WithinTwoWeeks" }
                 }),
             )
             .await;
@@ -221,7 +221,7 @@ fn counter_of(countered: &ActionHash, proposal: &Agreement) -> Agreement {
     } else {
         proposal.provider.clone()
     };
-    counter.delivery_timeframe = "Flexible".into();
+    counter.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     counter.counters = Some(Countering {
         agreement: countered.clone(),
         decline: countered.clone(), // replaced by the probe
@@ -409,7 +409,7 @@ async fn a_negotiation_cannot_be_forked() {
                 "agreement": p,
                 "primary_quantity": { "value": 3.0, "unit": "h" },
                 "reciprocal_quantity": { "value": 2.0, "unit": "Time bank hours" },
-                "delivery_timeframe": "Within 2 weeks"
+                "delivery_timeframe": { "Preset": "WithinTwoWeeks" }
             }),
         )
         .await;
@@ -520,7 +520,7 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
         })),
         ("the primary direction", "", Box::new(|a| a.primary.direction = "Receive".into())),
         ("nothing at all", "changes a quantity or the timeframe", Box::new(|a| {
-            a.delivery_timeframe = "Within 2 weeks".into();
+            a.delivery_timeframe = Timeframe::Preset(TimeframePreset::WithinTwoWeeks);
         })),
     ];
 
@@ -541,15 +541,15 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
     // quantity, return quantity removed, timeframe. Each needs an open proposal.
     let permitted: Vec<(&str, Box<dyn Fn(&mut Agreement)>)> = vec![
         ("the primary quantity", Box::new(|a| {
-            a.delivery_timeframe = "Within 2 weeks".into();
+            a.delivery_timeframe = Timeframe::Preset(TimeframePreset::WithinTwoWeeks);
             a.primary.quantity = Some(Quantity { value: 5.0, unit: "h".into() });
         })),
         ("the return quantity", Box::new(|a| {
-            a.delivery_timeframe = "Within 2 weeks".into();
+            a.delivery_timeframe = Timeframe::Preset(TimeframePreset::WithinTwoWeeks);
             a.reciprocal.quantity = Some(Quantity { value: 9.0, unit: "Time bank hours".into() });
         })),
         ("removing the return quantity", Box::new(|a| {
-            a.delivery_timeframe = "Within 2 weeks".into();
+            a.delivery_timeframe = Timeframe::Preset(TimeframePreset::WithinTwoWeeks);
             a.reciprocal.quantity = None;
         })),
         ("the timeframe", Box::new(|_| {})),

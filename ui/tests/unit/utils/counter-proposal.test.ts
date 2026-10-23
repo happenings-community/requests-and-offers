@@ -7,7 +7,10 @@ import {
   NOTHING_CHANGED,
   normaliseQuantity,
   reciprocalFigure,
+  sameTimeframe,
   startingEdits,
+  TIMEFRAME_PRESETS,
+  timeframeLabel,
   timeframeOptions
 } from '$lib/utils/counter-proposal';
 import type { AgreementInDHT } from '$lib/types/holochain';
@@ -35,7 +38,7 @@ const proposal = (over: Partial<AgreementInDHT> = {}): AgreementInDHT => ({
   },
   medium: 'Hours (time bank)',
   terms: 'Saturday mornings',
-  delivery_timeframe: 'Within 2 weeks',
+  delivery_timeframe: { Preset: 'WithinTwoWeeks' },
   counters: null,
   ...over
 });
@@ -73,7 +76,7 @@ describe('changedFields', () => {
   });
 
   it('names each field that differs', () => {
-    const edits = { primary: 4, reciprocal: 5, timeframe: 'Flexible' };
+    const edits = { primary: 4, reciprocal: 5, timeframe: { Preset: 'Flexible' } as const };
     expect(changedFields(proposal(), edits)).toEqual(['primary', 'reciprocal', 'timeframe']);
   });
 
@@ -90,6 +93,18 @@ describe('changedFields', () => {
     const g = proposal({ reciprocal: gift });
     expect(changedFields(g, { ...startingEdits(g), reciprocal: 4 })).toEqual([]);
   });
+
+  it('compares timeframes by value, not by identity', () => {
+    const end = 1_800_000_000_000_000;
+    const p = proposal({ delivery_timeframe: { Dates: { start: null, end } } });
+    const same = { ...startingEdits(p), timeframe: { Dates: { start: null, end } } };
+    expect(changedFields(p, same)).toEqual([]);
+    const later = { ...startingEdits(p), timeframe: { Dates: { start: null, end: end + 1 } } };
+    expect(changedFields(p, later)).toEqual(['timeframe']);
+    expect(
+      changedFields(proposal(), { ...startingEdits(proposal()), timeframe: { Preset: 'WithinTwoWeeks' } })
+    ).toEqual([]);
+  });
 });
 
 describe('counterProblem', () => {
@@ -105,7 +120,7 @@ describe('counterProblem', () => {
 
   it('lets one changed field through', () => {
     expect(
-      counterProblem(proposal(), { ...startingEdits(proposal()), timeframe: 'Flexible' })
+      counterProblem(proposal(), { ...startingEdits(proposal()), timeframe: { Preset: 'Flexible' } })
     ).toBeNull();
   });
 });
@@ -117,13 +132,13 @@ describe('buildCounter', () => {
     const c = buildCounter(countered, proposal(), {
       primary: 5,
       reciprocal: 5,
-      timeframe: 'Within a month'
+      timeframe: { Preset: 'WithinAMonth' }
     });
     expect(c).toEqual({
       agreement: countered,
       primary_quantity: { value: 5, unit: 'hours' },
       reciprocal_quantity: { value: 5, unit: 'Hours (time bank)' },
-      delivery_timeframe: 'Within a month'
+      delivery_timeframe: { Preset: 'WithinAMonth' }
     });
   });
 
@@ -131,7 +146,7 @@ describe('buildCounter', () => {
     const c = buildCounter(countered, proposal(), {
       primary: 0,
       reciprocal: null,
-      timeframe: 'Flexible'
+      timeframe: { Preset: 'Flexible' }
     });
     expect(c.primary_quantity).toBeNull();
     expect(c.reciprocal_quantity).toBeNull();
@@ -160,9 +175,23 @@ describe('buildCounter', () => {
 });
 
 describe('timeframeOptions and describeQuantity', () => {
-  it("keeps a proposal's own timeframe wording when it is not in the list", () => {
-    expect(timeframeOptions('Next Tuesday')[0]).toBe('Next Tuesday');
-    expect(timeframeOptions('Flexible')).not.toContain('Next Tuesday');
+  it('offers the four presets in order, with their labels', () => {
+    expect(timeframeOptions({ Preset: 'Flexible' })).toEqual(
+      TIMEFRAME_PRESETS.map((p) => ({ value: { Preset: p.preset }, label: p.label }))
+    );
+    expect(TIMEFRAME_PRESETS.map((p) => p.label)).toEqual([
+      'Within a few days',
+      'Within 2 weeks',
+      'Within a month',
+      'Flexible'
+    ]);
+  });
+
+  it("keeps a proposal's own dates as an extra first option", () => {
+    const dates = { Dates: { start: null, end: Date.UTC(2026, 9, 30) * 1000 } };
+    const options = timeframeOptions(dates);
+    expect(options).toHaveLength(5);
+    expect(options[0]).toEqual({ value: dates, label: timeframeLabel(dates) });
   });
 
   it('says what no quantity means', () => {
@@ -170,5 +199,42 @@ describe('timeframeOptions and describeQuantity', () => {
     expect(describeQuantity(0, 'amount')).toBe('No amount');
     expect(describeQuantity(1, 'hours')).toBe('1 hour');
     expect(describeQuantity(20, 'amount', 'GBP')).toBe('20 GBP');
+  });
+});
+
+describe('timeframeLabel', () => {
+  const day = (d: number) => Date.UTC(2026, 9, d) * 1000; // microseconds
+
+  it("gives a preset its member-facing label", () => {
+    expect(timeframeLabel({ Preset: 'WithinAFewDays' })).toBe('Within a few days');
+    expect(timeframeLabel({ Preset: 'WithinTwoWeeks' })).toBe('Within 2 weeks');
+    expect(timeframeLabel({ Preset: 'WithinAMonth' })).toBe('Within a month');
+    expect(timeframeLabel({ Preset: 'Flexible' })).toBe('Flexible');
+  });
+
+  it('reads window dates as microseconds and formats them for the locale', () => {
+    const date = (d: number) => new Date(Date.UTC(2026, 9, d)).toLocaleDateString('en-GB');
+    expect(timeframeLabel({ Dates: { start: day(10), end: day(20) } }, 'en-GB')).toBe(
+      `${date(10)} – ${date(20)}`
+    );
+    expect(timeframeLabel({ Dates: { start: null, end: day(20) } }, 'en-GB')).toBe(
+      `by ${date(20)}`
+    );
+  });
+});
+
+describe('sameTimeframe', () => {
+  it('matches presets by name and windows by both dates', () => {
+    expect(sameTimeframe({ Preset: 'Flexible' }, { Preset: 'Flexible' })).toBe(true);
+    expect(sameTimeframe({ Preset: 'Flexible' }, { Preset: 'WithinAMonth' })).toBe(false);
+    expect(
+      sameTimeframe({ Preset: 'Flexible' }, { Dates: { start: null, end: 1 } })
+    ).toBe(false);
+    expect(
+      sameTimeframe({ Dates: { start: 1, end: 2 } }, { Dates: { start: null, end: 2 } })
+    ).toBe(false);
+    expect(sameTimeframe({ Dates: { start: 1, end: 2 } }, { Dates: { start: 1, end: 2 } })).toBe(
+      true
+    );
   });
 });

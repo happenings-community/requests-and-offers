@@ -3,6 +3,7 @@ import { HreaError } from '$lib/errors';
 import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
 import type { UIRequest } from '$lib/types/ui';
 import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/hrea';
+import { timeframeLabel } from '$lib/utils/counter-proposal';
 
 /**
  * Request to hREA Proposal + Intents Mapping Infrastructure
@@ -141,14 +142,9 @@ function createProposalNote(request: UIRequest, requesterAgent: Agent): string {
     lines.push(`Time zone: ${request.time_zone}`);
   }
 
-  if (request.date_range) {
-    const startDate = request.date_range.start
-      ? new Date(request.date_range.start).toLocaleDateString()
-      : 'Not specified';
-    const endDate = request.date_range.end
-      ? new Date(request.date_range.end).toLocaleDateString()
-      : 'Not specified';
-    lines.push(`Date range: ${startDate} - ${endDate}`);
+  if (request.timeframe) {
+    // DRAFT copy
+    lines.push(`Timeframe: ${timeframeLabel(request.timeframe)}`);
   }
 
   // Contact and interaction preferences

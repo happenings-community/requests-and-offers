@@ -56,12 +56,12 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     // `Inbox` link rule uses, asks the action's authority, so both ops run the same
     // rules.
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, .. } => validate_entry(app_entry),
+      OpEntry::CreateEntry { app_entry, action } => validate_entry(app_entry, action.author()),
       OpEntry::UpdateEntry { .. } => Ok(refuse_update()),
       _ => Ok(ValidateCallbackResult::Valid),
     },
     FlatOp::CreateRecord(store_record) => match store_record {
-      OpRecord::CreateEntry { app_entry, .. } => validate_entry(app_entry),
+      OpRecord::CreateEntry { app_entry, action } => validate_entry(app_entry, action.author()),
       OpRecord::UpdateEntry { .. } | OpRecord::UpdatePrivateEntry { .. } => Ok(refuse_update()),
       _ => Ok(ValidateCallbackResult::Valid),
     },
@@ -107,9 +107,12 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 }
 
 /// The rules for a new entry, run on both the entry op and the record op.
-fn validate_entry(app_entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
+fn validate_entry(
+  app_entry: EntryTypes,
+  author: &AgentPubKey,
+) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
-    EntryTypes::EncryptedMessage(message) => validate_encrypted_message(message),
+    EntryTypes::EncryptedMessage(message) => validate_encrypted_message(message, author),
     // The private entries hold an agent key or a read position, and are only ever
     // on their author's own chain. There is nothing for a third party to check, and
     // no other agent can see them.
@@ -206,6 +209,7 @@ mod record_op_tests {
         holochain_integrity_types::x_salsa20_poly1305::nonce::XSalsa20Poly1305Nonce::from([0u8; 24]),
         vec![0u8; ciphertext_bytes],
       ),
+      grant: None,
     }
     .try_into()
     .unwrap()
@@ -219,10 +223,19 @@ mod record_op_tests {
     (entry, record)
   }
 
+  /// A message within the limit passes the size rule and reaches the grant rule, which
+  /// refuses it here for carrying no grant. A message with a grant needs
+  /// `must_get_valid_record`, which this harness does not have; Sweettest's
+  /// `a_message_carries_the_member_grant_its_author_holds` covers that.
   #[test]
-  fn a_message_within_the_limit_is_valid_on_both_ops() {
+  fn a_message_within_the_limit_with_no_grant_is_refused_on_both_ops() {
     let (entry, record) = verdicts(create_ops(0, message(MAX_CIPHERTEXT_BYTES)));
-    assert_eq!(entry, ValidateCallbackResult::Valid);
+    assert_eq!(
+      entry,
+      ValidateCallbackResult::Invalid(
+        "Sending a message is a member act: this write needs a grant for Participate".into()
+      )
+    );
     assert_eq!(record, entry);
   }
 

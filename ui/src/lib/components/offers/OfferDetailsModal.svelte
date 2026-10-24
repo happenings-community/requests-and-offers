@@ -2,6 +2,7 @@
   import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import type { UIOffer, UIUser, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
   import { encodeHashToBase64 } from '@holochain/client';
+  import ExternalLink from '$lib/components/shared/ExternalLink.svelte';
   import { goto } from '$app/navigation';
   import {
     formatDate,
@@ -318,14 +319,7 @@
             <ul class="list-inside list-disc">
               {#each offer.links as link}
                 <li>
-                  <a
-                    href={link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="text-blue-600 hover:underline"
-                  >
-                    {link}
-                  </a>
+                  <ExternalLink text={link} class="text-blue-600 hover:underline" />
                 </li>
               {/each}
             </ul>

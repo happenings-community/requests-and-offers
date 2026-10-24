@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { escapeHtml } from '$lib/utils/safe-html';
   import { browser } from '$app/environment';
   import { encodeHashToBase64 } from '@holochain/client';
   import { Avatar, FileDropzone, getModalStore } from '@skeletonlabs/skeleton';
@@ -121,7 +122,7 @@
       modalStore.trigger(
         alertModal({
           id: 'welcome-and-next-steps',
-          message: welcomeAndNextStepsMessage(formatUserName(userData.name)),
+          message: welcomeAndNextStepsMessage(escapeHtml(formatUserName(userData.name))),
           confirmLabel: 'Ok !'
         })
       );
@@ -169,7 +170,7 @@
         modalStore.trigger(
           alertModal({
             id: 'welcome-and-next-steps',
-            message: welcomeAndNextStepsMessage(formatUserName(userInput.name)),
+            message: welcomeAndNextStepsMessage(escapeHtml(formatUserName(userInput.name))),
             confirmLabel: 'Ok !'
           })
         );

@@ -7,7 +7,7 @@ import organizationsStore from '$lib/stores/organizations.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
-import { createMockedRequests } from '$lib/utils/mocks';
+import { loadMocks } from '$lib/utils/load-mocks';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import {
   InteractionType,
@@ -463,6 +463,7 @@ export function useRequestFormManagement(
       const selectedHashes = selectedServiceTypes.map((st) => st.original_action_hash!);
 
       // Generate random mock data using the existing mocks utility
+      const { createMockedRequests } = await loadMocks();
       const mockRequests = await createMockedRequests();
       const randomMockRequest = mockRequests[Math.floor(Math.random() * mockRequests.length)];
 

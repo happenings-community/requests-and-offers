@@ -8,7 +8,7 @@ import { showToast } from '$lib/utils';
 import { useModal } from '$lib/utils/composables';
 import { useErrorBoundary } from '$lib/composables/ui/useErrorBoundary.svelte';
 import { Effect as E, pipe } from 'effect';
-import { createMockedServiceTypes } from '$lib/utils/mocks';
+import { loadMocks } from '$lib/utils/load-mocks';
 import { SERVICE_TYPE_CONTEXTS, ErrorHandling } from '$lib/errors';
 import { withFormToast } from '$lib/utils/errorToastMiddleware';
 
@@ -252,7 +252,7 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
           }),
           E.flatMap(() =>
             E.tryPromise({
-              try: () => createMockedServiceTypes(5),
+              try: () => loadMocks().then((mocks) => mocks.createMockedServiceTypes(5)),
               catch: (error) =>
                 ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE)
             })

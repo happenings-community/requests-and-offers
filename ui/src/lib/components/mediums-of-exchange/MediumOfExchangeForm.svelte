@@ -6,10 +6,7 @@
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
-  import {
-    createMockedMediumOfExchange,
-    createSuggestedMockedMediumOfExchange
-  } from '$lib/utils/mocks';
+  import { loadMocks } from '$lib/utils/load-mocks';
 
   type Props = {
     mediumOfExchange?: UIMediumOfExchange | null;
@@ -106,6 +103,8 @@
     errors = {};
 
     try {
+      const { createMockedMediumOfExchange, createSuggestedMockedMediumOfExchange } =
+        await loadMocks();
       const mockedMedium =
         mode === 'suggest'
           ? createSuggestedMockedMediumOfExchange()

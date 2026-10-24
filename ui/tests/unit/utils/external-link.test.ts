@@ -13,6 +13,15 @@ describe('externalHref: which typed links become links', () => {
   it('takes a bare address as https, which is what a member typing it means', () => {
     expect(externalHref('example.org')).toBe('https://example.org/');
     expect(externalHref('www.example.org/about')).toBe('https://www.example.org/about');
+    expect(externalHref('example.org?ref=ro')).toBe('https://example.org/?ref=ro');
+    expect(externalHref('www.example.org#top')).toBe('https://www.example.org/#top');
+    expect(externalHref('example.org:8080/x')).toBe('https://example.org:8080/x');
+  });
+
+  it("leaves a name without a dot as text, so a typed link cannot open the viewer's own machine", () => {
+    for (const text of ['localhost', 'localhost:3000', 'localhost:4444/admin', 'intranet/page']) {
+      expect(externalHref(text), text).toBeNull();
+    }
   });
 
   it('never opens a link that would run code or carry its own content', () => {
@@ -48,6 +57,11 @@ describe('externalHref: which typed links become links', () => {
  * Every link that opens a new window shows text another member typed, so it goes through
  * `ExternalLink`. **To make this go red:** write `<a href={link} target="_blank">` in a
  * component again.
+ *
+ * This guard sees only the literal `target="_blank"`. A typed link written as
+ * `<a href={link}>` with no new window, or with `target={'_blank'}`, passes it and is
+ * just as unsafe, so it covers new-window links and nothing more: the rule that a typed
+ * link reaches `href` only through `externalHref` is held by review, not by this test.
  */
 describe('links that open a new window', () => {
   const SRC = join(__dirname, '../../../src');

@@ -24,5 +24,11 @@ export function externalHref(text: string | null | undefined): string | null {
   return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
 }
 
-/** A host name with a dot and no scheme, optionally followed by a path: `example.org/x`. */
-const BARE_ADDRESS = /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i;
+/**
+ * A host name with a dot and no scheme, optionally with a port and then a path, query or
+ * fragment: `example.org/x`, `example.org?ref=ro`, `example.org:8080/x`.
+ *
+ * The dot is required, so `localhost` and other single-label names stay text: a link a
+ * member typed should not open a service on the viewer's own machine.
+ */
+const BARE_ADDRESS = /^[a-z0-9-]+(\.[a-z0-9-]+)+(:\d{1,5})?([/?#]\S*)?$/i;

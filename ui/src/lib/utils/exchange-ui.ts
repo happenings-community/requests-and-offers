@@ -142,6 +142,39 @@ export function turnOf(exchange: UIExchange, myUserHash: ActionHash | undefined)
   }
 }
 
+/**
+ * The line under the turn chip on the exchange page (#369): what the chip
+ * means for the reader, in the state they are in. `null` where no chip shows,
+ * which is for someone who is not a party and for a settled or stopped exchange.
+ */
+export function turnLine(
+  exchange: UIExchange,
+  myUserHash: ActionHash | undefined,
+  otherName: string | undefined
+): string | null {
+  const role = roleOf(exchange, myUserHash);
+  if (!role) return null;
+  const them = otherName ?? 'them';
+  switch (exchange.status) {
+    case 'Proposed':
+      return wroteIt(exchange, myUserHash)
+        ? 'To accept, counter or decline.'
+        : `${otherName ?? 'They'} sent this proposal.`;
+    case 'Agreed':
+    case 'OneSideDone':
+      if (doneBy(exchange, role)) return 'To mark their part done.';
+      return doneBy(exchange, otherRole(role))
+        ? `Mark your part done when it is. ${otherName ? `${otherName} has` : 'They have'} marked their part done.`
+        : 'Mark your part done when it is.';
+    case 'Complete':
+      return reviewedBy(exchange, role)
+        ? 'Thanks for your review. Waiting for theirs.'
+        : `Both parts are done. How was your exchange with ${them}?`;
+    default:
+      return null;
+  }
+}
+
 /** A proposal someone else sent me that I have not answered. */
 export function awaitingMe(exchange: UIExchange, myUserHash: ActionHash | undefined): boolean {
   return turnOf(exchange, myUserHash) === 'you';

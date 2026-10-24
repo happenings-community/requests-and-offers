@@ -27,6 +27,7 @@ import {
   tabOf,
   inTab,
   termLabel,
+  turnLine,
   turnOf,
   wroteIt
 } from '$lib/utils/exchange-ui';
@@ -214,6 +215,69 @@ describe('exchange-ui', () => {
         const e = exchange({ status, response: accepted });
         expect(turnOf(e, PROVIDER), status).toBe('none');
         expect(turnOf(e, RECEIVER), status).toBe('none');
+      }
+    });
+  });
+
+  // One case per row of the status-card table in #369.
+  describe('turnLine', () => {
+    it('says nothing to someone who is not a party, or once the exchange is settled or stopped', () => {
+      expect(turnLine(exchange(), STRANGER, 'Bob')).toBeNull();
+      for (const status of ['Reviewed', 'Declined', 'Cancelled'] as ExchangeStatus[]) {
+        expect(
+          turnLine(exchange({ status, response: accepted }), PROVIDER, 'Bob'),
+          status
+        ).toBeNull();
+      }
+    });
+
+    it('at Proposed, tells the sender what they wait for, and the recipient who sent it', () => {
+      const e = exchange({ status: 'Proposed' });
+      expect(turnLine(e, PROVIDER, 'Bob')).toBe('To accept, counter or decline.');
+      expect(turnLine(e, RECEIVER, 'Alice')).toBe('Alice sent this proposal.');
+      expect(turnLine(e, RECEIVER, undefined)).toBe('They sent this proposal.');
+    });
+
+    it('in an agreement, asks for my part and says when theirs is done', () => {
+      const none = exchange({ status: 'Agreed', response: accepted });
+      expect(turnLine(none, PROVIDER, 'Bob')).toBe('Mark your part done when it is.');
+
+      const theirs = exchange({
+        status: 'OneSideDone',
+        response: accepted,
+        receiver_done: { created_at: 1 }
+      });
+      expect(turnLine(theirs, PROVIDER, 'Bob')).toBe(
+        'Mark your part done when it is. Bob has marked their part done.'
+      );
+      expect(turnLine(theirs, PROVIDER, undefined)).toBe(
+        'Mark your part done when it is. They have marked their part done.'
+      );
+    });
+
+    it('in an agreement, once my part is done, says what I wait for', () => {
+      const mine = exchange({
+        status: 'OneSideDone',
+        response: accepted,
+        provider_done: { created_at: 1 }
+      });
+      expect(turnLine(mine, PROVIDER, 'Bob')).toBe('To mark their part done.');
+    });
+
+    it('at Complete, asks for a review, then thanks me for mine', () => {
+      const e = exchange({ status: 'Complete', response: accepted, provider_review: review });
+      expect(turnLine(e, RECEIVER, 'Alice')).toBe(
+        'Both parts are done. How was your exchange with Alice?'
+      );
+      expect(turnLine(e, PROVIDER, 'Bob')).toBe('Thanks for your review. Waiting for theirs.');
+    });
+
+    it('shows a line exactly where turnOf shows a chip', () => {
+      for (const status of ALL_STATUSES) {
+        for (const who of [PROVIDER, RECEIVER, STRANGER]) {
+          const e = exchange({ status, response: accepted });
+          expect(turnLine(e, who, 'X') === null, `${status}`).toBe(turnOf(e, who) === 'none');
+        }
       }
     });
   });

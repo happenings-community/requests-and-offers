@@ -139,6 +139,8 @@ pub struct Offer {
     pub interaction_type: String,
     pub links: Vec<String>,
     pub status: String,
+    #[serde(default)]
+    pub grant: Option<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(Offer);
 

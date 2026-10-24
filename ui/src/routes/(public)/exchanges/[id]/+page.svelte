@@ -10,7 +10,9 @@
     statusLabel,
     exchangeStatusVariant,
     formatWhen,
-    termLabel
+    termLabel,
+    turnOf,
+    turnLine
   } from '$lib/utils/exchange-ui';
   import type { ReviewInDHT } from '$lib/types/holochain';
 
@@ -36,10 +38,17 @@
   const role = $derived(details.role);
   const iWroteIt = $derived(details.iWroteIt);
   const myDone = $derived(details.myDone);
-  const theirDone = $derived(details.theirDone);
   const myReview = $derived(details.myReview);
   const myReviewText = $derived(details.myReviewText);
   const theirReviewText = $derived(details.theirReviewText);
+  const turn = $derived(exchange ? turnOf(exchange, me) : 'none');
+  const line = $derived(exchange ? turnLine(exchange, me, other?.name) : null);
+  /** States with a status card: the open ones, and Reviewed for its closing line. */
+  const hasCard = $derived(
+    !!role &&
+      !!exchange &&
+      ['Proposed', 'Agreed', 'OneSideDone', 'Complete', 'Reviewed'].includes(exchange.status)
+  );
 
   const { accept, decline, complete, cancel, withdraw, review } = details;
 
@@ -165,53 +174,115 @@
       </div>
     {/if}
 
-    {#if role}
+    {#if hasCard}
+      <!-- Status card (#369): whose turn it is, what that means, the actions for this state,
+           then, below a divider, anything that ends the exchange. -->
       <div class="card space-y-3 p-4">
-        {#if exchange.status === 'Proposed'}
-          {#if iWroteIt}
-            <p>Waiting for {other?.name ?? 'them'} to accept, counter or decline.</p>
-            <button class="variant-ghost-surface btn btn-sm" onclick={withdraw} disabled={busy}>
-              Withdraw proposal
-            </button>
-          {:else}
-            <p>
-              {other?.name ?? 'They'} sent this proposal. Accept it to form the agreement, counter with
-              your own, or decline.
-            </p>
+        {#if turn === 'you'}
+          <span class="variant-filled-secondary badge">Your turn</span>
+        {:else if turn === 'them'}
+          <span class="variant-soft-surface badge">Waiting on {other?.name ?? 'them'}</span>
+        {/if}
+        {#if line}<p>{line}</p>{/if}
+
+        {#if exchange.status === 'Proposed' && !iWroteIt}
+          <textarea
+            class="textarea"
+            rows="2"
+            bind:value={details.note}
+            placeholder="A note, if declining"
+          ></textarea>
+          <div class="flex flex-wrap gap-2">
+            <button class="variant-filled-primary btn" onclick={accept} disabled={busy}
+              >Accept and form agreement</button
+            >
+            <button class="variant-filled-secondary btn" onclick={counter} disabled={busy}
+              >Counter</button
+            >
+            <button class="variant-soft-primary btn" onclick={discuss} disabled={busy || !other}
+              >Discuss</button
+            >
+            <button class="variant-ghost-surface btn" onclick={decline} disabled={busy}
+              >Decline</button
+            >
+          </div>
+        {:else if (exchange.status === 'Agreed' || exchange.status === 'OneSideDone') && !myDone}
+          <button class="variant-filled-primary btn" onclick={complete} disabled={busy}>
+            Mark my part done
+          </button>
+        {:else if exchange.status === 'Complete' && !myReview}
+          <div class="flex items-center gap-1" role="radiogroup" aria-label="Rating">
+            {#each [1, 2, 3, 4, 5] as n (n)}
+              <button
+                type="button"
+                class="btn-icon btn-icon-sm {n <= details.rating
+                  ? 'variant-filled-warning'
+                  : 'variant-ghost-surface'}"
+                onclick={() => (details.rating = n)}
+                aria-label={`${n} of 5`}
+                aria-pressed={n <= details.rating}>{n}</button
+              >
+            {/each}
+          </div>
+          <div class="space-y-2 py-2">
+            <label class="flex items-center gap-2"
+              ><input class="checkbox" type="checkbox" bind:checked={details.onTime} /> Delivered on
+              time</label
+            >
+            <label class="flex items-center gap-2"
+              ><input class="checkbox" type="checkbox" bind:checked={details.asAgreed} /> Matched what
+              we agreed</label
+            >
+          </div>
+          <label class="label pt-2">
+            <span>Comment <span class="text-xs text-surface-500">max 200</span></span>
             <textarea
               class="textarea"
-              rows="2"
-              bind:value={details.note}
-              placeholder="A note, if declining"
+              rows="3"
+              maxlength="200"
+              bind:value={details.comment}
+              placeholder="A few words about the exchange"
             ></textarea>
-            <div class="flex flex-wrap gap-2">
-              <button class="variant-soft-primary btn" onclick={discuss} disabled={busy || !other}
-                >Discuss</button
-              >
-              <button class="variant-filled-secondary btn" onclick={counter} disabled={busy}
-                >Counter</button
-              >
-              <button class="variant-ghost-surface btn" onclick={decline} disabled={busy}
-                >Decline</button
-              >
-              <button class="variant-filled-primary btn" onclick={accept} disabled={busy}
-                >Accept and form agreement</button
-              >
-            </div>
-          {/if}
-        {:else if exchange.status === 'Agreed' || exchange.status === 'OneSideDone'}
-          {#if myDone}
-            <p>You have marked your part done. Waiting for {other?.name ?? 'them'}.</p>
-          {:else}
-            <p>
-              {#if theirDone}{other?.name ?? 'They'} has marked their part done.{/if}
-              Mark yours when it is.
+            <span class="text-xs text-surface-500">{details.comment.length}/200</span>
+          </label>
+          {#if details.rating > 0 && details.rating <= 2}
+            <p class="text-sm text-warning-600">
+              A low rating is recorded against the exchange. Stewarding, where this opens a
+              resolution, arrives in a later release.
             </p>
-            <button class="variant-filled-primary btn" onclick={complete} disabled={busy}>
-              Mark my part done
-            </button>
           {/if}
-          <details class="mt-2">
+          <button
+            class="variant-filled-warning btn"
+            onclick={review}
+            disabled={busy || !!details.reviewProblem}>Submit review</button
+          >
+        {:else if exchange.status === 'Reviewed'}
+          {@const done = Math.max(
+            exchange.provider_done?.created_at ?? 0,
+            exchange.receiver_done?.created_at ?? 0
+          )}
+          <p>Completed {formatWhen(done)} and reviewed by both of you.</p>
+        {/if}
+
+        {#if exchange.status === 'Proposed' && iWroteIt}
+          <hr class="!my-4" />
+          <details>
+            <summary class="cursor-pointer text-sm text-surface-500">Withdraw proposal</summary>
+            <div class="mt-2 space-y-2">
+              <textarea
+                class="textarea"
+                rows="2"
+                bind:value={details.note}
+                placeholder="Why, briefly"
+              ></textarea>
+              <button class="variant-ghost-error btn btn-sm" onclick={withdraw} disabled={busy}>
+                Withdraw proposal
+              </button>
+            </div>
+          </details>
+        {:else if exchange.status === 'Agreed' || exchange.status === 'OneSideDone'}
+          <hr class="!my-4" />
+          <details>
             <summary class="cursor-pointer text-sm text-surface-500">Cancel this agreement</summary>
             <div class="mt-2 space-y-2">
               <textarea
@@ -225,63 +296,6 @@
               </button>
             </div>
           </details>
-        {:else if exchange.status === 'Complete'}
-          {#if myReview}
-            <p>Thanks for your review. Waiting for {other?.name ?? 'them'} to review.</p>
-          {:else}
-            <p>Both parts are done. How was your exchange with {other?.name ?? 'them'}?</p>
-            <div class="flex items-center gap-1" role="radiogroup" aria-label="Rating">
-              {#each [1, 2, 3, 4, 5] as n (n)}
-                <button
-                  type="button"
-                  class="btn-icon btn-icon-sm {n <= details.rating
-                    ? 'variant-filled-warning'
-                    : 'variant-ghost-surface'}"
-                  onclick={() => (details.rating = n)}
-                  aria-label={`${n} of 5`}
-                  aria-pressed={n <= details.rating}>{n}</button
-                >
-              {/each}
-            </div>
-            <div class="space-y-2 py-2">
-              <label class="flex items-center gap-2"
-                ><input class="checkbox" type="checkbox" bind:checked={details.onTime} /> Delivered on
-                time</label
-              >
-              <label class="flex items-center gap-2"
-                ><input class="checkbox" type="checkbox" bind:checked={details.asAgreed} /> Matched what
-                we agreed</label
-              >
-            </div>
-            <label class="label pt-2">
-              <span>Comment <span class="text-xs text-surface-500">max 200</span></span>
-              <textarea
-                class="textarea"
-                rows="3"
-                maxlength="200"
-                bind:value={details.comment}
-                placeholder="A few words about the exchange"
-              ></textarea>
-              <span class="text-xs text-surface-500">{details.comment.length}/200</span>
-            </label>
-            {#if details.rating > 0 && details.rating <= 2}
-              <p class="text-sm text-warning-600">
-                A low rating is recorded against the exchange. Stewarding, where this opens a
-                resolution, arrives in a later release.
-              </p>
-            {/if}
-            <button
-              class="variant-filled-warning btn"
-              onclick={review}
-              disabled={busy || !!details.reviewProblem}>Submit review</button
-            >
-          {/if}
-        {:else if exchange.status === 'Reviewed'}
-          {@const done = Math.max(
-            exchange.provider_done?.created_at ?? 0,
-            exchange.receiver_done?.created_at ?? 0
-          )}
-          <p>Completed {formatWhen(done)} and reviewed by both of you.</p>
         {/if}
       </div>
     {/if}

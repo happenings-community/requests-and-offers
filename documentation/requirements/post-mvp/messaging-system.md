@@ -31,6 +31,10 @@ See **Issue #91** for the full technical specification, architecture design, and
 - Message status (sent/received/read)
 - Online presence
 
+### Signal Layer (built)
+
+The signal layer exists: the `messaging` coordinator zome (#213, specified in [`messaging.md`](../../technical-specs/zomes/messaging.md)). A signal carries one `ActionHash` and never message content, so it can only tell a recipient where to look. Messages themselves are stored as entries under validation, and that stored entry, not the signal, is the delivery guarantee: a lost signal costs timeliness and nothing else.
+
 ### Rich Content
 
 - Markdown support in messages

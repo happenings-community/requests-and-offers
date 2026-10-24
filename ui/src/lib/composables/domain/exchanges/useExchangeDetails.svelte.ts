@@ -129,7 +129,7 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
 
   const withdraw = () =>
     act('Proposal withdrawn', () =>
-      runEffect(exchangesStore.cancel(hash(), 'Withdrawn by the proposer'))
+      runEffect(exchangesStore.cancel(hash(), note.trim() || 'Withdrawn by the proposer'))
     );
 
   /** Refused before the round trip when the rating is outside what a review is. */

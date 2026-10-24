@@ -143,10 +143,6 @@ where
   }
 }
 
-pub fn timetamp_now() -> Timestamp {
-  Timestamp::from_micros(chrono::UTC::now().timestamp_subsec_micros() as i64)
-}
-
 pub fn is_image(bytes: SerializedBytes) -> bool {
   let data = bytes.bytes().to_vec();
   let reader = match ImageReader::new(Cursor::new(data)).with_guessed_format() {

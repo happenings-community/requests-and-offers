@@ -30,6 +30,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { getCounterpartRoute } from '$lib/services/navigation.utils';
   import { initializeToast } from '@/lib/utils/toast';
+  import ApprovalWatcher from '$lib/components/users/ApprovalWatcher.svelte';
   import { Effect as E, pipe, Schedule, Duration } from 'effect';
 
   type Props = {
@@ -563,6 +564,9 @@
 
   <!-- Modal Container -->
   <Modal />
+
+  <!-- Shows the approval modal when a pending member is accepted (#329) -->
+  <ApprovalWatcher />
 
   <!-- Drawer Container -->
   <Drawer>

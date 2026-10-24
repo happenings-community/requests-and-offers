@@ -144,9 +144,7 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
 
   test('my listings and the admin list both show the request', async ({ page }) => {
     await gotoApp(page, '/my-listings');
-    await expect(page.locator('text=My Active Requests').first()).toBeVisible({
-      timeout: 15_000
-    });
+    await page.getByRole('tab', { name: /Active requests/ }).click();
     await expect(page.locator(`text=${REQUEST_TITLE}`).first()).toBeVisible({
       timeout: 15_000
     });

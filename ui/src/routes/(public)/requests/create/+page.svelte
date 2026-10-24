@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { paths, readCreateListingParams } from '$lib/paths';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import requestsStore from '$lib/stores/requests.store.svelte';
@@ -10,9 +11,10 @@
   import ProfileGuard from '$lib/components/common/ProfileGuard.svelte';
   import type { RequestInput } from '$lib/types/holochain';
   import type { ActionHash } from '@holochain/client';
-  import { decodeHashFromBase64 } from '@holochain/client';
+  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import type { UIOrganization } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
+  import AfterPublish from '$lib/components/exchanges/AfterPublish.svelte';
 
   // State
   let isLoading = $state(true);
@@ -26,13 +28,24 @@
   const { currentUser } = $derived(usersStore);
   const { acceptedOrganizations } = $derived(organizationsStore);
 
-  // Check if there's an organization parameter in the URL
-  const organizationId = $derived(page.url.searchParams.get('organization'));
+  // The organisation this listing is being published for, if any.
+  const createParams = $derived(readCreateListingParams(page.url));
+  const organizationId = $derived(
+    createParams.organization ? encodeHashToBase64(createParams.organization) : null
+  );
 
   // Handle form submission
+  /** Set once a listing published from a conversation has been created. */
+  let published = $state(false);
+  /** The listing just created, which is what "Share it with ..." sends. */
+  let publishedHash = $state<ActionHash | null>(null);
+
   async function handleSubmit(request: RequestInput, organizationHash?: ActionHash) {
     try {
-      await runEffect(requestsStore.createRequest(request, organizationHash));
+      const record = await runEffect(requestsStore.createRequest(request, organizationHash));
+      publishedHash =
+        (record as { signed_action?: { hashed?: { hash?: ActionHash } } })?.signed_action?.hashed
+          ?.hash ?? null;
 
       toastStore.trigger({
         message: 'Request created successfully!',
@@ -42,8 +55,15 @@
       // Invalidate cache to ensure fresh data on the list page
       requestsStore.invalidateCache();
 
-      // Navigate to the requests list
-      goto('/requests');
+      // Published from a conversation: stay, and offer the way back. Jumping to the
+      // requests list would strand a member who came here mid-conversation, and they may
+      // want to look at what they just posted first.
+      if (createParams.from) {
+        published = true;
+        return;
+      }
+
+      goto(paths.requests());
     } catch (err) {
       console.error('Failed to create request:', err);
       toastStore.trigger({
@@ -118,7 +138,7 @@
     <section class="container mx-auto p-4">
       <div class="mb-6 flex items-center justify-between">
         <h1 class="h1">Create Request</h1>
-        <button class="variant-soft btn" onclick={() => goto('/requests')}>
+        <button class="variant-soft btn" onclick={() => goto(paths.requests())}>
           Back to Requests
         </button>
       </div>
@@ -133,6 +153,17 @@
         <div class="flex h-64 items-center justify-center">
           <span class="loading loading-spinner text-primary"></span>
           <p class="ml-4">Loading...</p>
+        </div>
+      {:else if published}
+        <!--
+            Published from a conversation, so the member stays here with a way back
+            rather than being dropped onto the listings page mid-conversation.
+          -->
+        <div class="card variant-soft-success flex flex-col items-start gap-3 p-6">
+          <p class="font-semibold">Your request is published.</p>
+          <!-- Which ending this is depends on how the member got here; the component
+               reads that from the URL rather than being told. -->
+          <AfterPublish listing={publishedHash} />
         </div>
       {:else}
         <div class="card variant-soft p-6">

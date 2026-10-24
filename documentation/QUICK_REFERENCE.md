@@ -366,6 +366,7 @@ import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
 
 ```bash
 VITE_MOCK_BUTTONS_ENABLED=true|false          # Form mock buttons
+VITE_MESSAGING_DISABLED=true|false            # Force messaging absent, to test a network without it
 VITE_PEERS_DISPLAY_ENABLED=true|false         # Network peers display
 ```
 

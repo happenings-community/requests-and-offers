@@ -5,6 +5,12 @@ export * from './error-handling';
 export * from './holochain-client.errors';
 export * from './hrea.errors';
 export * from './mediums-of-exchange.errors';
+// **Not messaging.** A feature's errors are imported from the feature, so the barrel
+// stays neutral: anything defined by messaging, its errors included, is messaging
+// (R121, the seam's rule 1). Re-exporting them here put the whole feature two hops from
+// every file that wanted any error at all, including eleven offer and request components
+// that never mention messaging. Both importers of MessagingError already name it
+// directly, so nothing followed this out.
 export * from './offers.errors';
 export * from './exchanges.errors';
 export * from './organizations.errors';

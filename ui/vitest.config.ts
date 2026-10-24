@@ -18,9 +18,19 @@ export default defineConfig({
     }
   },
   resolve: {
+    // Svelte ships two builds, and the server one has no `mount`, so a component test
+    // under it fails before it renders. These tests run in jsdom, which is a browser, so
+    // the browser build is the right one to resolve.
+    conditions: ['browser'],
     alias: {
       $lib: '/src/lib',
-      '@': '/src'
+      '@': '/src',
+      // SvelteKit supplies these two at build time through its own Vite plugin, which this
+      // config does not load, so a route importing them cannot resolve and cannot be
+      // mounted. The stand-ins are for the test run only; nothing in `src` is aliased.
+      '$app/state': '/tests/mocks/app-state.ts',
+      '$app/stores': '/tests/mocks/app-stores.ts',
+      '$app/navigation': '/tests/mocks/app-navigation.ts'
     }
   }
 });

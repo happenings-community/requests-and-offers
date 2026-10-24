@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { termsState, TERMS_LOADING, TERMS_FAILED } from '$lib/utils/listing-terms';
   import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import type { UIOffer, UIUser, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
   import { encodeHashToBase64 } from '@holochain/client';
@@ -21,6 +22,7 @@
   import { runEffect } from '$lib/utils/effect';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
+  import { paths } from '$lib/paths';
 
   type OfferDetailsModalMeta = {
     offer: UIOffer;
@@ -126,7 +128,7 @@
     if (offer?.original_action_hash) {
       const offerId = encodeHashToBase64(offer.original_action_hash);
       modalStore.close();
-      goto(`/offers/${offerId}/edit`);
+      goto(paths.offerEdit(offerId));
     }
   }
 
@@ -174,10 +176,10 @@
       });
 
       // If we're in the admin panel, stay there, otherwise go to requests
-      if (window.location.pathname.startsWith('/admin')) {
+      if (window.location.pathname.startsWith(paths.admin())) {
         // Refresh the page to update the list
       } else {
-        goto('/offers');
+        goto(paths.offers());
       }
     } catch (err) {
       console.error('Failed to delete offer:', err);
@@ -193,7 +195,7 @@
     if (offer?.original_action_hash) {
       const offerId = encodeHashToBase64(offer.original_action_hash);
       modalStore.close();
-      goto(`/offers/${offerId}`);
+      goto(paths.offerDetail(offerId));
     }
   }
 
@@ -271,6 +273,10 @@
                 : ''} selected
             </span>
           </div>
+        {:else if termsState(offer) === 'loading'}
+          <p class="text-surface-500">{TERMS_LOADING}</p>
+        {:else if termsState(offer) === 'failed'}
+          <p class="text-warning-700 dark:text-warning-300">{TERMS_FAILED}</p>
         {:else}
           <p class="text-surface-500">No service types specified.</p>
         {/if}
@@ -287,6 +293,10 @@
               </li>
             {/each}
           </ul>
+        {:else if termsState(offer) === 'loading'}
+          <p class="text-surface-500">{TERMS_LOADING}</p>
+        {:else if termsState(offer) === 'failed'}
+          <p class="text-warning-700 dark:text-warning-300">{TERMS_FAILED}</p>
         {:else}
           <p class="text-surface-500">No medium of exchange specified.</p>
         {/if}
@@ -360,13 +370,15 @@
             <div>
               <p class="font-semibold">Name: {creator.name}</p>
               {#if creator.nickname}
-                <p class="text-surface-600-300-token text-sm">Nickname/Handle: {creator.nickname}</p>
+                <p class="text-surface-600-300-token text-sm">
+                  Nickname/Handle: {creator.nickname}
+                </p>
               {/if}
             </div>
           </div>
         {:else}
           <a
-            href={`/users/${encodeHashToBase64(offer.creator)}`}
+            href={paths.userProfile(offer.creator)}
             class="text-primary-500 hover:underline dark:text-primary-400"
           >
             View Creator Profile
@@ -411,7 +423,7 @@
           </div>
         {:else}
           <a
-            href={`/organizations/${encodeHashToBase64(offer.organization)}`}
+            href={paths.organizationDetail(offer.organization)}
             class="text-primary-500 hover:underline dark:text-primary-400"
           >
             View Organization
@@ -426,7 +438,7 @@
           <div class="mt-1 flex flex-wrap gap-2">
             {#each organization.coordinators as coordinator}
               <a
-                href={`/users/${encodeHashToBase64(coordinator)}`}
+                href={paths.userProfile(coordinator)}
                 class="variant-soft-secondary chip hover:variant-soft-primary"
               >
                 View Coordinator

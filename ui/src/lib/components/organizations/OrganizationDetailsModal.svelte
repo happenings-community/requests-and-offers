@@ -6,12 +6,12 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { AdministrationEntity } from '$lib/types/holochain';
   import { goto } from '$app/navigation';
-  import { encodeHashToBase64 } from '@holochain/client';
   import { Effect as E } from 'effect';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { formatUserName } from '$lib/schemas/users.schemas';
   import { runEffect } from '$lib/utils/effect';
+  import { paths } from '$lib/paths';
 
   const modalStore = getModalStore();
   const { organization } = $modalStore[0].meta as { organization: UIOrganization };
@@ -19,7 +19,7 @@
   let suspensionDate = $state('');
   let organizationStatus: UIStatus | null = $state(null);
   let resolvedContactName = $state('');
-  const isAdminPage = $state(page.url.pathname.startsWith('/admin'));
+  const isAdminPage = $state(page.url.pathname.startsWith(paths.admin()));
 
   let organizationPictureUrl: string = $derived(
     organization?.logo
@@ -118,7 +118,7 @@
               <span class="min-w-[120px] font-medium">Contact:</span>
               <span>
                 <a
-                  href="/users/{encodeHashToBase64(organization.contact.user_hash)}"
+                  href={paths.userProfile(organization.contact.user_hash)}
                   class="text-tertiary-500 hover:text-tertiary-600 hover:underline"
                   onclick={() => modalStore.close()}
                 >
@@ -181,7 +181,7 @@
       onclick={() => {
         modalStore.close();
         if (organization.original_action_hash) {
-          goto(`/organizations/${encodeHashToBase64(organization.original_action_hash)}`);
+          goto(paths.organizationDetail(organization.original_action_hash));
         }
       }}
     >

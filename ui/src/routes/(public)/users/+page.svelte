@@ -7,6 +7,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { isTestModeUserListEnabled } from '$lib/services/devFeatures.service';
   import type { UIUser } from '@/lib/composables';
+  import { paths } from '$lib/paths';
 
   const { currentUser, acceptedUsers, loading } = $derived(usersStore);
 
@@ -69,7 +70,7 @@
 
   <div class="flex w-full gap-4">
     {#if !currentUser}
-      <NavButton href="/user/create">Create Profile</NavButton>
+      <NavButton href={paths.myProfileCreate()}>Create Profile</NavButton>
     {/if}
   </div>
 

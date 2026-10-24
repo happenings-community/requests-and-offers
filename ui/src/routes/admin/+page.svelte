@@ -19,8 +19,8 @@
   import OrganizationDetailsModal from '$lib/components/organizations/OrganizationDetailsModal.svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { encodeHashToBase64 } from '@holochain/client';
   import { storeEventBus } from '$lib/stores/storeEvents';
+  import { paths } from '$lib/paths';
 
   const toastStore = getToastStore();
   const modalStore = getModalStore();
@@ -30,28 +30,28 @@
   function handleViewUser(user: UIUser) {
     if (!user.original_action_hash) return;
 
-    if (page.url.pathname.startsWith('/admin')) {
+    if (page.url.pathname.startsWith(paths.admin())) {
       modalStore.trigger({
         type: 'component',
         component: modalComponent,
         meta: { user }
       });
     } else {
-      goto(`/users/${encodeHashToBase64(user.original_action_hash)}`);
+      goto(paths.userProfile(user.original_action_hash));
     }
   }
 
   function handleViewOrganization(org: UIOrganization) {
     if (!org.original_action_hash) return;
 
-    if (page.url.pathname.startsWith('/admin')) {
+    if (page.url.pathname.startsWith(paths.admin())) {
       modalStore.trigger({
         type: 'component',
         component: orgModalComponent,
         meta: { organization: org }
       });
     } else {
-      goto(`/organizations/${encodeHashToBase64(org.original_action_hash)}`);
+      goto(paths.organizationDetail(org.original_action_hash));
     }
   }
 
@@ -315,7 +315,7 @@
                     />
                     <button
                       class="text-primary-400 hover:underline"
-                      onclick={() => handleViewUser(user)}><UserName user={user} /></button
+                      onclick={() => handleViewUser(user)}><UserName {user} /></button
                     >
                   </div>
                   <div class="flex gap-2">

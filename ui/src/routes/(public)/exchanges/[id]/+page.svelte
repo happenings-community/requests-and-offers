@@ -1,20 +1,23 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
-  import { getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
-  import ContactModal from '$lib/components/shared/listings/ContactModal.svelte';
+  import { decodeHashFromBase64 } from '@holochain/client';
+  import ReachPerson from '$lib/components/exchanges/ReachPerson.svelte';
   import { useExchangeDetails } from '$lib/composables/domain/exchanges/useExchangeDetails.svelte';
   import {
+    CLOSURE_LABEL,
+    closureOf,
     counterpartyOf,
+    exchangeState,
+    isProposal,
     statusLabel,
     exchangeStatusVariant,
     formatWhen,
     termLabel
   } from '$lib/utils/exchange-ui';
   import type { ReviewInDHT } from '$lib/types/holochain';
-
-  const modalStore = getModalStore();
+  import { paths, readOrigin, routeBack } from '$lib/paths';
+  import { getBackToChat } from '$lib/extensions/back-to-chat';
 
   const agreementHash = $derived.by(() => {
     try {
@@ -49,23 +52,27 @@
     if (href) await goto(href);
   }
 
-  function discuss() {
-    if (!other || !exchange) return;
-    const component: ModalComponent = {
-      ref: ContactModal,
-      props: {
-        user: other,
-        organization: null,
-        listingType: exchange.agreement.listing_type === 'Offer' ? 'offer' : 'request',
-        listingTitle
-      }
-    };
-    modalStore.trigger({ type: 'component', component, meta: { title: '', body: '' } });
-  }
-
   $effect(() => {
     details.initialize();
   });
+
+  /**
+   * Where Back goes, and what it says.
+   *
+   * An exchange opened from a conversation belongs to that conversation; opened from My
+   * Exchanges it does not, and the page keeps its own Back.
+   */
+  const back = $derived(routeBack(readOrigin(page.url), paths.exchanges()));
+
+  /**
+   * Whether this page was reached from a conversation is its own to decide, and it reads
+   * that from the marker in its address. Saying so, and addressing the conversation, is
+   * not: that sentence is written in one place, and this asks for it. Nothing plugged in
+   * means this network has no conversations, so there was nowhere to arrive from and the
+   * page's own Back is the only one.
+   */
+  const pluggedBack = getBackToChat();
+  const BackToChat = $derived(pluggedBack());
 </script>
 
 <svelte:head>
@@ -89,9 +96,28 @@
 
 <section class="container mx-auto max-w-3xl space-y-6 p-4">
   <div class="flex items-center justify-between">
-    <button class="variant-soft btn btn-sm" onclick={() => goto('/exchanges')}
-      >Back to exchanges</button
-    >
+    <!--
+      Reached from a conversation, Back goes to the conversation and says whose it is;
+      reached any other way, this page keeps the Back it had. One rule, one link, so the
+      wording and the destination cannot disagree.
+    -->
+    <div class="flex flex-wrap items-center gap-2">
+      {#if back.wording === 'conversation' && BackToChat}
+        <BackToChat counterparty={back.counterparty} classes="variant-soft btn btn-sm" />
+      {:else}
+        <button class="variant-soft btn btn-sm" onclick={() => goto(paths.exchanges())}>
+          Back to exchanges
+        </button>
+      {/if}
+      <!--
+        Wherever an exchange appears, there is a way to the chat it belongs to. Reached
+        from a conversation, Back already goes there, so a second link to the same place
+        would only be noise.
+      -->
+      {#if back.wording !== 'conversation' && exchange && me}
+        <ReachPerson person={counterpartyOf(exchange, me)} />
+      {/if}
+    </div>
   </div>
 
   {#if loadError}
@@ -100,6 +126,8 @@
     <p class="text-surface-500">Loading the exchange...</p>
   {:else}
     {@const a = exchange.agreement}
+    {@const state = exchangeState(exchange)}
+    {@const closure = closureOf(exchange)}
     <header class="space-y-2">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h1 class="h2"><a class="anchor" href={listingHref}>{listingTitle || '...'}</a></h1>
@@ -109,7 +137,7 @@
       </div>
       <p class="text-surface-500">
         With
-        <a class="anchor" href={`/users/${encodeHashToBase64(counterpartyOf(exchange, me))}`}>
+        <a class="anchor" href={paths.userProfile(counterpartyOf(exchange, me))}>
           {other?.name ?? 'a member'}
         </a>. You are the {role ?? 'observer'}. Written up on {formatWhen(exchange.created_at)}
         {iWroteIt ? 'by you' : `by ${other?.name ?? 'them'}`}.
@@ -140,40 +168,34 @@
           </p>{/if}
         {#if a.terms}
           <p class="text-xs uppercase tracking-wide text-surface-500">
-            {exchange.status === 'Proposed' || exchange.status === 'Declined'
-              ? 'Proposal'
-              : 'Agreement'}
+            {isProposal(state) ? 'Proposal' : 'Agreement'}
           </p>
           <p class="whitespace-pre-line">{a.terms}</p>
         {/if}
       </div>
     {/if}
 
-    {#if exchange.status === 'Declined' && exchange.response}
+    {#if closure}
       <div class="alert variant-soft-surface">
-        <p>Declined on {formatWhen(exchange.response.created_at)}.</p>
-        {#if exchange.response.note}<p class="text-sm">{exchange.response.note}</p>{/if}
-      </div>
-    {:else if exchange.status === 'Cancelled' && exchange.cancellation}
-      <div class="alert variant-soft-surface">
-        <p>
-          {exchange.response ? 'Cancelled' : 'Withdrawn'} on {formatWhen(
-            exchange.cancellation.created_at
-          )}.
-        </p>
-        {#if exchange.cancellation.note}<p class="text-sm">{exchange.cancellation.note}</p>{/if}
+        <p>{CLOSURE_LABEL[closure.kind]} on {formatWhen(closure.at)}.</p>
+        {#if closure.note}<p class="text-sm">{closure.note}</p>{/if}
       </div>
     {/if}
 
     {#if role}
       <div class="card space-y-3 p-4">
-        {#if exchange.status === 'Proposed'}
+        {#if state === 'proposed'}
           {#if iWroteIt}
             <p>Waiting for {other?.name ?? 'them'} to accept, counter or decline.</p>
             <button class="variant-ghost-surface btn btn-sm" onclick={withdraw} disabled={busy}>
               Withdraw proposal
             </button>
           {:else}
+            <!--
+              No Discuss here: the one way to reach the other person is the control at the
+              top of the page, Go to chat where this network has messaging and Contact
+              where it has not. A second door beside the actions showed both at once.
+            -->
             <p>
               {other?.name ?? 'They'} sent this proposal. Accept it to form the agreement, counter with
               your own, or decline.
@@ -185,9 +207,6 @@
               placeholder="A note, if declining"
             ></textarea>
             <div class="flex flex-wrap gap-2">
-              <button class="variant-soft-primary btn" onclick={discuss} disabled={busy || !other}
-                >Discuss</button
-              >
               <button class="variant-filled-secondary btn" onclick={counter} disabled={busy}
                 >Counter</button
               >
@@ -199,7 +218,7 @@
               >
             </div>
           {/if}
-        {:else if exchange.status === 'Agreed' || exchange.status === 'OneSideDone'}
+        {:else if state === 'agreed' || state === 'partlyDone'}
           {#if myDone}
             <p>You have marked your part done. Waiting for {other?.name ?? 'them'}.</p>
           {:else}
@@ -225,7 +244,7 @@
               </button>
             </div>
           </details>
-        {:else if exchange.status === 'Complete'}
+        {:else if state === 'awaitingReviews'}
           {#if myReview}
             <p>Thanks for your review. Waiting for {other?.name ?? 'them'} to review.</p>
           {:else}
@@ -276,7 +295,7 @@
               disabled={busy || !!details.reviewProblem}>Submit review</button
             >
           {/if}
-        {:else if exchange.status === 'Reviewed'}
+        {:else if state === 'reviewed'}
           {@const done = Math.max(
             exchange.provider_done?.created_at ?? 0,
             exchange.receiver_done?.created_at ?? 0
@@ -286,7 +305,7 @@
       </div>
     {/if}
 
-    {#if exchange.status === 'Complete' || exchange.status === 'Reviewed'}
+    {#if state === 'awaitingReviews' || state === 'reviewed'}
       <div class="grid gap-4 md:grid-cols-2">
         {@render reviewCard('Your review', myReviewText)}
         {@render reviewCard(`${other?.name ?? 'Their'} review`, theirReviewText)}
@@ -306,7 +325,8 @@
           Receiver done {formatWhen(exchange.receiver_done.created_at)}
         </p>{/if}
       {#if exchange.cancellation}<p>
-          Cancelled {formatWhen(exchange.cancellation.created_at)}
+          {state === 'withdrawn' ? 'Withdrawn' : 'Cancelled'}
+          {formatWhen(exchange.cancellation.created_at)}
         </p>{/if}
     </div>
   {/if}

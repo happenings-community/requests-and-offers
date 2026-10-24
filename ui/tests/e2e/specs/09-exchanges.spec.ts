@@ -60,6 +60,9 @@ test.describe.serial('09 — exchanges', () => {
       timeout: 15_000
     });
     await expect(page.getByText('No one has registered interest yet.')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Interested in this offer/ })).toHaveCount(0);
+    // The door's own control, which an author never sees on their own listing. Named by
+    // its test id rather than its words, so a copy review cannot quietly disable this
+    // check by rewording the button.
+    await expect(page.getByTestId('show-interest')).toHaveCount(0);
   });
 });

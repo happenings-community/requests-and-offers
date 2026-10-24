@@ -3,17 +3,18 @@
   import ServiceTypeForm from '$lib/components/service-types/ServiceTypeForm.svelte';
   import { showToast } from '$lib/utils';
   import type { UIServiceType } from '$lib/types/ui';
+  import { paths } from '$lib/paths';
 
   function handleCreateSuccess(newServiceType: UIServiceType) {
     // The newServiceType object is available if needed, but for now we just show a toast and navigate.
     showToast('Service type created successfully', 'success');
 
     // Navigate back to the service types list
-    goto('/admin/service-types');
+    goto(paths.adminServiceTypes());
   }
 
   function handleCancel() {
-    goto('/admin/service-types');
+    goto(paths.adminServiceTypes());
   }
 </script>
 

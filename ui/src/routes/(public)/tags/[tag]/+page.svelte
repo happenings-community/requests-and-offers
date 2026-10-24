@@ -1,10 +1,11 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
+  import { paths } from '$lib/paths';
 
   // Redirect to service types page since tags are no longer supported
   onMount(() => {
-    goto('/service-types');
+    goto(paths.serviceTypes());
   });
 </script>
 
@@ -19,6 +20,6 @@
       Service types are now classified as Technical or Non-Technical instead of using tags.
     </p>
     <p class="mb-6 text-surface-600">Redirecting you to the Service Types page...</p>
-    <a href="/service-types" class="variant-filled-primary btn"> Go to Service Types </a>
+    <a href={paths.serviceTypes()} class="variant-filled-primary btn"> Go to Service Types </a>
   </div>
 </section>

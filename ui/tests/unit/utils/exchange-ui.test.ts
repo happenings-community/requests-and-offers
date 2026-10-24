@@ -12,15 +12,20 @@ import type { ActionHash } from '@holochain/client';
 import type { AgreementInDHT, ExchangeStatus, ExchangeTerm } from '$lib/types/holochain';
 import type { UIExchange } from '$lib/types/ui';
 import {
-  EXCHANGE_STATUS_LABEL,
-  EXCHANGE_TABS,
+  EXCHANGE_STATE_LABEL,
+  TAB_OF_STATE,
   actionLabel,
   awaitingMe,
+  closureOf,
   counterpartyOf,
   doneBy,
+  exchangeState,
   exchangeStatusVariant,
   formatWhen,
+  isProposal,
+  namedInterest,
   otherRole,
+  reciprocalTermFor,
   reviewedBy,
   roleOf,
   statusLabel,
@@ -243,7 +248,7 @@ describe('exchange-ui', () => {
     it('lands every status in exactly one tab', () => {
       for (const status of ALL_STATUSES) {
         const e = exchange({ status, response: accepted });
-        expect(Object.keys(EXCHANGE_TABS), status).toContain(tabOf(e));
+        expect(Object.values(TAB_OF_STATE), status).toContain(tabOf(e));
       }
     });
   });
@@ -251,14 +256,18 @@ describe('exchange-ui', () => {
   describe('statusLabel', () => {
     it('calls a cancellation before any answer a withdrawal', () => {
       expect(statusLabel(exchange({ status: 'Cancelled' }))).toBe('Withdrawn');
-      expect(statusLabel(exchange({ status: 'Cancelled', response: declined }))).toBe('Cancelled');
+      expect(
+        statusLabel(exchange({ status: 'Cancelled', response: accepted })),
+        'agreed, then stopped'
+      ).toBe('Cancelled');
     });
 
-    it('has a label for every status', () => {
+    it('has a label for every status, and it is the label of the state it reads as', () => {
       for (const status of ALL_STATUSES) {
-        const label = statusLabel(exchange({ status, response: accepted }));
+        const e = exchange({ status, response: accepted });
+        const label = statusLabel(e);
         expect(label, status).toBeTruthy();
-        expect(label, status).toBe(EXCHANGE_STATUS_LABEL[status]);
+        expect(label, status).toBe(EXCHANGE_STATE_LABEL[exchangeState(e)]);
       }
     });
   });
@@ -348,5 +357,231 @@ describe('exchange-ui', () => {
       // action timestamps are microseconds and land fifty millennia out.
       expect(formatWhen(Date.UTC(2026, 8, 14) * 1000)).not.toMatch(/2026/);
     });
+  });
+});
+
+describe('reciprocalTermFor', () => {
+  /**
+   * **A listing that names no medium is still proposable** (Sam, 4 October). Refusing one
+   * invented a rule the data does not have, and it blocked the simplest exchange there
+   * is: someone offering to help for nothing.
+   *
+   * **To make this go red:** return a `Tbd` term for the empty medium, as the page did
+   * before, or put `!!medium` back in `canSubmit` on the propose page.
+   */
+  it('makes a listing with no medium a gift, not a blocked proposal', () => {
+    const term = reciprocalTermFor({ medium: '', isCurrency: false, returnService: '' });
+    expect(term.resource_kind).toBe('Gift');
+    expect(term.resource_conforms_to).toBe('');
+    expect(term.quantity).toBeNull();
+    expect(term.direction).toBe('Receive');
+  });
+
+  it('gives Free/Pay it Forward the same shape, since both mean nothing comes back', () => {
+    const noMedium = reciprocalTermFor({ medium: '', isCurrency: false, returnService: '' });
+    const free = reciprocalTermFor({
+      medium: 'Free/Pay it Forward',
+      isCurrency: false,
+      returnService: ''
+    });
+    expect(free).toEqual(noMedium);
+  });
+
+  it('carries a currency medium with no amount, because no listing publishes one', () => {
+    const term = reciprocalTermFor({ medium: 'Hours', isCurrency: true, returnService: '' });
+    expect(term.resource_kind).toBe('Currency');
+    expect(term.resource_conforms_to).toBe('Hours');
+    expect(term.quantity).toBeNull();
+  });
+
+  it('carries the chosen return service, and never the none-of-these sentinel', () => {
+    expect(
+      reciprocalTermFor({
+        medium: 'Service Exchange',
+        isCurrency: false,
+        returnService: 'Bike repairs'
+      }).resource_conforms_to
+    ).toBe('Bike repairs');
+
+    expect(
+      reciprocalTermFor({
+        medium: 'Service Exchange',
+        isCurrency: false,
+        returnService: '__none__'
+      }).resource_conforms_to
+    ).toBe('');
+  });
+});
+
+/**
+ * **One reading of the record, so four questions cannot disagree about it.**
+ *
+ * The label on a card, the group it sits in, whose turn it is and whether a conversation
+ * shows it as an agreement are four readings of one fact. Each used to read the status
+ * for itself, and two of them had to compensate for a status that cannot say
+ * "withdrawn": one asked `Cancelled && !response`, another asked `response.accepted`.
+ * Two spellings of the same question in one codebase is how they drift apart.
+ */
+describe('exchangeState, the record read once', () => {
+  it('names the state for every status the zome can answer', () => {
+    expect(exchangeState(exchange({ status: 'Proposed' }))).toBe('proposed');
+    expect(exchangeState(exchange({ status: 'Declined', response: declined }))).toBe('declined');
+    expect(exchangeState(exchange({ status: 'Agreed', response: accepted }))).toBe('agreed');
+    expect(exchangeState(exchange({ status: 'OneSideDone', response: accepted }))).toBe(
+      'partlyDone'
+    );
+    expect(exchangeState(exchange({ status: 'Complete', response: accepted }))).toBe(
+      'awaitingReviews'
+    );
+    expect(exchangeState(exchange({ status: 'Reviewed', response: accepted }))).toBe('reviewed');
+  });
+
+  /**
+   * **To make this go red:** return `'cancelled'` for every `Cancelled` exchange. A
+   * proposal taken back before anyone answered reads as an agreement that was stopped,
+   * which is the claim Sam saw announced to both people.
+   */
+  it('tells a withdrawal from a cancellation by the response, not the status', () => {
+    expect(exchangeState(exchange({ status: 'Cancelled' })), 'nobody answered it').toBe(
+      'withdrawn'
+    );
+    expect(
+      exchangeState(exchange({ status: 'Cancelled', response: accepted })),
+      'it was agreed, then stopped'
+    ).toBe('cancelled');
+  });
+
+  /**
+   * A refusal stays a refusal. Either party may cancel at any time, so a cancellation can
+   * land on a proposal that was already declined, and the decline is what happened to it.
+   */
+  it('keeps a declined proposal declined when a cancellation lands on top of it', () => {
+    const e = exchange({ status: 'Cancelled', response: declined });
+    expect(exchangeState(e)).toBe('declined');
+    expect(statusLabel(e), 'and the label follows the state').toBe('Declined');
+  });
+
+  it('has a label and exactly one tab for every state, with nothing left unplaced', () => {
+    for (const state of Object.keys(
+      EXCHANGE_STATE_LABEL
+    ) as (keyof typeof EXCHANGE_STATE_LABEL)[]) {
+      expect(EXCHANGE_STATE_LABEL[state], state).toBeTruthy();
+      expect(['proposals', 'active', 'completed'], state).toContain(TAB_OF_STATE[state]);
+    }
+  });
+
+  /**
+   * The point of the whole change: the four readers answer from the same derivation, so a
+   * withdrawal reads as one thing everywhere it appears.
+   */
+  it('reads a withdrawal the same way in the label, the tab, the turn and the card', () => {
+    const withdrawn = exchange({
+      status: 'Cancelled',
+      cancellation: { agreement: hash(9), note: '', created_at: 1 }
+    });
+    expect(exchangeState(withdrawn)).toBe('withdrawn');
+    expect(statusLabel(withdrawn)).toBe('Withdrawn');
+    expect(tabOf(withdrawn), 'it never became an exchange').toBe('proposals');
+    expect(turnOf(withdrawn, RECEIVER), 'nothing is asked of either side').toBe('none');
+    expect(actionLabel(withdrawn, 'receiver'), 'a proposal is what there is to open').toBe(
+      'Open proposal'
+    );
+  });
+});
+
+/**
+ * **A hash in a link means nothing until a record says it does.**
+ *
+ * The propose page is opened with an interest hash in its address, and only the
+ * listing's own interests can say whether that hash is one of them. Read and absent is
+ * its own answer: the interest may have been withdrawn, or the link kept from an older
+ * one, and the page has to stop rather than fill itself in from the query string.
+ */
+describe('namedInterest, matching a link against the records', () => {
+  const INTEREST = hash(7);
+  const listed = [{ interest_hash: hash(7), user: PROVIDER }, { interest_hash: hash(8) }];
+
+  /**
+   * **To make this go red:** compare the hashes with `===`, or with `includes`. Two
+   * `Uint8Array`s holding the same bytes are different objects, so the page would never
+   * find the interest it was opened from and would call every proposal impossible.
+   */
+  it('finds it by what the hash holds, not by which object it is', () => {
+    const found = namedInterest(listed, new Uint8Array([132, 41, 36, 7]) as unknown as ActionHash);
+    expect(found?.user, 'the interest, with whoever registered it').toBe(PROVIDER);
+  });
+
+  it('finds nothing when the listing has no such interest', () => {
+    expect(namedInterest(listed, hash(99))).toBeUndefined();
+  });
+
+  it('and nothing when the link names none at all', () => {
+    expect(namedInterest(listed, null)).toBeUndefined();
+    expect(namedInterest([], INTEREST)).toBeUndefined();
+  });
+});
+
+/**
+ * The exchange pages used to ask `exchange.status` for themselves in several places,
+ * each with its own reading of `Cancelled` (#308 review, F15). The two readings the pages
+ * need beyond the state itself live here, so a withdrawn proposal reads as a proposal
+ * everywhere and a decline stays a decline whatever lands on it afterwards.
+ */
+describe('the exchange pages read the state, not the status', () => {
+  it('calls proposed, declined and withdrawn a proposal, and nothing once accepted', () => {
+    expect(isProposal('proposed')).toBe(true);
+    expect(isProposal('declined')).toBe(true);
+    expect(isProposal('withdrawn'), 'taken back, but it only ever was a proposal').toBe(true);
+    for (const state of [
+      'agreed',
+      'partlyDone',
+      'awaitingReviews',
+      'reviewed',
+      'cancelled'
+    ] as const) {
+      expect(isProposal(state), state).toBe(false);
+    }
+  });
+
+  /**
+   * **To make this go red:** read `exchange.status` instead of the state. A withdrawn
+   * proposal has status `Cancelled`, so it is announced as "Cancelled on", and a declined
+   * proposal that was then cancelled is announced as cancelled rather than declined.
+   */
+  it('closes a withdrawn proposal by its cancellation, named as a withdrawal', () => {
+    const withdrawn = exchange({
+      status: 'Cancelled',
+      cancellation: { agreement: hash(9), note: 'Changed my mind', created_at: 7 }
+    });
+    expect(closureOf(withdrawn)).toEqual({ kind: 'withdrawn', at: 7, note: 'Changed my mind' });
+  });
+
+  it('keeps a declined proposal closed by its decline when a cancellation lands on top', () => {
+    const declinedThenCancelled = exchange({
+      status: 'Cancelled',
+      response: declined,
+      cancellation: { agreement: hash(9), note: '', created_at: 9 }
+    });
+    expect(closureOf(declinedThenCancelled)).toEqual({ kind: 'declined', at: 1, note: 'no' });
+    expect(closureOf(exchange({ status: 'Declined', response: declined }))).toEqual({
+      kind: 'declined',
+      at: 1,
+      note: 'no'
+    });
+  });
+
+  it('closes a stopped agreement by its cancellation', () => {
+    const stopped = exchange({
+      status: 'Cancelled',
+      response: accepted,
+      cancellation: { agreement: hash(9), note: 'Ill', created_at: 5 }
+    });
+    expect(closureOf(stopped)).toEqual({ kind: 'cancelled', at: 5, note: 'Ill' });
+  });
+
+  it('has no closure while a record is open or finished', () => {
+    expect(closureOf(exchange({ status: 'Proposed' }))).toBeNull();
+    expect(closureOf(exchange({ status: 'Agreed', response: accepted }))).toBeNull();
+    expect(closureOf(exchange({ status: 'Reviewed', response: accepted }))).toBeNull();
   });
 });

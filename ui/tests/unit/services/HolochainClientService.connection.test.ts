@@ -84,7 +84,9 @@ describe('waitForConnection', () => {
   });
 
   it('resolves when the attempt succeeds', async () => {
-    connect.mockResolvedValue({ appInfo: vi.fn() });
+    // `on` is part of AppClient and the service attaches a signal listener on every
+    // successful connect, so a mock without it is not a connected client.
+    connect.mockResolvedValue({ appInfo: vi.fn(), on: vi.fn(() => () => {}) });
 
     const outcome = outcomeOf(service.waitForConnection(1_000));
     await vi.runAllTimersAsync();

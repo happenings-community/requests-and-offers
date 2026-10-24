@@ -9,6 +9,7 @@ import usersStore from '$lib/stores/users.store.svelte';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
+import { paths } from '$lib/paths';
 
 /**
  * Request Details Error
@@ -102,7 +103,7 @@ export interface UseRequestDetailsOptions {
  * Eliminates 150+ lines of boilerplate from detail pages
  */
 export function useRequestDetails(options: UseRequestDetailsOptions = {}): UseRequestDetails {
-  const { backRoute = '/requests', onDeleted, onError } = options;
+  const { backRoute = paths.requests(), onDeleted, onError } = options;
 
   // Page context
   const requestId = $derived(page.params.id);
@@ -267,12 +268,12 @@ export function useRequestDetails(options: UseRequestDetailsOptions = {}): UseRe
 
   function navigateToEdit(): void {
     if (requestId) {
-      goto(`/requests/${requestId}/edit`);
+      goto(paths.requestEdit(requestId));
     }
   }
 
   function navigateToRequests(): void {
-    goto('/requests');
+    goto(paths.requests());
   }
 
   // Delete with optional confirmation

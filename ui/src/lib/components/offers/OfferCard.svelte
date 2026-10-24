@@ -7,7 +7,6 @@
     type ModalSettings
   } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
-  import { encodeHashToBase64 } from '@holochain/client';
   import type { UIOffer, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import offersStore from '$lib/stores/offers.store.svelte';
@@ -18,6 +17,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { queueAndReverseModal } from '$lib/utils';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
+  import { paths } from '$lib/paths';
 
   type Props = {
     offer: UIOffer;
@@ -80,7 +80,7 @@
   // Navigate to user profile
   function navigateToUserProfile() {
     if (offer.creator) {
-      goto(`/users/${encodeHashToBase64(offer.creator)}`);
+      goto(paths.userProfile(offer.creator));
     }
   }
 
@@ -235,9 +235,7 @@
       </button>
       <div>
         <a
-          href="/offers/{offer.original_action_hash
-            ? encodeHashToBase64(offer.original_action_hash)
-            : ''}"
+          href={offer.original_action_hash ? paths.offerDetail(offer.original_action_hash) : ''}
           class="hover:underline"
         >
           <h3 class="font-semibold">{offer.title}</h3>
@@ -314,7 +312,7 @@
         class="variant-filled-primary btn btn-sm"
         onclick={() => {
           if (offer.original_action_hash) {
-            goto(`/offers/${encodeHashToBase64(offer.original_action_hash)}`);
+            goto(paths.offerDetail(offer.original_action_hash));
           }
         }}
       >

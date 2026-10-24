@@ -1,5 +1,7 @@
 <script lang="ts">
   import Bars from '$lib/components/shared/svg/bars.svelte';
+  import messagingPresence from '$lib/services/messagingPresence.svelte';
+  import { getUnreadCount } from '$lib/extensions/unread-count';
   import {
     getDrawerStore,
     popup,
@@ -11,13 +13,13 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
-  import { turnOf } from '$lib/utils/exchange-ui';
   import { runEffect } from '$lib/utils/effect';
   import { onMount } from 'svelte';
   import {
     getConnectionStatusContext,
     type ConnectionStatus
   } from '$lib/context/connection-status.context.svelte';
+  import { paths } from '$lib/paths';
 
   // Props for connection status
   type Props = {
@@ -65,52 +67,84 @@
     const user = currentUser; // dereference the signal
     return [
       {
-        href: user ? '/user' : '/user/create',
+        href: user ? paths.myProfile() : paths.myProfileCreate(),
         label: user ? 'My Profile' : 'Create Profile',
         icon: '👤',
         description: user ? 'View and edit your profile' : 'Join the community'
       },
       {
-        href: '/requests?filter=my',
+        href: paths.requests({ filter: 'my' }),
         label: 'My Requests',
         icon: '📋',
         description: 'Manage your requests for help'
       },
       {
-        href: '/offers?filter=my',
+        href: paths.offers({ filter: 'my' }),
         label: 'My Offers',
         icon: '🎯',
         description: 'Manage your offers to help others'
       },
       {
-        href: '/my-listings',
+        href: paths.myListings(),
         label: 'My Listings',
         icon: '📋',
         description: 'Manage your requests and offers'
       },
       {
-        href: '/exchanges',
+        href: paths.exchanges(),
         label: 'My Exchanges',
-        badge: pendingCount,
+        // **No number here** (Sam, 4 October). A proposal arriving is one thing to deal
+        // with, and it is already counted as an unopened conversation; a second badge
+        // over the same event made it look like two. An exchange waiting on this member
+        // says "Your turn" on its own row instead, which clears when they act rather
+        // than when they look.
+        badge: undefined,
         icon: '🤝',
         description: 'Agreements you are part of'
-      }
+      },
+      /**
+       * **My Messages is only here when this network has messaging** (R121, brief H4).
+       *
+       * Read from the DNA through H2's module, which is the one question shared chrome may
+       * ask. Not read yet counts as present, so the item is there from the first frame and
+       * disappears only if the DNA says this network has no messaging.
+       */
+      ...(messagingPresence.isAbsent
+        ? []
+        : [
+            {
+              href: paths.messages(),
+              label: 'My Messages',
+              badge: unreadCount,
+              icon: '✉️',
+              description: 'Your conversations with other members'
+            }
+          ])
     ];
   }
 
-  // Exchanges waiting on this member: derived from the store's read model
-  // and turnOf, no notification system involved. Cleared by acting, not by
-  // dismissing. Refreshed on a poll so another agent's move shows without a
-  // reload; #51 replaces the poll with a signal later.
-  const pendingCount = $derived(
-    exchangesStore.exchanges.filter(
-      (e) => turnOf(e, usersStore.currentUser?.original_action_hash) === 'you'
-    ).length
-  );
+  /**
+   * The badge, from whatever messaging plugged in (brief H4, rule 2).
+   *
+   * **Shared chrome may ask whether messaging is here; it may not reach it.** Counting
+   * unopened conversations means reading the messaging store and keeping a poll alive, so
+   * messaging supplies the number and the root layout plugs it in. `undefined` means
+   * nothing is plugged in, which is both a network without messaging and the moment before
+   * the first poll returns: no badge either way, since a confident 0 would be a claim
+   * nobody has checked.
+   *
+   * It still counts conversations rather than items, and the same number My Messages shows,
+   * read from one place so the two cannot disagree.
+   */
+  const unread = getUnreadCount();
+  const unreadCount = $derived(unread());
 
   onMount(() => {
     const refresh = () => {
-      if (usersStore.currentUser) runEffect(exchangesStore.refreshMyExchanges()).catch(() => {});
+      if (!usersStore.currentUser) return;
+      runEffect(exchangesStore.refreshMyExchanges()).catch(() => {});
+      // Messaging's half of this poll moved to the root layout with the badge (H4): the
+      // nav bar has no messaging timing of its own. #51 replaces both with a signal.
     };
     refresh();
     const interval = setInterval(refresh, 15000);
@@ -119,22 +153,22 @@
 
   const communityItems = [
     {
-      href: '/users',
+      href: paths.users(),
       label: 'All Users',
       icon: '👥',
       description: 'Browse community members'
     },
     {
-      href: '/organizations',
+      href: paths.organizations(),
       label: 'Organizations',
       icon: '🏢',
       description: 'Explore organizations and teams'
-    },
+    }
   ];
 
   const resourceItems = [
     {
-      href: '/service-types',
+      href: paths.serviceTypes(),
       label: 'Service Types',
       icon: '🏷️',
       description: 'Browse available skill categories'
@@ -195,14 +229,14 @@
     <!-- Primary Actions -->
     <div class="flex items-center gap-6">
       <a
-        href="/requests"
+        href={paths.requests()}
         class="variant-filled-secondary btn px-6 py-2 font-semibold shadow-md transition-colors hover:variant-filled-tertiary hover:shadow-lg"
         aria-label="Browse requests - discover opportunities to help"
       >
         📝 Requests
       </a>
       <a
-        href="/offers"
+        href={paths.offers()}
         class="variant-filled-warning btn px-6 py-2 font-semibold shadow-md transition-colors hover:variant-filled-error hover:shadow-lg"
         aria-label="Browse offers - see how others can help you"
       >
@@ -236,7 +270,7 @@
     <!-- Admin Access -->
     {#if agentIsAdministrator}
       <a
-        href="/admin"
+        href={paths.admin()}
         class="variant-ringed-secondary btn border-2 px-4 py-2 text-sm text-white transition-colors hover:variant-filled-secondary"
         aria-label="Access administration panel"
       >

@@ -64,6 +64,19 @@ export type UIRequest = RequestInDHT & {
   service_type_hashes?: ActionHash[];
   medium_of_exchange_hashes?: ActionHash[];
   authorPubKey?: Uint8Array; // For permission checking fallback
+  /**
+   * Whether the listing's service types and mediums were actually read.
+   *
+   * **`undefined` means nobody has looked yet**, which is not the same as none. Both
+   * hash arrays default to `[]`, so a listing built from a bare record, or served from
+   * cache before its links were fetched, is indistinguishable from one that genuinely
+   * names no service. The detail pages read the empty array and said "No service types
+   * specified", then filled in moments later.
+   *
+   * `'failed'` is the third state. A link read that fails is caught and turned into `[]`
+   * on this path, so without this a failure also reads as none.
+   */
+  terms_load?: 'ok' | 'failed';
 };
 
 export type UIOffer = OfferInDHT & {
@@ -75,6 +88,19 @@ export type UIOffer = OfferInDHT & {
   updated_at?: number;
   service_type_hashes?: ActionHash[];
   medium_of_exchange_hashes?: ActionHash[];
+  /**
+   * Whether the listing's service types and mediums were actually read.
+   *
+   * **`undefined` means nobody has looked yet**, which is not the same as none. Both
+   * hash arrays default to `[]`, so a listing built from a bare record, or served from
+   * cache before its links were fetched, is indistinguishable from one that genuinely
+   * names no service. The detail pages read the empty array and said "No service types
+   * specified", then filled in moments later.
+   *
+   * `'failed'` is the third state. A link read that fails is caught and turned into `[]`
+   * on this path, so without this a failure also reads as none.
+   */
+  terms_load?: 'ok' | 'failed';
 };
 
 export type UIServiceType = ServiceTypeInDHT & {

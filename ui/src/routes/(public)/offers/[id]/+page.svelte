@@ -16,6 +16,7 @@
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { useAdminStatusGuard } from '$lib/composables/connection/useAdminStatusGuard.svelte';
   import ListingInterest from '$lib/components/exchanges/ListingInterest.svelte';
+  import { contactAbout } from '$lib/components/shared/contact-about.svelte';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
 
@@ -42,6 +43,18 @@
   const { currentUser } = $derived(usersStore);
   const adminStatusGuard = useAdminStatusGuard();
   const agentIsAdministrator = $derived(adminStatusGuard.agentIsAdministrator);
+
+  // Whether the member is looking at their own offer. The footer's "Contact
+  // admin" names the offer only when it is someone else's.
+  const isMine = $derived.by(() => {
+    if (!offer?.creator || !currentUser?.original_action_hash) return false;
+    return offer.creator.toString() === currentUser.original_action_hash.toString();
+  });
+
+  $effect(() => {
+    contactAbout.set(offer && !isMine ? { type: 'offer', title: offer.title } : null);
+    return () => contactAbout.set(null);
+  });
 
   // Permission checks
   const canEdit = $derived.by(() => {

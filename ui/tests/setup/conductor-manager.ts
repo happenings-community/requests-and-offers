@@ -79,8 +79,8 @@ export async function startConductor(): Promise<void> {
   // fixed) is a peer: a parallel CI job, the previous job for up to five
   // minutes, a developer's own app. A peer that holds `network.administrators`
   // means the first user here is never made administrator, and a dead peer
-  // makes every network read wait on the transport (measured on 19 October,
-  // notes/2026-10-20-aria-e2e-baseline.md). A closed local port as bootstrap
+  // makes every network read wait on the transport (measured on 19 October;
+  // the runs are in the description of #372). A closed local port as bootstrap
   // means no peer is ever found. The transport subcommand is required by the
   // CLI and does not change the 0.7 config.
   execSync(`nix develop --command hc sandbox --piped create --root "${TEST_WORKDIR}" network -b http://127.0.0.1:1/ mem`, {

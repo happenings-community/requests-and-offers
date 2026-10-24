@@ -252,8 +252,7 @@ Retrieves all active requests from the "requests.active" path.
 
 **Returns:**
 
-- `Vec<Record>`: Array of active request records only
-- `Error`: If retrieval fails
+- `Vec<Record>`: Array of active request records only, the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails
 
 **Implementation Details:**
 - Queries `Path("requests.active")` with `LinkTypes::ActiveRequests` filter
@@ -274,8 +273,7 @@ Retrieves all archived requests from the "requests.archived" path.
 
 **Returns:**
 
-- `Vec<Record>`: Array of archived request records only
-- `Error`: If retrieval fails
+- `Vec<Record>`: Array of archived request records only, the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails
 
 **Implementation Details:**
 - Queries `Path("requests.archived")` with `LinkTypes::ArchivedRequests` filter
@@ -324,8 +322,7 @@ Retrieves all requests created by a specific user.
 
 **Returns:**
 
-- `Vec<Record>`: Array of request records created by the user
-- `Error`: If retrieval fails
+- `Vec<Record>`: Array of request records created by the user, the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails
 
 ### Get Organization Requests
 

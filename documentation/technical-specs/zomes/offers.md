@@ -233,8 +233,7 @@ Retrieves all active offers from the "offers.active" path.
 
 **Returns:**
 
-- `Vec<Record>`: Array of active offer records only
-- `Error`: If retrieval fails
+- `Vec<Record>`: Array of active offer records only, the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails
 
 **Implementation Details:**
 - Queries `Path("offers.active")` with `LinkTypes::ActiveOffers` filter
@@ -255,8 +254,7 @@ Retrieves all archived offers from the "offers.archived" path.
 
 **Returns:**
 
-- `Vec<Record>`: Array of archived offer records only
-- `Error`: If retrieval fails
+- `Vec<Record>`: Array of archived offer records only, the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails
 
 **Implementation Details:**
 - Queries `Path("offers.archived")` with `LinkTypes::ArchivedOffers` filter
@@ -305,8 +303,7 @@ Retrieves all offers created by a specific user.
 
 **Returns:**
 
-- `Vec<Record>`: Array of offer records created by the user
-- `Error`: If retrieval fails
+- `Vec<Record>`: Array of offer records created by the user, the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails
 
 ### Get Organization Offers
 

@@ -51,7 +51,7 @@ async fn basic_request_crud_operations() {
 
     // Get Alice's requests.
     let alice_requests: Vec<Record> = conductors[0]
-        .call(&alice.zome("requests"), "get_user_requests", alice_user_hash)
+        .call(&alice.zome("requests"), "get_user_requests", alice_user_hash.clone())
         .await;
     assert_eq!(alice_requests.len(), 1, "Alice should have one request");
 
@@ -79,6 +79,23 @@ async fn basic_request_crud_operations() {
         .await;
     let updated_req: Request = latest.unwrap().entry().to_app_option().unwrap().expect("entry");
     assert_eq!(updated_req.title, "Help with gardening (updated)");
+
+    // The list endpoints resolve each link target to its latest revision, so the
+    // edit shows on both lists. UserRequests stays anchored at the Create, so this
+    // is the list that only the resolve can get right.
+    let active: Vec<Record> = conductors[0]
+        .call(&alice.zome("requests"), "get_active_requests", ())
+        .await;
+    let mine: Vec<Record> = conductors[0]
+        .call(&alice.zome("requests"), "get_user_requests", alice_user_hash)
+        .await;
+    for (list, listed) in [("get_active_requests", active), ("get_user_requests", mine)] {
+        let titles: Vec<String> = listed
+            .iter()
+            .map(|record| record.entry().to_app_option::<Request>().unwrap().unwrap().title)
+            .collect();
+        assert_eq!(titles, vec!["Help with gardening (updated)".to_string()], "{list}");
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -135,6 +152,21 @@ async fn request_archive_and_delete() {
     let archived_req: Request =
         archived.unwrap().entry().to_app_option().unwrap().expect("entry");
     assert_eq!(archived_req.status, "Archived");
+
+    // archive_request moves the listing onto the archived path, and the archived
+    // list resolves it to its latest revision like every other list.
+    let _: bool = conductors[0]
+        .call(&alice.zome("requests"), "archive_request", req_hash.clone())
+        .await;
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let archived_list: Vec<Record> = conductors[0]
+        .call(&alice.zome("requests"), "get_archived_requests", ())
+        .await;
+    assert_eq!(archived_list.len(), 1, "one archived request");
+    let listed: Request = archived_list[0].entry().to_app_option().unwrap().expect("entry");
+    assert_eq!(listed.status, "Archived");
 
     // Delete the request.
     let _: bool = conductors[0]

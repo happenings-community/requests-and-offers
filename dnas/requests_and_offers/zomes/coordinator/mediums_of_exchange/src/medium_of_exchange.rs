@@ -227,6 +227,15 @@ pub fn get_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternResu
 pub fn get_latest_medium_of_exchange_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
+  let latest_action_hash = latest_medium_of_exchange_action_hash(original_action_hash)?;
+  get(latest_action_hash, GetOptions::default())
+}
+
+/// The hash of the latest revision of a medium of exchange: the newest `MediumOfExchangeUpdates` target, or the
+/// original hash when it was never updated.
+fn latest_medium_of_exchange_action_hash(
+  original_action_hash: ActionHash,
+) -> ExternResult<ActionHash> {
   let link_type_filter = LinkTypes::MediumOfExchangeUpdates
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
@@ -237,7 +246,7 @@ pub fn get_latest_medium_of_exchange_record(
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
-  let latest_action_hash = match latest_link {
+  Ok(match latest_link {
     Some(link) => link
       .target
       .clone()
@@ -245,9 +254,33 @@ pub fn get_latest_medium_of_exchange_record(
       .ok_or(CommonError::ActionHashNotFound(
         "medium_of_exchange".to_string(),
       ))?,
-    None => original_action_hash.clone(),
-  };
-  get(latest_action_hash, GetOptions::default())
+    None => original_action_hash,
+  })
+}
+
+/// Resolve each link target to its latest revision, then fetch them all in one batched
+/// `get` (#186). A target whose update links cannot be read is skipped rather than failing
+/// the whole list (#233); targets that are not found are dropped, as before #184. A fetch
+/// error on any one record still fails the batch, which is also the pre-#184 contract.
+fn get_latest_medium_of_exchange_records(links: Vec<Link>) -> ExternResult<Vec<Record>> {
+  let get_input: Vec<GetInput> = links
+    .into_iter()
+    .filter_map(|link| link.target.into_action_hash())
+    .filter_map(|original_action_hash| {
+      latest_medium_of_exchange_action_hash(original_action_hash.clone())
+        .inspect_err(|err| {
+          warn!("Skipping medium_of_exchange {original_action_hash} in a list: {err:?}")
+        })
+        .ok()
+    })
+    .map(|latest_action_hash| GetInput::new(latest_action_hash.into(), GetOptions::default()))
+    .collect();
+  let records = HDK
+    .with(|hdk| hdk.borrow().get(get_input))?
+    .into_iter()
+    .flatten()
+    .collect();
+  Ok(records)
 }
 
 /// Get all mediums of exchange
@@ -330,15 +363,7 @@ fn get_mediums_of_exchange_by_status(status_path: &str) -> ExternResult<Vec<Reco
     LinkQuery::new(path_hash, link_type_filter),
     GetStrategy::Network,
   )?;
-  let mut records = Vec::new();
-  for link in links {
-    if let Some(target_hash) = link.target.into_action_hash() {
-      if let Some(record) = get_latest_medium_of_exchange_record(target_hash.clone())? {
-        records.push(record);
-      }
-    }
-  }
-  Ok(records)
+  get_latest_medium_of_exchange_records(links)
 }
 
 /// Approve a medium of exchange (admin only)

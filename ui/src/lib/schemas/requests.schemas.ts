@@ -93,7 +93,8 @@ export class UIRequest extends Schema.Class<UIRequest>('UIRequest')({
   organization: Schema.optional(ActionHashSchema),
   created_at: Schema.optional(TimestampSchema),
   updated_at: Schema.optional(TimestampSchema),
-  service_type_hash: ActionHashSchema,
+  // Optional, as on `UIOffer`: it arrives from a links fetch, not the entry.
+  service_type_hash: Schema.optional(ActionHashSchema),
   medium_of_exchange_hashes: Schema.Array(ActionHashSchema)
 }) {}
 

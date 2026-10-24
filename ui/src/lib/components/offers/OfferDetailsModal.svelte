@@ -263,13 +263,13 @@
 
       <!-- Service Type -->
       <div>
-        <h3 class="h4 mb-2 font-semibold">Service Types</h3>
+        <h3 class="h4 mb-2 font-semibold">Service Type</h3>
         {#if offer?.service_type_hash}
           <div class="flex flex-wrap gap-2">
             <ServiceTypeTag serviceTypeActionHash={offer.service_type_hash} showLink={false} />
           </div>
         {:else}
-          <p class="text-surface-500">No service types specified.</p>
+          <p class="text-surface-500">No service type specified.</p>
         {/if}
       </div>
 

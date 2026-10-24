@@ -271,11 +271,11 @@
     </div>
   </div>
 
-  <!-- Service Types and Medium of Exchange -->
+  <!-- Service Type and Medium of Exchange -->
   <div class="flex flex-col gap-2">
     {#if offer.service_type_hash}
       <div>
-        <p class="text-surface-600-300-token mb-1 text-xs font-medium">Service Types:</p>
+        <p class="text-surface-600-300-token mb-1 text-xs font-medium">Service Type:</p>
         <div class="flex flex-wrap gap-1">
           <ServiceTypeTag serviceTypeActionHash={offer.service_type_hash} showLink={false} />
         </div>

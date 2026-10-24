@@ -118,6 +118,8 @@ export type AlertModalMeta = {
   id: string;
   message: string;
   confirmLabel?: string;
+  /** Where the button goes after closing the pop-up. Without it, the button only closes it. */
+  confirmHref?: string;
 };
 
 export type ConfirmModalMeta = {

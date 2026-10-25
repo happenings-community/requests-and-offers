@@ -71,6 +71,16 @@ async fn add_member(conductors: &SweetConductorBatch, cell: &SweetCell, i: usize
     assert!(added);
 }
 
+/// A listing names one service type (#256). Alice, the first agent and an
+/// administrator, creates one; an administrator's lands approved.
+async fn a_service_type(conductor: &SweetConductor, alice: &SweetCell, all: &[&SweetCell]) -> ActionHash {
+    let record: Record = conductor
+        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Listings"))
+        .await;
+    await_consistency_s(15, all.iter().copied()).await.unwrap();
+    record.action_address().clone()
+}
+
 async fn zome_index(conductor: &SweetConductor, mallory: &SweetCell, name: &str) -> u8 {
     let names: Vec<String> = conductor
         .call(&mallory.zome("forge"), "integrity_zome_names", ())
@@ -166,9 +176,10 @@ async fn a_listing_for_an_organisation_carries_its_authors_membership() {
     let bobs_org = approved_organization(&conductors, &all, 1, "Bob's").await;
     let mallorys_org = approved_organization(&conductors, &all, 2, "Mallory's").await;
     let requests = zome_index(&conductors[2], &mallory, "requests_integrity").await;
+    let st = a_service_type(&conductors[0], alice, &all).await;
 
     // The honest write, through the coordinator.
-    let mut input = sample_request("Bob's, for his organisation");
+    let mut input = sample_request("Bob's, for his organisation", st.clone());
     input.organization = Some(bobs_org.clone());
     let record: Record = conductors[1]
         .call(&bob.zome("requests"), "create_request", input)
@@ -178,7 +189,7 @@ async fn a_listing_for_an_organisation_carries_its_authors_membership() {
     let bobs_membership = written.membership.expect("the request carries Bob's membership");
 
     // Mallory is not a member of Bob's organisation: the coordinator refuses her.
-    let mut input = sample_request("Mallory's, for Bob's organisation");
+    let mut input = sample_request("Mallory's, for Bob's organisation", st.clone());
     input.organization = Some(bobs_org.clone());
     let through_the_app = reason(
         conductors[2]
@@ -237,9 +248,10 @@ async fn a_listing_stays_in_the_organisation_it_was_posted_for() {
     let all = [alice, &mallory];
     everyone_accepted(&conductors, &all).await;
     let org = approved_organization(&conductors, &all, 1, "Mallory's").await;
+    let st = a_service_type(&conductors[0], alice, &all).await;
 
     let record: Record = conductors[1]
-        .call(&mallory.zome("requests"), "create_request", sample_request("posted with no organisation"))
+        .call(&mallory.zome("requests"), "create_request", sample_request("posted with no organisation", st))
         .await;
     let original = record.action_address().clone();
 
@@ -268,7 +280,8 @@ async fn a_removal_by_a_role_holder_says_who_and_why() {
     // Alice joins Bob's organisation and posts for it.
     add_member(&conductors, bob, 1, &bobs_org, &users[0]).await;
     await_consistency_s(15, all).await.unwrap();
-    let mut input = sample_request("Alice's, for Bob's organisation");
+    let st = a_service_type(&conductors[0], alice, &all).await;
+    let mut input = sample_request("Alice's, for Bob's organisation", st);
     input.organization = Some(bobs_org.clone());
     let record: Record = conductors[0]
         .call(&alice.zome("requests"), "create_request", input)
@@ -360,7 +373,7 @@ async fn an_administrators_removal_without_a_reason_is_refused() {
         )
         .await;
     let record: Record = conductors[0]
-        .call(&alice.zome("requests"), "create_request", sample_request("Alice's"))
+        .call(&alice.zome("requests"), "create_request", sample_request("Alice's", a_service_type(&conductors[0], alice, &all).await))
         .await;
     let original = record.action_address().clone();
     await_consistency_s(15, all).await.unwrap();

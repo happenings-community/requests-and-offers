@@ -180,6 +180,8 @@ export type AgreementInDHT = {
   delivery_timeframe: string;
   /** Set on a counter-proposal: the proposal it answers and the decline that closed it (#333). */
   counters: Countering | null;
+  /** The exact listing revision the two members agreed against (#399). */
+  listing_revision?: ActionHash | null;
 };
 
 /** Which proposal a counter answers, and the decline that closed it. */

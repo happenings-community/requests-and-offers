@@ -90,6 +90,11 @@ pub struct Agreement {
   /// closed it. `None` on a first proposal. Rounds of one negotiation form a
   /// chain through this field (#333).
   pub counters: Option<Countering>,
+  /// The exact revision of the listing the two members agreed against (#399):
+  /// the listing's text can change afterwards, the agreement's reference does
+  /// not. Required on every agreement; `Option` only so older entries decode.
+  #[serde(default)]
+  pub listing_revision: Option<ActionHash>,
 }
 
 /// The other party accepting or declining an agreement.
@@ -338,10 +343,38 @@ fn validate_agreement(action: &TypedAction<CreateData>, agreement: &Agreement) -
   if agreement.medium.trim().is_empty() {
     return invalid("agreement names no medium of exchange");
   }
+  let Some(revision) = &agreement.listing_revision else {
+    return invalid("an agreement names the listing revision it was made against");
+  };
+  match revision_root(revision)? {
+    Ok(root) if root == agreement.listing => {}
+    Ok(_) => return invalid("the listing revision named is not a revision of this listing"),
+    Err(reason) => return invalid(&reason),
+  }
   match &agreement.counters {
     None => Ok(ValidateCallbackResult::Valid),
     Some(countering) => validate_counter(action, agreement, countering),
   }
+}
+
+/// The most revisions a listing revision is followed back through. A listing
+/// is edited by hand, so a real chain is far shorter.
+const MAX_REVISIONS: usize = 1000;
+
+/// The original record a revision belongs to: each update names the action it
+/// updates, so follow them back to the create. Deterministic: only
+/// `must_get_action`, bounded by [`MAX_REVISIONS`].
+fn revision_root(revision: &ActionHash) -> ExternResult<Result<ActionHash, String>> {
+  let mut current = revision.clone();
+  for _ in 0..MAX_REVISIONS {
+    let action = must_get_action(current.clone())?;
+    match &action.action().data {
+      ActionData::Create(_) => return Ok(Ok(current)),
+      ActionData::Update(update) => current = update.original_action_address.clone(),
+      _ => return Ok(Err("a listing revision is a create or an update".to_string())),
+    }
+  }
+  Ok(Err("a listing revision is too many edits from its original".to_string()))
 }
 
 /// A counter-proposal answers one proposal (#332, #333).
@@ -408,6 +441,9 @@ pub fn counter_terms_problem(counter: &Agreement, countered: &Agreement) -> Opti
     || counter.receiver != countered.receiver
   {
     return Some("a counter keeps the listing, the interest and the parties of the proposal it answers");
+  }
+  if counter.listing_revision != countered.listing_revision {
+    return Some("a counter keeps the listing revision the proposal was made against");
   }
   if counter.medium != countered.medium || counter.terms != countered.terms {
     return Some("a counter keeps the medium of exchange and the terms text");
@@ -733,6 +769,7 @@ mod counter_tests {
       terms: "".into(),
       delivery_timeframe: "Within 2 weeks".into(),
       counters: None,
+      listing_revision: None,
     }
   }
 
@@ -768,6 +805,14 @@ mod counter_tests {
       change(&mut c);
       assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("listing, the interest"));
     }
+  }
+
+  #[test]
+  fn the_revision_agreed_against_is_kept() {
+    let mut c = proposal();
+    c.delivery_timeframe = "Flexible".into();
+    c.listing_revision = Some(hash(9));
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("listing revision"));
   }
 
   #[test]

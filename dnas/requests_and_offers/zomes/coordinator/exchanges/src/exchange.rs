@@ -5,7 +5,7 @@ use utils::{
   find_original_action_hash,
 };
 
-use crate::external_calls::{check_if_entity_is_accepted, get_agent_user};
+use crate::external_calls::{check_if_entity_is_accepted, get_agent_user, latest_listing_revision};
 
 // ---------------------------------------------------------------------------
 // Inputs
@@ -393,6 +393,9 @@ pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<Record> {
     ListingType::Request => (interested_user, listing_author_user),
   };
 
+  // The revision agreed against is the listing as it stands now, read here,
+  // never the caller's (#399).
+  let listing_revision = latest_listing_revision(&listing, &input.listing_type)?;
   let hash = create_entry(&EntryTypes::Agreement(Agreement {
     listing: listing.clone(),
     listing_type: input.listing_type,
@@ -406,6 +409,7 @@ pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<Record> {
     terms: input.terms,
     delivery_timeframe: input.delivery_timeframe,
     counters: None,
+    listing_revision: Some(listing_revision),
   }))?;
   create_link(listing, hash.clone(), LinkTypes::ListingAgreements, ())?;
   create_link(my_user, hash.clone(), LinkTypes::UserAgreements, ())?;
@@ -466,6 +470,8 @@ pub fn counter_agreement(input: CounterAgreementInput) -> ExternResult<Record> {
       agreement: countered_hash.clone(),
       decline: decline.clone(),
     }),
+    // A counter answers the same terms, so the same revision.
+    listing_revision: countered.listing_revision.clone(),
   }))?;
   create_link(countered_hash.clone(), decline, LinkTypes::AgreementResponses, ())?;
   create_link(countered.listing, hash.clone(), LinkTypes::ListingAgreements, ())?;

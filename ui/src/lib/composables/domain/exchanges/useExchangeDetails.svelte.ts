@@ -53,6 +53,8 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
   let exchange = $state<UIExchange | null>(null);
   let other = $state<UIUser | null>(null);
   let listingTitle = $state('');
+  // Whether the listing has been edited since the two members agreed (#399).
+  let listingEdited = $state(false);
   let loadError = $state<string | null>(null);
   let busy = $state(false);
 
@@ -169,6 +171,12 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
       ]);
       other = user;
       listingTitle = listing?.title ?? 'A listing';
+      const agreed = loaded.agreement.listing_revision;
+      listingEdited = !!(
+        agreed &&
+        listing?.previous_action_hash &&
+        encodeHashToBase64(listing.previous_action_hash) !== encodeHashToBase64(agreed)
+      );
     } catch (e) {
       loadError = e instanceof Error ? e.message : String(e);
     }
@@ -183,6 +191,9 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
     },
     get listingTitle() {
       return listingTitle;
+    },
+    get listingEdited() {
+      return listingEdited;
     },
     get listingHref() {
       return listingHref;

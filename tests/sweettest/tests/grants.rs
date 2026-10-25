@@ -281,8 +281,15 @@ async fn a_listing_is_edited_by_its_author_or_an_administrator() {
     let (alice, bob) = (&cells[0], &cells[1]);
     everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
 
+    // A listing names one service type (#256). An administrator's lands approved.
+    let st: Record = conductors[0]
+        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Edits"))
+        .await;
+    let st = st.action_address().clone();
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
     let record: Record = conductors[1]
-        .call(&bob.zome("requests"), "create_request", sample_request("Bob's listing"))
+        .call(&bob.zome("requests"), "create_request", sample_request("Bob's listing", st.clone()))
         .await;
     let original = record.action_address().clone();
     await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
@@ -292,13 +299,13 @@ async fn a_listing_is_edited_by_its_author_or_an_administrator() {
     refused(&forged, "needs a grant for Administer", "an edit by a member who is not the author");
 
     let edit = |title: &str| {
-        let mut input = sample_request(title);
+        let mut input = sample_request(title, st.clone());
         input.request.title = title.to_string();
         serde_json::json!({
             "original_action_hash": original,
             "previous_action_hash": original,
             "updated_request": input.request,
-            "service_type_hashes": [],
+            "service_type_hash": st,
             "medium_of_exchange_hashes": [],
         })
     };
@@ -316,8 +323,8 @@ async fn a_listing_is_edited_by_its_author_or_an_administrator() {
             serde_json::json!({
                 "original_action_hash": original,
                 "previous_action_hash": by_bob.action_address(),
-                "updated_request": sample_request("Alice's edit").request,
-                "service_type_hashes": [],
+                "updated_request": sample_request("Alice's edit", st.clone()).request,
+                "service_type_hash": st,
                 "medium_of_exchange_hashes": [],
             }),
         )

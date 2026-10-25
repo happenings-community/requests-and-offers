@@ -16,6 +16,21 @@ For a higher-level overview of the system's technical foundation, see the main [
 - **[Messaging](./messaging.md)**: The signal layer. A nudge tells other agents that something addressed to them exists at an `ActionHash`; it carries the hash and never content, and the stored data stays the record. Coordinator only, so it does not change the DNA hash.
 - **[Mediums of Exchange](./mediums_of_exchange.md)**: Manages payment methods and value exchange mechanisms with approval workflow, supporting both traditional currencies and alternative exchange systems (time banking, LETS, etc.).
 
+## Link rules (#234)
+
+Every link type has a rule in three parts. The parts live in `dnas/requests_and_offers/utils/src/links.rs`; each zome's `links.rs` (or, for administration and exchanges, its `lib.rs`) assigns them.
+
+- **Shape.** A link's base and target are what its type declares: an agent key, one of its named paths, or a record that writes a named entry type. The tag is empty, except where a type declares otherwise:
+  - the approved and rejected status paths of service types and mediums of exchange carry the administrator's grant;
+  - the grants stack's roster and membership links carry a grant;
+  - `OrganizationContacts` carries the contact's role as 1 to 100 bytes of text.
+- **Writer.** The author of the record the link hangs from. Where a role acts for someone else, the tag names the writer's grant, checked with `check_act`.
+- **Tombstone.** A `DeleteLink` writes a tombstone; nothing is erased. Link types nothing tombstones refuse every tombstone. `AllOffers` and `AllRequests`, which nothing writes, refuse every create.
+
+**Still open, and stated beside each type:** the writer and tombstone rules where a role holder acts on someone else's link with no grant in the tag. These are status paths, active listings, listing relations and membership. They close when status is held in entries (#234 phase 2).
+
+The full inventory, one row per link type, is in the first comment on #234.
+
 ---
 
 _(Internal Note: Guidelines below are for maintaining documentation consistency)_

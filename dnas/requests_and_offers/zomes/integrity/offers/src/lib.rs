@@ -1,4 +1,5 @@
 use hdi::prelude::*;
+use utils::listings::check_listing_service_type;
 
 mod links;
 mod offer;
@@ -39,17 +40,27 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
 /// the record.
 ///
 /// `update` is the action an update updates, `None` for a create: the grant
-/// rule needs it to find the offer's creator. Field rules run first.
+/// rule needs it to find the offer's creator, and the service type rule to
+/// find the revision whose type this one must keep. Field rules run first,
+/// then the grant, then the service type (#257).
 fn validate_entry(
   app_entry: EntryTypes,
   author: &AgentPubKey,
   update: Option<&ActionHash>,
 ) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
-    EntryTypes::Offer(offer) => match validate_offer(offer.clone())? {
-      ValidateCallbackResult::Valid => validate_offer_write(&offer, author, update),
-      other => Ok(other),
-    },
+    EntryTypes::Offer(offer) => {
+      let service_type_hash = offer.service_type_hash.clone();
+      match validate_offer(offer.clone())? {
+        ValidateCallbackResult::Valid => (),
+        other => return Ok(other),
+      }
+      match validate_offer_write(&offer, author, update)? {
+        ValidateCallbackResult::Valid => (),
+        other => return Ok(other),
+      }
+      check_listing_service_type(&service_type_hash, update, "offer")
+    }
   }
 }
 
@@ -200,6 +211,7 @@ mod record_op_tests {
       organization: None,
       membership: None,
       removal_reason: None,
+      service_type_hash: None,
     }
     .try_into()
     .unwrap()

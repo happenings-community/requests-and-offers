@@ -123,6 +123,8 @@ pub struct Request {
     pub membership: Option<ActionHash>,
     #[serde(default)]
     pub removal_reason: Option<String>,
+    #[serde(default)]
+    pub service_type_hash: Option<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(Request);
 
@@ -145,6 +147,10 @@ pub struct Offer {
     pub interaction_type: String,
     pub links: Vec<String>,
     pub status: String,
+    #[serde(default)]
+    pub grant: Option<ActionHash>,
+    #[serde(default)]
+    pub service_type_hash: Option<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(Offer);
 

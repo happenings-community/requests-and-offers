@@ -193,7 +193,7 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record>
 
 Updates an existing request with new data.
 
-During an update, the `requests_coordinator` zome replaces the `RequestToServiceType` link with one to `input.service_type_hash`, which must name an approved `ServiceType`.
+During an update, the request's service type stays as it is: `input.service_type_hash` must equal the one the request already names, or the `requests_coordinator` zome refuses the update ("A request's service type cannot change; publish a new listing for a different one"). Validation holds it fixed too (#257).
 
 **Parameters:**
 
@@ -201,7 +201,7 @@ During an update, the `requests_coordinator` zome replaces the `RequestToService
   - `original_action_hash`: The original action hash
   - `previous_action_hash`: The most recent action hash
   - `updated_request`: The updated request data
-  - `service_type_hash`: The one approved service type the request names after the update
+  - `service_type_hash`: The request's one service type, unchanged; a different hash is refused
 
 **Returns:**
 
@@ -379,7 +379,7 @@ Retrieves the organization associated with a request, if any.
 
 - Title must be between 3 and 50 characters.
 - Description must be between 10 and 1000 characters. Supports markdown formatting (rendered on frontend with `marked` + `DOMPurify`).
-- Exactly one service type, `service_type_hash`, which must be approved. This holds by convention for now: the coordinator and the form require it, but integrity validation does not check it yet. Enforcing it in validation is tracked in #257 and lands with the Holochain 0.7 migration.
+- Exactly one service type, `service_type_hash`, on the entry itself, which the coordinator fills in. Validation (`utils::listings`, #257) requires it on a create, requires it to name a `ServiceType` record, and holds it unchanged on every update. The links between a request and its service type must match it, in both directions (`service_types_integrity`). Whether the type is approved is checked by the coordinator at creation, not by validation, because approval is a status that changes over time.
 - Links array must be present (can be empty).
 
 ## Client Integration

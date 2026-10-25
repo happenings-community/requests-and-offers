@@ -50,6 +50,12 @@ pub struct Offer {
   /// update's author.
   #[serde(default)]
   pub removal_reason: Option<String>,
+  /// The offer's one service type, its subject: set at creation, the same on
+  /// every revision (#257). Validation requires it and holds it fixed; see
+  /// `utils::listings`. Optional only so the interface's input shape is
+  /// unchanged: the coordinator fills it in.
+  #[serde(default)]
+  pub service_type_hash: Option<ActionHash>,
 }
 
 

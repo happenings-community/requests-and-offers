@@ -288,8 +288,9 @@ async fn service_type_validation_empty_description_fails() {
 // A listing names one approved service type when it is created, and creating
 // it is what links it. Nothing links or unlinks a listing afterwards: the
 // service type is what the listing is about, and proposals and agreements
-// inherit it. Editing a listing replaces its one type with another through
-// update_service_type_links; deleting a listing clears its links.
+// inherit it. Editing a listing keeps its one type: validation holds it fixed
+// on the entry and refuses a link to any other (#257); deleting a listing
+// clears its links.
 //
 // Users will link and unlink skills on their profile through the same
 // externs; that path is not built yet and is not tested here.
@@ -408,10 +409,15 @@ async fn a_listing_cannot_name_a_rejected_service_type() {
     assert!(result.is_err(), "a listing cannot name a rejected service type");
 }
 
-/// Editing a listing replaces its one service type with another. This is
-/// what update_request and update_offer send: a single hash, never a set.
+/// Editing a listing keeps its one service type (#257). Moving it to another
+/// through the link extern is refused by validation, because the request's
+/// own entry names the first type, and nothing changes: the request still
+/// names the first type and only it.
+///
+/// This replaces `editing_a_listing_replaces_its_service_type` from #256,
+/// which tested the opposite rule.
 #[tokio::test(flavor = "multi_thread")]
-async fn editing_a_listing_replaces_its_service_type() {
+async fn editing_a_listing_keeps_its_service_type() {
     let (conductors, alice, bob) = two_agents_bob_accepted!();
 
     let first: Record = conductors[0]
@@ -432,8 +438,8 @@ async fn editing_a_listing_replaces_its_service_type() {
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
-    let _: () = conductors[1]
-        .call(
+    let moved = conductors[1]
+        .call_fallible::<_, ()>(
             &bob.zome("service_types"),
             "update_service_type_links",
             UpdateServiceTypeLinksInput {
@@ -443,6 +449,13 @@ async fn editing_a_listing_replaces_its_service_type() {
             },
         )
         .await;
+    match moved {
+        Ok(()) => panic!("relinking a request to another service type should be refused"),
+        Err(e) => assert!(
+            format!("{e:?}").contains("its entry names"),
+            "the refusal should come from the link rule; got {e:?}"
+        ),
+    }
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
@@ -453,18 +466,12 @@ async fn editing_a_listing_replaces_its_service_type() {
             GetServiceTypeForEntityInput { original_action_hash: req_hash.clone(), entity: "request".to_string() },
         )
         .await;
-    assert_eq!(types, vec![second_hash.clone()], "the request now names the second type, and only it");
-
-    let for_first: Vec<Record> = conductors[0]
-        .call(&alice.zome("service_types"), "get_requests_for_service_type", first_hash)
-        .await;
-    assert_eq!(for_first.len(), 0, "the first type no longer has the request");
+    assert_eq!(types, vec![first_hash.clone()], "the request still names the first type, and only it");
 
     let for_second: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_requests_for_service_type", second_hash)
         .await;
-    assert_eq!(for_second.len(), 1, "the second type has it");
-    assert_eq!(for_second[0].signed_action.hashed.hash, req_hash);
+    assert_eq!(for_second.len(), 0, "the second type has no request");
 }
 
 /// Tombstoning one listing's service-type links leaves another listing's live,

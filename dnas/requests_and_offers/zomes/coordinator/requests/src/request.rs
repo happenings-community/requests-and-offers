@@ -69,6 +69,9 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
     }
   };
   request.removal_reason = None;
+  // The listing's one service type goes on the entry, where validation holds
+  // it fixed (#257); the link below is an index of it.
+  request.service_type_hash = Some(input.service_type_hash.clone());
   let request_hash = create_entry(&EntryTypes::Request(request))?;
 
   let record = get(request_hash.clone(), GetOptions::default())?.ok_or(
@@ -410,12 +413,32 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
       "Could not deserialize request entry".to_string(),
     ))?;
 
+  // A listing's service type is its identity: an update keeps it, and
+  // validation refuses one that does not (#257). Say so here, before writing.
+  let service_type_hash =
+    current_request
+      .service_type_hash
+      .clone()
+      .ok_or(CommonError::InvalidData(
+        "This request names no service type".to_string(),
+      ))?;
+  if input.service_type_hash != service_type_hash {
+    return Err(
+      CommonError::InvalidData(
+        "A request's service type cannot change; publish a new listing for a different one"
+          .to_string(),
+      )
+      .into(),
+    );
+  }
+
   if current_request.status == ListingStatus::Archived {
     return Err(CommonError::CannotUpdateArchived("request".to_string()).into());
   }
 
   // The creator needs no grant; an admin carries theirs. Never the client's.
   let mut updated_request = input.updated_request;
+  updated_request.service_type_hash = Some(service_type_hash.clone());
   updated_request.grant = if is_author {
     None
   } else {
@@ -452,7 +475,7 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
     action_hash: OriginalActionHash(updated_request_hash.clone()),
     entity: "request".to_string(),
     // The shared link machinery stays plural: users carry several skills.
-    new_service_type_hashes: vec![input.service_type_hash],
+    new_service_type_hashes: vec![service_type_hash],
   })?;
 
   // Update medium of exchange links using the mediums_of_exchange zome

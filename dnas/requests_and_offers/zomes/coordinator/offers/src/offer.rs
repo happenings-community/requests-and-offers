@@ -69,6 +69,9 @@ pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
     }
   };
   offer.removal_reason = None;
+  // The listing's one service type goes on the entry, where validation holds
+  // it fixed (#257); the link below is an index of it.
+  offer.service_type_hash = Some(input.service_type_hash.clone());
   let offer_hash = create_entry(&EntryTypes::Offer(offer))?;
 
   let record = get(offer_hash.clone(), GetOptions::default())?.ok_or(
@@ -411,12 +414,32 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
       "Could not deserialize offer entry".to_string(),
     ))?;
 
+  // A listing's service type is its identity: an update keeps it, and
+  // validation refuses one that does not (#257). Say so here, before writing.
+  let service_type_hash =
+    current_offer
+      .service_type_hash
+      .clone()
+      .ok_or(CommonError::InvalidData(
+        "This offer names no service type".to_string(),
+      ))?;
+  if input.service_type_hash != service_type_hash {
+    return Err(
+      CommonError::InvalidData(
+        "A offer's service type cannot change; publish a new listing for a different one"
+          .to_string(),
+      )
+      .into(),
+    );
+  }
+
   if current_offer.status == ListingStatus::Archived {
     return Err(CommonError::CannotUpdateArchived("offer".to_string()).into());
   }
 
   // The creator needs no grant; an admin carries theirs. Never the client's.
   let mut updated_offer = input.updated_offer;
+  updated_offer.service_type_hash = Some(service_type_hash.clone());
   updated_offer.grant = if is_author {
     None
   } else {
@@ -453,7 +476,7 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
     action_hash: OriginalActionHash(updated_offer_hash.clone()),
     entity: "offer".to_string(),
     // The shared link machinery stays plural: users carry several skills.
-    new_service_type_hashes: vec![input.service_type_hash],
+    new_service_type_hashes: vec![service_type_hash],
   })?;
 
   // Update medium of exchange links using the mediums_of_exchange zome

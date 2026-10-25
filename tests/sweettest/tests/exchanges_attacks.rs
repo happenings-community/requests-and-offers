@@ -54,6 +54,8 @@ struct Agreement {
     terms: String,
     delivery_timeframe: String,
     counters: Option<Countering>,
+    #[serde(default)]
+    listing_revision: Option<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(Agreement);
 
@@ -547,6 +549,46 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
         w.bob_decline_then_counter(&open, counter, false)
             .await
             .unwrap_or_else(|e| panic!("changing only {what} must be accepted: {e}"));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The listing revision agreed against (#399)
+// ---------------------------------------------------------------------------
+
+/// An agreement names the exact revision of its listing that the two members
+/// agreed against. The app writes the listing's current revision; a forged
+/// agreement with no revision, or with a record of another listing, is
+/// refused.
+///
+/// Red: in `exchanges_integrity`, remove the `listing_revision` check from
+/// `validate_agreement`.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_agreement_names_its_listing_revision() {
+    let w = world().await;
+    let (_, proposal) = w.propose().await;
+    assert_eq!(proposal.listing_revision, Some(w.offer.clone()), "an unedited listing's revision is its original record");
+
+    let elsewhere: Record = w.conductors[2]
+        .call(&w.carol.zome("offers"), "create_offer", sample_offer("Something else"))
+        .await;
+    let elsewhere = elsewhere.signed_action.hashed.hash.clone();
+    w.sync().await;
+
+    for (revision, reason) in [
+        (None, "names the listing revision"),
+        (Some(elsewhere), "not a revision of this listing"),
+    ] {
+        let mut forged = proposal.clone();
+        forged.listing_revision = revision;
+        let result = w.conductors[0]
+            .call_fallible::<_, ActionHash>(&w.alice.zome("exchanges_probe"), "probe_create_agreement", forged)
+            .await
+            .map_err(|e| format!("{e:?}"));
+        match result {
+            Ok(hash) => panic!("an agreement with a wrong revision should be refused, but was written as {hash}"),
+            Err(text) => assert!(text.contains(reason), "expected {reason:?}; got {text}"),
+        }
     }
 }
 

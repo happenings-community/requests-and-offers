@@ -27,6 +27,7 @@ pub struct Agreement {
   pub listing: ActionHash,
   pub listing_type: ListingType,
   pub interest: ActionHash,
+  pub listing_revision: Option<ActionHash>, // the revision of the listing agreed against (#399)
   pub counterparty: ActionHash, // the party who owes the answer
   pub provider: ActionHash,
   pub receiver: ActionHash,
@@ -47,12 +48,12 @@ pub struct Cancellation { pub agreement: ActionHash, pub note: String }
 
 ### 2.2. Validation Rules
 
-Validation may read only what the entry names, through `must_get_valid_record`; it reads no links and no live state. Every referenced hash must resolve to a **Create**, so no entry can hang off an update or a delete.
+Validation may read only what the entry names, through `must_get_valid_record`; it reads no links and no live state. Every referenced hash must resolve to a **Create**, so no entry can hang off an update or a delete. The one exception is an agreement's `listing_revision`, which names the revision the two members saw and so may be an update; validation walks it back to the listing's Create.
 
 | Entry | Who may write it | What must hold |
 |---|---|---|
 | `Interest` | the member the `user` hash resolves to | the listing is a Create; the interest names its own author's user |
-| `Agreement` | either party | provider, receiver and counterparty agree with the listing type and its parties; primary is `Provide` + `Service`; reciprocal is `Receive`; both terms pass the kind rule; `medium` is not blank |
+| `Agreement` | either party | provider, receiver and counterparty agree with the listing type and its parties; primary is `Provide` + `Service`; reciprocal is `Receive`; both terms pass the kind rule; `medium` is not blank; `listing_revision` is named and is a revision of `listing` (the Create or an update that walks back to it); a counter keeps the revision of the agreement it counters |
 | `Response` | the agreement's `counterparty` only | the agreement is a Create |
 | `Completion` | either party | the agreement is a Create |
 | `Review` | either party | `rating` is 0 to 5 (a `u8`, so negatives cannot be expressed) |

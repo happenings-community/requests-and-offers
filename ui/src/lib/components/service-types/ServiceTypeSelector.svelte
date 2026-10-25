@@ -432,7 +432,7 @@
         <div class="mb-1">
           🔧 <strong>Service Types:</strong> Check boxes to select the services you offer or need
         </div>
-        <div class="text-xs text-surface-400">
+        <div class="text-xs text-surface-500 dark:text-surface-300">
           Use search, technical filter, and sorting options to find specific service types more
           easily
         </div>

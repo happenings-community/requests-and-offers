@@ -282,7 +282,9 @@
             Unable to load your requests. Please check your connection and try again.
           </p>
           <details class="mb-4 text-sm text-surface-500">
-            <summary class="cursor-pointer hover:text-surface-400">Technical details</summary>
+            <summary class="cursor-pointer hover:text-surface-700 dark:hover:text-surface-300"
+              >Technical details</summary
+            >
             <p class="mt-2 rounded bg-surface-100 p-2 text-left dark:bg-surface-800">
               {requestsError}
             </p>
@@ -357,7 +359,9 @@
             Unable to load your offers. Please check your connection and try again.
           </p>
           <details class="mb-4 text-sm text-surface-500">
-            <summary class="cursor-pointer hover:text-surface-400">Technical details</summary>
+            <summary class="cursor-pointer hover:text-surface-700 dark:hover:text-surface-300"
+              >Technical details</summary
+            >
             <p class="mt-2 rounded bg-surface-100 p-2 text-left dark:bg-surface-800">
               {offersError}
             </p>

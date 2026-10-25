@@ -182,3 +182,28 @@ export function useAdminStatusCheck() {
     }
   };
 }
+
+/**
+ * Re-checks admin status now, skipping the 30-second cache.
+ *
+ * Creating a profile can make the caller an administrator (the progenitor, or the first user
+ * in dev mode), but the cached answer still says "non-admin" until the next background check,
+ * up to a minute later. Call this straight after creating a profile so the Admin button and
+ * the Alt+A shortcut appear at once. Failures are logged, never thrown: the background check
+ * still catches up.
+ */
+export async function recheckAdminStatusNow(): Promise<void> {
+  try {
+    await E.runPromise(
+      pipe(
+        E.gen(function* () {
+          const service = yield* AdminStatusServiceTag;
+          yield* service.verifyAdminStatus();
+        }),
+        E.provide(AdminStatusServiceLive)
+      )
+    );
+  } catch (error) {
+    console.warn('Immediate admin status re-check failed:', error);
+  }
+}

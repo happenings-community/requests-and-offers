@@ -213,8 +213,6 @@ The `+layout.svelte` initialization orchestrator runs `autoRegisterProgenitorAdm
 
 This is wrapped in `E.catchAll` so failures are non-critical -- the app continues normally.
 
-In standalone mode, first-admin registration is triggered via `Ctrl+Shift+A` keyboard shortcut, which shows a confirmation modal. This shortcut is blocked in Weave context since progenitor auto-admin handles it.
-
 **Key files:**
 - `ui/src/routes/+layout.svelte`
 - `ui/src/lib/stores/weave.store.svelte.ts`
@@ -390,7 +388,6 @@ Key methods used from `@theweave/api`:
 - [ ] Network peers visible in standalone mode
 - [ ] Standalone mode still works (regression test)
 - [ ] DHT propagation between multiple agents in Weave dev mode
-- [ ] `Ctrl+Shift+A` blocked in Weave context
 
 ---
 

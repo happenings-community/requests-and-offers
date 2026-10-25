@@ -4506,6 +4506,7 @@ dependencies = [
  "hdi",
  "holochain_serialized_bytes",
  "serde",
+ "utils",
 ]
 
 [[package]]
@@ -7066,6 +7067,7 @@ dependencies = [
  "hdi",
  "holochain_serialized_bytes",
  "serde",
+ "utils",
 ]
 
 [[package]]

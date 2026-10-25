@@ -173,7 +173,7 @@
 
   async function deleteServiceType() {
     if (!serviceType?.original_action_hash) {
-      error = 'Cannot delete service type: missing action hash';
+      error = 'Cannot retire service type: missing action hash';
       return;
     }
 
@@ -239,8 +239,8 @@
         component: confirmModalComponent,
         meta: {
           message:
-            'Are you sure you want to delete this service type?<br/>This action cannot be undone and will affect any related requests or offers.',
-          confirmLabel: 'Delete',
+            'Retire this service type?<br/>It leaves every list, and listings that name it keep it.',
+          confirmLabel: 'Retire',
           cancelLabel: 'Cancel'
         } as ConfirmModalMeta,
         response: (result: boolean) => resolve(result)
@@ -383,7 +383,7 @@
               {/if}
 
               <button class="variant-soft-primary btn" onclick={navigateToEdit}> Edit </button>
-              <button class="variant-soft-error btn" onclick={handleDelete}> Delete </button>
+              <button class="variant-soft-error btn" onclick={handleDelete}> Retire </button>
             </div>
           </div>
         </div>

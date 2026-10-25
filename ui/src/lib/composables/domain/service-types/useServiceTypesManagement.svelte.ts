@@ -198,8 +198,8 @@ export function useServiceTypesManagement(): UseServiceTypesManagement {
       E.tryPromise({
         try: () =>
           modal.confirm(
-            'Are you sure you want to delete this service type?<br/>This action cannot be undone.',
-            { confirmLabel: 'Delete', cancelLabel: 'Cancel' }
+            'Retire this service type?<br/>It leaves every list, and listings that name it keep it.',
+            { confirmLabel: 'Retire', cancelLabel: 'Cancel' }
           ),
         catch: (error) =>
           ServiceTypeError.fromError(error, SERVICE_TYPE_CONTEXTS.DELETE_SERVICE_TYPE)

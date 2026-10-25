@@ -30,6 +30,7 @@
   const other = $derived(details.other);
   const listingTitle = $derived(details.listingTitle);
   const listingHref = $derived(details.listingHref);
+  const listingEdited = $derived(details.listingEdited);
   const loadError = $derived(details.loadError);
   const busy = $derived(details.busy);
   const me = $derived(details.me);
@@ -114,6 +115,12 @@
         </a>. You are the {role ?? 'observer'}. Written up on {formatWhen(exchange.created_at)}
         {iWroteIt ? 'by you' : `by ${other?.name ?? 'them'}`}.
       </p>
+      {#if listingEdited}
+        <p class="text-sm text-surface-600 dark:text-surface-300">
+          The listing has been edited since you agreed. What you agreed is below, and stays as it
+          is; the title links to the listing as it is now.
+        </p>
+      {/if}
     </header>
 
     <div class="grid gap-4 md:grid-cols-2">

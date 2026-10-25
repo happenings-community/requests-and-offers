@@ -1,6 +1,7 @@
 use hdi::prelude::*;
 use utils::grants::{check_act, Ability};
 
+mod links;
 mod medium_of_exchange;
 pub use medium_of_exchange::*;
 
@@ -169,6 +170,22 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       }
       _ => (),
     },
+    FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
+      return links::validate_create_link(
+        &link_type,
+        action.author(),
+        &action.base_address,
+        &action.target_address,
+        &action.tag,
+      );
+    }
+    FlatOp::Link(OpLink::DeleteLink {
+      link_type,
+      action,
+      original_action,
+    }) => {
+      return links::validate_delete_link(&link_type, original_action.author(), action.author());
+    }
     _ => (),
   }
   Ok(ValidateCallbackResult::Valid)

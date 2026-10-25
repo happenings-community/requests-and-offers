@@ -1,6 +1,7 @@
 use hdi::prelude::*;
 use utils::grants::{check_act, Ability};
 
+mod links;
 mod service_type;
 pub use service_type::*;
 
@@ -105,9 +106,6 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     return Ok(ValidateCallbackResult::Valid);
   }
 
-  // TODO: Implement link validation for ServiceType links
-  // This will be completed in a future iteration after resolving HDI syntax
-  // Current focus is on frontend implementation since backend is fully functional
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
       OpEntry::CreateEntry { app_entry, action } => {
@@ -174,6 +172,22 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       }
       _ => (),
     },
+    FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
+      return links::validate_create_link(
+        &link_type,
+        action.author(),
+        &action.base_address,
+        &action.target_address,
+        &action.tag,
+      );
+    }
+    FlatOp::Link(OpLink::DeleteLink {
+      link_type,
+      action,
+      original_action,
+    }) => {
+      return links::validate_delete_link(&link_type, original_action.author(), action.author());
+    }
     _ => (),
   }
   Ok(ValidateCallbackResult::Valid)

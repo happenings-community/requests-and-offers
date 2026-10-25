@@ -2,7 +2,7 @@ use hdk::prelude::*;
 use service_types_integrity::{EntryTypes, LinkTypes, ServiceType};
 use utils::{
   errors::{AdministrationError, CommonError, ServiceTypeError},
-  grants::{can_i, require_grant, Ability},
+  grants::{can_i, grant_tag, require_grant, Ability},
   resolve_chain_root, GetServiceTypeForEntityInput, OriginalActionHash, PreviousActionHash,
   ServiceTypeLinkInput, UpdateServiceTypeLinksInput,
 };
@@ -67,7 +67,7 @@ pub fn create_service_type(input: ServiceTypeInput) -> ExternResult<Record> {
     approved_path_hash,
     service_type_hash.clone(),
     LinkTypes::AllServiceTypes,
-    (),
+    grant_tag(&require_grant(Ability::Administer, None)?),
   )?;
 
   Ok(record)
@@ -337,7 +337,7 @@ pub fn approve_service_type(service_type_hash: ActionHash) -> ExternResult<()> {
     approved_path_hash,
     service_type_hash,
     LinkTypes::AllServiceTypes,
-    (),
+    grant_tag(&require_grant(Ability::Administer, None)?),
   )?;
 
   Ok(())
@@ -386,7 +386,7 @@ pub fn reject_service_type(service_type_hash: ActionHash) -> ExternResult<()> {
     rejected_path_hash,
     service_type_hash,
     LinkTypes::AllServiceTypes,
-    (),
+    grant_tag(&require_grant(Ability::Administer, None)?),
   )?;
 
   Ok(())
@@ -436,7 +436,7 @@ pub fn reject_approved_service_type(service_type_hash: ActionHash) -> ExternResu
     rejected_path_hash,
     service_type_hash.clone(),
     LinkTypes::AllServiceTypes,
-    (),
+    grant_tag(&require_grant(Ability::Administer, None)?),
   )?;
 
   // Clean up links to requests and offers

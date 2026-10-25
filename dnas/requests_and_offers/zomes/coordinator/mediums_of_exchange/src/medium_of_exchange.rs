@@ -1,7 +1,7 @@
 use hdk::prelude::*;
 use mediums_of_exchange_integrity::{EntryTypes, LinkTypes, MediumOfExchange};
 use utils::errors::{AdministrationError, CommonError};
-use utils::grants::{can_i, require_grant, Ability};
+use utils::grants::{can_i, grant_tag, require_grant, Ability};
 use utils::{
   resolve_chain_root, GetMediumOfExchangeForEntityInput, MediumOfExchangeLinkInput,
   OriginalActionHash, PreviousActionHash, UpdateMediumOfExchangeLinksInput,
@@ -155,7 +155,7 @@ pub fn create_medium_of_exchange(input: MediumOfExchangeInput) -> ExternResult<R
     approved_path_hash,
     medium_of_exchange_hash.clone(),
     LinkTypes::AllMediumsOfExchange,
-    (),
+    grant_tag(&require_grant(Ability::Administer, None)?),
   )?;
 
   Ok(record)
@@ -425,7 +425,7 @@ pub fn approve_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> Extern
     approved_path_hash,
     medium_of_exchange_hash,
     LinkTypes::AllMediumsOfExchange,
-    (),
+    grant_tag(&require_grant(Ability::Administer, None)?),
   )?;
 
   Ok(())
@@ -452,7 +452,7 @@ pub fn reject_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternR
     rejected_path_hash,
     medium_of_exchange_hash,
     LinkTypes::AllMediumsOfExchange,
-    (),
+    grant_tag(&require_grant(Ability::Administer, None)?),
   )?;
 
   Ok(())

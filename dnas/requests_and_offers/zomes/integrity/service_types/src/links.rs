@@ -3,8 +3,9 @@
 //! and why, is stated beside each type.
 
 use hdi::prelude::*;
+use utils::grants::Ability;
 use utils::links::{
-  check_create, check_delete, check_empty_tag, check_end, check_author_of, verdict, Checked, End, Spec,
+  check_author_of, check_create, check_delete, check_empty_tag, check_end, check_grant_tag, verdict, Checked, End, Spec,
   Tombstone, Writer, SERVICE_TYPE, OFFER, REQUEST, USER,
 };
 
@@ -87,8 +88,7 @@ fn spec(link_type: &LinkTypes) -> Spec {
 /// The index and status paths of service types. The index and the pending path
 /// are written by whoever suggests or creates the service type, for their own entry.
 /// The approved and rejected paths are written by an administrator, about
-/// someone else's suggestion, and carry no grant yet; the grants stack's
-/// grant-in-tag rule closes that. Every one of them is tombstoned by an
+/// someone else's suggestion, so their tag names the administrator's grant. Every one of them is tombstoned by an
 /// administrator when a status moves, so tombstones stay open until status is
 /// held in entries (#234 phase 2).
 fn validate_status_path_link(
@@ -107,13 +107,13 @@ fn validate_status_path_link(
     Ok(end) => end,
     Err(reason) => return Ok(verdict(Err(reason), name)),
   };
-  if let Err(reason) = check_empty_tag(tag) {
-    return Ok(verdict(Err(reason), name));
-  }
   if path == INDEX || path == PENDING {
-    return Ok(verdict(check_author_of(&target_end, author, "target"), name));
+    let rule = check_empty_tag(tag).and_then(|_| check_author_of(&target_end, author, "target"));
+    return Ok(verdict(rule, name));
   }
-  Ok(ValidateCallbackResult::Valid)
+  // Approved and rejected: a role act, so the tag names the administrator's
+  // grant, checked back to its root by the chain of grants.
+  Ok(verdict(check_grant_tag(tag, author, &Ability::Administer)?, name))
 }
 
 pub fn validate_create_link(

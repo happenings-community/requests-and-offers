@@ -91,13 +91,16 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
 
     await page.getByRole('button', { name: 'Create Profile' }).click();
 
-    // Success is announced in a Skeleton alert modal before redirecting.
-    await expect(page.getByRole('heading', { name: /Welcome to hCRON!/i })).toBeVisible({
+    // The first user becomes the network's administrator with their own
+    // membership still pending, so the first-run message replaces the
+    // standard welcome and its button opens the members page (#358).
+    await expect(page.getByRole('heading', { name: /You're the first administrator/i })).toBeVisible({
       timeout: 15_000
     });
-    await page.getByRole('button', { name: /^Ok/ }).click();
+    await page.getByRole('button', { name: 'Open the members page' }).click();
+    await expect(page).toHaveURL(/\/admin\/users/, { timeout: 15_000 });
 
-    await expect(page).toHaveURL(/\/user(\?|$)/, { timeout: 15_000 });
+    await gotoApp(page, '/user');
     await expect(page.locator('text=e2e_tester').first()).toBeVisible({ timeout: 10_000 });
   });
 

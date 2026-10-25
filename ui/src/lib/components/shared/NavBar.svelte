@@ -14,6 +14,8 @@
   import { turnOf } from '$lib/utils/exchange-ui';
   import { runEffect } from '$lib/utils/effect';
   import { ADMIN_SHORTCUT_ARIA } from '$lib/utils/admin-shortcut';
+  import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
+  import { storeEventBus } from '$lib/stores/storeEvents';
   import { onMount } from 'svelte';
   import {
     getConnectionStatusContext,
@@ -50,6 +52,9 @@
 
   const currentUser = $derived(usersStore.currentUser);
   const agentIsAdministrator = $derived(administrationStore.agentIsAdministrator);
+  const showSetupHint = $derived(
+    needsSelfAcceptance(agentIsAdministrator, currentUser?.status?.status_type)
+  );
   const drawerStore = getDrawerStore();
   const drawerSettings: DrawerSettings = {
     id: 'menu-drawer',
@@ -115,7 +120,18 @@
     };
     refresh();
     const interval = setInterval(refresh, 15000);
-    return () => clearInterval(interval);
+
+    // Accepting yourself on the members page updates the admin list but not your own profile
+    // in the users store, so the setup hint would stay until a reload. While it shows,
+    // re-read your profile whenever a member's status changes.
+    const stopListening = storeEventBus.on('user:status:updated', () => {
+      if (showSetupHint) runEffect(usersStore.refreshCurrentUser()).catch(() => {});
+    });
+
+    return () => {
+      clearInterval(interval);
+      stopListening();
+    };
   });
 
   const communityItems = [
@@ -238,11 +254,24 @@
     {#if agentIsAdministrator}
       <a
         href="/admin"
-        class="variant-ringed-secondary btn border-2 px-4 py-2 text-sm text-white transition-colors hover:variant-filled-secondary"
-        aria-label="Access administration panel"
+        class="variant-ringed-secondary btn relative border-2 px-4 py-2 text-sm text-white transition-colors hover:variant-filled-secondary"
+        aria-label={showSetupHint
+          ? `Access administration panel. ${SELF_ACCEPTANCE_LABEL}`
+          : 'Access administration panel'}
         aria-keyshortcuts={ADMIN_SHORTCUT_ARIA}
       >
         ⚙️ Admin
+        {#if showSetupHint}
+          <!-- Red stays on the dot: elsewhere in the app red means danger. -->
+          <span
+            class="pointer-events-none absolute inset-0 rounded-token ring-2 ring-white motion-safe:animate-pulse"
+            aria-hidden="true"
+          ></span>
+          <span
+            class="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-error-500 ring-2 ring-primary-500"
+            aria-hidden="true"
+          ></span>
+        {/if}
       </a>
     {/if}
   </div>

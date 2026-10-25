@@ -27,7 +27,15 @@ Every link type has a rule in three parts. The parts live in `dnas/requests_and_
 - **Writer.** The author of the record the link hangs from. Where a role acts for someone else, the tag names the writer's grant, checked with `check_act`.
 - **Tombstone.** A `DeleteLink` writes a tombstone; nothing is erased. Link types nothing tombstones refuse every tombstone. `AllOffers` and `AllRequests`, which nothing writes, refuse every create.
 
-**Still open, and stated beside each type:** the writer and tombstone rules where a role holder acts on someone else's link with no grant in the tag. These are status paths, active listings, listing relations and membership. They close when status is held in entries (#234 phase 2).
+**Shared things are never tombstoned.** A service type or medium of exchange is shared once suggested: listings and exchanges may name it. So neither it nor its status is ever tombstoned, by anyone. A role holder decides on it with a status entry (`ServiceTypeStatus`, `MediumOfExchangeStatus`) that carries their grant:
+- **Approve, reject and retire** each write a new status entry; the latest one stands.
+- **A suggestion with no status entry** is pending.
+- **The status-path links are indexes,** written once per status reached and never tombstoned. Readers take the state from the latest status entry.
+- **"Delete"** in the interface now retires.
+
+**Listings.** A request or offer is tombstoned only by its creator. A role holder removes one with `remove_request` or `remove_offer`, an update that carries their grant and a reason. The active list links each listing's original record once and is never rewritten; readers leave out archived and removed listings by their status.
+
+**Still open, and stated beside each type:** the writers and tombstones of the listing-to-catalogue links, of `UserOrganizations` and of `OrganizationContacts`. Coordinators and administrators write these for other members with no grant in the tag.
 
 The full inventory, one row per link type, is in the first comment on #234.
 

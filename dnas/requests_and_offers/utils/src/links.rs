@@ -50,6 +50,56 @@ pub const REQUEST: EntryKind = EntryKind { zome: REQUESTS_INTEGRITY_ZOME, index:
 pub const USER: EntryKind = EntryKind { zome: USERS_ORGANIZATIONS_ZOME, index: 0, name: "user" };
 pub const ORGANIZATION: EntryKind = EntryKind { zome: USERS_ORGANIZATIONS_ZOME, index: 1, name: "organisation" };
 pub const STATUS: EntryKind = EntryKind { zome: ADMINISTRATION_ZOME, index: 0, name: "status" };
+pub const SERVICE_TYPE_STATUS: EntryKind =
+  EntryKind { zome: SERVICE_TYPES_INTEGRITY_ZOME, index: 1, name: "service type status" };
+pub const MEDIUM_OF_EXCHANGE_STATUS: EntryKind =
+  EntryKind { zome: MEDIUMS_OF_EXCHANGE_INTEGRITY_ZOME, index: 1, name: "medium of exchange status" };
+
+/// Where a shared catalogue item (a service type or a medium of exchange)
+/// stands. A suggestion is `Pending` until a role holder decides; each
+/// decision is a status entry carrying the decider's grant, never an edit of
+/// the item and never a tombstone (#234). The latest status entry stands.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub enum CatalogueState {
+  Pending,
+  Approved,
+  Rejected,
+  Retired,
+}
+
+impl CatalogueState {
+  pub fn as_str(&self) -> &'static str {
+    match self {
+      CatalogueState::Pending => "pending",
+      CatalogueState::Approved => "approved",
+      CatalogueState::Rejected => "rejected",
+      CatalogueState::Retired => "retired",
+    }
+  }
+}
+
+/// The rule for a catalogue status entry: written by a role holder, whose
+/// grant it carries, about the original record of an item of `item` kind,
+/// and never `Pending`, which is what an item is before any decision.
+pub fn check_catalogue_status(
+  subject: &ActionHash,
+  state: &CatalogueState,
+  grant: &Option<ActionHash>,
+  author: &AgentPubKey,
+  item: &EntryKind,
+) -> ExternResult<ValidateCallbackResult> {
+  if *state == CatalogueState::Pending {
+    return Ok(invalid("a status entry records a decision, so it is never Pending"));
+  }
+  let action = must_get_action(subject.clone())?;
+  if !matches!(action.action().data, ActionData::Create(_)) || !writes(action.action(), item)? {
+    return Ok(invalid(format!("a status names the original record of a {}", item.name)));
+  }
+  Ok(match check_act(grant, author, &Ability::Administer, &None)? {
+    Ok(_) => ValidateCallbackResult::Valid,
+    Err(reason) => invalid(format!("deciding a {}'s status is a role act: {}", item.name, reason)),
+  })
+}
 
 /// What one end of a link must be.
 #[derive(Debug, Clone, Copy)]

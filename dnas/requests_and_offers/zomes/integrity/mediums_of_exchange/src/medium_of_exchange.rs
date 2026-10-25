@@ -19,3 +19,19 @@ pub struct MediumOfExchange {
   #[serde(default)]
   pub grant: Option<ActionHash>,
 }
+
+/// A role holder's decision on a medium of exchange: approved, rejected or retired.
+///
+/// A medium of exchange is shared: others rely on it once it is approved. So a decision
+/// never edits it and never tombstones it. It is a new entry, signed by the
+/// administrator and carrying their grant, and the latest one stands (#234).
+/// A medium of exchange with no status entry is pending.
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct MediumOfExchangeStatus {
+  /// The original record of the medium of exchange decided on.
+  pub medium_of_exchange: ActionHash,
+  pub state: utils::links::CatalogueState,
+  /// The administrator's grant this decision rests on.
+  pub grant: Option<ActionHash>,
+}

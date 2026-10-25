@@ -120,6 +120,53 @@ fn refused(outcome: &Result<ActionHash, String>, expected: &str, what: &str) {
     }
 }
 
+/// Mallory writes an entry of the given type with the bytes as given.
+async fn forge_entry<E: TryInto<SerializedBytes>>(
+    conductor: &SweetConductor,
+    mallory: &SweetCell,
+    zome_index: u8,
+    entry_index: u8,
+    entry: E,
+) -> Result<ActionHash, String>
+where
+    E::Error: std::fmt::Debug,
+{
+    let bytes: SerializedBytes = entry.try_into().expect("the entry should serialize");
+    reason(
+        conductor
+            .call_fallible(
+                &mallory.zome("forge"),
+                "forge_entry",
+                serde_json::json!({
+                    "zome_index": zome_index,
+                    "entry_index": entry_index,
+                    "entry": bytes,
+                }),
+            )
+            .await,
+    )
+}
+
+async fn forge_tombstone(conductor: &SweetConductor, mallory: &SweetCell, hash: ActionHash) -> Result<ActionHash, String> {
+    reason(
+        conductor
+            .call_fallible::<_, ActionHash>(&mallory.zome("forge"), "forge_delete", hash)
+            .await,
+    )
+}
+
+/// Mirror of `ServiceTypeStatus` in `service_types_integrity`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ServiceTypeStatus {
+    service_type: ActionHash,
+    state: String,
+    grant: Option<ActionHash>,
+}
+holochain_serialized_bytes::holochain_serial!(ServiceTypeStatus);
+
+/// `ServiceTypeStatus` is the second entry type of `service_types_integrity`.
+const SERVICE_TYPE_STATUS: u8 = 1;
+
 // ── Link type indexes, from the integrity zomes' enums ──────────────────────
 
 /// `users_organizations_integrity::LinkTypes`.
@@ -345,4 +392,105 @@ async fn a_link_nothing_tombstones_is_never_tombstoned() {
             .await,
     );
     refused(&tombstone, "never tombstoned", "a tombstone of a MyUser link");
+}
+
+/// A decision on a service type is a status entry that carries an
+/// administrator's grant. Mallory forges one approving her own suggestion,
+/// with no grant and with her member grant. Both refused, and the suggestion
+/// stays pending.
+///
+/// Red: in `utils/src/links.rs`, make `check_catalogue_status` return `Valid`
+/// without `check_act`.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_decision_needs_an_administrators_grant() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let suggestion: Record = conductors[1]
+        .call(&mallory.zome("service_types"), "suggest_service_type", sample_service_type("Mallory's"))
+        .await;
+    let suggestion = suggestion.action_address().clone();
+    let service_types = zome_index(&conductors[1], &mallory, "service_types_integrity").await;
+    let hers = member_grant(&conductors[1], &mallory).await;
+
+    for (grant, what) in [(None, "no grant"), (Some(hers), "a member's grant")] {
+        let forged = forge_entry(
+            &conductors[1],
+            &mallory,
+            service_types,
+            SERVICE_TYPE_STATUS,
+            ServiceTypeStatus { service_type: suggestion.clone(), state: "Approved".into(), grant },
+        )
+        .await;
+        refused(&forged, "is a role act", &format!("an approval with {what}"));
+    }
+
+    let state: String = conductors[1]
+        .call(&mallory.zome("service_types"), "get_service_type_status", suggestion)
+        .await;
+    assert_eq!(state, "pending");
+}
+
+/// A service type is shared, so nobody tombstones it, not even its author.
+/// Mallory tries to tombstone her own suggestion: refused. Alice, the
+/// administrator, retires it through its status instead: it reads as
+/// retired and leaves the pending list.
+///
+/// Red: in `service_types_integrity/src/lib.rs`, return `Valid` from the
+/// `DeleteEntry` arm for a service type.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_shared_item_is_retired_never_tombstoned() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let suggestion: Record = conductors[1]
+        .call(&mallory.zome("service_types"), "suggest_service_type", sample_service_type("Mallory's"))
+        .await;
+    let suggestion = suggestion.action_address().clone();
+
+    let tombstone = forge_tombstone(&conductors[1], &mallory, suggestion.clone()).await;
+    refused(&tombstone, "never tombstoned", "a tombstone of a service type by its own author");
+
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+    let _: ActionHash = conductors[0]
+        .call(&alice.zome("service_types"), "delete_service_type", suggestion.clone())
+        .await;
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+    let state: String = conductors[0]
+        .call(&alice.zome("service_types"), "get_service_type_status", suggestion.clone())
+        .await;
+    assert_eq!(state, "retired");
+    let pending: Vec<Record> = conductors[0]
+        .call(&alice.zome("service_types"), "get_pending_service_types", ())
+        .await;
+    assert!(!pending.iter().any(|r| r.action_address() == &suggestion), "a retired service type leaves the pending list");
+}
+
+/// A request is tombstoned only by its creator. Mallory tries to tombstone
+/// Alice's: refused. Alice tombstones her own.
+///
+/// Red: in `requests_integrity/src/lib.rs`, return `Valid` instead of
+/// `check_creator_tombstone`.
+#[tokio::test(flavor = "multi_thread")]
+async fn only_a_listings_creator_tombstones_it() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let request: Record = conductors[0]
+        .call(&alice.zome("requests"), "create_request", sample_request("Alice's"))
+        .await;
+    let request = request.action_address().clone();
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+
+    let tombstone = forge_tombstone(&conductors[1], &mallory, request.clone()).await;
+    refused(&tombstone, "only a request's creator tombstones it", "Mallory tombstoning Alice's request");
+
+    let _: bool = conductors[0]
+        .call(&alice.zome("requests"), "delete_request", request.clone())
+        .await;
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+    let gone: Option<Record> = conductors[1]
+        .call(&mallory.zome("requests"), "get_latest_request_record", request)
+        .await;
+    assert!(gone.is_none(), "the creator's own tombstone is written");
 }

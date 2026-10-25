@@ -1,8 +1,9 @@
 use hdk::prelude::*;
-use service_types_integrity::{EntryTypes, LinkTypes, ServiceType};
+use service_types_integrity::{EntryTypes, LinkTypes, ServiceType, ServiceTypeStatus};
 use utils::{
   errors::{AdministrationError, CommonError, ServiceTypeError},
   grants::{can_i, grant_tag, require_grant, Ability},
+  links::CatalogueState,
   resolve_chain_root, GetServiceTypeForEntityInput, OriginalActionHash, PreviousActionHash,
   ServiceTypeLinkInput, UpdateServiceTypeLinksInput,
 };
@@ -19,6 +20,69 @@ const REJECTED_SERVICE_TYPES_PATH: &str = "service_types.status.rejected";
 // Helper function to get path entry hash for a status path
 fn get_status_path_hash(status_path: &str) -> ExternResult<EntryHash> {
   Path::from(status_path).path_entry_hash()
+}
+
+/// A service type's state: its latest status entry, or pending if it has
+/// none. Status entries are never edited or tombstoned (#234), so the latest
+/// one is the decision that stands.
+fn current_state(service_type_hash: &ActionHash) -> ExternResult<CatalogueState> {
+  let filter = LinkTypes::ServiceTypeStatusUpdates
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(service_type_hash.clone(), filter),
+    GetStrategy::Network,
+  )?;
+  let mut latest: Option<(Timestamp, CatalogueState)> = None;
+  for link in links {
+    let Some(hash) = link.target.into_action_hash() else {
+      continue;
+    };
+    let Some(record) = get(hash, GetOptions::default())? else {
+      continue;
+    };
+    let Ok(Some(status)) = record.entry().to_app_option::<ServiceTypeStatus>() else {
+      continue;
+    };
+    let at = record.action().timestamp();
+    if latest.as_ref().map(|(t, _)| at > *t).unwrap_or(true) {
+      latest = Some((at, status.state));
+    }
+  }
+  Ok(latest.map(|(_, state)| state).unwrap_or(CatalogueState::Pending))
+}
+
+/// Records an administrator's decision on a service type: a status entry
+/// carrying their grant, linked from the service type, and, for approved and
+/// rejected, an index link on that status path. Nothing is tombstoned: the
+/// service type is shared, and the latest decision is what readers see.
+fn decide(service_type_hash: &ActionHash, state: CatalogueState) -> ExternResult<ActionHash> {
+  let grant = require_grant(Ability::Administer, None)?;
+  let status_hash = create_entry(EntryTypes::ServiceTypeStatus(ServiceTypeStatus {
+    service_type: service_type_hash.clone(),
+    state: state.clone(),
+    grant: Some(grant.clone()),
+  }))?;
+  create_link(
+    service_type_hash.clone(),
+    status_hash.clone(),
+    LinkTypes::ServiceTypeStatusUpdates,
+    (),
+  )?;
+  let path = match state {
+    CatalogueState::Approved => Some(APPROVED_SERVICE_TYPES_PATH),
+    CatalogueState::Rejected => Some(REJECTED_SERVICE_TYPES_PATH),
+    _ => None,
+  };
+  if let Some(path) = path {
+    create_link(
+      get_status_path_hash(path)?,
+      service_type_hash.clone(),
+      LinkTypes::AllServiceTypes,
+      grant_tag(&grant),
+    )?;
+  }
+  Ok(status_hash)
 }
 
 /// Input for creating a new service type
@@ -58,17 +122,8 @@ pub fn create_service_type(input: ServiceTypeInput) -> ExternResult<Record> {
     (),
   )?;
 
-  // Remove from all status paths to ensure it only has one status
-  remove_service_type_from_status_paths(service_type_hash.clone())?;
-
-  // Link to approved_service_types path (admin-created service types are automatically approved)
-  let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
-  create_link(
-    approved_path_hash,
-    service_type_hash.clone(),
-    LinkTypes::AllServiceTypes,
-    grant_tag(&require_grant(Ability::Administer, None)?),
-  )?;
+  // An administrator's service type is approved as it is created.
+  decide(&service_type_hash, CatalogueState::Approved)?;
 
   Ok(record)
 }
@@ -122,9 +177,6 @@ pub fn suggest_service_type(input: ServiceTypeInput) -> ExternResult<Record> {
     LinkTypes::AllServiceTypes,
     (),
   )?;
-
-  // Remove from all status paths to ensure it only has one status
-  remove_service_type_from_status_paths(service_type_hash.clone())?;
 
   // Link to pending_service_types path
   let pending_path_hash = get_status_path_hash(PENDING_SERVICE_TYPES_PATH)?;
@@ -211,42 +263,14 @@ pub fn update_service_type(input: UpdateServiceTypeInput) -> ExternResult<Action
 /// Delete a service type
 #[hdk_extern]
 pub fn delete_service_type(service_type_hash: ActionHash) -> ExternResult<ActionHash> {
-  // Check if the agent is an administrator
+  // Retires the service type. It is shared, and listings and exchanges may
+  // name it, so it is never tombstoned (#234): an administrator moves its
+  // status to retired, and it leaves every list. Returns the status entry.
   let is_admin = check_if_agent_is_administrator(agent_info()?.agent_initial_pubkey)?;
   if !is_admin {
     return Err(AdministrationError::Unauthorized.into());
   }
-
-  // Every link that has to be torn down is anchored at the chain root, and the
-  // entry to tomb is the root Create, so normalize before touching either.
-  let service_type_hash = resolve_chain_root(service_type_hash);
-
-  // Remove the AllServiceTypes link
-  let path = Path::from("service_types");
-  let path_hash = path.path_entry_hash()?;
-  let link_type_filter = LinkTypes::AllServiceTypes
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(
-    LinkQuery::new(path_hash, link_type_filter),
-    GetStrategy::Network,
-  )?;
-
-  // Find and delete the link to this service type
-  for link in links {
-    if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if target_hash == service_type_hash {
-        delete_link(link.create_link_hash, GetOptions::default())?;
-        break;
-      }
-    }
-  }
-
-  // Remove status links (pending, approved, or rejected)
-  remove_service_type_from_status_paths(service_type_hash.clone())?;
-
-  // Delete the service type entry
-  delete_entry(service_type_hash)
+  decide(&resolve_chain_root(service_type_hash), CatalogueState::Retired)
 }
 
 /// Get all pending service types (admin only)
@@ -282,10 +306,14 @@ pub fn get_rejected_service_types(_: ()) -> ExternResult<Vec<Record>> {
 
 /// Helper function to get service types by status path
 fn get_service_types_by_status(status_path: &str) -> ExternResult<Vec<Record>> {
-  // Get the path hash for the status
+  // The status path indexes every service type that ever reached that status;
+  // its latest status entry says whether it is there now.
+  let wanted = match status_path {
+    APPROVED_SERVICE_TYPES_PATH => CatalogueState::Approved,
+    REJECTED_SERVICE_TYPES_PATH => CatalogueState::Rejected,
+    _ => CatalogueState::Pending,
+  };
   let path_hash = get_status_path_hash(status_path)?;
-
-  // Get all links from the path
   let link_type_filter = LinkTypes::AllServiceTypes
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
@@ -294,10 +322,13 @@ fn get_service_types_by_status(status_path: &str) -> ExternResult<Vec<Record>> {
     GetStrategy::Network,
   )?;
 
-  // Get all records
+  let mut seen = std::collections::HashSet::new();
   let mut records = Vec::new();
   for link in links {
     if let Some(target_hash) = link.target.into_action_hash() {
+      if !seen.insert(target_hash.clone()) || current_state(&target_hash)? != wanted {
+        continue;
+      }
       if let Some(record) = get_latest_service_type_record(target_hash.clone())? {
         records.push(record);
       }
@@ -322,23 +353,11 @@ pub fn approve_service_type(service_type_hash: ActionHash) -> ExternResult<()> {
 
   // A steward may approve a rejected suggestion, reversing an earlier refusal,
   // but approving twice is a mistake rather than a decision.
-  if get_service_type_status(service_type_hash.clone())? == "approved" {
+  if current_state(&service_type_hash)? == CatalogueState::Approved {
     return Err(ServiceTypeError::AlreadyApproved.into());
   }
 
-  // Get the approved path hash
-  let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
-
-  // Remove from all status paths to ensure it only has one status
-  remove_service_type_from_status_paths(service_type_hash.clone())?;
-
-  // Add to approved path
-  create_link(
-    approved_path_hash,
-    service_type_hash,
-    LinkTypes::AllServiceTypes,
-    grant_tag(&require_grant(Ability::Administer, None)?),
-  )?;
+  decide(&service_type_hash, CatalogueState::Approved)?;
 
   Ok(())
 }
@@ -355,39 +374,10 @@ pub fn reject_service_type(service_type_hash: ActionHash) -> ExternResult<()> {
   // Status paths are keyed by the chain root (see approve_service_type).
   let service_type_hash = resolve_chain_root(service_type_hash);
 
-  // Get the pending path hash
-  let pending_path_hash = get_status_path_hash(PENDING_SERVICE_TYPES_PATH)?;
-
-  // Get the rejected path hash
-  let rejected_path_hash = get_status_path_hash(REJECTED_SERVICE_TYPES_PATH)?;
-
-  // Check if the service type is in the pending path
-  let link_type_filter = LinkTypes::AllServiceTypes
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let pending_links = get_links(
-    LinkQuery::new(pending_path_hash.clone(), link_type_filter),
-    GetStrategy::Network,
-  )?;
-
-  let found_pending = pending_links
-    .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
-
-  if !found_pending {
+  if current_state(&service_type_hash)? != CatalogueState::Pending {
     return Err(CommonError::InvalidData("Service type is not pending".to_string()).into());
   }
-
-  // Remove from all status paths to ensure it only has one status
-  remove_service_type_from_status_paths(service_type_hash.clone())?;
-
-  // Create link to rejected path
-  create_link(
-    rejected_path_hash,
-    service_type_hash,
-    LinkTypes::AllServiceTypes,
-    grant_tag(&require_grant(Ability::Administer, None)?),
-  )?;
+  decide(&service_type_hash, CatalogueState::Rejected)?;
 
   Ok(())
 }
@@ -405,39 +395,10 @@ pub fn reject_approved_service_type(service_type_hash: ActionHash) -> ExternResu
   // Status paths are keyed by the chain root (see approve_service_type).
   let service_type_hash = resolve_chain_root(service_type_hash);
 
-  // Get the approved path hash
-  let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
-
-  // Get the rejected path hash
-  let rejected_path_hash = get_status_path_hash(REJECTED_SERVICE_TYPES_PATH)?;
-
-  // Check if the service type is in the approved path
-  let link_type_filter = LinkTypes::AllServiceTypes
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let approved_links = get_links(
-    LinkQuery::new(approved_path_hash.clone(), link_type_filter),
-    GetStrategy::Network,
-  )?;
-
-  let found_approved = approved_links
-    .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(service_type_hash.clone()));
-
-  if !found_approved {
+  if current_state(&service_type_hash)? != CatalogueState::Approved {
     return Err(CommonError::InvalidData("Service type is not approved".to_string()).into());
   }
-
-  // Remove from all status paths to ensure it only has one status
-  remove_service_type_from_status_paths(service_type_hash.clone())?;
-
-  // Create link to rejected path
-  create_link(
-    rejected_path_hash,
-    service_type_hash.clone(),
-    LinkTypes::AllServiceTypes,
-    grant_tag(&require_grant(Ability::Administer, None)?),
-  )?;
+  decide(&service_type_hash, CatalogueState::Rejected)?;
 
   // Clean up links to requests and offers
   // 1. Get all requests linked to this service type
@@ -483,150 +444,16 @@ pub fn reject_approved_service_type(service_type_hash: ActionHash) -> ExternResu
   Ok(())
 }
 
-/// Helper function to remove a service type from all status paths
-fn remove_service_type_from_status_paths(service_type_hash: ActionHash) -> ExternResult<()> {
-  // Get the path hashes
-  let pending_path_hash = get_status_path_hash(PENDING_SERVICE_TYPES_PATH)?;
-  let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
-  let rejected_path_hash = get_status_path_hash(REJECTED_SERVICE_TYPES_PATH)?;
-
-  // Get links from each path
-  let link_type_filter = LinkTypes::AllServiceTypes
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let pending_links = get_links(
-    LinkQuery::new(pending_path_hash, link_type_filter),
-    GetStrategy::Network,
-  )?;
-  let link_type_filter = LinkTypes::AllServiceTypes
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let approved_links = get_links(
-    LinkQuery::new(approved_path_hash, link_type_filter),
-    GetStrategy::Network,
-  )?;
-  let link_type_filter = LinkTypes::AllServiceTypes
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let rejected_links = get_links(
-    LinkQuery::new(rejected_path_hash, link_type_filter),
-    GetStrategy::Network,
-  )?;
-
-  // Remove links from each path
-  for link in pending_links {
-    if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if target_hash == service_type_hash {
-        delete_link(link.create_link_hash, GetOptions::default())?;
-      }
-    }
-  }
-
-  for link in approved_links {
-    if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if target_hash == service_type_hash {
-        delete_link(link.create_link_hash, GetOptions::default())?;
-      }
-    }
-  }
-
-  for link in rejected_links {
-    if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if target_hash == service_type_hash {
-        delete_link(link.create_link_hash, GetOptions::default())?;
-      }
-    }
-  }
-
-  Ok(())
-}
-
 /// Check if a service type is approved (for internal/cross-zome use)
 #[hdk_extern]
 pub fn is_service_type_approved(service_type_hash: ActionHash) -> ExternResult<bool> {
-  // Resolve to the original action hash (the one the approval link actually targets)
-  let original_hash = resolve_chain_root(service_type_hash);
-
-  // Get the approved path hash
-  let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
-
-  // Check if there's a link from approved path to the ORIGINAL service type hash
-  let link_type_filter = LinkTypes::AllServiceTypes
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(
-    LinkQuery::new(approved_path_hash, link_type_filter),
-    GetStrategy::Network,
-  )?;
-
-  let found_approved = links
-    .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(original_hash.clone()));
-
-  Ok(found_approved)
+  Ok(current_state(&resolve_chain_root(service_type_hash))? == CatalogueState::Approved)
 }
 
-/// Get the status of a service type (pending, approved, or rejected)
+/// Get the status of a service type: pending, approved, rejected or retired
 #[hdk_extern]
 pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<String> {
-  // Resolve to the original action hash (the one the status links actually target)
-  let original_hash = resolve_chain_root(service_type_hash);
-
-  // Check each status path using the original hash
-  let pending_path_hash = get_status_path_hash(PENDING_SERVICE_TYPES_PATH)?;
-  let approved_path_hash = get_status_path_hash(APPROVED_SERVICE_TYPES_PATH)?;
-  let rejected_path_hash = get_status_path_hash(REJECTED_SERVICE_TYPES_PATH)?;
-
-  // Check pending
-  let link_type_filter = LinkTypes::AllServiceTypes
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let pending_links = get_links(
-    LinkQuery::new(pending_path_hash, link_type_filter),
-    GetStrategy::Network,
-  )?;
-  let is_pending = pending_links
-    .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(original_hash.clone()));
-
-  if is_pending {
-    return Ok("pending".to_string());
-  }
-
-  // Check approved
-  let link_type_filter = LinkTypes::AllServiceTypes
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let approved_links = get_links(
-    LinkQuery::new(approved_path_hash, link_type_filter),
-    GetStrategy::Network,
-  )?;
-  let is_approved = approved_links
-    .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(original_hash.clone()));
-
-  if is_approved {
-    return Ok("approved".to_string());
-  }
-
-  // Check rejected
-  let link_type_filter = LinkTypes::AllServiceTypes
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let rejected_links = get_links(
-    LinkQuery::new(rejected_path_hash, link_type_filter),
-    GetStrategy::Network,
-  )?;
-  let is_rejected = rejected_links
-    .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(original_hash.clone()));
-
-  if is_rejected {
-    return Ok("rejected".to_string());
-  }
-
-  // Default to pending if not found in any status (shouldn't normally happen)
-  Ok("pending".to_string())
+  Ok(current_state(&resolve_chain_root(service_type_hash))?.as_str().to_string())
 }
 
 fn get_records_for_service_type(links: Vec<Link>, entity: &str) -> ExternResult<Vec<Record>> {

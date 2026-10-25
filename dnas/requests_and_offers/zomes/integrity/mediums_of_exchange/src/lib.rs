@@ -11,6 +11,7 @@ pub use medium_of_exchange::*;
 #[unit_enum(UnitEntryTypes)]
 pub enum EntryTypes {
   MediumOfExchange(MediumOfExchange),
+  MediumOfExchangeStatus(MediumOfExchangeStatus),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -25,6 +26,9 @@ pub enum LinkTypes {
 
   MediumOfExchangeToOffer,
   OfferToMediumOfExchange,
+
+  // From a medium of exchange's original record to each status entry decided on it.
+  MediumOfExchangeStatusUpdates,
 }
 
 #[hdk_extern]
@@ -53,6 +57,20 @@ fn validate_entry(
         }
         invalid => Ok(invalid),
       }
+    }
+    EntryTypes::MediumOfExchangeStatus(status) => {
+      if is_update {
+        return Ok(ValidateCallbackResult::Invalid(
+          "A status entry is never edited; a later decision is a new status entry".to_string(),
+        ));
+      }
+      utils::links::check_catalogue_status(
+        &status.medium_of_exchange,
+        &status.state,
+        &status.grant,
+        author,
+        &utils::links::MEDIUM_OF_EXCHANGE,
+      )
     }
   }
 }
@@ -163,13 +181,26 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           }
         };
         match original_app_entry {
-          EntryTypes::MediumOfExchange(_original_medium_of_exchange) => {
-            // You can add specific delete validation for mediums of exchange here if needed
+          EntryTypes::MediumOfExchange(_) | EntryTypes::MediumOfExchangeStatus(_) => {
+            return Ok(ValidateCallbackResult::Invalid(format!(
+              "A medium of exchange and its statuses are never tombstoned; a role holder retires it through its status ({:?})",
+              action.deletes_address
+            )));
           }
         }
       }
       _ => (),
     },
+    FlatOp::Delete(OpDelete { action }) => {
+      for kind in [&utils::links::MEDIUM_OF_EXCHANGE, &utils::links::MEDIUM_OF_EXCHANGE_STATUS] {
+        if let ValidateCallbackResult::Invalid(reason) =
+          utils::links::refuse_tombstone(&action.deletes_address, kind)?
+        {
+          return Ok(ValidateCallbackResult::Invalid(reason));
+        }
+      }
+      return Ok(ValidateCallbackResult::Valid);
+    }
     FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
       return links::validate_create_link(
         &link_type,

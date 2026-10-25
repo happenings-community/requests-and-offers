@@ -4,7 +4,7 @@
 
 use hdi::prelude::*;
 use utils::grants::Ability;
-use utils::links::{
+use utils::links::{SERVICE_TYPE_STATUS, 
   check_author_of, check_create, check_delete, check_empty_tag, check_end, check_grant_tag, verdict, Checked, End, Spec,
   Tombstone, Writer, SERVICE_TYPE, OFFER, REQUEST, USER,
 };
@@ -30,12 +30,22 @@ fn spec(link_type: &LinkTypes) -> Spec {
       writer: Writer::AuthorOfTarget,
       tombstone: Tombstone::Never,
     },
+    // Indexes only: written once per status a service type reaches, never
+    // tombstoned. Readers take the service type's state from its latest status entry,
+    // so a stale or forged index link cannot change what anyone sees.
     LinkTypes::AllServiceTypes => Spec {
       name: "AllServiceTypes",
       base: End::Path(STATUS_PATHS),
       target: End::Record(&[SERVICE_TYPE]),
       writer: Writer::Open,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Never,
+    },
+    LinkTypes::ServiceTypeStatusUpdates => Spec {
+      name: "ServiceTypeStatusUpdates",
+      base: End::Record(&[SERVICE_TYPE]),
+      target: End::Record(&[SERVICE_TYPE_STATUS]),
+      writer: Writer::AuthorOfTarget,
+      tombstone: Tombstone::Never,
     },
     // A listing's links to its service type. Written by the listing's author, and
     // by an administrator editing someone else's listing, so the writer stays
@@ -88,9 +98,8 @@ fn spec(link_type: &LinkTypes) -> Spec {
 /// The index and status paths of service types. The index and the pending path
 /// are written by whoever suggests or creates the service type, for their own entry.
 /// The approved and rejected paths are written by an administrator, about
-/// someone else's suggestion, so their tag names the administrator's grant. Every one of them is tombstoned by an
-/// administrator when a status moves, so tombstones stay open until status is
-/// held in entries (#234 phase 2).
+/// someone else's suggestion, so their tag names the administrator's grant. None of them is ever tombstoned: a
+/// service type's state is its latest status entry, and these links only index it.
 fn validate_status_path_link(
   author: &AgentPubKey,
   base: &AnyLinkableHash,
@@ -125,6 +134,7 @@ pub fn validate_create_link(
 ) -> ExternResult<ValidateCallbackResult> {
   match link_type {
     LinkTypes::AllServiceTypes => validate_status_path_link(author, base, target, tag),
+    LinkTypes::ServiceTypeStatusUpdates => validate_status_update_link(author, base, target, tag),
     other => check_create(&spec(other), author, base, target, tag),
   }
 }
@@ -136,4 +146,32 @@ pub fn validate_delete_link(
 ) -> ExternResult<ValidateCallbackResult> {
   let spec = spec(link_type);
   Ok(check_delete(spec.name, spec.tombstone, link_author, author))
+}
+
+/// The link from a service type to a status entry decided on it: written by the
+/// status entry's author, and only to a status about this very service type.
+fn validate_status_update_link(
+  author: &AgentPubKey,
+  base: &AnyLinkableHash,
+  target: &AnyLinkableHash,
+  tag: &LinkTag,
+) -> ExternResult<ValidateCallbackResult> {
+  let spec = spec(&LinkTypes::ServiceTypeStatusUpdates);
+  match check_create(&spec, author, base, target, tag)? {
+    ValidateCallbackResult::Valid => (),
+    other => return Ok(other),
+  }
+  let Some(status_hash) = target.clone().into_action_hash() else {
+    return Ok(verdict(Err("the link's target must be a record".into()), spec.name));
+  };
+  let record = must_get_valid_record(status_hash)?;
+  let status: crate::ServiceTypeStatus = match record.entry().to_app_option() {
+    Ok(Some(status)) => status,
+    _ => return Ok(verdict(Err("the status could not be read".into()), spec.name)),
+  };
+  let names_base = base.clone().into_action_hash() == Some(status.service_type);
+  Ok(verdict(
+    if names_base { Ok(()) } else { Err("a status is linked only from the service type it decides".into()) },
+    spec.name,
+  ))
 }

@@ -25,16 +25,26 @@ const ALLOWED_TAGS = [
 ];
 const ALLOWED_ATTR = ['href', 'target', 'rel', 'class', 'src', 'alt'];
 
-let hooked = false;
+// A private DOMPurify for dialogs, so its hook never reaches the shared instance
+// that MarkdownRenderer uses: Markdown renders the same whether or not a dialog
+// has opened.
+let purify: ReturnType<typeof DOMPurify> | null = null;
 
-function addHooks() {
-  if (hooked) return;
-  hooked = true;
-  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-    // Images only from the app itself, so a dialog can't load a tracker.
+function dialogPurifier() {
+  if (purify) return purify;
+  purify = DOMPurify(window);
+  purify.addHook('afterSanitizeAttributes', (node) => {
+    // Images only from the app itself, so a dialog can't load a tracker. The
+    // browser's own URL parser decides, so "/\host" or "//host" can't pass.
     if (node.tagName === 'IMG') {
       const src = node.getAttribute('src') ?? '';
-      if (!src.startsWith('/') || src.startsWith('//')) node.remove();
+      let sameOrigin = false;
+      try {
+        sameOrigin = new URL(src, window.location.origin).origin === window.location.origin;
+      } catch {
+        sameOrigin = false;
+      }
+      if (!src || !sameOrigin) node.remove();
       return;
     }
     // Links that leave the app open apart from it and can't reach back in.
@@ -49,12 +59,12 @@ function addHooks() {
       }
     }
   });
+  return purify;
 }
 
 /** Keep simple markup and safe links; drop scripts, handlers, styles and foreign images. */
 export function safeHtml(html: string): string {
-  addHooks();
-  return DOMPurify.sanitize(html ?? '', { ALLOWED_TAGS, ALLOWED_ATTR });
+  return dialogPurifier().sanitize(html ?? '', { ALLOWED_TAGS, ALLOWED_ATTR });
 }
 
 /** Text that must read as text inside HTML: a member's name, a listing title. */

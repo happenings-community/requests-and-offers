@@ -43,6 +43,8 @@ struct Agreement {
     terms: String,
     delivery_timeframe: String,
     counters: Option<Countering>,
+    #[serde(default)]
+    listing_revision: Option<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(Agreement);
 

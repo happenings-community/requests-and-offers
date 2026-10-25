@@ -15,25 +15,26 @@ const ARCHIVED: &[&str] = &["offers.archived"];
 /// The rule for each link type, or `None` for one nothing writes.
 fn spec(link_type: &LinkTypes) -> Option<Spec> {
   Some(match link_type {
-    // The update chain: the author of each revision links it. Tombstoned when
-    // the offer is tombstoned, by its creator or an administrator, so open.
+    // The update chain: the author of each revision links it. Never
+    // tombstoned: the records it joins stay, and an administrator's edit wrote
+    // some of these links.
     LinkTypes::OfferUpdates => Spec {
       name: "OfferUpdates",
       base: End::Record(&[OFFER]),
       target: End::Record(&[OFFER]),
       writer: Writer::AuthorOfTarget,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Never,
     },
     LinkTypes::AllOffers => return None,
-    // Rewritten on every edit, archive and removal, by the creator, an
-    // administrator or a coordinator, each linking the revision they wrote.
-    // Tombstoned by them too, so open until status is held in entries.
+    // Written once, by the creator, at creation, and never rewritten: readers
+    // take the latest revision's status. Only the creator tombstones it, when
+    // they tombstone the offer.
     LinkTypes::ActiveOffers => Spec {
       name: "ActiveOffers",
       base: End::Path(ACTIVE),
       target: End::Record(&[OFFER]),
       writer: Writer::AuthorOfTarget,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Author,
     },
     LinkTypes::ArchivedOffers => Spec {
       name: "ArchivedOffers",
@@ -42,34 +43,35 @@ fn spec(link_type: &LinkTypes) -> Option<Spec> {
       writer: Writer::AuthorOfTarget,
       tombstone: Tombstone::Never,
     },
-    // The creator's own user to the offer. Tombstoned with the offer.
+    // The creator's own user to the offer. Tombstoned with the offer, by its
+    // creator.
     LinkTypes::UserOffers => Spec {
       name: "UserOffers",
       base: End::Record(&[USER]),
       target: End::Record(&[OFFER]),
       writer: Writer::AuthorOfBoth,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Author,
     },
     LinkTypes::OrganizationOffers => Spec {
       name: "OrganizationOffers",
       base: End::Record(&[ORGANIZATION]),
       target: End::Record(&[OFFER]),
       writer: Writer::AuthorOfTarget,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Author,
     },
     LinkTypes::OfferCreator => Spec {
       name: "OfferCreator",
       base: End::Record(&[OFFER]),
       target: End::Record(&[USER]),
       writer: Writer::AuthorOfBoth,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Author,
     },
     LinkTypes::OfferOrganization => Spec {
       name: "OfferOrganization",
       base: End::Record(&[OFFER]),
       target: End::Record(&[ORGANIZATION]),
       writer: Writer::AuthorOfBase,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Author,
     },
   })
 }

@@ -15,25 +15,26 @@ const ARCHIVED: &[&str] = &["requests.archived"];
 /// The rule for each link type, or `None` for one nothing writes.
 fn spec(link_type: &LinkTypes) -> Option<Spec> {
   Some(match link_type {
-    // The update chain: the author of each revision links it. Tombstoned when
-    // the request is tombstoned, by its creator or an administrator, so open.
+    // The update chain: the author of each revision links it. Never
+    // tombstoned: the records it joins stay, and an administrator's edit wrote
+    // some of these links.
     LinkTypes::RequestUpdates => Spec {
       name: "RequestUpdates",
       base: End::Record(&[REQUEST]),
       target: End::Record(&[REQUEST]),
       writer: Writer::AuthorOfTarget,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Never,
     },
     LinkTypes::AllRequests => return None,
-    // Rewritten on every edit, archive and removal, by the creator, an
-    // administrator or a coordinator, each linking the revision they wrote.
-    // Tombstoned by them too, so open until status is held in entries.
+    // Written once, by the creator, at creation, and never rewritten: readers
+    // take the latest revision's status. Only the creator tombstones it, when
+    // they tombstone the request.
     LinkTypes::ActiveRequests => Spec {
       name: "ActiveRequests",
       base: End::Path(ACTIVE),
       target: End::Record(&[REQUEST]),
       writer: Writer::AuthorOfTarget,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Author,
     },
     LinkTypes::ArchivedRequests => Spec {
       name: "ArchivedRequests",
@@ -42,34 +43,35 @@ fn spec(link_type: &LinkTypes) -> Option<Spec> {
       writer: Writer::AuthorOfTarget,
       tombstone: Tombstone::Never,
     },
-    // The creator's own user to the request. Tombstoned with the request.
+    // The creator's own user to the request. Tombstoned with the request, by its
+    // creator.
     LinkTypes::UserRequests => Spec {
       name: "UserRequests",
       base: End::Record(&[USER]),
       target: End::Record(&[REQUEST]),
       writer: Writer::AuthorOfBoth,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Author,
     },
     LinkTypes::OrganizationRequests => Spec {
       name: "OrganizationRequests",
       base: End::Record(&[ORGANIZATION]),
       target: End::Record(&[REQUEST]),
       writer: Writer::AuthorOfTarget,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Author,
     },
     LinkTypes::RequestCreator => Spec {
       name: "RequestCreator",
       base: End::Record(&[REQUEST]),
       target: End::Record(&[USER]),
       writer: Writer::AuthorOfBoth,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Author,
     },
     LinkTypes::RequestOrganization => Spec {
       name: "RequestOrganization",
       base: End::Record(&[REQUEST]),
       target: End::Record(&[ORGANIZATION]),
       writer: Writer::AuthorOfBase,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Author,
     },
   })
 }

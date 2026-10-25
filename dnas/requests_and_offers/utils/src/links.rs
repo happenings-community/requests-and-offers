@@ -273,6 +273,43 @@ pub fn check_delete(
   verdict(check_tombstone(tombstone, link_author, author), name)
 }
 
+/// The rule for tombstoning an entry of `kind` that only its creator may
+/// tombstone. A role holder removes such an entry by an update that carries
+/// their grant instead, since a tombstone carries no grant (#234). Run for
+/// both ops a tombstone produces: the record op (`OpRecord::DeleteEntry`) and
+/// the entry op (`FlatOp::Delete`).
+pub fn check_creator_tombstone(
+  deletes_address: &ActionHash,
+  author: &AgentPubKey,
+  kind: &EntryKind,
+) -> ExternResult<ValidateCallbackResult> {
+  let record = must_get_valid_record(deletes_address.clone())?;
+  if !writes(record.action(), kind)? {
+    return Ok(ValidateCallbackResult::Valid);
+  }
+  Ok(match crate::grants::creator_of(deletes_address)? {
+    Ok(creator) if &creator == author => ValidateCallbackResult::Valid,
+    Ok(_) => invalid(format!(
+      "only a {}'s creator tombstones it; a role holder removes it with an update that says who and why",
+      kind.name
+    )),
+    Err(reason) => invalid(reason),
+  })
+}
+
+/// The rule for an entry of `kind` that is never tombstoned, by anyone: a
+/// shared thing, retired or rejected by a role holder through its status.
+pub fn refuse_tombstone(deletes_address: &ActionHash, kind: &EntryKind) -> ExternResult<ValidateCallbackResult> {
+  let record = must_get_valid_record(deletes_address.clone())?;
+  if !writes(record.action(), kind)? {
+    return Ok(ValidateCallbackResult::Valid);
+  }
+  Ok(invalid(format!(
+    "a {} is never tombstoned; a role holder retires it through its status",
+    kind.name
+  )))
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;

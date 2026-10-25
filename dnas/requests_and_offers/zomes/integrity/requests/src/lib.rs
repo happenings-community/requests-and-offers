@@ -136,13 +136,24 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           }
         };
         match original_app_entry {
-          EntryTypes::Request(_original_request) => {
-            // You can add specific delete validation for requests here if needed
+          EntryTypes::Request(_) => {
+            return utils::links::check_creator_tombstone(
+              &action.deletes_address,
+              action.author(),
+              &utils::links::REQUEST,
+            );
           }
         }
       }
       _ => (),
     },
+    FlatOp::Delete(OpDelete { action }) => {
+      return utils::links::check_creator_tombstone(
+        &action.deletes_address,
+        action.author(),
+        &utils::links::REQUEST,
+      );
+    }
     FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
       return links::validate_create_link(
         &link_type,

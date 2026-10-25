@@ -78,11 +78,16 @@ test.describe.serial('06 — organizations: creation, moderation, edit', () => {
     await page.getByRole('tab', { name: /Pending Orgs \(1\)/ }).click();
     await expect(page.locator(`text=${ORG_NAME}`).first()).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole('button', { name: 'Approve' }).first().click();
+    // Decisions are made from the details screen, after the application (#331).
+    await page.getByRole('button', { name: 'Review application' }).first().click();
+    await page.getByRole('button', { name: 'Approve', exact: true }).click();
 
-    await expect(page.locator('text=Organization approved.').first()).toBeVisible({
+    await expect(
+      page.locator('text=Organization status updated successfully.').first()
+    ).toBeVisible({
       timeout: 10_000
     });
+    await page.getByRole('button', { name: 'Close' }).click();
   });
 
   test('accepted organization appears publicly with a working detail page', async ({ page }) => {

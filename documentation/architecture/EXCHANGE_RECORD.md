@@ -143,6 +143,17 @@ The companion design's table, with this record's entries beside it. Each row is 
 
 When #90 lands, the mapping runs over existing agreements and new ones are written both ways. Nothing here is replaced.
 
+### Decided for alpha 2 (#250)
+
+- **No migration.** Alpha 2 changes the DNA hash and resets the network, so no exchange from alpha 1 crosses into it. Every exchange on the alpha 2 network is written to this record and mirrored into hREA as it is written (#255). There is nothing to move.
+- **This record stays, and hREA is layered over it.** The `exchanges` zome is the validated, append-only record of who agreed what:
+  - who may answer a proposal, and only once;
+  - how a counter chains to the proposal it answers (#343);
+  - that nothing is updated.
+
+  hREA's zomes do not enforce R&O's rules, and under the module contract (#249) the core has to work with hREA absent. So hREA describes this record in Valueflows terms, and does not replace it. This retires an earlier note on #250 (11 September), which spoke of retiring the interim record once hREA carried the lifecycle.
+- **Still open, and not a migration:** writing the hREA mirror later for a record whose mirror write failed (reconcile-at-boot, named in #255). It has a known hazard. The mapping tables are held in memory only, so reconciling before the note-derived mappings load would mint duplicate proposals into an append-only ledger. It stays its own piece of work.
+
 ## 10. Screens
 
 The design system has the six: exchanges, detail, proposal, confirm, complete, review. Two changes for the interim. The proposal opens from the listing, or from an interest on it, rather than from a message thread. A listing gains an "interested" action for readers and, for its author, the list of who is interested with a "propose" beside each name.

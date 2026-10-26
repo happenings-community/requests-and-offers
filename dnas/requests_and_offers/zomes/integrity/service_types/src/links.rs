@@ -37,6 +37,9 @@ fn spec(link_type: &LinkTypes) -> Spec {
       name: "AllServiceTypes",
       base: End::Path(STATUS_PATHS),
       target: End::Record(&[SERVICE_TYPE]),
+      // Never reached for a create: `validate_status_path_link` decides the
+      // writer by path (the author for index and pending, an administrator's
+      // grant for approved and rejected). This entry serves tombstones.
       writer: Writer::Open,
       tombstone: Tombstone::Never,
     },
@@ -78,19 +81,23 @@ fn spec(link_type: &LinkTypes) -> Spec {
       writer: Writer::Open,
       tombstone: Tombstone::Open,
     },
+    // Nothing writes these: the coordinator's generic "user" branch has no
+    // caller, in the DNA or the interface. So every create is refused (see
+    // `validate_create_link`), and with nothing written there is nothing to
+    // tombstone. Profile skills will need their own rule when they arrive.
     LinkTypes::ServiceTypeToUser => Spec {
       name: "ServiceTypeToUser",
       base: End::Record(&[SERVICE_TYPE]),
       target: End::Record(&[USER]),
       writer: Writer::Open,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Never,
     },
     LinkTypes::UserToServiceType => Spec {
       name: "UserToServiceType",
       base: End::Record(&[USER]),
       target: End::Record(&[SERVICE_TYPE]),
       writer: Writer::Open,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Never,
     },
   }
 }
@@ -134,6 +141,8 @@ pub fn validate_create_link(
 ) -> ExternResult<ValidateCallbackResult> {
   match link_type {
     LinkTypes::AllServiceTypes => validate_status_path_link(author, base, target, tag),
+    LinkTypes::ServiceTypeToUser => Ok(utils::links::unused("ServiceTypeToUser")),
+    LinkTypes::UserToServiceType => Ok(utils::links::unused("UserToServiceType")),
     LinkTypes::ServiceTypeStatusUpdates => validate_status_update_link(author, base, target, tag),
     other => check_create(&spec(other), author, base, target, tag),
   }
@@ -157,7 +166,11 @@ fn validate_status_update_link(
   tag: &LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
   let spec = spec(&LinkTypes::ServiceTypeStatusUpdates);
-  match check_create(&spec, author, base, target, tag)? {
+  let named = match utils::links::catalogue_state_from_tag(tag) {
+    Ok(state) => state,
+    Err(reason) => return Ok(verdict(Err(reason), spec.name)),
+  };
+  match check_create(&spec, author, base, target, &LinkTag::new(vec![]))? {
     ValidateCallbackResult::Valid => (),
     other => return Ok(other),
   }
@@ -170,6 +183,9 @@ fn validate_status_update_link(
     _ => return Ok(verdict(Err("the status could not be read".into()), spec.name)),
   };
   let names_base = base.clone().into_action_hash() == Some(status.service_type);
+  if names_base && status.state != named {
+    return Ok(verdict(Err("the link's tag must name the status entry's decision".into()), spec.name));
+  }
   Ok(verdict(
     if names_base { Ok(()) } else { Err("a status is linked only from the service type it decides".into()) },
     spec.name,

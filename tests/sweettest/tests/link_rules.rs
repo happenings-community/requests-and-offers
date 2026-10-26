@@ -176,6 +176,7 @@ const MY_USER: u8 = 2;
 const ALL_OFFERS: u8 = 1;
 /// `service_types_integrity::LinkTypes`.
 const ALL_SERVICE_TYPES: u8 = 1;
+const USER_TO_SERVICE_TYPE: u8 = 7;
 
 // ── Cases ───────────────────────────────────────────────────────────────────
 
@@ -309,13 +310,27 @@ async fn a_link_has_the_shape_its_type_declares() {
         &conductors[1],
         &mallory,
         offers_path.into(),
-        hers.into(),
+        hers.clone().into(),
         offers,
         ALL_OFFERS,
         vec![],
     )
     .await;
     refused(&unused, "nothing writes this link type", "an AllOffers link");
+
+    // Closed after Aria's read: nothing writes a user's link to a service type.
+    let service_types = zome_index(&conductors[1], &mallory, "service_types_integrity").await;
+    let skill = forge_link(
+        &conductors[1],
+        &mallory,
+        hers.clone().into(),
+        suggestion.action_address().clone().into(),
+        service_types,
+        USER_TO_SERVICE_TYPE,
+        vec![],
+    )
+    .await;
+    refused(&skill, "nothing writes this link type", "a UserToServiceType link");
 }
 
 /// A link that hangs from a record is written by that record's author.

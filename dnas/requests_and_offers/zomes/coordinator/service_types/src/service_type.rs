@@ -22,34 +22,16 @@ fn get_status_path_hash(status_path: &str) -> ExternResult<EntryHash> {
   Path::from(status_path).path_entry_hash()
 }
 
-/// A service type's state: its latest status entry, or pending if it has
-/// none. Status entries are never edited or tombstoned (#234), so the latest
-/// one is the decision that stands.
+/// A service type's state: the latest decision linked from it, or pending
+/// if there is none. The decision is read from each link's tag, which
+/// validation checks against its status entry, so no entry is fetched and none
+/// can be missed; ties are broken by the link's hash (#234).
 fn current_state(service_type_hash: &ActionHash) -> ExternResult<CatalogueState> {
   let filter = LinkTypes::ServiceTypeStatusUpdates
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(
-    LinkQuery::new(service_type_hash.clone(), filter),
-    GetStrategy::Network,
-  )?;
-  let mut latest: Option<(Timestamp, CatalogueState)> = None;
-  for link in links {
-    let Some(hash) = link.target.into_action_hash() else {
-      continue;
-    };
-    let Some(record) = get(hash, GetOptions::default())? else {
-      continue;
-    };
-    let Ok(Some(status)) = record.entry().to_app_option::<ServiceTypeStatus>() else {
-      continue;
-    };
-    let at = record.action().timestamp();
-    if latest.as_ref().map(|(t, _)| at > *t).unwrap_or(true) {
-      latest = Some((at, status.state));
-    }
-  }
-  Ok(latest.map(|(_, state)| state).unwrap_or(CatalogueState::Pending))
+  let links = get_links(LinkQuery::new(service_type_hash.clone(), filter), GetStrategy::Network)?;
+  Ok(utils::links::latest_catalogue_state(&links))
 }
 
 /// Records an administrator's decision on a service type: a status entry
@@ -67,7 +49,7 @@ fn decide(service_type_hash: &ActionHash, state: CatalogueState) -> ExternResult
     service_type_hash.clone(),
     status_hash.clone(),
     LinkTypes::ServiceTypeStatusUpdates,
-    (),
+    utils::links::catalogue_state_tag(&state),
   )?;
   let path = match state {
     CatalogueState::Approved => Some(APPROVED_SERVICE_TYPES_PATH),

@@ -37,6 +37,9 @@ fn spec(link_type: &LinkTypes) -> Spec {
       name: "AllMediumsOfExchange",
       base: End::Path(STATUS_PATHS),
       target: End::Record(&[MEDIUM_OF_EXCHANGE]),
+      // Never reached for a create: the status-path rule decides the writer
+      // by path (the author for index and pending, an administrator's grant
+      // for approved and rejected). This entry serves tombstones.
       writer: Writer::Open,
       tombstone: Tombstone::Never,
     },
@@ -143,7 +146,11 @@ fn validate_status_update_link(
   tag: &LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
   let spec = spec(&LinkTypes::MediumOfExchangeStatusUpdates);
-  match check_create(&spec, author, base, target, tag)? {
+  let named = match utils::links::catalogue_state_from_tag(tag) {
+    Ok(state) => state,
+    Err(reason) => return Ok(verdict(Err(reason), spec.name)),
+  };
+  match check_create(&spec, author, base, target, &LinkTag::new(vec![]))? {
     ValidateCallbackResult::Valid => (),
     other => return Ok(other),
   }
@@ -156,6 +163,9 @@ fn validate_status_update_link(
     _ => return Ok(verdict(Err("the status could not be read".into()), spec.name)),
   };
   let names_base = base.clone().into_action_hash() == Some(status.medium_of_exchange);
+  if names_base && status.state != named {
+    return Ok(verdict(Err("the link's tag must name the status entry's decision".into()), spec.name));
+  }
   Ok(verdict(
     if names_base { Ok(()) } else { Err("a status is linked only from the medium of exchange it decides".into()) },
     spec.name,

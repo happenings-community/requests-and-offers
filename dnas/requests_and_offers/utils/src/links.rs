@@ -101,6 +101,46 @@ pub fn check_catalogue_status(
   })
 }
 
+/// The tag of a status-update link: one byte naming the decision. Readers take
+/// a catalogue item's state from these tags, so they never fetch a status
+/// entry and cannot miss one; validation checks the tag against the entry
+/// (#234, from Aria's read of `current_state`).
+pub fn catalogue_state_tag(state: &CatalogueState) -> LinkTag {
+  LinkTag::new(vec![match state {
+    CatalogueState::Pending => 0,
+    CatalogueState::Approved => 1,
+    CatalogueState::Rejected => 2,
+    CatalogueState::Retired => 3,
+  }])
+}
+
+/// The decision a status-update link's tag names.
+pub fn catalogue_state_from_tag(tag: &LinkTag) -> Result<CatalogueState, String> {
+  match tag.0.as_slice() {
+    [1] => Ok(CatalogueState::Approved),
+    [2] => Ok(CatalogueState::Rejected),
+    [3] => Ok(CatalogueState::Retired),
+    _ => Err("a status link's tag names the decision: approved, rejected or retired".to_string()),
+  }
+}
+
+/// The state a set of status-update links leaves an item in: the latest by
+/// time, ties broken by the link's hash so every peer agrees, and pending if
+/// there are none. Links whose tag does not read are skipped; validation
+/// refuses them, so none should exist.
+pub fn latest_catalogue_state(links: &[Link]) -> CatalogueState {
+  links
+    .iter()
+    .filter_map(|link| {
+      catalogue_state_from_tag(&link.tag)
+        .ok()
+        .map(|state| ((link.timestamp, link.create_link_hash.clone()), state))
+    })
+    .max_by(|(a, _), (b, _)| a.cmp(b))
+    .map(|(_, state)| state)
+    .unwrap_or(CatalogueState::Pending)
+}
+
 /// What one end of a link must be.
 #[derive(Debug, Clone, Copy)]
 pub enum End {
@@ -366,6 +406,15 @@ mod tests {
 
   fn agent(byte: u8) -> AgentPubKey {
     AgentPubKey::from_raw_36(vec![byte; 36])
+  }
+
+  #[test]
+  fn a_catalogue_state_tag_round_trips_and_pending_never_does() {
+    for state in [CatalogueState::Approved, CatalogueState::Rejected, CatalogueState::Retired] {
+      assert_eq!(catalogue_state_from_tag(&catalogue_state_tag(&state)), Ok(state));
+    }
+    assert!(catalogue_state_from_tag(&catalogue_state_tag(&CatalogueState::Pending)).is_err());
+    assert!(catalogue_state_from_tag(&LinkTag::new(vec![])).is_err());
   }
 
   #[test]

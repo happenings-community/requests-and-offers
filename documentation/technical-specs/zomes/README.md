@@ -30,7 +30,7 @@ Every link type has a rule in three parts. The parts live in `dnas/requests_and_
 **Shared things are never tombstoned.** A service type or medium of exchange is shared once suggested: listings and exchanges may name it. So neither it nor its status is ever tombstoned, by anyone. A role holder decides on it with a status entry (`ServiceTypeStatus`, `MediumOfExchangeStatus`) that carries their grant:
 - **Approve, reject and retire** each write a new status entry; the latest one stands.
 - **A suggestion with no status entry** is pending.
-- **The status-path links are indexes,** written once per status reached and never tombstoned. Readers take the state from the latest status entry.
+- **The status-path links are indexes,** written once per status reached and never tombstoned. Readers take the state from the latest status link: each carries its decision in its tag, which validation checks against the status entry, so readers fetch no entry and cannot miss one. Ties are broken by the link's hash, so every peer reads the same state.
 - **"Delete"** in the interface now retires.
 
 **Listings.** A request or offer is tombstoned only by its creator. A role holder removes one with `remove_request` or `remove_offer`, an update that carries their grant and a reason. The active list links each listing's original record once and is never rewritten; readers leave out archived and removed listings by their status.

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { page } from '$app/state';
   import { getModalStore, getToastStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
   import type { ConfirmModalMeta, Revision, UIOrganization, UIRequest, UIOffer } from '$lib/types/ui';
@@ -251,6 +252,10 @@
     });
   }
 </script>
+
+<svelte:head>
+  <title>{pageTitle(organization?.name ?? 'Organization')}</title>
+</svelte:head>
 
 <section class="flex flex-col items-center px-4 sm:px-6">
   {#if error}

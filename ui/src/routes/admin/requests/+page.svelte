@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { onMount } from 'svelte';
   import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
   import { useRequestsManagement } from '$lib/composables';
@@ -10,6 +11,10 @@
     await management.initialize();
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Requests', 'Admin')}</title>
+</svelte:head>
 
 <section class="container mx-auto p-4">
   <div class="mb-6 flex items-center justify-between">

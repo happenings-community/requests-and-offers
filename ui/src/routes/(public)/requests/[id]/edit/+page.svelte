@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
@@ -224,6 +225,10 @@
     loadUserOrganizations();
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Edit Request')}</title>
+</svelte:head>
 
 <PrerequisitesGuard
   title="Prerequisites Required for Requests"

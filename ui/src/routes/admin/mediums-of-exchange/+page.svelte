@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { goto } from '$app/navigation';
   import { TabGroup, Tab, getModalStore } from '@skeletonlabs/skeleton';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
@@ -86,7 +87,7 @@
 </script>
 
 <svelte:head>
-  <title>Manage Mediums of Exchange - Admin</title>
+  <title>{pageTitle('Mediums of Exchange', 'Admin')}</title>
 </svelte:head>
 
 <div class="container mx-auto p-6">

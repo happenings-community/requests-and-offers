@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { goto } from '$app/navigation';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import type { OrganizationInDHT } from '$lib/types/holochain';
@@ -48,8 +49,12 @@
   }
 </script>
 
+<svelte:head>
+  <title>{pageTitle('Create Organization')}</title>
+</svelte:head>
+
 <section class="flex w-4/5 flex-col gap-10 md:w-3/4 lg:w-1/2">
-  <h2 class="h2">Create new Organization</h2>
+  <h1 class="h2">Create new Organization</h1>
 
   <div class="space-y-2">
     <label class="flex items-center gap-2">

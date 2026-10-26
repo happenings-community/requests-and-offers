@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
@@ -249,9 +250,7 @@
 </script>
 
 <svelte:head>
-  <title>
-    {offer ? `${offer.title} Offer` : 'Offer'} - Requests & Offers
-  </title>
+  <title>{pageTitle(offer?.title ?? 'Offer')}</title>
   <meta
     name="description"
     content={offer ? `Offer details for ${offer.title} - ${offer.description}` : 'Offer details'}

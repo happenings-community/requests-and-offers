@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import ServiceTypeForm from '$lib/components/service-types/ServiceTypeForm.svelte';
   import type { ServiceTypeInDHT } from '$lib/types/holochain';
   import { useServiceTypeDetails } from '$lib/composables';
@@ -38,6 +39,10 @@
     }
   }
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Edit Service Type', 'Admin')}</title>
+</svelte:head>
 
 <section class="space-y-6">
   <div class="flex items-center justify-between">

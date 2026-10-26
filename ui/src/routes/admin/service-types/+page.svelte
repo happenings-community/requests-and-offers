@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { onMount } from 'svelte';
   import ServiceTypeSearch from '$lib/components/service-types/ServiceTypeSearch.svelte';
   import ServiceTypesActionBar from '$lib/components/service-types/ServiceTypesActionBar.svelte';
@@ -29,6 +30,10 @@
     };
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Service Types', 'Admin')}</title>
+</svelte:head>
 
 <section class="space-y-6">
   <!-- Action Bar -->

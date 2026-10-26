@@ -24,6 +24,7 @@
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
   import NavBar from '$lib/components/shared/NavBar.svelte';
+  import SkipLink from '$lib/components/shared/SkipLink.svelte';
   import { setConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
   import { connectToHolochain, isHolochainConnected } from '$lib/utils/holochain-client.utils';
   import { deriveConnectionStatus } from '$lib/utils/network-status';
@@ -406,15 +407,18 @@
 <svelte:window onkeydown={handleKeyboardEvent} />
 
 {#if conductorStatus !== 'connected' || initializationStatus === 'initializing'}
-  <div class="flex min-h-screen flex-col items-center justify-center space-y-6 p-8">
+  <main
+    id="main-content"
+    class="flex min-h-screen flex-col items-center justify-center space-y-6 p-8"
+  >
     <div class="text-center">
       {#if initializationStatus === 'initializing'}
-        <h2 class="mb-2 text-2xl font-semibold">Initializing Application Runtime</h2>
+        <h1 class="mb-2 text-2xl font-semibold">Initializing Application Runtime</h1>
         <p class="text-surface-600 dark:text-surface-400">
           Setting up core services... User data and admin features will load in background.
         </p>
       {:else}
-        <h2 class="mb-2 text-2xl font-semibold">Connecting to Holochain Network</h2>
+        <h1 class="mb-2 text-2xl font-semibold">Connecting to Holochain Network</h1>
         <p class="text-surface-600 dark:text-surface-400">Establishing secure connection...</p>
       {/if}
     </div>
@@ -498,9 +502,9 @@
               <!-- Step info -->
               <div class="min-w-0 flex-1">
                 <div class="flex items-center justify-between">
-                  <h4 class="text-sm font-medium text-surface-900 dark:text-surface-100">
+                  <h2 class="text-sm font-medium text-surface-900 dark:text-surface-100">
                     {step.name}
-                  </h4>
+                  </h2>
                   <span class="text-xs capitalize text-surface-500 dark:text-surface-400">
                     {step.status === 'running' ? 'In Progress' : step.status}
                   </span>
@@ -545,15 +549,18 @@
         {/if}
       </div>
     {/if}
-  </div>
+  </main>
 {:else if isAdminRoute}
   <!-- Admin routes use their own layout -->
   {@render children()}
 {:else}
   <!-- Main app routes with navigation -->
+  <SkipLink />
   <div class="grid min-h-screen grid-rows-[auto_1fr]">
-    <NavBar {connectionStatus} {lastPingTime} {pingError} {networkSeed} {networkInfo} />
-    <main class="flex flex-col items-center justify-center py-10">
+    <header>
+      <NavBar {connectionStatus} {lastPingTime} {pingError} {networkSeed} {networkInfo} />
+    </header>
+    <main id="main-content" tabindex="-1" class="flex flex-col items-center justify-center py-10">
       {@render children()}
     </main>
   </div>

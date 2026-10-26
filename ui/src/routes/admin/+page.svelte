@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { onMount } from 'svelte';
   import type { UIOrganization, UIUser } from '$lib/types/ui';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -248,6 +249,10 @@
     };
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Dashboard', 'Admin')}</title>
+</svelte:head>
 
 <section class="space-y-8">
   <h1 class="h1">Admin Dashboard</h1>

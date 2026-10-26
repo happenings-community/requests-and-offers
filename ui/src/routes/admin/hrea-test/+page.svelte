@@ -1,9 +1,10 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import HREATestInterface from '$lib/components/hrea/HREATestInterface.svelte';
 </script>
 
 <svelte:head>
-  <title>hREA Test Interface - Admin</title>
+  <title>{pageTitle('hREA Test Interface', 'Admin')}</title>
   <meta
     name="description"
     content="Test interface for hREA (Holochain Resource-Event-Agent) entities"

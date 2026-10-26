@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { onMount } from 'svelte';
   import { ConicGradient, type ConicStop, getToastStore } from '@skeletonlabs/skeleton';
   import { useOrganizationsManagement } from '$lib/composables';
@@ -60,6 +61,10 @@
     management.loadOrganizations();
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Organizations', 'Admin')}</title>
+</svelte:head>
 
 <section class="flex flex-col gap-10">
   <h1 class="h1 text-center">Organizations Management</h1>

@@ -3,7 +3,8 @@
   import NavGroup from '$lib/components/shared/NavGroup.svelte';
 </script>
 
-<div
+<nav
+  aria-label="Admin"
   class="flex h-full w-60 flex-shrink-0 flex-col gap-2 border-r-2 border-surface-700 bg-surface-900 p-4 pt-9"
 >
   <a
@@ -46,4 +47,4 @@
       Exit Admin
     </MenuLink>
   </div>
-</div>
+</nav>

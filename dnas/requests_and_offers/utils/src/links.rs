@@ -104,7 +104,8 @@ pub fn check_catalogue_status(
 /// The tag of a status-update link: one byte naming the decision. Readers take
 /// a catalogue item's state from these tags, so they never fetch a status
 /// entry and cannot miss one; validation checks the tag against the entry
-/// (#234, from Aria's read of `current_state`).
+/// (#234, from Aria's read of `current_state`). `Pending` maps to 0 for
+/// completeness only: no call site writes it, and validation refuses it.
 pub fn catalogue_state_tag(state: &CatalogueState) -> LinkTag {
   LinkTag::new(vec![match state {
     CatalogueState::Pending => 0,
@@ -128,6 +129,13 @@ pub fn catalogue_state_from_tag(tag: &LinkTag) -> Result<CatalogueState, String>
 /// time, ties broken by the link's hash so every peer agrees, and pending if
 /// there are none. Links whose tag does not read are skipped; validation
 /// refuses them, so none should exist.
+///
+/// Ordering by time is not ordering by arrival, so the tag does not remove
+/// the clock (Aria, 26 Oct). A reader that has not yet received the newest
+/// decision reads the one before it, so two reads can show the state moving
+/// back. A decision made later on a clock that runs behind loses to the one
+/// before it. As with an entry's latest version, acceptable for alpha 2; what
+/// the tag removes is the missed fetch and the tie.
 pub fn latest_catalogue_state(links: &[Link]) -> CatalogueState {
   links
     .iter()

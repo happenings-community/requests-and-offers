@@ -160,17 +160,18 @@
       if (!organizationHash) {
         throw new Error('Invalid organization ID');
       }
-      const success = await organizationsStore.deleteOrganization(organizationHash);
+      // The store returns an Effect: run it, or the zome is never called.
+      const success = await runEffect(organizationsStore.deleteOrganization(organizationHash));
 
       if (success) {
         toastStore.trigger({
-          message: 'Organization deleted successfully',
+          message: 'Organization retired',
           background: 'variant-filled-success'
         });
 
         goto('/organizations');
       } else {
-        throw new Error('Failed to delete organization');
+        throw new Error('Failed to retire organization');
       }
     } catch (e) {
       console.error('Error deleting organization:', e);

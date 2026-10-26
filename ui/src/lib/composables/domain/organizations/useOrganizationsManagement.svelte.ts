@@ -99,9 +99,9 @@ export function useOrganizationsManagement(
       !organization?.status?.status_type || organization.status.status_type === 'pending';
 
     const confirmMessage = isPending
-      ? 'Are you sure you want to delete this organization?<br/>This action cannot be undone.'
+      ? 'Retire this organization?<br/>It leaves every list. Its members and its history are kept.'
       : 'Are you sure you want to archive this organization?<br/>It will be hidden but its economic history will be preserved.';
-    const confirmLabel = isPending ? 'Delete' : 'Archive';
+    const confirmLabel = isPending ? 'Retire' : 'Archive';
 
     const confirmed = await modal.confirm(confirmMessage, {
       confirmLabel,
@@ -112,9 +112,9 @@ export function useOrganizationsManagement(
 
     try {
       if (isPending) {
-        // Pending organizations: hard delete
+        // Pending organizations: retired, never tombstoned (#234)
         await runEffect(organizationsStore.deleteOrganization(organizationHash));
-        showToast('Organization deleted successfully', 'success');
+        showToast('Organization retired', 'success');
       } else {
         // Accepted/post-acceptance organizations: archive via status update
         if (!organization?.status?.original_action_hash) {
@@ -136,7 +136,7 @@ export function useOrganizationsManagement(
       await loadOrganizations(); // Refresh list
     } catch (e: unknown) {
       const errorMessage =
-        (e as Error)?.message || `Failed to ${isPending ? 'delete' : 'archive'} organization`;
+        (e as Error)?.message || `Failed to ${isPending ? 'retire' : 'archive'} organization`;
       showToast(errorMessage, 'error');
     }
   }

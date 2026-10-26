@@ -154,9 +154,9 @@
           type: 'component',
           component: confirmModalComponent,
           meta: {
-            id: 'delete-organization',
-            message: `Are you sure you want to delete the organization <b>${escapeHtml(formName)}</b>? This action cannot be undone.`,
-            confirmLabel: 'Delete',
+            id: 'retire-organization',
+            message: `Retire the organization <b>${escapeHtml(formName)}</b>? It leaves every list. Its members and its history are kept.`,
+            confirmLabel: 'Retire',
             cancelLabel: 'Cancel'
           } as ConfirmModalMeta,
           response: (r: boolean) => resolve(r)
@@ -172,7 +172,7 @@
       }
     } catch (e) {
       console.error('Error deleting organization:', e);
-      error = 'Failed to delete organization';
+      error = 'Failed to retire organization';
     } finally {
       isLoading = false;
     }
@@ -380,7 +380,7 @@
         {#if isLoading}
           <span class="loading loading-spinner loading-sm"></span>
         {/if}
-        Delete Organization
+        Retire Organization
       </button>
     {/if}
   </div>

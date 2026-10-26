@@ -53,7 +53,7 @@
   {#if error}
     <div class="alert variant-filled-error">
       <div class="alert-message">
-        <h3 class="h3">Error</h3>
+        <h2 class="h3">Error</h2>
         <p>{error}</p>
       </div>
       <div class="alert-actions">

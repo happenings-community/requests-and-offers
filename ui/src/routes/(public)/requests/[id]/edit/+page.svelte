@@ -250,7 +250,7 @@
     {#if error}
       <div class="alert variant-filled-error mb-4">
         <div class="alert-message">
-          <h3 class="h3">Error</h3>
+          <h2 class="h3">Error</h2>
           <p>{error}</p>
         </div>
         <div class="alert-actions">
@@ -266,7 +266,7 @@
     {:else if !canEdit}
       <div class="alert variant-filled-warning mb-4">
         <div class="alert-message">
-          <h3 class="h3">Access Denied</h3>
+          <h2 class="h3">Access Denied</h2>
           <p>You don't have permission to edit this request.</p>
         </div>
         <div class="alert-actions">

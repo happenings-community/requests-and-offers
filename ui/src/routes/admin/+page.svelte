@@ -260,15 +260,15 @@
   <!-- System At a Glance -->
   <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
     <div class="card variant-filled-surface p-4">
-      <h3 class="h3">{dashboardState.data.administrators.length}</h3>
+      <h2 class="h3">{dashboardState.data.administrators.length}</h2>
       <p class="text-sm text-gray-400">Administrators</p>
     </div>
     <div class="card variant-filled-surface p-4">
-      <h3 class="h3">{dashboardState.data.allUsers.length}</h3>
+      <h2 class="h3">{dashboardState.data.allUsers.length}</h2>
       <p class="text-sm text-gray-400">Total Users</p>
     </div>
     <div class="card variant-filled-surface p-4">
-      <h3 class="h3">{dashboardState.data.allOrganizations.length}</h3>
+      <h2 class="h3">{dashboardState.data.allOrganizations.length}</h2>
       <p class="text-sm text-gray-400">Total Organizations</p>
     </div>
   </div>

@@ -65,7 +65,7 @@
   {:else if management.error || management.storeError}
     <div class="alert variant-filled-error">
       <div class="alert-message">
-        <h3 class="h3">Error</h3>
+        <h2 class="h3">Error</h2>
         <p>{management.error || management.storeError}</p>
       </div>
       <div class="alert-actions">

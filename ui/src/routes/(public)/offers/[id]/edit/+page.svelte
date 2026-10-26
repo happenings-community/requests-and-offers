@@ -263,7 +263,7 @@
     {:else if !canEdit}
       <div class="alert variant-filled-warning">
         <div class="alert-message">
-          <h3 class="h3">Access Denied</h3>
+          <h2 class="h3">Access Denied</h2>
           <p>
             You don't have permission to edit this offer. Only the offer creator or organization
             coordinators can edit offers.

@@ -41,6 +41,19 @@ describe('every route', () => {
     }
     expect(offenders).toEqual([]);
   });
+  // A screen reader lists headings as an outline; a skipped level reads as a
+  // missing section. Checked within each route file, as written.
+  it('never skips a heading level', () => {
+    const offenders: string[] = [];
+    for (const file of pages) {
+      const levels = [...read(file).matchAll(/<h([1-6])[\s>]/g)].map((m) => Number(m[1]));
+      levels.forEach((level, i) => {
+        if (i > 0 && level > levels[i - 1] + 1)
+          offenders.push(`${file}: h${levels[i - 1]} to h${level}`);
+      });
+    }
+    expect(offenders).toEqual([]);
+  });
 });
 
 describe('the application shell', () => {

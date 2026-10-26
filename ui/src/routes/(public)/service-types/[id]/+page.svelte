@@ -195,7 +195,7 @@
   {#if error}
     <div class="alert variant-filled-error">
       <div class="alert-message">
-        <h3 class="h3">Error</h3>
+        <h2 class="h3">Error</h2>
         <p>{error}</p>
       </div>
       <div class="alert-actions">
@@ -228,7 +228,7 @@
 
         <!-- Classification Section -->
         <section class="mt-6 border-t border-surface-300 pt-6 dark:border-surface-600">
-          <h3 class="h4 mb-3 font-semibold">Classification</h3>
+          <h2 class="h4 mb-3 font-semibold">Classification</h2>
           <div class="flex flex-wrap gap-2">
             <span class="variant-soft-{serviceType.technical ? 'primary' : 'secondary'} badge">
               {serviceType.technical ? 'Technical' : 'Non-Technical'}
@@ -240,14 +240,14 @@
         <section class="mt-6 border-t border-surface-300 pt-6 dark:border-surface-600">
           <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
-              <h3 class="h4 mb-2 font-semibold">Status</h3>
+              <h2 class="h4 mb-2 font-semibold">Status</h2>
               <span class="chip {statusColor}">
                 {statusLabel}
               </span>
             </div>
 
             <div>
-              <h3 class="h4 mb-2 font-semibold">Created</h3>
+              <h2 class="h4 mb-2 font-semibold">Created</h2>
               <p class="text-surface-600 dark:text-surface-400">{createdAt}</p>
               {#if serviceType.creator}
                 <p class="mt-1 text-xs text-surface-500">
@@ -257,7 +257,7 @@
             </div>
 
             <div>
-              <h3 class="h4 mb-2 font-semibold">Last Updated</h3>
+              <h2 class="h4 mb-2 font-semibold">Last Updated</h2>
               <p class="text-surface-600 dark:text-surface-400">{updatedAt}</p>
             </div>
           </div>
@@ -269,12 +269,12 @@
         <div class="space-y-6">
           <!-- Related Requests -->
           <div class="card p-6">
-            <h3 class="h3 mb-4">
+            <h2 class="h3 mb-4">
               Requests Using This Service Type
               {#if !loadingRelatedContent}
                 <span class="text-sm text-surface-500">({relatedRequests.length})</span>
               {/if}
-            </h3>
+            </h2>
 
             {#if loadingRelatedContent}
               <div class="flex items-center justify-center py-8">
@@ -307,12 +307,12 @@
 
           <!-- Related Offers -->
           <div class="card p-6">
-            <h3 class="h3 mb-4">
+            <h2 class="h3 mb-4">
               Offers Using This Service Type
               {#if !loadingRelatedContent}
                 <span class="text-sm text-surface-500">({relatedOffers.length})</span>
               {/if}
-            </h3>
+            </h2>
 
             {#if loadingRelatedContent}
               <div class="flex items-center justify-center py-8">
@@ -344,7 +344,7 @@
       {:else}
         <!-- Status Information for non-approved service types -->
         <div class="card p-6">
-          <h3 class="h3 mb-4">Status Information</h3>
+          <h2 class="h3 mb-4">Status Information</h2>
           {#if serviceType.status === 'pending'}
             <div class="alert variant-soft-warning">
               <p class="font-semibold">Pending Review</p>
@@ -366,7 +366,7 @@
 
       <!-- Information Section -->
       <div class="card p-6">
-        <h3 class="h3 mb-4">About This Service Type</h3>
+        <h2 class="h3 mb-4">About This Service Type</h2>
         <div class="space-y-3 text-surface-600 dark:text-surface-400">
           <p>
             <strong>{serviceType.name}</strong>

@@ -33,7 +33,7 @@
       <div class="flex items-start gap-3">
         <i class="fa-solid fa-info-circle mt-1 text-xl text-primary-500"></i>
         <div class="space-y-2">
-          <h3 class="h4">About hREA Integration</h3>
+          <h2 class="h4">About hREA Integration</h2>
           <p class="text-surface-600-300-token text-sm">
             This interface allows you to test the integration between our Holochain application and
             the

@@ -286,7 +286,7 @@
   {#if error}
     <div class="alert variant-filled-error">
       <div class="alert-message">
-        <h3 class="h3">Error</h3>
+        <h2 class="h3">Error</h2>
         <p>{error}</p>
       </div>
       <div class="alert-actions">
@@ -322,7 +322,7 @@
 
         <!-- Service Type -->
         <section class="mb-6">
-          <h3 class="h4 mb-3 font-semibold">Service Type</h3>
+          <h2 class="h4 mb-3 font-semibold">Service Type</h2>
           {#if request.service_type_hash}
             <div class="flex flex-wrap gap-2">
               <ServiceTypeTag serviceTypeActionHash={request.service_type_hash} showLink={true} />
@@ -334,7 +334,7 @@
 
         <!-- Medium of Exchange -->
         <section class="mb-6">
-          <h3 class="h4 mb-3 font-semibold">Medium of Exchange</h3>
+          <h2 class="h4 mb-3 font-semibold">Medium of Exchange</h2>
           {#if request.medium_of_exchange_hashes && request.medium_of_exchange_hashes.length > 0}
             <div class="flex flex-wrap gap-2">
               {#each request.medium_of_exchange_hashes as mediumHash}
@@ -351,7 +351,7 @@
           <!-- Date Range -->
           {#if request.date_range}
             <div>
-              <h3 class="h4 mb-2 font-semibold">Date Range</h3>
+              <h2 class="h4 mb-2 font-semibold">Date Range</h2>
               <p>
                 {#if request.date_range.start && request.date_range.end}
                   {formatDate(new Date(request.date_range.start))} to {formatDate(
@@ -371,14 +371,14 @@
           <!-- Time Estimate -->
           {#if request.time_estimate_hours !== undefined}
             <div>
-              <h3 class="h4 mb-2 font-semibold">Time Estimate</h3>
+              <h2 class="h4 mb-2 font-semibold">Time Estimate</h2>
               <p>{request.time_estimate_hours} hours</p>
             </div>
           {/if}
 
           <!-- Time Information -->
           <div>
-            <h3 class="h4 mb-2 font-semibold">Time Information</h3>
+            <h2 class="h4 mb-2 font-semibold">Time Information</h2>
             <p><strong>Time Zone:</strong> {request.time_zone || 'Not specified'}</p>
             <p>
               <strong>Time Preference:</strong>
@@ -389,7 +389,7 @@
           <!-- Interaction Type -->
           {#if request.interaction_type}
             <div>
-              <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
+              <h2 class="h4 mb-2 font-semibold">Interaction Type</h2>
               <p>{request.interaction_type === 'Virtual' ? 'Virtual' : 'In Person'}</p>
             </div>
           {/if}
@@ -398,7 +398,7 @@
         <!-- Links -->
         {#if request.links && request.links.length > 0}
           <section class="mt-6">
-            <h3 class="h4 mb-3 font-semibold">Related Links</h3>
+            <h2 class="h4 mb-3 font-semibold">Related Links</h2>
             <ul class="list-inside list-disc space-y-1">
               {#each request.links as link}
                 <li>
@@ -415,7 +415,7 @@
         {#if request.organization}
           <!-- Organization info -->
           <div>
-            <h3 class="h4 mb-4 font-semibold">Organization</h3>
+            <h2 class="h4 mb-4 font-semibold">Organization</h2>
             <div class="flex items-center gap-2">
               {#if organization}
                 <div class="flex items-center gap-3">
@@ -475,7 +475,7 @@
         {:else}
           <!-- Creator info (only show if not an organization request) -->
           <div>
-            <h3 class="h4 mb-4 font-semibold">Creator</h3>
+            <h2 class="h4 mb-4 font-semibold">Creator</h2>
             <div class="flex items-center gap-2">
               {#if creator}
                 <a href={`/users/${encodeHashToBase64(creator.original_action_hash!)}`}>

@@ -291,7 +291,7 @@
           </div>
           <MarkdownRenderer content={organization.description} class="mt-4 text-lg" />
           <div class="mt-4 flex flex-col gap-2">
-            <h3 class="h3 text-wrap">
+            <h2 class="h3 text-wrap">
               <b>Status :</b>
               <span
                 class:text-primary-500={organization.status?.status_type === 'pending'}
@@ -303,7 +303,7 @@
               >
                 {organization.status?.status_type || 'pending'}
               </span>
-            </h3>
+            </h2>
             {#if organization?.status?.status_type && organization.status.status_type.startsWith('suspended')}
               <p class="text-wrap"><b>Reason :</b> {organization.status.reason}</p>
               {#if organization.status.suspended_until}
@@ -323,7 +323,7 @@
       <!-- Organization Details -->
       <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <div class="card p-4">
-          <h3 class="h3 mb-2">Contact</h3>
+          <h2 class="h3 mb-2">Contact</h2>
           {#if organization.contact}
             <p>
               <strong>Contact Person:</strong>
@@ -340,7 +340,7 @@
           <p><strong>Location:</strong> {organization.location}</p>
         </div>
         <div class="card p-4">
-          <h3 class="h3 mb-2">Links</h3>
+          <h2 class="h3 mb-2">Links</h2>
           <ul class="list-inside list-disc">
             {#each organization.urls as url}
               <li>
@@ -444,7 +444,7 @@
               class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
             >
               <div class="mb-4 flex items-center justify-between">
-                <h3 class="h3">Organization Requests</h3>
+                <h2 class="h3">Organization Requests</h2>
                 {#if (agentIsCoordinator || agentIsMember) && organization?.status?.status_type === 'accepted'}
                   <a
                     href={`/requests/create?organization=${page.params.id}`}
@@ -484,7 +484,7 @@
               class="bg-surface-100-800-token/90 card p-4 backdrop-blur-lg rounded-container-token"
             >
               <div class="mb-4 flex items-center justify-between">
-                <h3 class="h3">Organization Offers</h3>
+                <h2 class="h3">Organization Offers</h2>
                 {#if (agentIsCoordinator || agentIsMember) && organization?.status?.status_type === 'accepted'}
                   <a
                     href={`/offers/create?organization=${page.params.id}`}

@@ -206,24 +206,31 @@ pub fn check_membership_act(
   })
 }
 
-/// The tag of a `MembershipEnds` link: the member's user hash, then one byte
-/// for the role ended. Readers learn whose membership ended without fetching
-/// the entry; validation checks the tag against the entry.
-pub fn membership_end_tag(user: &ActionHash, coordinator: bool) -> LinkTag {
-  let mut bytes = user.get_raw_39().to_vec();
-  bytes.push(u8::from(coordinator));
-  LinkTag::new(bytes)
+/// The most links one membership end may name: a member link, a coordinator
+/// link and the user's link to the organisation, with room for one more.
+pub const MAX_ENDED_LINKS: usize = 4;
+
+/// The tag of a `MembershipEnds` link: the hashes of the links the end closes,
+/// one after another. Readers learn which links are closed without fetching
+/// the entry; validation checks the tag against the entry (#234). An end names
+/// links, not a time, so no clock decides whether a membership stands.
+pub fn membership_end_tag(links: &[ActionHash]) -> LinkTag {
+  LinkTag::new(links.iter().flat_map(|link| link.get_raw_39().to_vec()).collect::<Vec<u8>>())
 }
 
-/// The user and role a `MembershipEnds` tag names.
-pub fn membership_end_from_tag(tag: &LinkTag) -> Result<(ActionHash, bool), String> {
+/// The links a `MembershipEnds` tag names.
+pub fn membership_end_from_tag(tag: &LinkTag) -> Result<Vec<ActionHash>, String> {
   let bytes = &tag.0;
-  if bytes.len() != 40 || bytes[39] > 1 {
-    return Err("a membership end's tag is a user hash and a role byte".to_string());
+  let count = bytes.len() / 39;
+  if bytes.is_empty() || !bytes.len().is_multiple_of(39) || count > MAX_ENDED_LINKS {
+    return Err(format!("a membership end's tag names 1 to {} link hashes", MAX_ENDED_LINKS));
   }
-  let user = ActionHash::try_from_raw_39(bytes[..39].to_vec())
-    .map_err(|_| "a membership end's tag is a user hash and a role byte".to_string())?;
-  Ok((user, bytes[39] == 1))
+  bytes
+    .chunks(39)
+    .map(|chunk| {
+      ActionHash::try_from_raw_39(chunk.to_vec()).map_err(|_| "a membership end's tag names link hashes".to_string())
+    })
+    .collect()
 }
 
 /// What one end of a link must be.
@@ -504,15 +511,12 @@ mod tests {
 
   #[test]
   fn a_membership_end_tag_round_trips() {
-    let user = ActionHash::from_raw_36(vec![7; 36]);
-    for coordinator in [false, true] {
-      let tag = membership_end_tag(&user, coordinator);
-      assert_eq!(membership_end_from_tag(&tag), Ok((user.clone(), coordinator)));
-    }
-    assert!(membership_end_from_tag(&LinkTag::new(vec![1; 39])).is_err());
-    let mut bad_role = membership_end_tag(&user, true).0;
-    bad_role[39] = 2;
-    assert!(membership_end_from_tag(&LinkTag::new(bad_role)).is_err());
+    let links: Vec<ActionHash> = (1..=3).map(|b| ActionHash::from_raw_36(vec![b; 36])).collect();
+    assert_eq!(membership_end_from_tag(&membership_end_tag(&links)), Ok(links.clone()));
+    assert!(membership_end_from_tag(&LinkTag::new(vec![])).is_err());
+    assert!(membership_end_from_tag(&LinkTag::new(vec![1; 40])).is_err());
+    let five: Vec<ActionHash> = (1..=5).map(|b| ActionHash::from_raw_36(vec![b; 36])).collect();
+    assert!(membership_end_from_tag(&membership_end_tag(&five)).is_err());
   }
 
   #[test]

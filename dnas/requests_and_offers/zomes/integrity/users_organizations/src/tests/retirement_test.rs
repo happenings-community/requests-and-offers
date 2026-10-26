@@ -25,7 +25,7 @@ fn a_membership_end_is_never_edited() {
   let end = MembershipEnd {
     organization: ActionHash::from_raw_36(vec![1; 36]),
     user: ActionHash::from_raw_36(vec![2; 36]),
-    coordinator: false,
+    links: vec![ActionHash::from_raw_36(vec![5; 36])],
     grant: None,
   };
   let author = AgentPubKey::from_raw_36(vec![3; 36]);

@@ -181,11 +181,13 @@ pub fn validate_delete_link_organization_updates(
   )))
 }
 
-/// The end of someone's membership of an organisation, or of their
-/// coordinator role in it (#234). Membership links are an index and are never
-/// tombstoned; this entry is how a member leaves or is removed. Written by the
-/// member themselves (no grant), or by a coordinator or administrator carrying
-/// their grant. Never edited and never tombstoned.
+/// The end of someone's place in an organisation (#234). Membership links are
+/// an index and are never tombstoned; this entry closes the links it names:
+/// the member link and the user's link to the organisation when a member
+/// leaves or is removed, the coordinator link when the role ends. Written by
+/// the member themselves (no grant), or by a coordinator or administrator
+/// carrying their grant. Never edited and never tombstoned. Because it names
+/// the links, not a time, a member who rejoins has new links nothing names.
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct MembershipEnd {
@@ -193,10 +195,35 @@ pub struct MembershipEnd {
   pub organization: ActionHash,
   /// The member's original user record.
   pub user: ActionHash,
-  /// `true` ends the coordinator role only; `false` ends the membership,
-  /// and with it any coordinator role.
-  pub coordinator: bool,
+  /// The links closed: `OrganizationMembers` or `OrganizationCoordinators`
+  /// from the organisation to the user, or `UserOrganizations` back.
+  pub links: Vec<ActionHash>,
   pub grant: Option<ActionHash>,
+}
+
+/// Whether a named link is a membership link between this organisation and
+/// this user, written in this zome.
+fn closes(link: &ActionHash, organization: &ActionHash, user: &ActionHash) -> ExternResult<Result<(), String>> {
+  let action = must_get_action(link.clone())?;
+  let ActionData::CreateLink(create) = &action.action().data else {
+    return Ok(Err("a membership end names membership links".to_string()));
+  };
+  if create.zome_index != zome_info()?.id {
+    return Ok(Err("a membership end names membership links".to_string()));
+  }
+  let organization = AnyLinkableHash::from(organization.clone());
+  let user = AnyLinkableHash::from(user.clone());
+  let kind = create.link_type.0;
+  let from_organization = kind == crate::LinkTypes::OrganizationMembers as u8
+    || kind == crate::LinkTypes::OrganizationCoordinators as u8;
+  let fits = if from_organization {
+    create.base_address == organization && create.target_address == user
+  } else if kind == crate::LinkTypes::UserOrganizations as u8 {
+    create.base_address == user && create.target_address == organization
+  } else {
+    return Ok(Err("a membership end names membership links".to_string()));
+  };
+  Ok(if fits { Ok(()) } else { Err("a membership end names links between its organisation and its member".to_string()) })
 }
 
 pub fn validate_membership_end(
@@ -221,6 +248,22 @@ pub fn validate_membership_end(
         "a membership end names the original record of the {}",
         kind.name
       )));
+    }
+  }
+  let mut seen = Vec::new();
+  if end.links.is_empty() || end.links.len() > utils::links::MAX_ENDED_LINKS {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "a membership end names 1 to {} links",
+      utils::links::MAX_ENDED_LINKS
+    )));
+  }
+  for link in &end.links {
+    if seen.contains(link) {
+      return Ok(ValidateCallbackResult::Invalid("a membership end names each link once".to_string()));
+    }
+    seen.push(link.clone());
+    if let Err(reason) = closes(link, &end.organization, &end.user)? {
+      return Ok(ValidateCallbackResult::Invalid(reason));
     }
   }
   Ok(

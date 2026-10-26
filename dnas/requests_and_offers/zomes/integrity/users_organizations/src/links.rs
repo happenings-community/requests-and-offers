@@ -178,7 +178,7 @@ fn validate_user_organizations_link(
 }
 
 /// A link from an organisation to a membership end: the general rule, the end
-/// names this organisation, and the tag names the end's member and role.
+/// names this organisation, and the tag names exactly the links the end closes.
 fn validate_membership_end_link(
   author: &AgentPubKey,
   base: &AnyLinkableHash,
@@ -188,7 +188,7 @@ fn validate_membership_end_link(
   let Some(spec) = spec(&LinkTypes::MembershipEnds) else {
     return Ok(ValidateCallbackResult::Valid);
   };
-  let (user, coordinator) = match membership_end_from_tag(tag) {
+  let named = match membership_end_from_tag(tag) {
     Ok(named) => named,
     Err(reason) => return Ok(verdict(Err(reason), spec.name)),
   };
@@ -204,11 +204,9 @@ fn validate_membership_end_link(
     Ok(Some(end)) => end,
     _ => return Ok(verdict(Err("the membership end could not be read".into()), spec.name)),
   };
-  let matches = base.clone().into_action_hash() == Some(end.organization)
-    && end.user == user
-    && end.coordinator == coordinator;
+  let matches = base.clone().into_action_hash() == Some(end.organization) && end.links == named;
   Ok(verdict(
-    if matches { Ok(()) } else { Err("the link must name the end's organisation, member and role".into()) },
+    if matches { Ok(()) } else { Err("the link must name the end's organisation and the links it closes".into()) },
     spec.name,
   ))
 }

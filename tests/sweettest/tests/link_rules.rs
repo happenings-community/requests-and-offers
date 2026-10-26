@@ -208,7 +208,7 @@ const ORGANIZATION_RETIREMENT: u8 = 2;
 struct MembershipEnd {
     organization: ActionHash,
     user: ActionHash,
-    coordinator: bool,
+    links: Vec<ActionHash>,
     grant: Option<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(MembershipEnd);
@@ -736,8 +736,13 @@ async fn a_membership_link_is_never_tombstoned() {
 /// member grant, and a link from Alice's profile to an organisation, with no
 /// grant: both refused. Alice is still a member.
 ///
+/// Mallory then forges an end of her own place that names Alice's member
+/// link: refused, because an end names only links between its organisation
+/// and its member.
+///
 /// Red: in `utils/src/links.rs`, return `Ok(Ok(()))` from
-/// `check_membership_act` without checking the grant.
+/// `check_membership_act` without checking the grant. (The misnamed end goes
+/// red separately when `closes` in `organization.rs` returns `Ok(())`.)
 #[tokio::test(flavor = "multi_thread")]
 async fn ending_someone_elses_membership_needs_a_grant() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
@@ -747,6 +752,15 @@ async fn ending_someone_elses_membership_needs_a_grant() {
     let index = zome_index(&conductors[1], &mallory, "users_organizations_integrity").await;
 
     let member = role_grant(&conductors[1], &mallory, "member").await;
+    let alices_links: Vec<Link> = conductors[1]
+        .call(&mallory.zome("users_organizations"), "get_organization_members_links", alices.clone())
+        .await;
+    let alices_link = alices_links
+        .iter()
+        .find(|l| l.target.clone().into_action_hash() == Some(users[0].clone()))
+        .expect("Alice's member link")
+        .create_link_hash
+        .clone();
     let forged_end = forge_entry(
         &conductors[1],
         &mallory,
@@ -755,12 +769,29 @@ async fn ending_someone_elses_membership_needs_a_grant() {
         MembershipEnd {
             organization: alices.clone(),
             user: users[0].clone(),
-            coordinator: false,
+            links: vec![alices_link.clone()],
             grant: Some(member),
         },
     )
     .await;
     refused(&forged_end, "only the member, or a coordinator", "an end of Alice's membership by Mallory");
+
+    // Her own place is hers to end, but an end names only links between the
+    // organisation and its member: naming Alice's link as her own is refused.
+    let misnamed = forge_entry(
+        &conductors[1],
+        &mallory,
+        index,
+        MEMBERSHIP_END,
+        MembershipEnd {
+            organization: alices.clone(),
+            user: users[1].clone(),
+            links: vec![alices_link],
+            grant: None,
+        },
+    )
+    .await;
+    refused(&misnamed, "names links between its organisation and its member", "an end of Mallory's naming Alice's link");
 
     let forged_link = forge_link(
         &conductors[1],
@@ -775,4 +806,61 @@ async fn ending_someone_elses_membership_needs_a_grant() {
     refused(&forged_link, "only the member, or a coordinator", "a link from Alice's profile written by Mallory");
 
     assert!(membership(&conductors[0], alice, &alices, &users[0]).await, "Alice is still a member");
+}
+
+async fn coordination(conductor: &SweetConductor, cell: &SweetCell, organization: &ActionHash, user: &ActionHash) -> bool {
+    conductor
+        .call(
+            &cell.zome("users_organizations"),
+            "is_organization_coordinator",
+            serde_json::json!({
+                "organization_original_action_hash": organization,
+                "user_original_action_hash": user,
+            }),
+        )
+        .await
+}
+
+/// A coordinator who is not the last may leave (from Aria's read of the
+/// stack: no test ran this path). Alice makes Mallory a member and then a
+/// coordinator; Mallory leaves through the app. Her role ends first, with her
+/// own coordinator grant on the role's end and the grant revoked, then her
+/// membership; Alice is still the organisation's coordinator, and Mallory
+/// holds no live coordinator grant. This also shows a holder may revoke their
+/// own role, which Aria had not read.
+///
+/// Red: in `leave_organization`, skip `remove_organization_coordinator`. Her
+/// coordinator link is then never closed and she still reads as coordinator.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_coordinator_who_is_not_the_last_can_leave() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let alices = approved_organization(&conductors, 0, alice, alice, "Alice's", &[alice, &mallory]).await;
+    let pair = serde_json::json!({
+        "organization_original_action_hash": alices,
+        "user_original_action_hash": users[1],
+    });
+    let _: bool = conductors[0]
+        .call(&alice.zome("users_organizations"), "add_coordinator_to_organization", pair)
+        .await;
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+    assert!(coordination(&conductors[1], &mallory, &alices, &users[1]).await, "Mallory is a coordinator");
+
+    let _: bool = conductors[1]
+        .call(&mallory.zome("users_organizations"), "leave_organization", alices.clone())
+        .await;
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+
+    assert!(!coordination(&conductors[0], alice, &alices, &users[1]).await, "Mallory's role has ended");
+    assert!(!membership(&conductors[0], alice, &alices, &users[1]).await, "Mallory has left");
+    assert!(coordination(&conductors[0], alice, &alices, &users[0]).await, "Alice is still a coordinator");
+    let live: Vec<Record> = conductors[0]
+        .call(&alice.zome("administration"), "get_agent_grants", mallory.agent_pubkey().clone())
+        .await;
+    let still_coordinates = live.iter().any(|r| {
+        let grant: RoleGrant = r.entry().to_app_option().unwrap().expect("a grant entry");
+        grant.role == "org_coordinator"
+    });
+    assert!(!still_coordinates, "Mallory's coordinator grant was revoked when she left");
 }

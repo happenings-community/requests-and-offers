@@ -142,7 +142,7 @@ pub fn remove_organization_member(input: OrganizationUserInput) -> ExternResult<
 ```
 
 - Needs a `Coordinate` grant for the organisation, and refuses a coordinator (remove the role first) or the last member
-- Writes a `MembershipEnd` carrying the grant; membership links are never tombstoned (#234)
+- Writes a `MembershipEnd` naming the member's member link and user link, carrying the grant; membership links are never tombstoned (#234)
 - Removes the contact link if the removed member is the contact person
 - Returns the end's hash
 
@@ -209,7 +209,7 @@ pub fn remove_organization_coordinator(input: OrganizationUserInput) -> ExternRe
 ```
 
 - Needs a `Coordinate` grant for the organisation, and refuses to remove the last coordinator
-- Revokes the coordinator's grant, and writes a `MembershipEnd` for the role, carrying the caller's grant; they stay a member
+- Revokes the coordinator's grant, and writes a `MembershipEnd` naming their coordinator link, carrying the caller's grant; they stay a member
 - Returns success boolean
 
 #### Query Functions
@@ -306,10 +306,11 @@ Contact links are automatically cleaned up in:
 #### Membership ends (#234)
 
 Membership, coordinator and user-to-organisation links are an index, and nothing tombstones them: a tombstone carries no grant, so validation could not tell a coordinator from a stranger.
-- **Ending one** writes `MembershipEnd { organization, user, coordinator, grant }`, linked from the organisation by `MembershipEnds`. The link's tag names the member and the role, so readers need not fetch the entry; validation checks the tag against it.
+- **Ending one** writes `MembershipEnd { organization, user, links, grant }`, naming the links it closes, linked from the organisation by `MembershipEnds`. The link's tag carries those link hashes, so readers need not fetch the entry; validation checks the tag against it.
+- **What an end may name:** one to four links, each an `OrganizationMembers` or `OrganizationCoordinators` link from this organisation to this member, or the member's `UserOrganizations` link to it.
 - **Who may:** the member themselves, with no grant; or a coordinator or administrator, whose `Coordinate` or `ChangeStatus` grant the end carries.
-- **Reading:** `get_organization_members_links`, `get_organization_coordinators_links` and `get_user_organizations_links` leave out any membership ended after its link was written, so every caller follows. Ending a membership ends the coordinator role; ending the role leaves the membership.
-- **Rejoining** writes new links, newer than the end, so the member reads as one again.
+- **Reading:** `get_organization_members_links`, `get_organization_coordinators_links` and `get_user_organizations_links` leave out every link an end names, so every caller follows. Leaving closes the coordinator link (through `remove_organization_coordinator`, which also revokes the grant), then the member and user links; removing the role closes only the coordinator link.
+- **Rejoining** writes new links, which nothing names, so the member reads as one again. No timestamp is compared anywhere.
 - **Writing a link for someone else** carries the writer's grant in the tag; a user's own link to an organisation needs none.
 - **One limit, unchanged:** a listing posted for an organisation proves membership by naming a member link, and validation cannot see a later end, as it cannot see a revoked grant.
 

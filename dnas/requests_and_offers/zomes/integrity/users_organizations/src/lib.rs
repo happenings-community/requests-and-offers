@@ -41,7 +41,7 @@ pub enum LinkTypes {
   /// the indexes above stay as other zomes read them.
   OrganizationRetirements,
   /// From an organisation to each membership end in it; the tag names the
-  /// member and the role (#234).
+  /// links the end closes (#234).
   MembershipEnds,
 }
 

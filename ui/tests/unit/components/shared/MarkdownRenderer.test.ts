@@ -144,18 +144,15 @@ describe('MarkdownRenderer Component Logic', () => {
       expect(anchor.getAttribute('rel')).toBe('noopener noreferrer');
     });
 
-    it.each([
-      '[req](/requests/abc)',
-      '[top](#top)',
-      '[next](?page=2)',
-      '[rel](./x)',
-      '[rel](requests/abc)'
-    ])('keeps the in-app link %s routing inside the app', (markdown) => {
-      const anchor = anchorOf(markdown);
-      const href = /\(([^)]*)\)/.exec(markdown)?.[1];
-      expect(anchor.getAttribute('href')).toBe(href);
-      expect(anchor.hasAttribute('target')).toBe(false);
-    });
+    it.each(['[req](/requests/abc)', '[top](#top)', '[next](?page=2)', '[rel](./x)'])(
+      'keeps the in-app link %s routing inside the app',
+      (markdown) => {
+        const anchor = anchorOf(markdown);
+        const href = /\(([^)]*)\)/.exec(markdown)?.[1];
+        expect(anchor.getAttribute('href')).toBe(href);
+        expect(anchor.hasAttribute('target')).toBe(false);
+      }
+    );
 
     it.each(['[mail](mailto:someone@example.com)', '[call](tel:+15145550000)'])(
       'keeps %s as it was written',
@@ -179,7 +176,11 @@ describe('MarkdownRenderer Component Logic', () => {
       '<a href="java\tscript:alert(1)">x</a>',
       '<a href="vbscript:msgbox(1)">x</a>',
       '<a href="file:///etc/passwd">x</a>',
-      '[app](webhapp://webhappwindow/x)'
+      '[app](webhapp://webhappwindow/x)',
+      '[a](example.org?ref=ro)',
+      '[a](www.example.org#top)',
+      '[a](localhost)',
+      '[rel](requests/abc)'
     ])('shows %s as text with no href', (markdown) => {
       const anchor = anchorOf(markdown);
       expect(anchor.hasAttribute('href')).toBe(false);
@@ -194,11 +195,12 @@ describe('MarkdownRenderer Component Logic', () => {
       '<svg><a href="example.org"><text>click</text></a></svg>',
       '<math><mi href="//evil.example">x</mi></math>',
       '<img src="/x.png" usemap="#m"><map name="m"><area shape="default" href="//evil.example"></map>',
-      '<form action="//evil.example"><button>go</button></form>'
+      '<form action="//evil.example"><button>go</button></form>',
+      '<button>go</button><input type="image" src="/x.png">'
     ])('leaves nothing in %s that can navigate', (markdown) => {
       const container = document.createElement('div');
       container.innerHTML = renderMarkdown(markdown);
-      expect(container.querySelector('svg, math, area, map, form')).toBeNull();
+      expect(container.querySelector('svg, math, area, map, form, button, input')).toBeNull();
       expect(container.querySelector('[href], [xlink\\:href], [action]')).toBeNull();
     });
 

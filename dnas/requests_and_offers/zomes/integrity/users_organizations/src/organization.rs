@@ -180,3 +180,53 @@ pub fn validate_delete_link_organization_updates(
     "OrganizationUpdates links cannot be deleted",
   )))
 }
+
+/// The end of someone's membership of an organisation, or of their
+/// coordinator role in it (#234). Membership links are an index and are never
+/// tombstoned; this entry is how a member leaves or is removed. Written by the
+/// member themselves (no grant), or by a coordinator or administrator carrying
+/// their grant. Never edited and never tombstoned.
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct MembershipEnd {
+  /// The organisation's original record.
+  pub organization: ActionHash,
+  /// The member's original user record.
+  pub user: ActionHash,
+  /// `true` ends the coordinator role only; `false` ends the membership,
+  /// and with it any coordinator role.
+  pub coordinator: bool,
+  pub grant: Option<ActionHash>,
+}
+
+pub fn validate_membership_end(
+  end: MembershipEnd,
+  author: &AgentPubKey,
+  update_of: Option<&ActionHash>,
+) -> ExternResult<ValidateCallbackResult> {
+  if update_of.is_some() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "a membership end is a record and is never edited".to_string(),
+    ));
+  }
+  for (hash, kind) in [
+    (&end.organization, &utils::links::ORGANIZATION),
+    (&end.user, &utils::links::USER),
+  ] {
+    let action = must_get_action(hash.clone())?;
+    if !matches!(action.action().data, ActionData::Create(_))
+      || !utils::links::writes(action.action(), kind)?
+    {
+      return Ok(ValidateCallbackResult::Invalid(format!(
+        "a membership end names the original record of the {}",
+        kind.name
+      )));
+    }
+  }
+  Ok(
+    match utils::links::check_membership_act(&end.organization, &end.user, &end.grant, author)? {
+      Ok(()) => ValidateCallbackResult::Valid,
+      Err(reason) => ValidateCallbackResult::Invalid(reason),
+    },
+  )
+}

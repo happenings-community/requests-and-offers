@@ -16,6 +16,7 @@ pub enum EntryTypes {
   User(User),
   Organization(Organization),
   OrganizationRetirement(OrganizationRetirement),
+  MembershipEnd(MembershipEnd),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -39,6 +40,9 @@ pub enum LinkTypes {
   /// From an organisation to the entry that retired it (#234). Appended, so
   /// the indexes above stay as other zomes read them.
   OrganizationRetirements,
+  /// From an organisation to each membership end in it; the tag names the
+  /// member and the role (#234).
+  MembershipEnds,
 }
 
 #[hdk_extern]
@@ -66,6 +70,7 @@ fn validate_entry(
     EntryTypes::OrganizationRetirement(retirement) => {
       validate_organization_retirement(retirement, author, update_of)
     }
+    EntryTypes::MembershipEnd(end) => validate_membership_end(end, author, update_of),
   }
 }
 
@@ -165,13 +170,23 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
               "an organisation is never tombstoned; a coordinator or an administrator retires it",
             )))
           }
+          EntryTypes::MembershipEnd(_) => {
+            return Ok(ValidateCallbackResult::Invalid(String::from(
+              "a membership end is a record and is never tombstoned",
+            )))
+          }
         }
       }
       _ => (),
     },
     // The entry op of the same tombstone, refused for the same reason.
     FlatOp::Delete(OpDelete { action }) => {
-      for kind in [&utils::links::USER, &utils::links::ORGANIZATION, &utils::links::ORGANIZATION_RETIREMENT] {
+      for kind in [
+        &utils::links::USER,
+        &utils::links::ORGANIZATION,
+        &utils::links::ORGANIZATION_RETIREMENT,
+        &utils::links::MEMBERSHIP_END,
+      ] {
         if let ValidateCallbackResult::Invalid(reason) =
           utils::links::refuse_tombstone(&action.deletes_address, kind)?
         {
@@ -247,6 +262,13 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           original_action.target_address.clone(),
           original_action.tag.clone(),
         );
+      }
+      // Membership is ended by a `MembershipEnd`, never by tombstoning the
+      // index (#234): a tombstone carries no grant to say who may.
+      LinkTypes::OrganizationMembers | LinkTypes::OrganizationCoordinators => {
+        return Ok(ValidateCallbackResult::Invalid(String::from(
+          "a membership link is never tombstoned; a membership end records who left or was removed",
+        )));
       }
       other => {
         return Ok(links::validate_delete_link(&other, original_action.author(), action.author()));

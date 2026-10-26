@@ -52,6 +52,8 @@ pub const ORGANIZATION: EntryKind = EntryKind { zome: USERS_ORGANIZATIONS_ZOME, 
 pub const STATUS: EntryKind = EntryKind { zome: ADMINISTRATION_ZOME, index: 0, name: "status" };
 pub const ORGANIZATION_RETIREMENT: EntryKind =
   EntryKind { zome: USERS_ORGANIZATIONS_ZOME, index: 2, name: "organisation retirement" };
+pub const MEMBERSHIP_END: EntryKind =
+  EntryKind { zome: USERS_ORGANIZATIONS_ZOME, index: 3, name: "membership end" };
 pub const SERVICE_TYPE_STATUS: EntryKind =
   EntryKind { zome: SERVICE_TYPES_INTEGRITY_ZOME, index: 1, name: "service type status" };
 pub const MEDIUM_OF_EXCHANGE_STATUS: EntryKind =
@@ -172,6 +174,56 @@ pub fn check_organization_retirement(
       reason
     )),
   })
+}
+
+/// Whether `author` may act on someone's place in an organisation: the member
+/// themselves (the creator of the user record), or the holder of a grant that
+/// covers `Coordinate` for that organisation (its coordinators, an
+/// administrator) or `ChangeStatus` (an administrator or steward, as when an
+/// approval makes the creator a member). The same rule the grants stack gives
+/// the member and coordinator links.
+pub fn check_membership_act(
+  organization: &ActionHash,
+  user: &ActionHash,
+  grant: &Option<ActionHash>,
+  author: &AgentPubKey,
+) -> ExternResult<Result<(), String>> {
+  match crate::grants::creator_of(user)? {
+    Ok(creator) if &creator == author => return Ok(Ok(())),
+    Ok(_) => {}
+    Err(reason) => return Ok(Err(reason)),
+  }
+  let as_coordinator = check_act(grant, author, &Ability::Coordinate, &Some(organization.clone()))?;
+  if as_coordinator.is_ok() {
+    return Ok(Ok(()));
+  }
+  Ok(match check_act(grant, author, &Ability::ChangeStatus, &None)? {
+    Ok(_) => Ok(()),
+    Err(_) => Err(format!(
+      "only the member, or a coordinator or administrator with a grant, acts on a membership: {}",
+      as_coordinator.err().unwrap_or_default()
+    )),
+  })
+}
+
+/// The tag of a `MembershipEnds` link: the member's user hash, then one byte
+/// for the role ended. Readers learn whose membership ended without fetching
+/// the entry; validation checks the tag against the entry.
+pub fn membership_end_tag(user: &ActionHash, coordinator: bool) -> LinkTag {
+  let mut bytes = user.get_raw_39().to_vec();
+  bytes.push(u8::from(coordinator));
+  LinkTag::new(bytes)
+}
+
+/// The user and role a `MembershipEnds` tag names.
+pub fn membership_end_from_tag(tag: &LinkTag) -> Result<(ActionHash, bool), String> {
+  let bytes = &tag.0;
+  if bytes.len() != 40 || bytes[39] > 1 {
+    return Err("a membership end's tag is a user hash and a role byte".to_string());
+  }
+  let user = ActionHash::try_from_raw_39(bytes[..39].to_vec())
+    .map_err(|_| "a membership end's tag is a user hash and a role byte".to_string())?;
+  Ok((user, bytes[39] == 1))
 }
 
 /// What one end of a link must be.
@@ -448,6 +500,19 @@ mod tests {
     }
     assert!(catalogue_state_from_tag(&catalogue_state_tag(&CatalogueState::Pending)).is_err());
     assert!(catalogue_state_from_tag(&LinkTag::new(vec![])).is_err());
+  }
+
+  #[test]
+  fn a_membership_end_tag_round_trips() {
+    let user = ActionHash::from_raw_36(vec![7; 36]);
+    for coordinator in [false, true] {
+      let tag = membership_end_tag(&user, coordinator);
+      assert_eq!(membership_end_from_tag(&tag), Ok((user.clone(), coordinator)));
+    }
+    assert!(membership_end_from_tag(&LinkTag::new(vec![1; 39])).is_err());
+    let mut bad_role = membership_end_tag(&user, true).0;
+    bad_role[39] = 2;
+    assert!(membership_end_from_tag(&LinkTag::new(bad_role)).is_err());
   }
 
   #[test]

@@ -203,11 +203,25 @@ holochain_serialized_bytes::holochain_serial!(OrganizationRetirement);
 /// `OrganizationRetirement` is the third entry type of `users_organizations_integrity`.
 const ORGANIZATION_RETIREMENT: u8 = 2;
 
+/// Mirror of `MembershipEnd` in `users_organizations_integrity`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MembershipEnd {
+    organization: ActionHash,
+    user: ActionHash,
+    coordinator: bool,
+    grant: Option<ActionHash>,
+}
+holochain_serialized_bytes::holochain_serial!(MembershipEnd);
+
+/// `MembershipEnd` is the fourth entry type of `users_organizations_integrity`.
+const MEMBERSHIP_END: u8 = 3;
+
 // ── Link type indexes, from the integrity zomes' enums ──────────────────────
 
 /// `users_organizations_integrity::LinkTypes`.
 const ALL_USERS: u8 = 1;
 const MY_USER: u8 = 2;
+const USER_ORGANIZATIONS: u8 = 5;
 /// `offers_integrity::LinkTypes`.
 const ALL_OFFERS: u8 = 1;
 /// `service_types_integrity::LinkTypes`.
@@ -648,4 +662,117 @@ async fn retiring_an_organisation_needs_a_grant_for_it() {
         .call(&mallory.zome("users_organizations"), "get_latest_organization_record", alices)
         .await;
     assert!(alices_still.is_some(), "Alice's organisation is untouched");
+}
+
+async fn membership(conductor: &SweetConductor, cell: &SweetCell, organization: &ActionHash, user: &ActionHash) -> bool {
+    conductor
+        .call(
+            &cell.zome("users_organizations"),
+            "is_organization_member",
+            serde_json::json!({
+                "organization_original_action_hash": organization,
+                "user_original_action_hash": user,
+            }),
+        )
+        .await
+}
+
+/// A membership link is an index, never tombstoned: a tombstone carries no
+/// grant, so validation could not tell a coordinator from a stranger. Alice
+/// adds Mallory to her organisation; Mallory tries to tombstone the member
+/// link Alice wrote, and refused. She leaves through the app instead: she is
+/// no longer a member, and the link is still there. Alice adds her again and
+/// she reads as a member: the new link is newer than the end.
+///
+/// Red: in `users_organizations_integrity/src/lib.rs`, route
+/// `OrganizationMembers` tombstones to `links::validate_delete_link` again.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_membership_link_is_never_tombstoned() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let alices = approved_organization(&conductors, 0, alice, alice, "Alice's", &[alice, &mallory]).await;
+    let pair = serde_json::json!({
+        "organization_original_action_hash": alices,
+        "user_original_action_hash": users[1],
+    });
+    let _: bool = conductors[0]
+        .call(&alice.zome("users_organizations"), "add_member_to_organization", pair.clone())
+        .await;
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+
+    let links: Vec<Link> = conductors[1]
+        .call(&mallory.zome("users_organizations"), "get_organization_members_links", alices.clone())
+        .await;
+    let hers = links
+        .iter()
+        .find(|l| l.target.clone().into_action_hash() == Some(users[1].clone()))
+        .expect("Mallory's member link")
+        .create_link_hash
+        .clone();
+    let tombstone = reason(
+        conductors[1]
+            .call_fallible::<_, ActionHash>(&mallory.zome("forge"), "forge_delete_link", hers)
+            .await,
+    );
+    refused(&tombstone, "never tombstoned", "a tombstone of a member link");
+
+    let _: bool = conductors[1]
+        .call(&mallory.zome("users_organizations"), "leave_organization", alices.clone())
+        .await;
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+    assert!(!membership(&conductors[0], alice, &alices, &users[1]).await, "Mallory has left");
+
+    let _: bool = conductors[0]
+        .call(&alice.zome("users_organizations"), "add_member_to_organization", pair)
+        .await;
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+    assert!(membership(&conductors[0], alice, &alices, &users[1]).await, "Mallory rejoined");
+}
+
+/// Ending someone else's membership, or writing their link to an
+/// organisation, is a role act. Mallory is an accepted member with no role in
+/// Alice's organisation. She forges an end of Alice's membership carrying her
+/// member grant, and a link from Alice's profile to an organisation, with no
+/// grant: both refused. Alice is still a member.
+///
+/// Red: in `utils/src/links.rs`, return `Ok(Ok(()))` from
+/// `check_membership_act` without checking the grant.
+#[tokio::test(flavor = "multi_thread")]
+async fn ending_someone_elses_membership_needs_a_grant() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let alices = approved_organization(&conductors, 0, alice, alice, "Alice's", &[alice, &mallory]).await;
+    let index = zome_index(&conductors[1], &mallory, "users_organizations_integrity").await;
+
+    let member = role_grant(&conductors[1], &mallory, "member").await;
+    let forged_end = forge_entry(
+        &conductors[1],
+        &mallory,
+        index,
+        MEMBERSHIP_END,
+        MembershipEnd {
+            organization: alices.clone(),
+            user: users[0].clone(),
+            coordinator: false,
+            grant: Some(member),
+        },
+    )
+    .await;
+    refused(&forged_end, "only the member, or a coordinator", "an end of Alice's membership by Mallory");
+
+    let forged_link = forge_link(
+        &conductors[1],
+        &mallory,
+        users[0].clone().into(),
+        alices.clone().into(),
+        index,
+        USER_ORGANIZATIONS,
+        vec![],
+    )
+    .await;
+    refused(&forged_link, "only the member, or a coordinator", "a link from Alice's profile written by Mallory");
+
+    assert!(membership(&conductors[0], alice, &alices, &users[0]).await, "Alice is still a member");
 }

@@ -28,16 +28,15 @@ const trimControls = (value: string): string => {
 // `#x`, `?q`, `./x`, `../x` and `/path`, but not `//host` or `/\host`, which leave the app.
 const IN_APP = /^(?:[#?]|\.{1,2}\/|\/(?![/\\]))/;
 const MAIL_OR_PHONE = /^(?:mailto|tel):/i;
-// Anything before a `:` that comes ahead of the first `/`, `?` or `#` is a scheme.
-const HAS_SCHEME = /^[^/?#]*:/;
-const isRelativePath = (href: string): boolean => !HAS_SCHEME.test(href) && !/^[/\\]/.test(href);
 const WEB_SCHEME = /^https?:/i;
 
 /**
  * Applies the typed-link rule of `externalHref` to a link inside rendered markdown.
- * In-app paths (relative ones included) route as before, `mailto:` and `tel:` are kept,
- * a web address opens in a new window, and anything else loses its `href`, so its text
- * stays readable.
+ * In-app paths route as before, `mailto:` and `tel:` are kept, a web address opens in
+ * a new window, and anything else loses its `href`, so its text stays readable. That
+ * includes a bare relative path such as `requests/abc`: it resolves against the
+ * current page's folder, and a bare address the allow-list refuses
+ * (`example.org?ref=ro`) looks exactly like one.
  */
 function settleAnchor(node: Element): void {
   if (node.nodeName.toLowerCase() !== 'a') return;
@@ -53,9 +52,6 @@ function settleAnchor(node: Element): void {
     if (!WEB_SCHEME.test(cleaned)) node.setAttribute('href', external);
     node.setAttribute('target', '_blank');
     node.setAttribute('rel', 'noopener noreferrer');
-  } else if (isRelativePath(cleaned)) {
-    // A relative path such as `requests/abc` (not a host, no scheme) stays in the app.
-    return;
   } else {
     node.removeAttribute('href');
   }
@@ -63,9 +59,11 @@ function settleAnchor(node: Element): void {
 
 // Markdown needs neither SVG nor MathML, whose links this hook does not see, and an
 // image map or a form would be a click that leaves the app without being an anchor.
+// Form controls go too: kept without their form, a button would submit whichever form
+// the preview sits in (the profile form, for a bio).
 const SANITIZE_OPTIONS = {
   USE_PROFILES: { html: true },
-  FORBID_TAGS: ['form', 'map', 'area']
+  FORBID_TAGS: ['form', 'map', 'area', 'button', 'input', 'select', 'textarea']
 };
 
 /**

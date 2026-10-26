@@ -31,6 +31,14 @@ See **Issue #91** for the full technical specification, architecture design, and
 - Message status (sent/received/read)
 - Online presence
 
+### Signal Layer (built)
+
+The signal layer exists: the `messaging` coordinator zome (#213, specified in [`messaging.md`](../../technical-specs/zomes/messaging.md)). A signal carries one `ActionHash` and never message content, so it can only tell a recipient where to look. Messages themselves are stored as entries under validation, and that stored entry, not the signal, is the delivery guarantee: a lost signal costs timeliness and nothing else.
+
+### Encrypted Inbox (built)
+
+The first storage behind the signal layer is the encrypted inbox (#301, section 6 of [`messaging.md`](../../technical-specs/zomes/messaging.md)). Two things about it differ from, or add to, the design below. Content is encrypted to each recipient agent, but who wrote to whom, and when, is public for the life of the network; a sealed mailbox that hides that too is a later module. And only accepted members send, while only an administrator may write to a member who is not accepted.
+
 ### Rich Content
 
 - Markdown support in messages

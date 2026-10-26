@@ -207,7 +207,8 @@ pub fn check_membership_act(
 }
 
 /// The most links one membership end may name: a member link, a coordinator
-/// link and the user's link to the organisation, with room for one more.
+/// link and the user's link to the organisation, with room for one more. A
+/// membership with more open links than this is closed by several ends.
 pub const MAX_ENDED_LINKS: usize = 4;
 
 /// The tag of a `MembershipEnds` link: the hashes of the links the end closes,

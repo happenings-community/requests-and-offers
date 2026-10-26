@@ -203,6 +203,13 @@ pub struct MembershipEnd {
 
 /// Whether a named link is a membership link between this organisation and
 /// this user, written in this zome.
+///
+/// Validation cannot require an end to close every open link, as it cannot
+/// list links. A member's own end that names only some of theirs (only the
+/// member link, say, leaving their profile still showing the organisation)
+/// harms only the member who forged it, who can leave honestly. A link whose
+/// own op was refused may be named; readers never hold it, so naming it closes
+/// nothing (Aria, 26 Oct).
 fn closes(link: &ActionHash, organization: &ActionHash, user: &ActionHash) -> ExternResult<Result<(), String>> {
   let action = must_get_action(link.clone())?;
   let ActionData::CreateLink(create) = &action.action().data else {

@@ -5,7 +5,7 @@ use users_organizations_integrity::*;
 use utils::{
   errors::{AdministrationError, CommonError, OrganizationsError, UsersError},
   find_original_action_hash,
-  links::membership_end_tag,
+  links::{membership_end_tag, MAX_ENDED_LINKS},
   grants::{can_i, grant_tag, require_grant, Ability, GrantRoleInput, RevokeRolesOfInput, Role},
   EntityActionHash, OriginalActionHash, OrganizationContactInput, OrganizationUserInput,
   PreviousActionHash,
@@ -48,22 +48,30 @@ fn closed_links(organization: &ActionHash) -> ExternResult<HashSet<ActionHash>> 
   Ok(closed)
 }
 
-/// Records the end of the links named: a membership, or a coordinator role.
+/// Records the end of the links named: a membership, or a coordinator role. Writes
+/// one end per `MAX_ENDED_LINKS` links and returns the last.
 fn write_membership_end(
   organization: &ActionHash,
   user: &ActionHash,
   links: Vec<ActionHash>,
   grant: Option<ActionHash>,
 ) -> ExternResult<ActionHash> {
-  let tag = membership_end_tag(&links);
-  let end = create_entry(EntryTypes::MembershipEnd(MembershipEnd {
-    organization: organization.clone(),
-    user: user.clone(),
-    links,
-    grant,
-  }))?;
-  create_link(organization.clone(), end.clone(), LinkTypes::MembershipEnds, tag)?;
-  Ok(end)
+  // One end names at most MAX_ENDED_LINKS links, so a member someone has
+  // linked more often than that gets as many ends as it takes: a fixed limit
+  // must never pin anyone in (Aria, 26 Oct).
+  let mut last = None;
+  for chunk in links.chunks(MAX_ENDED_LINKS) {
+    let tag = membership_end_tag(chunk);
+    let end = create_entry(EntryTypes::MembershipEnd(MembershipEnd {
+      organization: organization.clone(),
+      user: user.clone(),
+      links: chunk.to_vec(),
+      grant: grant.clone(),
+    }))?;
+    create_link(organization.clone(), end.clone(), LinkTypes::MembershipEnds, tag)?;
+    last = Some(end);
+  }
+  last.ok_or_else(|| wasm_error!(WasmErrorInner::Guest("no open membership link to close".into())))
 }
 
 /// The links of one type from an organisation that no end has closed.

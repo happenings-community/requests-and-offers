@@ -222,6 +222,7 @@ const MEMBERSHIP_END: u8 = 3;
 const ALL_USERS: u8 = 1;
 const MY_USER: u8 = 2;
 const USER_ORGANIZATIONS: u8 = 5;
+const ORGANIZATION_MEMBERS: u8 = 9;
 /// `offers_integrity::LinkTypes`.
 const ALL_OFFERS: u8 = 1;
 /// `service_types_integrity::LinkTypes`.
@@ -863,4 +864,68 @@ async fn a_coordinator_who_is_not_the_last_can_leave() {
         grant.role == "org_coordinator"
     });
     assert!(!still_coordinates, "Mallory's coordinator grant was revoked when she left");
+}
+
+/// No limit on what one end may name can pin a member in (Aria, 26 Oct). A
+/// coordinator may write member links, so a modified client can write more of
+/// them to one member than a single end names. Mallory coordinates her own
+/// organisation: she adds Alice honestly, then forges four more member links to
+/// her, each carrying her real coordinator grant, so each is written. Alice
+/// leaves through the app: her leave closes all six links (five member links
+/// and her own link back) in two ends, and she is no longer a member.
+///
+/// Red: in `write_membership_end` (coordinator `organization.rs`), write one
+/// end naming every link instead of one per `MAX_ENDED_LINKS`. Alice's leave
+/// is then refused and she stays a member.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_member_linked_many_times_can_still_leave() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let hers = approved_organization(&conductors, 1, &mallory, alice, "Mallory's", &[alice, &mallory]).await;
+    let index = zome_index(&conductors[1], &mallory, "users_organizations_integrity").await;
+
+    let _: bool = conductors[1]
+        .call(
+            &mallory.zome("users_organizations"),
+            "add_member_to_organization",
+            serde_json::json!({
+                "organization_original_action_hash": hers,
+                "user_original_action_hash": users[0],
+            }),
+        )
+        .await;
+    let grant = role_grant(&conductors[1], &mallory, "org_coordinator").await;
+    for _ in 0..4 {
+        let extra = forge_link(
+            &conductors[1],
+            &mallory,
+            hers.clone().into(),
+            users[0].clone().into(),
+            index,
+            ORGANIZATION_MEMBERS,
+            grant.get_raw_39().to_vec(),
+        )
+        .await;
+        assert!(extra.is_ok(), "a coordinator may write a member link: {extra:?}");
+    }
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+    assert!(membership(&conductors[0], alice, &hers, &users[0]).await, "Alice is a member");
+
+    let left = reason(
+        conductors[0]
+            .call_fallible::<_, bool>(&alice.zome("users_organizations"), "leave_organization", hers.clone())
+            .await,
+    );
+    assert_eq!(left, Ok(true), "Alice can leave however many links name her");
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+
+    assert!(!membership(&conductors[1], &mallory, &hers, &users[0]).await, "Alice has left");
+    let open: Vec<Link> = conductors[1]
+        .call(&mallory.zome("users_organizations"), "get_organization_members_links", hers)
+        .await;
+    assert!(
+        open.iter().all(|l| l.target.clone().into_action_hash() != Some(users[0].clone())),
+        "no member link to Alice is left open"
+    );
 }

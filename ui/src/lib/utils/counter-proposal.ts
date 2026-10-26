@@ -1,5 +1,11 @@
 import type { ActionHash } from '@holochain/client';
-import type { AgreementInDHT, CounterAgreementInput, ExchangeTerm } from '$lib/types/holochain';
+import type {
+  AgreementInDHT,
+  CounterAgreementInput,
+  ExchangeTerm,
+  Timeframe,
+  TimeframePreset
+} from '$lib/types/holochain';
 
 /**
  * A counter-proposal: the proposal it answers, with only the quantities and the
@@ -12,19 +18,49 @@ import type { AgreementInDHT, CounterAgreementInput, ExchangeTerm } from '$lib/t
  * across unchanged. Changing those means a new listing (#332).
  */
 
-/** The timeframes the propose page offers, in its order. */
-export const COUNTER_TIMEFRAMES = [
-  'Within a few days',
-  'Within 2 weeks',
-  'Within a month',
-  'Flexible'
-] as const;
+/** The timeframe presets the propose and counter pages offer, in their order. */
+export const TIMEFRAME_PRESETS: { preset: TimeframePreset; label: string }[] = [
+  { preset: 'WithinAFewDays', label: 'Within a few days' },
+  { preset: 'WithinTwoWeeks', label: 'Within 2 weeks' },
+  { preset: 'WithinAMonth', label: 'Within a month' },
+  { preset: 'Flexible', label: 'Flexible' }
+];
+
+/** One choice in a timeframe select: the value sent and what the member reads. */
+export interface TimeframeOption {
+  value: Timeframe;
+  label: string;
+}
+
+/** A Holochain timestamp (microseconds) as a local date. */
+function microsToDate(micros: number, locale?: string): string {
+  return new Date(micros / 1000).toLocaleDateString(locale);
+}
+
+/** A timeframe as the member reads it: the preset's label, or its dates. */
+export function timeframeLabel(t: Timeframe, locale?: string): string {
+  if ('Preset' in t) {
+    return TIMEFRAME_PRESETS.find((p) => p.preset === t.Preset)?.label ?? t.Preset;
+  }
+  const end = microsToDate(t.Dates.end, locale);
+  // DRAFT copy
+  if (t.Dates.start === null || t.Dates.start === undefined) return `by ${end}`;
+  return `${microsToDate(t.Dates.start, locale)} – ${end}`;
+}
+
+/** Two timeframes are the same when every field is, as the zome compares them. */
+export function sameTimeframe(a: Timeframe, b: Timeframe): boolean {
+  if ('Preset' in a || 'Preset' in b) {
+    return 'Preset' in a && 'Preset' in b && a.Preset === b.Preset;
+  }
+  return (a.Dates.start ?? null) === (b.Dates.start ?? null) && a.Dates.end === b.Dates.end;
+}
 
 /** What a member has typed. A blank number input reads as null or undefined. */
 export interface CounterEdits {
   primary: number | null | undefined;
   reciprocal: number | null | undefined;
-  timeframe: string;
+  timeframe: Timeframe;
 }
 
 export type CounterField = 'primary' | 'reciprocal' | 'timeframe';
@@ -55,10 +91,13 @@ export function startingEdits(agreement: AgreementInDHT): CounterEdits {
   };
 }
 
-/** The timeframe list, keeping the proposal's own wording if it is not one of ours. */
-export function timeframeOptions(current: string): string[] {
-  const list: string[] = [...COUNTER_TIMEFRAMES];
-  return current && !list.includes(current) ? [current, ...list] : list;
+/** The timeframe list, keeping the proposal's own dates if it has them. */
+export function timeframeOptions(current: Timeframe): TimeframeOption[] {
+  const list: TimeframeOption[] = TIMEFRAME_PRESETS.map((p) => ({
+    value: { Preset: p.preset },
+    label: p.label
+  }));
+  return 'Dates' in current ? [{ value: current, label: timeframeLabel(current) }, ...list] : list;
 }
 
 function unitFor(term: ExchangeTerm, figure: 'hours' | 'amount'): string {
@@ -88,7 +127,7 @@ export function changedFields(agreement: AgreementInDHT, edits: CounterEdits): C
   ) {
     changed.push('reciprocal');
   }
-  if (edits.timeframe !== agreement.delivery_timeframe) changed.push('timeframe');
+  if (!sameTimeframe(edits.timeframe, agreement.delivery_timeframe)) changed.push('timeframe');
   return changed;
 }
 

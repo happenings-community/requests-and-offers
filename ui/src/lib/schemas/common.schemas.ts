@@ -43,13 +43,28 @@ export const ContactPreferenceSchema = Schema.Union(
   })
 );
 
-// Core DateRange schema
-export const DateRangeSchema = Schema.Struct({
-  start: Schema.NullOr(Schema.Number),
-  end: Schema.NullOr(Schema.Number)
-}).pipe(
+// Core TimeframePreset schema
+export const TimeframePresetSchema = Schema.Literal(
+  'WithinAFewDays',
+  'WithinTwoWeeks',
+  'WithinAMonth',
+  'Flexible'
+).pipe(
   Schema.annotations({
-    title: 'Date Range',
-    description: 'Date range for the request/offer'
+    title: 'Timeframe Preset',
+    description: 'How soon, counted from acceptance'
+  })
+);
+
+// Core Timeframe schema: a preset, or a window of dates in microseconds (#370)
+export const TimeframeSchema = Schema.Union(
+  Schema.Struct({ Preset: TimeframePresetSchema }),
+  Schema.Struct({
+    Dates: Schema.Struct({ start: Schema.NullOr(Schema.Number), end: Schema.Number })
+  })
+).pipe(
+  Schema.annotations({
+    title: 'Timeframe',
+    description: 'When a listing is needed or offered, or an agreement delivered'
   })
 );

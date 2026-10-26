@@ -41,7 +41,7 @@ struct Agreement {
     reciprocal: ExchangeTerm,
     medium: String,
     terms: String,
-    delivery_timeframe: String,
+    delivery_timeframe: Timeframe,
     counters: Option<Countering>,
 }
 holochain_serialized_bytes::holochain_serial!(Agreement);
@@ -117,7 +117,7 @@ impl World {
                     },
                     "medium": "Time bank hours",
                     "terms": "Two hours over a call.",
-                    "delivery_timeframe": "Within 2 weeks"
+                    "delivery_timeframe": { "Preset": "WithinTwoWeeks" }
                 }),
             )
             .await;
@@ -204,7 +204,7 @@ fn counter_of(countered: &ActionHash, proposal: &Agreement) -> Agreement {
     } else {
         proposal.provider.clone()
     };
-    counter.delivery_timeframe = "Flexible".into();
+    counter.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     counter.counters = Some(Countering { agreement: countered.clone(), decline: countered.clone() });
     counter
 }
@@ -243,7 +243,7 @@ async fn review_withdrawn_proposal_through_the_probe() {
                 "agreement": p,
                 "primary_quantity": { "value": 3.0, "unit": "h" },
                 "reciprocal_quantity": { "value": 2.0, "unit": "Time bank hours" },
-                "delivery_timeframe": "Within 2 weeks"
+                "delivery_timeframe": { "Preset": "WithinTwoWeeks" }
             }),
         )
         .await
@@ -287,7 +287,7 @@ async fn review_remote_members_validate_the_chain() {
                 "agreement": p,
                 "primary_quantity": { "value": 3.0, "unit": "h" },
                 "reciprocal_quantity": { "value": 2.0, "unit": "Time bank hours" },
-                "delivery_timeframe": "Within 2 weeks"
+                "delivery_timeframe": { "Preset": "WithinTwoWeeks" }
             }),
         )
         .await;
@@ -312,7 +312,7 @@ async fn review_remote_members_validate_the_chain() {
                 "agreement": c1,
                 "primary_quantity": { "value": 3.0, "unit": "h" },
                 "reciprocal_quantity": { "value": 3.0, "unit": "Time bank hours" },
-                "delivery_timeframe": "Within 2 weeks"
+                "delivery_timeframe": { "Preset": "WithinTwoWeeks" }
             }),
         )
         .await;

@@ -6,6 +6,8 @@
 use holochain::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::common::mirrors::{Quantity, Timeframe};
+
 // ── User fixtures ─────────────────────────────────────────────
 
 /// Input for `create_user` / `update_user` zome calls.
@@ -236,8 +238,9 @@ pub struct RequestData {
     pub title: String,
     pub description: String,
     pub contact_preference: String,
-    pub date_range: Option<()>,
+    pub timeframe: Option<Timeframe>,
     pub time_estimate_hours: Option<f64>,
+    pub amount: Option<Quantity>,
     pub time_preference: String,
     pub time_zone: Option<String>,
     pub interaction_type: String,
@@ -255,8 +258,9 @@ pub fn sample_request(
             title: title.into(),
             description: "This is a sample request description".to_string(),
             contact_preference: "Email".to_string(),
-            date_range: None,
+            timeframe: None,
             time_estimate_hours: Some(5.0),
+            amount: None,
             time_preference: "Morning".to_string(),
             time_zone: Some("UTC-5".to_string()),
             interaction_type: "Virtual".to_string(),
@@ -284,6 +288,9 @@ pub struct CreateOfferInput {
 pub struct OfferData {
     pub title: String,
     pub description: String,
+    pub timeframe: Option<Timeframe>,
+    pub time_estimate_hours: Option<f64>,
+    pub amount: Option<Quantity>,
     pub time_preference: String,
     pub time_zone: Option<String>,
     pub interaction_type: String,
@@ -300,6 +307,9 @@ pub fn sample_offer(
         offer: OfferData {
             title: title.into(),
             description: "This is a sample offer description".to_string(),
+            timeframe: None,
+            time_estimate_hours: None,
+            amount: None,
             time_preference: "Afternoon".to_string(),
             time_zone: Some("UTC-5".to_string()),
             interaction_type: "Virtual".to_string(),

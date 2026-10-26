@@ -26,7 +26,7 @@ pub struct CreateAgreementInput {
   pub reciprocal: ExchangeTerm,
   pub medium: String,
   pub terms: String,
-  pub delivery_timeframe: String,
+  pub delivery_timeframe: Timeframe,
 }
 
 /// A counter-proposal: the proposal it answers and the three things a counter
@@ -36,7 +36,7 @@ pub struct CounterAgreementInput {
   pub agreement: ActionHash,
   pub primary_quantity: Option<Quantity>,
   pub reciprocal_quantity: Option<Quantity>,
-  pub delivery_timeframe: String,
+  pub delivery_timeframe: Timeframe,
 }
 
 /// Recorded on the proposal a counter declines; the interface reads the chain

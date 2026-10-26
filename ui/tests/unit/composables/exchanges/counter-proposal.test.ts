@@ -65,7 +65,7 @@ vi.mock('$lib/utils/effect', () => ({
             },
             medium: 'Free/Pay it Forward',
             terms: '',
-            delivery_timeframe: 'Within 2 weeks'
+            delivery_timeframe: { Preset: 'WithinTwoWeeks' }
           }
         };
       case 'listing':
@@ -110,14 +110,14 @@ describe('useCounterProposal (#332, #333)', () => {
     const counter = await loaded();
     expect(counter.canCounter).toBe(true);
     expect(counter.primary).toBe(3);
-    expect(counter.timeframe).toBe('Within 2 weeks');
+    expect(counter.timeframe).toEqual({ Preset: 'WithinTwoWeeks' });
     expect(counter.figure).toBeNull();
     expect(counter.problem).not.toBeNull();
   });
 
   it('sends one counter call naming the proposal, with only what changed', async () => {
     const counter = await loaded();
-    counter.timeframe = 'Flexible';
+    counter.timeframe = { Preset: 'Flexible' };
     const created = await counter.send();
     expect(state.calls).toEqual(['counter']);
     const sent = state.sent as { agreement: Uint8Array } & Record<string, unknown>;
@@ -127,7 +127,7 @@ describe('useCounterProposal (#332, #333)', () => {
       agreement: undefined,
       primary_quantity: { value: 3, unit: 'hours' },
       reciprocal_quantity: null,
-      delivery_timeframe: 'Flexible'
+      delivery_timeframe: { Preset: 'Flexible' }
     });
     expect(created).toEqual(hash(11));
     expect(showToast).toHaveBeenCalledWith('Counter-proposal sent', 'success');

@@ -273,6 +273,11 @@
       const offerData: OfferInput = {
         title: title.trim(),
         description: description.trim(),
+        // Part 1 has no inputs for these; an edit carries the offer's own
+        // values through unchanged so it cannot erase them (#370).
+        timeframe: offer?.timeframe,
+        time_estimate_hours: offer?.time_estimate_hours,
+        amount: offer?.amount,
         time_preference: finalTimePreference,
         time_zone: timeZone,
         interaction_type: interactionType,

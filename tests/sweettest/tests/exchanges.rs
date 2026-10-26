@@ -25,7 +25,7 @@ struct Exchange {
 /// The parts of an `Agreement` entry the counter tests read.
 #[derive(Debug, Serialize, Deserialize)]
 struct AgreementView {
-    delivery_timeframe: String,
+    delivery_timeframe: Timeframe,
     counters: Option<CounteringView>,
 }
 holochain_serialized_bytes::holochain_serial!(AgreementView);
@@ -48,12 +48,13 @@ fn agreement_view(record: &Record) -> AgreementView {
     record.entry().to_app_option().unwrap().expect("agreement entry")
 }
 
+/// `timeframe` is a preset's name, as the wire spells it (#370).
 fn counter_input(agreement: &ActionHash, timeframe: &str) -> Value {
     json!({
         "agreement": agreement,
         "primary_quantity": { "value": 2.0, "unit": "h" },
         "reciprocal_quantity": null,
-        "delivery_timeframe": timeframe
+        "delivery_timeframe": { "Preset": timeframe }
     })
 }
 
@@ -84,7 +85,7 @@ fn agreement_input(listing: &ActionHash, interest: &ActionHash) -> Value {
         "reciprocal": gift_term(),
         "medium": "Pay it forward",
         "terms": "Two hours of design review over a call, agreed by phone.",
-        "delivery_timeframe": "Within two weeks"
+        "delivery_timeframe": { "Preset": "WithinTwoWeeks" }
     })
 }
 
@@ -470,11 +471,11 @@ async fn counter_proposals_form_a_chain() {
 
     // Bob counters with a different timeframe.
     let second: Record = conductors[1]
-        .call(&bob.zome("exchanges"), "counter_agreement", counter_input(&first_hash, "Within a month"))
+        .call(&bob.zome("exchanges"), "counter_agreement", counter_input(&first_hash, "WithinAMonth"))
         .await;
     let second_hash = second.signed_action.hashed.hash.clone();
     let second_view = agreement_view(&second);
-    assert_eq!(second_view.delivery_timeframe, "Within a month");
+    assert_eq!(second_view.delivery_timeframe, Timeframe::Preset(TimeframePreset::WithinAMonth));
     let countering = second_view.counters.expect("a counter names what it answers");
     assert_eq!(countering.agreement, first_hash);
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
@@ -552,7 +553,7 @@ async fn counter_refusals() {
         .call_fallible::<_, Record>(
             &bob.zome("exchanges"),
             "counter_agreement",
-            counter_input(&proposal_hash, "Within two weeks"),
+            counter_input(&proposal_hash, "WithinTwoWeeks"),
         )
         .await;
     assert!(unchanged.is_err(), "a counter must change a quantity or the timeframe");
@@ -639,7 +640,7 @@ fn currency_agreement(listing: &ActionHash, listing_type: &str, interest: &Actio
         },
         "medium": "Time bank hours",
         "terms": "",
-        "delivery_timeframe": "Within 2 weeks"
+        "delivery_timeframe": { "Preset": "WithinTwoWeeks" }
     })
 }
 
@@ -661,9 +662,9 @@ async fn counters_on_a_request_and_each_permitted_change() {
     t.sync().await;
 
     let changes = [
-        ("the primary quantity", json!({ "value": 5.0, "unit": "h" }), json!({ "value": 2.0, "unit": "Time bank hours" }), "Within 2 weeks"),
-        ("the return quantity", json!({ "value": 2.0, "unit": "h" }), json!({ "value": 6.0, "unit": "Time bank hours" }), "Within 2 weeks"),
-        ("both quantities to none", Value::Null, Value::Null, "Within 2 weeks"),
+        ("the primary quantity", json!({ "value": 5.0, "unit": "h" }), json!({ "value": 2.0, "unit": "Time bank hours" }), "WithinTwoWeeks"),
+        ("the return quantity", json!({ "value": 2.0, "unit": "h" }), json!({ "value": 6.0, "unit": "Time bank hours" }), "WithinTwoWeeks"),
+        ("both quantities to none", Value::Null, Value::Null, "WithinTwoWeeks"),
         ("the timeframe", json!({ "value": 2.0, "unit": "h" }), json!({ "value": 2.0, "unit": "Time bank hours" }), "Flexible"),
     ];
     for (what, primary, reciprocal, timeframe) in changes {
@@ -681,7 +682,7 @@ async fn counters_on_a_request_and_each_permitted_change() {
                     "agreement": proposal,
                     "primary_quantity": primary,
                     "reciprocal_quantity": reciprocal,
-                    "delivery_timeframe": timeframe
+                    "delivery_timeframe": { "Preset": timeframe }
                 }),
             )
             .await
@@ -718,7 +719,7 @@ async fn parallel_negotiations_stay_separate() {
     t.sync().await;
 
     let mut counters = Vec::new();
-    for (p, timeframe) in proposals.iter().zip(["Within a month", "Flexible"]) {
+    for (p, timeframe) in proposals.iter().zip(["WithinAMonth", "Flexible"]) {
         let c: Record = t.conductors[1]
             .call(&t.bob.zome("exchanges"), "counter_agreement", counter_input(p, timeframe))
             .await;
@@ -867,4 +868,107 @@ async fn one_live_interest_per_listing() {
         )
         .await;
     assert!(third.is_err(), "the renewed interest is live, so another is refused");
+}
+
+// ---------------------------------------------------------------------------
+// Timeframes on agreements (#370): a window is validated against the action
+// that writes it, a counter's against the counter's own; free text no longer
+// deserialises.
+// ---------------------------------------------------------------------------
+
+const DAY_MICROS: i64 = 24 * 60 * 60 * 1_000_000;
+
+fn agreement_with_timeframe(listing: &ActionHash, interest: &ActionHash, timeframe: Value) -> Value {
+    let mut input = agreement_input(listing, interest);
+    input["delivery_timeframe"] = timeframe;
+    input
+}
+
+/// A proposal with a window is accepted and read back typed; a counter that
+/// changes only the timeframe to another window is accepted; windows in the
+/// past are refused for both, each against its own timestamp.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_agreement_window_is_checked_when_written_and_when_countered() {
+    let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
+    let interest: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_interest", json!({ "listing": offer_hash, "listing_type": "Offer" }))
+        .await;
+    let interest_hash = interest.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let now = Timestamp::now().as_micros();
+    let past = json!({ "Dates": { "start": null, "end": now - DAY_MICROS } });
+    let result = conductors[1]
+        .call_fallible::<_, Record>(
+            &bob.zome("exchanges"),
+            "create_agreement",
+            agreement_with_timeframe(&offer_hash, &interest_hash, past.clone()),
+        )
+        .await
+        .map_err(|e| format!("{e:?}"));
+    assert!(
+        matches!(&result, Err(e) if e.contains("must end after the moment it is written")),
+        "a proposal with a past end must be refused: {result:?}"
+    );
+
+    let window = json!({ "Dates": { "start": now + DAY_MICROS, "end": now + 10 * DAY_MICROS } });
+    let proposal: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_agreement", agreement_with_timeframe(&offer_hash, &interest_hash, window))
+        .await;
+    let proposal_hash = proposal.signed_action.hashed.hash.clone();
+    assert_eq!(
+        agreement_view(&proposal).delivery_timeframe,
+        Timeframe::Dates { start: Some(now + DAY_MICROS), end: now + 10 * DAY_MICROS }
+    );
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Alice counters with a past window: refused against the counter's own timestamp.
+    let result = conductors[0]
+        .call_fallible::<_, Record>(
+            &alice.zome("exchanges"),
+            "counter_agreement",
+            json!({ "agreement": proposal_hash, "primary_quantity": { "value": 2.0, "unit": "h" }, "reciprocal_quantity": null, "delivery_timeframe": past }),
+        )
+        .await
+        .map_err(|e| format!("{e:?}"));
+    assert!(
+        matches!(&result, Err(e) if e.contains("must end after the moment it is written")),
+        "a counter with a past end must be refused: {result:?}"
+    );
+
+    // A counter changing only the timeframe, to a later window: accepted.
+    let later = json!({ "Dates": { "start": null, "end": now + 20 * DAY_MICROS } });
+    let counter: Record = conductors[0]
+        .call(
+            &alice.zome("exchanges"),
+            "counter_agreement",
+            json!({ "agreement": proposal_hash, "primary_quantity": { "value": 2.0, "unit": "h" }, "reciprocal_quantity": null, "delivery_timeframe": later }),
+        )
+        .await;
+    assert_eq!(agreement_view(&counter).delivery_timeframe, Timeframe::Dates { start: None, end: now + 20 * DAY_MICROS });
+}
+
+/// The old free-text timeframe does not deserialise, at the zome call (alpha 2
+/// resets the network, so nothing old needs reading): that is the point of the
+/// typed field.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_free_text_timeframe_does_not_deserialise() {
+    let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
+    let interest: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_interest", json!({ "listing": offer_hash, "listing_type": "Offer" }))
+        .await;
+    let interest_hash = interest.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    let result = conductors[1]
+        .call_fallible::<_, Record>(
+            &bob.zome("exchanges"),
+            "create_agreement",
+            agreement_with_timeframe(&offer_hash, &interest_hash, json!("Within 2 weeks")),
+        )
+        .await
+        .map_err(|e| format!("{e:?}"));
+    assert!(
+        matches!(&result, Err(e) if e.to_lowercase().contains("deserializ")),
+        "free text must fail to deserialise: {result:?}"
+    );
 }

@@ -12,6 +12,7 @@
     formatWhen,
     termLabel
   } from '$lib/utils/exchange-ui';
+  import { timeframeLabel } from '$lib/utils/counter-proposal';
   import type { ReviewInDHT } from '$lib/types/holochain';
 
   const modalStore = getModalStore();
@@ -136,7 +137,7 @@
       <div class="card space-y-2 p-4">
         {#if a.delivery_timeframe}<p>
             <span class="font-semibold">When:</span>
-            {a.delivery_timeframe}
+            {timeframeLabel(a.delivery_timeframe)}
           </p>{/if}
         {#if a.terms}
           <p class="text-xs uppercase tracking-wide text-surface-500">

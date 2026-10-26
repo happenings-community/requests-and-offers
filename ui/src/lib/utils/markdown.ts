@@ -34,9 +34,9 @@ const WEB_SCHEME = /^https?:/i;
  * Applies the typed-link rule of `externalHref` to a link inside rendered markdown.
  * In-app paths route as before, `mailto:` and `tel:` are kept, a web address opens in
  * a new window, and anything else loses its `href`, so its text stays readable. That
- * includes a bare relative path such as `requests/abc`: it resolves against the
- * current page's folder, and a bare address the allow-list refuses
- * (`example.org?ref=ro`) looks exactly like one.
+ * includes a bare relative path such as `requests/abc`, which would resolve against the
+ * current page's folder. A bare address with a dot in its host (`example.org?ref=ro`)
+ * is a web address under #382's rule and opens as `https:`.
  */
 function settleAnchor(node: Element): void {
   if (node.nodeName.toLowerCase() !== 'a') return;

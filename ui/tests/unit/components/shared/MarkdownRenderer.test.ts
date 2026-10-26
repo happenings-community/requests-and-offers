@@ -136,7 +136,9 @@ describe('MarkdownRenderer Component Logic', () => {
       ['www.example.com/page', 'http://www.example.com/page'],
       ['[a](http://example.com/plain)', 'http://example.com/plain'],
       ['[a](example.com/page)', 'https://example.com/page'],
-      ['[a](example.com)', 'https://example.com/']
+      ['[a](example.com)', 'https://example.com/'],
+      ['[a](example.org?ref=ro)', 'https://example.org/?ref=ro'],
+      ['[a](www.example.org#top)', 'https://www.example.org/#top']
     ])('opens %s at %s in a new window', (markdown, expected) => {
       const anchor = anchorOf(markdown);
       expect(anchor.getAttribute('href')).toBe(expected);
@@ -177,8 +179,6 @@ describe('MarkdownRenderer Component Logic', () => {
       '<a href="vbscript:msgbox(1)">x</a>',
       '<a href="file:///etc/passwd">x</a>',
       '[app](webhapp://webhappwindow/x)',
-      '[a](example.org?ref=ro)',
-      '[a](www.example.org#top)',
       '[a](localhost)',
       '[rel](requests/abc)'
     ])('shows %s as text with no href', (markdown) => {

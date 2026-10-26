@@ -272,7 +272,7 @@
                   Edit Organization
                 </a>
               {/if}
-              {#if !agentIsCoordinator && currentUserIsAccepted && agentIsMember}
+              {#if currentUserIsAccepted && (agentIsMember || agentIsCoordinator)}
                 <button class="variant-filled-error btn" onclick={handleLeaveOrganization}>
                   Leave Organization
                 </button>

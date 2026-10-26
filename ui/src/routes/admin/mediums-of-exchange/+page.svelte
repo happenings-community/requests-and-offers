@@ -49,6 +49,7 @@
   const handleDelete = (mediumOfExchange: UIMediumOfExchange) => {
     modalStore.trigger({
       type: 'component',
+      title: 'Delete medium of exchange',
       component: { ref: ConfirmModal },
       meta: {
         id: 'delete-medium-of-exchange',

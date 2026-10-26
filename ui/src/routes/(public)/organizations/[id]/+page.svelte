@@ -219,6 +219,7 @@
   async function handleLeaveOrganization() {
     modalStore.trigger({
       type: 'component',
+      title: 'Leave organization',
       component: { ref: ConfirmModal },
       meta: {
         id: 'leave-organization',

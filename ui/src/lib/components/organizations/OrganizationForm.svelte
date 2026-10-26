@@ -153,6 +153,7 @@
       const confirmed = await new Promise<boolean>((resolve) => {
         modalStore.trigger({
           type: 'component',
+          title: 'Delete organization',
           component: confirmModalComponent,
           meta: {
             id: 'delete-organization',

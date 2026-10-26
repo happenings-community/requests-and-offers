@@ -105,6 +105,7 @@
       const confirmed = await new Promise<boolean>((resolve) => {
         modalStore.trigger({
           type: 'component',
+          title: 'Remove coordinator',
           component: confirmModalComponent,
           meta: {
             id: 'remove-coordinator',

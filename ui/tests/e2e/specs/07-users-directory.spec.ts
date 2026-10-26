@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { AppWebsocket } from '@holochain/client';
-import { gotoApp, createTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
+import { gotoApp, createTestClient, closeTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
 
 // ============================================================================
 // 07 — USERS DIRECTORY
@@ -20,7 +20,7 @@ test.describe.serial('07 — users directory', () => {
   });
 
   test.afterAll(async () => {
-    await client.client.close();
+    await closeTestClient(client);
   });
 
   test('users page lists the community member', async ({ page }) => {

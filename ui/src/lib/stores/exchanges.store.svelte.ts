@@ -54,7 +54,7 @@ export type ExchangesStore = {
 // ============================================================================
 
 const timed = (record: Record) => ({
-  created_at: Math.floor(Number(record.signed_action.hashed.content.timestamp) / 1000)
+  created_at: Math.floor(Number(record.signed_action.hashed.content.header.timestamp) / 1000)
 });
 
 const hashOf = (record: Record): ActionHash => record.signed_action.hashed.hash;

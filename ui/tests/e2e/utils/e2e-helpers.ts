@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { readTestEnv, createZomeClient } from '../../setup/conductor-manager.js';
+import { WsClient } from '@holochain/client';
 import type { AppWebsocket, Record as HolochainRecord } from '@holochain/client';
 import { decode } from '@msgpack/msgpack';
 
@@ -142,6 +143,15 @@ export async function selectTimezone(page: Page, filter = 'Europe/London'): Prom
 export async function createTestClient(): Promise<AppWebsocket> {
   const { appPort, tokenBase64 } = readTestEnv();
   return createZomeClient(appPort, tokenBase64);
+}
+
+/**
+ * Closes a client made by createTestClient. Since @holochain/client 0.21,
+ * AppWebsocket.client is typed as the transport-agnostic AppClientTransport,
+ * which has no close(); over a websocket the runtime object is a WsClient.
+ */
+export async function closeTestClient(client: AppWebsocket): Promise<void> {
+  if (client.client instanceof WsClient) await client.client.close();
 }
 
 /**

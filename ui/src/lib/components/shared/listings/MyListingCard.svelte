@@ -137,11 +137,9 @@
       {listing.description}
     </p>
   {/if}
-  {#if listing.service_type_hashes?.length}
+  {#if listing.service_type_hash}
     <div class="flex flex-wrap gap-1">
-      {#each listing.service_type_hashes as st (encodeHashToBase64(st))}
-        <ServiceTypeTag serviceTypeActionHash={st} />
-      {/each}
+      <ServiceTypeTag serviceTypeActionHash={listing.service_type_hash} />
     </div>
   {/if}
 

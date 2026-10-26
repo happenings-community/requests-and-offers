@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoApp, selectTimezone, createTestClient } from '../utils/e2e-helpers.js';
+import { gotoApp, selectTimezone, createTestClient, closeTestClient } from '../utils/e2e-helpers.js';
 import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
@@ -26,7 +26,7 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
   });
 
   test.afterAll(async () => {
-    await client.client.close();
+    await closeTestClient(client);
   });
 
   test('app loads and connects to conductor', async ({ page }) => {

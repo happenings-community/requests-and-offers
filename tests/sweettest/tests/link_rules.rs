@@ -275,7 +275,20 @@ async fn a_link_has_the_shape_its_type_declares() {
         vec![],
     )
     .await;
-    refused(&wrong_base, "must be one of: users", "an AllUsers link not from the users path");
+    refused(&wrong_base, "must be one of its named paths", "an AllUsers link from a record");
+
+    let offers_path = path_hash(&conductors[1], &mallory, "offers").await;
+    let wrong_path = forge_link(
+        &conductors[1],
+        &mallory,
+        offers_path.clone().into(),
+        hers.clone().into(),
+        users_organizations,
+        ALL_USERS,
+        vec![],
+    )
+    .await;
+    refused(&wrong_path, "must be one of: users", "an AllUsers link from another path");
 
     let suggestion: Record = conductors[1]
         .call(&mallory.zome("service_types"), "suggest_service_type", sample_service_type("Not a user"))
@@ -292,7 +305,6 @@ async fn a_link_has_the_shape_its_type_declares() {
     .await;
     refused(&wrong_target, "must be a user", "an AllUsers link to a service type");
 
-    let offers_path = path_hash(&conductors[1], &mallory, "offers").await;
     let unused = forge_link(
         &conductors[1],
         &mallory,
@@ -436,8 +448,10 @@ async fn a_decision_needs_an_administrators_grant() {
 /// administrator, retires it through its status instead: it reads as
 /// retired and leaves the pending list.
 ///
-/// Red: in `service_types_integrity/src/lib.rs`, return `Valid` from the
-/// `DeleteEntry` arm for a service type.
+/// Red: in `service_types_integrity/src/lib.rs`, return `Valid` from both
+/// the `DeleteEntry` arm and the `FlatOp::Delete` arm for a service type. A
+/// tombstone is refused if either of its ops is, so either arm alone stays
+/// green.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_shared_item_is_retired_never_tombstoned() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;

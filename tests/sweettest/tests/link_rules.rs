@@ -567,7 +567,8 @@ async fn only_a_listings_creator_tombstones_it() {
 /// entry op alike.
 ///
 /// Red: in `users_organizations_integrity/src/lib.rs`, return `Valid` from
-/// the `DeleteEntry` arm for an organisation.
+/// both the `DeleteEntry` arm for an organisation and the `FlatOp::Delete`
+/// arm's refusal of `ORGANIZATION`. Either alone stays green.
 #[tokio::test(flavor = "multi_thread")]
 async fn an_organisation_is_never_tombstoned() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;

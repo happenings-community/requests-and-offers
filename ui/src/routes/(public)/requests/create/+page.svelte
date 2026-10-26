@@ -132,7 +132,7 @@
       {#if isLoading}
         <div class="flex h-64 items-center justify-center">
           <span class="loading loading-spinner text-primary"></span>
-          <p class="ml-4">Loading...</p>
+          <p role="status" class="ml-4">Loading...</p>
         </div>
       {:else}
         <div class="card variant-soft p-6">

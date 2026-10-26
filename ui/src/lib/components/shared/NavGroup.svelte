@@ -16,6 +16,7 @@
   >
     <span>{title}</span>
     <svg
+      aria-hidden="true"
       class="h-5 w-5 transform transition-transform duration-200"
       class:rotate-180={isOpen}
       fill="none"

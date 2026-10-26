@@ -55,33 +55,37 @@
     type="button"
     class="variant-ghost-surface btn btn-sm px-2 font-bold"
     title="Bold"
+    aria-label="Bold"
     onclick={() => insertMarkdown('**', '**')}
   >
-    B
+    <span aria-hidden="true">B</span>
   </button>
   <button
     type="button"
     class="variant-ghost-surface btn btn-sm px-2 italic"
     title="Italic"
+    aria-label="Italic"
     onclick={() => insertMarkdown('*', '*')}
   >
-    I
+    <span aria-hidden="true">I</span>
   </button>
   <button
     type="button"
     class="variant-ghost-surface btn btn-sm px-2"
     title="Heading"
+    aria-label="Heading"
     onclick={() => insertLinePrefix('## ')}
   >
-    H
+    <span aria-hidden="true">H</span>
   </button>
   <button
     type="button"
     class="variant-ghost-surface btn btn-sm px-2"
     title="List"
+    aria-label="List"
     onclick={() => insertLinePrefix('- ')}
   >
-    &bull;
+    <span aria-hidden="true">&bull;</span>
   </button>
   <span class="ml-auto text-xs opacity-50">Supports Markdown formatting</span>
 </div>

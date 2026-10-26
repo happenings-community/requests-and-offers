@@ -60,7 +60,12 @@
         listingTitle
       }
     };
-    modalStore.trigger({ type: 'component', component, meta: { title: '', body: '' } });
+    modalStore.trigger({
+      type: 'component',
+      title: 'Contact details',
+      component,
+      meta: { title: '', body: '' }
+    });
   }
 
   $effect(() => {
@@ -97,7 +102,7 @@
   {#if loadError}
     <div class="alert variant-filled-error">{loadError}</div>
   {:else if !exchange}
-    <p class="text-surface-500">Loading the exchange...</p>
+    <p role="status" class="text-surface-500">Loading the exchange...</p>
   {:else}
     {@const a = exchange.agreement}
     <header class="space-y-2">
@@ -179,6 +184,7 @@
               your own, or decline.
             </p>
             <textarea
+              aria-label="Note, if declining"
               class="textarea"
               rows="2"
               bind:value={details.note}
@@ -215,6 +221,7 @@
             <summary class="cursor-pointer text-sm text-surface-500">Cancel this agreement</summary>
             <div class="mt-2 space-y-2">
               <textarea
+                aria-label="Reason for cancelling"
                 class="textarea"
                 rows="2"
                 bind:value={details.note}

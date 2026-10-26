@@ -69,7 +69,7 @@
     <!-- --- -->
     <svelte:fragment slot="panel">
       {#if loading}
-        <div class="p-4 text-center">Loading...</div>
+        <div role="status" class="p-4 text-center">Loading...</div>
       {:else if error}
         <div class="alert variant-filled-error"><p>{error}</p></div>
       {:else}
@@ -77,7 +77,7 @@
           <thead>
             <tr>
               {#each tableHeaders as header}
-                <th>{header}</th>
+                <th scope="col">{header}</th>
               {/each}
             </tr>
           </thead>

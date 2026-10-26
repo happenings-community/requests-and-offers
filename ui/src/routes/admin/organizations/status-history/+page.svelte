@@ -48,7 +48,7 @@
   {#if isLoading}
     <div class="flex items-center justify-center gap-2">
       <ConicGradient stops={conicStops} spin />
-      <p>Loading status history...</p>
+      <p role="status">Loading status history...</p>
     </div>
   {:else}
     <StatusTable statusHistory={allOrganizationsStatusesHistory} />

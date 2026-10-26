@@ -218,6 +218,22 @@ describe('useServiceTypeSorting', () => {
     });
   });
 
+  describe('aria-sort', () => {
+    it('names the sorted column and its direction, and every other column none', () => {
+      const sorting = useServiceTypeSorting('name', 'asc');
+      expect(sorting.getAriaSort('name')).toBe('ascending');
+      expect(sorting.getAriaSort('type')).toBe('none');
+
+      sorting.toggleSort('name');
+      expect(sorting.getAriaSort('name')).toBe('descending');
+
+      // A date column sorts newest first when chosen.
+      sorting.toggleSort('created_at');
+      expect(sorting.getAriaSort('created_at')).toBe('descending');
+      expect(sorting.getAriaSort('name')).toBe('none');
+    });
+  });
+
   describe('Sort State Management', () => {
     it('should update sort field and direction', () => {
       const sorting = useServiceTypeSorting();

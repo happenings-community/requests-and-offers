@@ -91,10 +91,11 @@
       <div class="text-center">
         <div class="mb-4">
           <div
+            aria-hidden="true"
             class="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-primary-500"
           ></div>
         </div>
-        <p class="text-lg text-gray-600">Loading dashboard...</p>
+        <p role="status" class="text-lg text-gray-600">Loading dashboard...</p>
       </div>
     </div>
   {:else}
@@ -129,7 +130,10 @@
       <div class="fixed left-4 top-24 z-40 hidden lg:block">
         <div class="rounded-lg bg-surface-400 p-2 text-white opacity-60 shadow-lg">
           <div class="flex items-center gap-2">
-            <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+            <div
+              aria-hidden="true"
+              class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"
+            ></div>
             <span class="text-xs">Verifying permissions...</span>
           </div>
         </div>

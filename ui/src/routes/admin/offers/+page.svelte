@@ -36,7 +36,7 @@
   {#if management.isLoading || management.storeLoading}
     <div class="flex h-64 items-center justify-center">
       <span class="loading loading-spinner text-primary"></span>
-      <p class="ml-4">Loading offers...</p>
+      <p role="status" class="ml-4">Loading offers...</p>
     </div>
   {:else if management.filteredOffers.length === 0}
     <div class="bg-surface-100-800-token/90 card variant-soft p-8 text-center backdrop-blur-lg">

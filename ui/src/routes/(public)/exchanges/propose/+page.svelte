@@ -195,7 +195,7 @@
   {#if loadError}
     <div class="alert variant-filled-error">{loadError}</div>
   {:else if !listing}
-    <p class="text-surface-500">Loading the listing...</p>
+    <p role="status" class="text-surface-500">Loading the listing...</p>
   {:else}
     <header class="space-y-1">
       <h1 class="h2">Create a proposal</h1>

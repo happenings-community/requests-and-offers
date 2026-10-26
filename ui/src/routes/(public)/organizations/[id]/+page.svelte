@@ -62,6 +62,7 @@
   const statusHistoryModalComponent: ModalComponent = { ref: StatusHistoryModal };
   const statusHistoryModal = (statusHistory: Revision[]): ModalSettings => ({
     type: 'component',
+    title: 'Organization status history',
     component: statusHistoryModalComponent,
     meta: {
       statusHistory: [...statusHistory], // Sanitize for Svelte 5 state proxies
@@ -72,6 +73,7 @@
   const addMemberModalComponent: ModalComponent = { ref: AddOrganizationMemberModal };
   const addMemberModal = (): ModalSettings => ({
     type: 'component',
+    title: 'Add member',
     component: addMemberModalComponent,
     meta: {
       organization
@@ -81,6 +83,7 @@
   const addCoordinatorModalComponent: ModalComponent = { ref: AddOrganizationCoordinatorModal };
   const addCoordinatorModal = (): ModalSettings => ({
     type: 'component',
+    title: 'Add coordinator',
     component: addCoordinatorModalComponent,
     meta: {
       organization
@@ -261,7 +264,7 @@
   {:else if loading}
     <div class="flex flex-col items-center gap-4">
       <span class="loading loading-spinner loading-lg"></span>
-      <p>Loading organization...</p>
+      <p role="status">Loading organization...</p>
     </div>
   {:else if organization}
     <!-- Organization Header -->
@@ -373,8 +376,9 @@
                 <div
                   class="input-group input-group-divider w-full max-w-sm grid-cols-[auto_1fr_auto]"
                 >
-                  <div class="input-group-shim">🔍</div>
+                  <div class="input-group-shim" aria-hidden="true">🔍</div>
                   <input
+                    aria-label="Search members"
                     type="search"
                     placeholder="Search members..."
                     bind:value={memberSearchQuery}
@@ -408,8 +412,9 @@
                 <div
                   class="input-group input-group-divider w-full max-w-sm grid-cols-[auto_1fr_auto]"
                 >
-                  <div class="input-group-shim">🔍</div>
+                  <div class="input-group-shim" aria-hidden="true">🔍</div>
                   <input
+                    aria-label="Search coordinators"
                     type="search"
                     placeholder="Search coordinators..."
                     bind:value={coordinatorSearchQuery}
@@ -451,7 +456,7 @@
               {#if isLoadingRequests}
                 <div class="flex items-center justify-center p-8">
                   <span class="loading loading-spinner text-primary"></span>
-                  <p class="ml-4">Loading organization requests...</p>
+                  <p role="status" class="ml-4">Loading organization requests...</p>
                 </div>
               {:else if organizationRequests?.length > 0}
                 <RequestsTable requests={organizationRequests} showCreator />
@@ -491,7 +496,7 @@
               {#if isLoadingOffers}
                 <div class="flex items-center justify-center p-8">
                   <span class="loading loading-spinner text-primary"></span>
-                  <p class="ml-4">Loading organization offers...</p>
+                  <p role="status" class="ml-4">Loading organization offers...</p>
                 </div>
               {:else if organizationOffers?.length > 0}
                 <OffersTable offers={organizationOffers} showCreator />

@@ -33,6 +33,7 @@
   const modalStore = getModalStore();
   const alertModal = (meta: AlertModalMeta): ModalSettings => ({
     type: 'component',
+    title: 'Organization saved',
     component: alertModalComponent,
     meta
   });

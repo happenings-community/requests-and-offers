@@ -125,7 +125,7 @@
 </script>
 
 {#if isLoading}
-  <span class="variant-soft-surface chip animate-pulse"> Loading... </span>
+  <span role="status" class="variant-soft-surface chip animate-pulse"> Loading... </span>
 {:else if error}
   <span class="variant-soft-error chip" title="Error loading service type">
     {error}

@@ -86,6 +86,11 @@
     }
   }
 
+  function ariaSort(field: SortField): 'ascending' | 'descending' | 'none' {
+    if (sortField !== field) return 'none';
+    return sortDirection === 'asc' ? 'ascending' : 'descending';
+  }
+
   function getSortIcon(field: SortField): string {
     if (sortField !== field) return '↕️';
     return sortDirection === 'asc' ? '↑' : '↓';
@@ -130,7 +135,11 @@
     <thead>
       <tr>
         {#each tableHeaders as header}
-          <th class="font-semibold">
+          <th
+            scope="col"
+            class="font-semibold"
+            aria-sort={header.sortable && header.key ? ariaSort(header.key) : undefined}
+          >
             {#if header.sortable && header.key}
               <button
                 class="flex items-center gap-1 hover:text-primary-300 focus:text-primary-300 focus:outline-none"
@@ -138,7 +147,7 @@
                 title="Sort by {header.label}"
               >
                 {header.label}
-                <span class="">{getSortIcon(header.key!)}</span>
+                <span aria-hidden="true">{getSortIcon(header.key!)}</span>
               </button>
             {:else}
               {header.label}
@@ -228,6 +237,7 @@
     <div class="p-8 text-center">
       <div class="mb-4 text-surface-500">
         <svg
+          aria-hidden="true"
           class="mx-auto mb-4 h-16 w-16 opacity-50"
           fill="none"
           stroke="currentColor"

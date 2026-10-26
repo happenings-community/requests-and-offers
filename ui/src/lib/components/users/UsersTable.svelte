@@ -24,6 +24,7 @@
     if (page.url.pathname.startsWith('/admin')) {
       modalStore.trigger({
         type: 'component',
+        title: user.name || 'User details',
         component: modalComponent,
         meta: { user }
       });
@@ -50,13 +51,13 @@
       <table class="table table-hover w-full drop-shadow-lg">
         <thead>
           <tr>
-            <th class="whitespace-nowrap">Avatar</th>
-            <th class="whitespace-nowrap">Name</th>
-            <th class="whitespace-nowrap">Type</th>
+            <th scope="col" class="whitespace-nowrap">Avatar</th>
+            <th scope="col" class="whitespace-nowrap">Name</th>
+            <th scope="col" class="whitespace-nowrap">Type</th>
             {#if users.some((user) => user.remaining_time)}
-              <th class="whitespace-nowrap">Remaining time</th>
+              <th scope="col" class="whitespace-nowrap">Remaining time</th>
             {/if}
-            <th class="whitespace-nowrap">Actions</th>
+            <th scope="col" class="whitespace-nowrap">Actions</th>
           </tr>
         </thead>
         <tbody>

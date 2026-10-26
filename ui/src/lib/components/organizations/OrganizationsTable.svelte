@@ -22,6 +22,7 @@
     if ($page.url.pathname.startsWith('/admin')) {
       modalStore.trigger({
         type: 'component',
+        title: organization.name || 'Organization details',
         component: modalComponent,
         meta: { organization }
       });
@@ -43,13 +44,13 @@
         <!-- Simple header with only essential columns -->
         <thead>
           <tr>
-            <th class="w-16">Logo</th>
-            <th>Name</th>
+            <th scope="col" class="w-16">Logo</th>
+            <th scope="col">Name</th>
             <!-- Only show members count on xl screens -->
-            <th class="hidden w-24 text-center xl:table-cell">Members</th>
+            <th scope="col" class="hidden w-24 text-center xl:table-cell">Members</th>
             <!-- Only show email on xl screens -->
-            <th class="hidden xl:table-cell">Email</th>
-            <th class="w-24 text-right">Actions</th>
+            <th scope="col" class="hidden xl:table-cell">Email</th>
+            <th scope="col" class="w-24 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>

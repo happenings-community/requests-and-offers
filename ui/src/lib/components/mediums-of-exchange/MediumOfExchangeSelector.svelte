@@ -31,6 +31,9 @@
     mode = 'single'
   }: Props = $props();
 
+  // The group's label is not a <label>: it wraps the search box and every checkbox, each of which has its own.
+  const uid = $props.id();
+
   // Toast store for notifications
   const toastStore = getToastStore();
 
@@ -238,8 +241,8 @@
 </script>
 
 <div class="space-y-2">
-  <label class="label">
-    {label} <span class="text-error-500">{required ? '*' : ''}</span>
+  <div class="label" role="group" aria-labelledby="{uid}-label">
+    <span id="{uid}-label">{label}</span> <span class="text-error-500">{required ? '*' : ''}</span>
 
     <!-- Selected mediums display (only for multiple mode) -->
     {#if mode === 'multiple' && selectedMediumObjects.length > 0}
@@ -253,8 +256,9 @@
                 class="ml-1 text-xs opacity-70 hover:opacity-100"
                 onclick={() => removeMedium(medium.original_action_hash)}
                 title="Remove {medium.name}"
+                aria-label="Remove {medium.name}"
               >
-                ×
+                <span aria-hidden="true">×</span>
               </button>
             {/if}
           </span>
@@ -283,6 +287,7 @@
     <input
       type="text"
       {placeholder}
+      aria-label="Search {label}"
       class="input mb-2 w-full"
       {disabled}
       oninput={handleSearchInput}
@@ -401,7 +406,7 @@
     {:else if loading}
       <div class="card p-4 text-center">
         <div class="loading loading-spinner loading-md mx-auto mb-2"></div>
-        <p class="text-sm">Loading mediums of exchange...</p>
+        <p role="status" class="text-sm">Loading mediums of exchange...</p>
       </div>
     {:else if error}
       <div class="alert variant-filled-error">
@@ -437,5 +442,5 @@
         </div>
       </div>
     {/if}
-  </label>
+  </div>
 </div>

@@ -143,10 +143,10 @@
       <table class="table table-hover">
         <thead>
           <tr>
-            <th>Agent ID</th>
-            <th>Name</th>
-            <th>Associated Organization</th>
-            <th>Note</th>
+            <th scope="col">Agent ID</th>
+            <th scope="col">Name</th>
+            <th scope="col">Associated Organization</th>
+            <th scope="col">Note</th>
           </tr>
         </thead>
         <tbody>

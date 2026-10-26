@@ -210,9 +210,9 @@
       <table class="table table-hover w-full">
         <thead>
           <tr>
-            <th class="whitespace-nowrap">Name</th>
-            <th class="whitespace-nowrap">Type</th>
-            <th class="whitespace-nowrap">Actions</th>
+            <th scope="col" class="whitespace-nowrap">Name</th>
+            <th scope="col" class="whitespace-nowrap">Type</th>
+            <th scope="col" class="whitespace-nowrap">Actions</th>
           </tr>
         </thead>
         <tbody>

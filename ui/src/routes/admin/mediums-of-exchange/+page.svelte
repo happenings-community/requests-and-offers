@@ -150,7 +150,7 @@
           {#if loading}
             <div class="p-8 text-center">
               <div class="loading loading-spinner loading-lg mx-auto mb-4"></div>
-              <p>Loading mediums of exchange...</p>
+              <p role="status">Loading mediums of exchange...</p>
             </div>
           {:else if error}
             <div class="alert variant-filled-error">

@@ -34,6 +34,7 @@
 
     modalStore.trigger({
       type: 'component',
+      title: `Interested in this ${listingType}?`,
       component: modalComponent,
       meta: {
         title: '',

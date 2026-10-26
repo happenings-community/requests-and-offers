@@ -2,9 +2,9 @@
   description = "Flake for Holochain app development";
 
   inputs = {
-    holonix.url = "github:holochain/holonix?ref=main-0.6";
+    holonix.url = "github:holochain/holonix?ref=main-0.7";
 
-    # Pin older holonix that includes hc-playground (not yet available in main-0.6)
+    # Pin older holonix that includes hc-playground (not available in main-0.6 or main-0.7)
     holonix-playground.url = "github:holochain/holonix/2fec8bf3772bf0df6f37734da3e063b9aa285aca";
 
     nixpkgs.follows = "holonix/nixpkgs";
@@ -20,7 +20,7 @@
         inputsFrom = [ inputs'.holonix.devShells.default ];
 
         packages = (with pkgs; [
-          nodejs_22
+          nodejs_24
           binaryen
           bun
           # Required by bindgen (datachannel-sys) when running Sweettest natively

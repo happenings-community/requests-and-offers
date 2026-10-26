@@ -3,6 +3,7 @@
   import type { UIOffer } from '$lib/types/ui';
   import { formatDate } from '$lib/utils';
   import { stripMarkdown } from '$lib/utils/markdown';
+  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
 
   type Props = {
     offer: UIOffer;
@@ -35,16 +36,9 @@
     </div>
 
     <!-- Service Types -->
-    {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
+    {#if offer.service_type_hash}
       <div class="mt-3 flex flex-wrap gap-1">
-        {#each offer.service_type_hashes.slice(0, 3)}
-          <span class="variant-soft-secondary chip text-xs">Service</span>
-        {/each}
-        {#if offer.service_type_hashes.length > 3}
-          <span class="variant-soft-surface chip text-xs">
-            +{offer.service_type_hashes.length - 3} more
-          </span>
-        {/if}
+        <ServiceTypeTag serviceTypeActionHash={offer.service_type_hash} showLink={false} />
       </div>
     {/if}
 

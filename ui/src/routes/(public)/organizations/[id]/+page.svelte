@@ -1,7 +1,8 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { getModalStore, getToastStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
-  import type { Revision, UIOrganization, UIRequest, UIOffer } from '$lib/types/ui';
+  import type { ConfirmModalMeta, Revision, UIOrganization, UIRequest, UIOffer } from '$lib/types/ui';
+  import ExternalLink from '$lib/components/shared/ExternalLink.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
@@ -16,6 +17,7 @@
   import AddOrganizationMemberModal from '$lib/components/organizations/AddOrganizationMemberModal.svelte';
   import AddOrganizationCoordinatorModal from '$lib/components/organizations/AddOrganizationCoordinatorModal.svelte';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import { goto } from '$app/navigation';
   import { runEffect } from '$lib/utils/effect';
   import offersStore from '$lib/stores/offers.store.svelte';
@@ -213,10 +215,15 @@
 
   async function handleLeaveOrganization() {
     modalStore.trigger({
-      type: 'confirm',
-      title: 'Leave Organization',
-      body: 'Are you sure you want to leave this organization?',
-      response: async (confirmed) => {
+      type: 'component',
+      component: { ref: ConfirmModal },
+      meta: {
+        id: 'leave-organization',
+        message: 'Are you sure you want to leave this organization?',
+        confirmLabel: 'Leave',
+        cancelLabel: 'Cancel'
+      } as ConfirmModalMeta,
+      response: async (confirmed: boolean) => {
         if (confirmed) {
           try {
             if (!organizationHash) return;
@@ -332,7 +339,7 @@
           <ul class="list-inside list-disc">
             {#each organization.urls as url}
               <li>
-                <a href={url} target="_blank" rel="noopener noreferrer" class="anchor">{url}</a>
+                <ExternalLink text={url} class="anchor" />
               </li>
             {/each}
           </ul>

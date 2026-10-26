@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { encodeHashToBase64, type AppWebsocket, type Record as HcRecord } from '@holochain/client';
-import { gotoApp, createTestClient, ensureAcceptedUser, callZome } from '../utils/e2e-helpers.js';
+import { gotoApp, createTestClient, closeTestClient, ensureAcceptedUser, callZome } from '../utils/e2e-helpers.js';
 
 // ============================================================================
 // 09 — EXCHANGES
@@ -20,7 +20,7 @@ test.describe.serial('09 — exchanges', () => {
   });
 
   test.afterAll(async () => {
-    await client.client.close();
+    await closeTestClient(client);
   });
 
   test('my exchanges renders its three groups and the empty state', async ({ page }) => {
@@ -39,6 +39,26 @@ test.describe.serial('09 — exchanges', () => {
   test('the author of a listing sees who is interested, not the interest button', async ({
     page
   }) => {
+    // A listing names one service type, so make sure one exists to name.
+    const approved = (await callZome(
+      client,
+      'service_types',
+      'get_approved_service_types',
+      null
+    )) as HcRecord[];
+    const serviceTypeHash =
+      approved.length > 0
+        ? approved[0].signed_action.hashed.hash
+        : (
+            (await callZome(client, 'service_types', 'create_service_type', {
+              service_type: {
+                name: 'E2E Service Type',
+                description: 'Created by the exchanges e2e spec',
+                technical: false
+              }
+            })) as HcRecord
+          ).signed_action.hashed.hash;
+
     // The offers spec archives or removes what it makes, so make one here.
     const created = (await callZome(client, 'offers', 'create_offer', {
       offer: {
@@ -50,7 +70,7 @@ test.describe.serial('09 — exchanges', () => {
         links: []
       },
       organization: null,
-      service_type_hashes: [],
+      service_type_hash: serviceTypeHash,
       medium_of_exchange_hashes: []
     })) as HcRecord;
     const hash = encodeHashToBase64(created.signed_action.hashed.hash);

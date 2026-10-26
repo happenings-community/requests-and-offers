@@ -35,6 +35,8 @@ Every link type has a rule in three parts. The parts live in `dnas/requests_and_
 
 **Listings.** A request or offer is tombstoned only by its creator. A role holder removes one with `remove_request` or `remove_offer`, an update that carries their grant and a reason. The active list links each listing's original record once and is never rewritten; readers leave out archived and removed listings by their status.
 
+**Organisations** are shared too: members, coordinators, listings and exchanges name them. An organisation is never tombstoned. One of its coordinators, or an administrator, retires it with an `OrganizationRetirement` that carries their `Coordinate` grant for that organisation; readers skip retired organisations. Its directory and status links are never tombstoned either.
+
 **Still open, and stated beside each type:** the writers and tombstones of the listing-to-catalogue links, of `UserOrganizations` and of `OrganizationContacts`. Coordinators and administrators write these for other members with no grant in the tag.
 
 The full inventory, one row per link type, is in the first comment on #234.

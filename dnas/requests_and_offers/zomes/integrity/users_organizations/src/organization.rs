@@ -111,12 +111,30 @@ pub fn validate_organization(organization: Organization) -> ExternResult<Validat
   Ok(ValidateCallbackResult::Valid)
 }
 
-pub fn validate_delete_organization(
-  _action: Delete,
-  _original_action: TypedAction<EntryCreationData>,
-  _original_organization: Organization,
+/// An organisation retired by one of its coordinators or an administrator
+/// (#234). An organisation is shared, so it is never tombstoned: this entry
+/// is how it leaves every list. It is never edited and never tombstoned
+/// itself, and `grant` is the retiring agent's `Coordinate` grant for the
+/// organisation.
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct OrganizationRetirement {
+  /// The organisation's original record.
+  pub organization: ActionHash,
+  pub grant: ActionHash,
+}
+
+pub fn validate_organization_retirement(
+  retirement: OrganizationRetirement,
+  author: &AgentPubKey,
+  update_of: Option<&ActionHash>,
 ) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Valid)
+  if update_of.is_some() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "a retirement is a record and is never edited".to_string(),
+    ));
+  }
+  utils::links::check_organization_retirement(&retirement.organization, &retirement.grant, author)
 }
 
 pub fn validate_create_link_organization_updates(

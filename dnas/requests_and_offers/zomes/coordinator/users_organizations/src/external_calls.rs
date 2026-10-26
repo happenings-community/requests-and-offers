@@ -62,19 +62,6 @@ pub fn get_accepted_entities(entity: String) -> ExternResult<Vec<Link>> {
   external_local_call("get_accepted_entities", "administration", entity)
 }
 
-/// Deletes the status of an entity based on its original action hash.
-///
-/// # Arguments
-///
-/// * `original_action_hash` - An `EntityActionHash` containing the original action hash and entity name.
-///
-/// # Returns
-///
-/// * `ExternResult<bool>` - Returns `true` if the status was successfully deleted, otherwise `false`.
-pub fn delete_status(original_action_hash: EntityActionHash) -> ExternResult<bool> {
-  external_local_call("delete_status", "administration", original_action_hash)
-}
-
 /// Checks if an entity is accepted based on its original action hash.
 ///
 /// # Arguments

@@ -5,7 +5,7 @@
 
 use hdi::prelude::*;
 use utils::links::{
-  check_create, check_delete, check_end, verdict, End, Spec, Tombstone, Writer, ORGANIZATION, STATUS, USER,
+  check_create, check_delete, check_end, verdict, End, Spec, Tombstone, Writer, ORGANIZATION, ORGANIZATION_RETIREMENT, STATUS, USER,
 };
 
 use crate::LinkTypes;
@@ -57,21 +57,29 @@ fn spec(link_type: &LinkTypes) -> Option<Spec> {
       writer: Writer::Open,
       tombstone: Tombstone::Open,
     },
-    // Written by the creator; tombstoned by a coordinator removing the
-    // organisation.
+    // Written by the creator. An organisation is retired, never tombstoned,
+    // so neither is its place in the directory: readers skip retired ones.
     LinkTypes::AllOrganizations => Spec {
       name: "AllOrganizations",
       base: End::Path(&["organizations"]),
       target: End::Record(&[ORGANIZATION]),
       writer: Writer::AuthorOfTarget,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Never,
     },
     LinkTypes::OrganizationStatus => Spec {
       name: "OrganizationStatus",
       base: End::Record(&[ORGANIZATION]),
       target: End::Record(&[STATUS]),
       writer: Writer::AuthorOfBoth,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Never,
+    },
+    // From an organisation to its retirement, written by whoever retired it.
+    LinkTypes::OrganizationRetirements => Spec {
+      name: "OrganizationRetirements",
+      base: End::Record(&[ORGANIZATION]),
+      target: End::Record(&[ORGANIZATION_RETIREMENT]),
+      writer: Writer::AuthorOfTarget,
+      tombstone: Tombstone::Never,
     },
     _ => return None,
   })
@@ -108,6 +116,36 @@ pub fn check_contact_role(tag: &LinkTag) -> Result<(), String> {
     .map_err(|_| "the contact role must be text".to_string())
 }
 
+/// The link from an organisation to its retirement: the general rule, and the
+/// retirement must name this very organisation.
+fn validate_retirement_link(
+  author: &AgentPubKey,
+  base: &AnyLinkableHash,
+  target: &AnyLinkableHash,
+  tag: &LinkTag,
+) -> ExternResult<ValidateCallbackResult> {
+  let Some(spec) = spec(&LinkTypes::OrganizationRetirements) else {
+    return Ok(ValidateCallbackResult::Valid);
+  };
+  match check_create(&spec, author, base, target, tag)? {
+    ValidateCallbackResult::Valid => (),
+    other => return Ok(other),
+  }
+  let Some(retirement_hash) = target.clone().into_action_hash() else {
+    return Ok(verdict(Err("the link's target must be a record".into()), spec.name));
+  };
+  let record = must_get_valid_record(retirement_hash)?;
+  let retirement: crate::OrganizationRetirement = match record.entry().to_app_option() {
+    Ok(Some(retirement)) => retirement,
+    _ => return Ok(verdict(Err("the retirement could not be read".into()), spec.name)),
+  };
+  let names_base = base.clone().into_action_hash() == Some(retirement.organization);
+  Ok(verdict(
+    if names_base { Ok(()) } else { Err("a retirement is linked only from the organisation it retires".into()) },
+    spec.name,
+  ))
+}
+
 /// Routes a create for a type this module covers. `None` for the four types
 /// `lib.rs` routes itself.
 pub fn validate_create_link(
@@ -119,6 +157,9 @@ pub fn validate_create_link(
 ) -> ExternResult<ValidateCallbackResult> {
   if matches!(link_type, LinkTypes::OrganizationContacts) {
     return validate_contact_link(base, target, tag);
+  }
+  if matches!(link_type, LinkTypes::OrganizationRetirements) {
+    return validate_retirement_link(author, base, target, tag);
   }
   match spec(link_type) {
     Some(spec) => check_create(&spec, author, base, target, tag),

@@ -101,6 +101,71 @@ pub async fn setup_two_agents() -> (SweetConductorBatch, SweetCell, SweetCell) {
     (conductors, cell_alice, cell_bob)
 }
 
+/// Spin up three conductors, each with the requests-and-offers DNA installed.
+///
+/// Identical to `setup_two_agents` but with a third agent, for tests that need
+/// to prove a fan-out property: that one call reaches more than one recipient,
+/// rather than reaching the only recipient there was.
+///
+/// Returns `(conductors, cell_alice, cell_bob, cell_carol)`.
+pub async fn setup_three_agents() -> (SweetConductorBatch, SweetCell, SweetCell, SweetCell) {
+    let mut conductors =
+        SweetConductorBatch::from_config_rendezvous(3, SweetConductorConfig::standard()).await;
+
+    let dna = build_dna(HARDCODED_PROGENITOR_PUBKEY).await;
+
+    let apps = conductors
+        .setup_app("requests_and_offers", &[dna])
+        .await
+        .expect("Failed to install requests-and-offers app");
+
+    conductors.exchange_peer_info().await;
+
+    let ((cell_alice,), (cell_bob,), (cell_carol,)) = apps.into_tuples();
+    (conductors, cell_alice, cell_bob, cell_carol)
+}
+
+/// Three conductors with Alice's `AgentPubKey` embedded as the progenitor.
+///
+/// The plain `setup_three_agents` uses the hardcoded progenitor key from `happ.yaml`,
+/// which no conductor in the test holds, so nobody can accept a member. Any test that
+/// needs three agents *and* accepted members wants this one.
+///
+/// Returns `(conductors, cell_alice, cell_bob, cell_carol)`.
+pub async fn setup_three_agents_with_alice_as_progenitor() -> (
+  SweetConductorBatch,
+  SweetCell,
+  SweetCell,
+  SweetCell,
+) {
+  let mut conductors =
+    SweetConductorBatch::from_config_rendezvous(3, SweetConductorConfig::standard()).await;
+
+  let alice_key = SweetAgents::one(conductors[0].keystore()).await;
+  let dna = build_dna(alice_key.to_string()).await;
+
+  let alice_app = conductors[0]
+    .setup_app_for_agent("requests_and_offers", alice_key, &[dna.clone()])
+    .await
+    .expect("Failed to install app for Alice");
+  let bob_app = conductors[1]
+    .setup_app("requests_and_offers", &[dna.clone()])
+    .await
+    .expect("Failed to install app for Bob");
+  let carol_app = conductors[2]
+    .setup_app("requests_and_offers", &[dna])
+    .await
+    .expect("Failed to install app for Carol");
+
+  conductors.exchange_peer_info().await;
+
+  let (cell_alice,) = alice_app.into_tuple();
+  let (cell_bob,) = bob_app.into_tuple();
+  let (cell_carol,) = carol_app.into_tuple();
+
+  (conductors, cell_alice, cell_bob, cell_carol)
+}
+
 /// Build a `SweetDnaFile` with no progenitor pubkey (dev mode).
 ///
 /// The resulting DNA has `progenitor_pubkey: null` in its properties, which
@@ -201,6 +266,53 @@ pub async fn accept_entity(
                 "new_status": {
                     "status_type": "accepted",
                     "reason": null,
+                    "suspended_until": null
+                }
+            }),
+        )
+        .await;
+}
+
+/// Set an entity's status to rejected, as an admin.
+///
+/// Mirrors `accept_entity`, which only ever sets "accepted". Shared because both the
+/// inbox and the role suites need a member who was accepted and no longer is.
+pub async fn reject_entity(
+    admin_conductor: &SweetConductor,
+    admin_cell: &SweetCell,
+    entity: &str,
+    entity_hash: ActionHash,
+    reason: &str,
+) {
+    let status_record: Option<Record> = admin_conductor
+        .call(
+            &admin_cell.zome("administration"),
+            "get_latest_status_record_for_entity",
+            serde_json::json!({
+                "entity": entity,
+                "entity_original_action_hash": entity_hash
+            }),
+        )
+        .await;
+    let status_hash = status_record
+        .unwrap_or_else(|| panic!("no status record for {entity}, so it cannot be rejected"))
+        .signed_action
+        .hashed
+        .hash
+        .clone();
+
+    let _: Record = admin_conductor
+        .call(
+            &admin_cell.zome("administration"),
+            "update_entity_status",
+            serde_json::json!({
+                "entity": entity,
+                "entity_original_action_hash": entity_hash,
+                "status_original_action_hash": status_hash,
+                "status_previous_action_hash": status_hash,
+                "new_status": {
+                    "status_type": "rejected",
+                    "reason": reason,
                     "suspended_until": null
                 }
             }),

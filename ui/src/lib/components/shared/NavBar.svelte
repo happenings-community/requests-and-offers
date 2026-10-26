@@ -9,13 +9,14 @@
   import NavDropdown from '$lib/components/shared/NavDropdown.svelte';
   import { getUserPictureUrl } from '$lib/utils';
   import { myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
+  import { adminMenuItems, adminWaiting } from '$lib/navigation/admin-menu';
   import NetworkStatusPopup from '$lib/components/network/NetworkStatusPopup.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
   import { turnOf } from '$lib/utils/exchange-ui';
   import { runEffect } from '$lib/utils/effect';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import {
     getConnectionStatusContext,
     type ConnectionStatus
@@ -87,6 +88,27 @@
     };
     refresh();
     const interval = setInterval(refresh, 15000);
+    return () => clearInterval(interval);
+  });
+
+  // The Admin menu (#359), with who is waiting to be accepted. Read from the
+  // store's lists, which the admin pages fill too; refreshed while the member
+  // is an administrator, once a minute, so a new application shows without a
+  // visit to the dashboard.
+  const adminItems = $derived(
+    adminMenuItems(adminWaiting(administrationStore.allUsers, administrationStore.allOrganizations))
+  );
+
+  $effect(() => {
+    if (!agentIsAdministrator) return;
+    const refresh = () => {
+      runEffect(administrationStore.fetchAllUsers()).catch(() => {});
+      runEffect(administrationStore.fetchAllOrganizations()).catch(() => {});
+    };
+    // The fetches write the lists this component reads; untrack keeps that
+    // write from re-running the effect that started it.
+    untrack(refresh);
+    const interval = setInterval(refresh, 60000);
     return () => clearInterval(interval);
   });
 
@@ -209,13 +231,14 @@
 
     <!-- Admin Access -->
     {#if agentIsAdministrator}
-      <a
-        href="/admin"
-        class="variant-ringed-secondary btn border-2 px-4 py-2 text-sm text-white transition-colors hover:variant-filled-secondary"
-        aria-label="Access administration panel"
-      >
-        ⚙️ Admin
-      </a>
+      <div class="text-white">
+        <NavDropdown
+          title="Admin"
+          items={adminItems}
+          badgeLabel="waiting to be accepted"
+          alignRight={true}
+        />
+      </div>
     {/if}
 
     <!-- The member's own menu: their picture and name, top right -->

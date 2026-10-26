@@ -23,9 +23,11 @@
     alignRight?: boolean;
     /** A picture shown before the title: the member's own menu. */
     avatar?: string;
+    /** What a badge's number counts, for screen readers: "3 waiting on you". */
+    badgeLabel?: string;
   };
 
-  let { title, items, alignRight = false, avatar }: Props = $props();
+  let { title, items, alignRight = false, avatar, badgeLabel = 'waiting on you' }: Props = $props();
 
   const total = $derived(items.reduce((n, item) => n + (item.badge ?? 0), 0));
   const shown = (n: number) => (n > 9 ? '9+' : String(n));
@@ -102,7 +104,7 @@
     aria-controls={id}
     onclick={onTriggerClick}
     onkeydown={onTriggerKey}
-    aria-label={total > 0 ? `${title} menu, ${total} waiting on you` : `${title} menu`}
+    aria-label={total > 0 ? `${title} menu, ${total} ${badgeLabel}` : `${title} menu`}
   >
     {#if avatar}
       <img
@@ -157,7 +159,7 @@
                 {#if item.badge}
                   <span
                     class="badge variant-filled-primary px-1.5 py-0 text-xs"
-                    aria-label="{item.badge} waiting on you"
+                    aria-label="{item.badge} {badgeLabel}"
                   >{shown(item.badge)}</span>
                 {/if}
               </div>

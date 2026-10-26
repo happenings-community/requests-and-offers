@@ -12,7 +12,11 @@ import {
 } from '$lib/utils/counter-proposal';
 import { useExchangeDetails } from './useExchangeDetails.svelte';
 
-/** Recorded on the countered proposal, which is how its page says what happened. */
+/**
+ * The note the zome records on the proposal a counter declines (`COUNTERED_NOTE`
+ * in the exchanges coordinator). The chain itself is read from `counters`, not
+ * from this wording.
+ */
 export const COUNTERED_NOTE = 'Countered with a new proposal';
 
 export interface UseCounterProposalOptions {
@@ -23,8 +27,9 @@ export interface UseCounterProposalOptions {
 /**
  * Writing a counter-proposal to one proposal.
  *
- * The counter is created first and the original declined after it, so leaving
- * the form, or a failed send, leaves the original open to answer (#332).
+ * Nothing is written until the member sends, so leaving the form leaves the
+ * original open. Sending is one zome call that declines the original and
+ * writes the counter together (#332, #333).
  */
 export function useCounterProposal(options: UseCounterProposalOptions) {
   const details = useExchangeDetails(options);
@@ -72,23 +77,19 @@ export function useCounterProposal(options: UseCounterProposalOptions) {
     }
     sending = true;
     try {
+      // One call: the zome declines the original and writes the counter in the
+      // same commit, so neither can exist without the other (#333). A plain
+      // copy, because a state proxy cannot be cloned into the zome call.
       const created = await runEffect(
-        // A plain copy: the proposal lives in reactive state, and a state proxy
-        // cannot be cloned into the zome call ("An object could not be cloned").
-        exchangesStore.createAgreement(
-          buildCounter($state.snapshot(agreement), $state.snapshot(edits))
+        exchangesStore.counter(
+          buildCounter(
+            $state.snapshot(exchange.agreement_hash),
+            $state.snapshot(agreement),
+            $state.snapshot(edits)
+          )
         )
       );
-      try {
-        await runEffect(exchangesStore.respond(exchange.agreement_hash, false, COUNTERED_NOTE));
-        showToast('Counter-proposal sent', 'success');
-      } catch {
-        showToast(
-          'Your counter-proposal was sent, but the original is still open. Decline it from its page.',
-          'error',
-          10_000
-        );
-      }
+      showToast('Counter-proposal sent', 'success');
       return created.agreement_hash;
     } catch (e) {
       showToast(e instanceof Error ? e.message : String(e), 'error');

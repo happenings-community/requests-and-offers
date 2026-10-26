@@ -1,4 +1,5 @@
-import type { AgreementInDHT, CreateAgreementInput, ExchangeTerm } from '$lib/types/holochain';
+import type { ActionHash } from '@holochain/client';
+import type { AgreementInDHT, CounterAgreementInput, ExchangeTerm } from '$lib/types/holochain';
 
 /**
  * A counter-proposal: the proposal it answers, with only the quantities and the
@@ -113,20 +114,23 @@ export function counterProblem(agreement: AgreementInDHT, edits: CounterEdits): 
   );
 }
 
-/** The new proposal: a copy of the countered one with only the edits applied. */
-export function buildCounter(agreement: AgreementInDHT, edits: CounterEdits): CreateAgreementInput {
+/**
+ * The `counter_agreement` input: the proposal being countered and the three
+ * things a counter may change. The zome copies everything else from the proposal.
+ */
+export function buildCounter(
+  countered: ActionHash,
+  agreement: AgreementInDHT,
+  edits: CounterEdits
+): CounterAgreementInput {
   return {
-    listing: agreement.listing,
-    listing_type: agreement.listing_type,
-    interest: agreement.interest,
-    primary: withQuantity(agreement.primary, 'hours', edits.primary),
-    reciprocal: withQuantity(
+    agreement: countered,
+    primary_quantity: withQuantity(agreement.primary, 'hours', edits.primary).quantity,
+    reciprocal_quantity: withQuantity(
       agreement.reciprocal,
       reciprocalFigure(agreement.reciprocal),
       edits.reciprocal
-    ),
-    medium: agreement.medium,
-    terms: agreement.terms,
+    ).quantity,
     delivery_timeframe: edits.timeframe
   };
 }

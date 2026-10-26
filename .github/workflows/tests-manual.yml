@@ -83,6 +83,8 @@ jobs:
           - requests
           - offers
           - exchanges
+          - exchanges_attacks
+          - exchanges_attacks_review
           - mediums_of_exchange
           - administration_administrator_management
           - administration_progenitor

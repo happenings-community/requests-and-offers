@@ -352,6 +352,45 @@ async fn a_listing_names_one_real_service_type() {
     typed.unwrap_or_else(|e| panic!("a request naming a service type should be written; got {e}"));
 }
 
+/// A listing may name its service type by a revision, as the list of
+/// approved types hands one out once a type has been edited. The coordinator
+/// resolves it to the original record, which is all validation accepts (#257).
+/// Alice edits gardening; Mallory posts a request naming the edit's hash. It is
+/// written, naming the original. Found by the e2e journey, where spec 02 edits
+/// the type that spec 09 later names.
+///
+/// **To make this go red:** in `create_request`, put
+/// `input.service_type_hash` on the entry without `resolve_chain_root`. The
+/// request is then refused at commit.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_listing_may_name_its_service_type_by_a_revision() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let revision: ActionHash = conductors[0]
+        .call(
+            &alice.zome("service_types"),
+            "update_service_type",
+            UpdateServiceTypeInput {
+                original_action_hash: gardening.clone(),
+                previous_action_hash: gardening.clone(),
+                updated_service_type: ServiceTypeEntry {
+                    name: "Gardening and growing".to_string(),
+                    ..sample_service_type("placeholder").service_type
+                },
+            },
+        )
+        .await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    let record: Record = conductors[2]
+        .call(&mallory.zome("requests"), "create_request", sample_request("Help with the beds", revision))
+        .await;
+    let written: Request = record.entry().to_app_option().unwrap().expect("a request");
+    assert_eq!(written.service_type_hash, Some(gardening), "the request names the type's original record");
+}
+
 /// A listing keeps its service type: an update naming another is refused,
 /// through the coordinator and past it (#257).
 ///

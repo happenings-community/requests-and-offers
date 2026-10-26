@@ -70,8 +70,10 @@ pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
   };
   offer.removal_reason = None;
   // The listing's one service type goes on the entry, where validation holds
-  // it fixed (#257); the link below is an index of it.
-  offer.service_type_hash = Some(input.service_type_hash.clone());
+  // it fixed (#257); the link below is an index of it. Validation accepts only
+  // the type's original record, and a client may hold a revision (the list of
+  // approved types returns the latest), so resolve it as every link site does.
+  offer.service_type_hash = Some(resolve_chain_root(input.service_type_hash.clone()));
   let offer_hash = create_entry(&EntryTypes::Offer(offer))?;
 
   let record = get(offer_hash.clone(), GetOptions::default())?.ok_or(
@@ -423,7 +425,7 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
       .ok_or(CommonError::InvalidData(
         "This offer names no service type".to_string(),
       ))?;
-  if input.service_type_hash != service_type_hash {
+  if resolve_chain_root(input.service_type_hash.clone()) != service_type_hash {
     return Err(
       CommonError::InvalidData(
         "A offer's service type cannot change; publish a new listing for a different one"

@@ -70,8 +70,10 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
   };
   request.removal_reason = None;
   // The listing's one service type goes on the entry, where validation holds
-  // it fixed (#257); the link below is an index of it.
-  request.service_type_hash = Some(input.service_type_hash.clone());
+  // it fixed (#257); the link below is an index of it. Validation accepts only
+  // the type's original record, and a client may hold a revision (the list of
+  // approved types returns the latest), so resolve it as every link site does.
+  request.service_type_hash = Some(resolve_chain_root(input.service_type_hash.clone()));
   let request_hash = create_entry(&EntryTypes::Request(request))?;
 
   let record = get(request_hash.clone(), GetOptions::default())?.ok_or(
@@ -422,7 +424,7 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
       .ok_or(CommonError::InvalidData(
         "This request names no service type".to_string(),
       ))?;
-  if input.service_type_hash != service_type_hash {
+  if resolve_chain_root(input.service_type_hash.clone()) != service_type_hash {
     return Err(
       CommonError::InvalidData(
         "A request's service type cannot change; publish a new listing for a different one"

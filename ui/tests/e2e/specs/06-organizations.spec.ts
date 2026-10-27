@@ -88,12 +88,10 @@ test.describe.serial('06 — organizations: creation, moderation, edit', () => {
       timeout: 10_000
     });
     await page.getByRole('button', { name: 'Close' }).click();
-  });
-
-  test('approval gives the organization an hREA agent', async ({ page }) => {
-    // As for members: approving announces the acceptance, and the hREA store
-    // creates the Organization agent from it (#339 review).
-    await gotoApp(page, '/admin/hrea-test');
+    // The agent is written in the background after the toast, so look for it
+    // in the same session: a reload here would cut the write off (#339 review).
+    await page.getByRole('button', { name: 'Developer' }).click();
+    await page.getByRole('link', { name: 'hREA Test' }).click();
     await page
       .getByRole('tab', { name: /Agents/ })
       .first()

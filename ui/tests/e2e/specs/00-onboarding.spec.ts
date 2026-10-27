@@ -133,13 +133,10 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     });
     await page.getByRole('button', { name: 'Close' }).click();
     await expect(page.locator('text=No pending users.')).toBeVisible({ timeout: 10_000 });
-  });
-
-  test('approval gives the member an hREA agent', async ({ page }) => {
-    // Approving announces the acceptance, which is what the hREA store listens
-    // for to create the member's Person agent (#339 review). Without it the
-    // member is accepted in the DNA but has no agent.
-    await gotoApp(page, '/admin/hrea-test');
+    // The agent is written in the background after the toast, so look for it
+    // in the same session: a reload here would cut the write off (#339 review).
+    await page.getByRole('button', { name: 'Developer' }).click();
+    await page.getByRole('link', { name: 'hREA Test' }).click();
     await page
       .getByRole('tab', { name: /Agents/ })
       .first()

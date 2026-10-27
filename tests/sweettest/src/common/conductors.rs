@@ -385,3 +385,24 @@ pub async fn approval_of(conductor: &SweetConductor, cell: &SweetCell, service_t
         .await;
     approval.expect("the service type should be approved")
 }
+
+/// An approved medium of exchange, written by `admin`: an administrator's own
+/// mediums land approved.
+pub async fn a_medium(conductor: &SweetConductor, admin: &SweetCell, code: &str, name: &str) -> ActionHash {
+    let record: Record = conductor
+        .call(
+            &admin.zome("mediums_of_exchange"),
+            "create_medium_of_exchange",
+            crate::common::sample_medium_of_exchange(code, name),
+        )
+        .await;
+    record.action_address().clone()
+}
+
+/// The decision that approved a medium of exchange, as a listing names it.
+pub async fn medium_approval_of(conductor: &SweetConductor, cell: &SweetCell, medium: &ActionHash) -> ActionHash {
+    let approval: Option<ActionHash> = conductor
+        .call(&cell.zome("mediums_of_exchange"), "get_medium_of_exchange_approval", medium.clone())
+        .await;
+    approval.expect("the medium of exchange should be approved")
+}

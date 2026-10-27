@@ -196,6 +196,10 @@ const OFFER_TO_SERVICE_TYPE_LINK: u8 = 5;
 const SERVICE_TYPE: u8 = 0;
 /// `ServiceTypeStatusUpdates` in `service_types_integrity::LinkTypes`.
 const SERVICE_TYPE_STATUS_UPDATES_LINK: u8 = 8;
+/// In `mediums_of_exchange_integrity::LinkTypes`.
+const MEDIUM_TO_REQUEST_LINK: u8 = 2;
+const REQUEST_TO_MEDIUM_LINK: u8 = 3;
+const MEDIUM_STATUS_UPDATES_LINK: u8 = 6;
 /// After `Status`: `utils::grants::ROLE_GRANT_ENTRY_INDEX`.
 const ROLE_GRANT: u8 = 1;
 /// `OrganizationCoordinators` in `users_organizations_integrity::LinkTypes`.
@@ -463,6 +467,222 @@ async fn a_listing_names_the_approval_of_its_service_type() {
     refused(&swapped, "approval cannot change", "an update swapping in another approval");
     let kept = forge_update(&conductors[2], &mallory, &honest, a_request("honest, edited", None, Some(gardening), Some(approval))).await;
     kept.unwrap_or_else(|e| panic!("an update keeping the approval should be written; got {e}"));
+}
+
+/// A listing names its mediums of exchange on its entry, each with the
+/// decision that approved it, at most eight, each once (#234, on #257's
+/// pattern). Past the coordinator, with Mallory's own member grant and an
+/// approved service type, nine forgeries are refused:
+///
+/// - a medium with no approval;
+/// - a pending suggestion of hers, carrying cash's approval (the only kind of
+///   approval she can borrow);
+/// - a suggestion Alice rejected, carrying the Rejected decision;
+/// - cash, carrying hours' approval;
+/// - cash, carrying a record that is not a decision (cash itself);
+/// - cash, carrying a service type's approval;
+/// - a service type named as a medium;
+/// - nine mediums;
+/// - cash named twice.
+///
+/// Then the honest writes (two mediums, and none, a gift), and through the
+/// app, a rejected medium is refused.
+///
+/// **To make each go red** (in `utils/src/listings.rs`):
+/// - no approval, nine, twice: in `check_medium_list`, remove the matching
+///   check (the length comparison, the cap, the repeat loop);
+/// - pending, and another medium's approval: in `check_decision`, drop the
+///   comparison of `decision.item(catalogue)` with `item`;
+/// - rejected: in `check_decision`, accept any state;
+/// - not a decision, and a service type's approval: in `check_approval`,
+///   drop the `writes(..)` check;
+/// - a service type as a medium: in `check_listing_mediums`, drop the
+///   `writes(record.action(), &MEDIUM_OF_EXCHANGE)` check.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_listing_names_its_mediums_and_their_approvals() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let all = [alice, bob, &mallory];
+    everyone_accepted(&conductors, &all).await;
+    let requests = zome_index(&conductors[2], &mallory, "requests_integrity").await;
+    let mediums = zome_index(&conductors[2], &mallory, "mediums_of_exchange_integrity").await;
+    let mine = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "member").await;
+    let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let cash = a_medium(&conductors[0], alice, "GBP", "Pounds").await;
+    let hours = a_medium(&conductors[0], alice, "HRS", "Hours").await;
+    let pending: Record = conductors[2]
+        .call(&mallory.zome("mediums_of_exchange"), "suggest_medium_of_exchange", sample_medium_of_exchange("MAL", "Mallory's pending"))
+        .await;
+    let pending = pending.action_address().clone();
+    let rejected: Record = conductors[2]
+        .call(&mallory.zome("mediums_of_exchange"), "suggest_medium_of_exchange", sample_medium_of_exchange("REJ", "Mallory's rejected"))
+        .await;
+    let rejected = rejected.action_address().clone();
+    await_consistency_s(15, all).await.unwrap();
+    conductors[0]
+        .call::<_, ()>(&alice.zome("mediums_of_exchange"), "reject_medium_of_exchange", rejected.clone())
+        .await;
+    await_consistency_s(15, all).await.unwrap();
+    let approval = approval_of(&conductors[2], &mallory, &gardening).await;
+    let cashs = medium_approval_of(&conductors[2], &mallory, &cash).await;
+    let hourss = medium_approval_of(&conductors[2], &mallory, &hours).await;
+    let decisions: Vec<Link> = conductors[2]
+        .call(
+            &mallory.zome("forge"),
+            "forge_get_links",
+            serde_json::json!({
+                "base": AnyLinkableHash::from(rejected.clone()),
+                "zome_index": mediums,
+                "link_type": MEDIUM_STATUS_UPDATES_LINK,
+            }),
+        )
+        .await;
+    assert_eq!(decisions.len(), 1, "Alice's one decision on the rejected suggestion");
+    let rejection = decisions[0].target.clone().into_action_hash().expect("a status entry");
+
+    let forge = |title: &'static str, named: Vec<ActionHash>, approvals: Vec<ActionHash>| {
+        let mut entry = a_request(title, Some(mine.clone()), Some(gardening.clone()), Some(approval.clone()));
+        entry.medium_of_exchange_hashes = named;
+        entry.medium_of_exchange_approvals = approvals;
+        entry
+    };
+    let cases = [
+        (forge("no approval", vec![cash.clone()], vec![]), "one approval for each medium of exchange", "a medium with no approval"),
+        (
+            forge("pending", vec![pending.clone()], vec![cashs.clone()]),
+            "the approval of another medium of exchange",
+            "a pending suggestion with a borrowed approval",
+        ),
+        (
+            forge("rejected", vec![rejected.clone()], vec![rejection]),
+            "rejected its medium of exchange, not an approval",
+            "a rejected suggestion",
+        ),
+        (
+            forge("hours'", vec![cash.clone()], vec![hourss.clone()]),
+            "the approval of another medium of exchange",
+            "another medium's approval",
+        ),
+        (
+            forge("not a decision", vec![cash.clone()], vec![cash.clone()]),
+            "not a decision on a medium of exchange",
+            "a record that is not a decision",
+        ),
+        (
+            forge("a type's approval", vec![cash.clone()], vec![approval.clone()]),
+            "not a decision on a medium of exchange",
+            "a service type's approval for a medium",
+        ),
+        (
+            forge("a type as a medium", vec![gardening.clone()], vec![approval.clone()]),
+            "the original record of a medium of exchange",
+            "a service type named as a medium",
+        ),
+        (forge("nine", vec![cash.clone(); 9], vec![cashs.clone(); 9]), "at most 8", "nine mediums"),
+        (
+            forge("twice", vec![cash.clone(), cash.clone()], vec![cashs.clone(), cashs.clone()]),
+            "each medium of exchange once",
+            "a medium named twice",
+        ),
+    ];
+    for (entry, expected, what) in cases {
+        refused(&forge_entry(&conductors[2], &mallory, requests, REQUEST, entry).await, expected, what);
+    }
+
+    let two = forge_entry(&conductors[2], &mallory, requests, REQUEST, forge("two", vec![cash.clone(), hours.clone()], vec![cashs, hourss])).await;
+    two.unwrap_or_else(|e| panic!("a request naming two approved mediums should be written; got {e}"));
+    let gift = forge_entry(&conductors[2], &mallory, requests, REQUEST, forge("a gift", vec![], vec![])).await;
+    gift.unwrap_or_else(|e| panic!("a request naming no medium, a gift, should be written; got {e}"));
+
+    let mut input = sample_request("rejected", gardening);
+    input.medium_of_exchange_hashes = vec![rejected];
+    let through_the_app = reason(
+        conductors[2]
+            .call_fallible::<_, Record>(&mallory.zome("requests"), "create_request", input)
+            .await,
+    );
+    match through_the_app {
+        Ok(record) => panic!("a rejected medium should be refused, but wrote {}", record.action_address()),
+        Err(text) => assert!(text.contains("not approved"), "the refusal should say the medium is not approved; got {text}"),
+    }
+}
+
+/// A listing keeps its mediums of exchange and their approvals: an update
+/// that changes either is refused, through the app and past it; one that
+/// keeps them is written. And a listing is linked only to a medium its own
+/// entry names, in either direction.
+///
+/// **To make each go red:**
+/// - moved, swapped: make `utils::listings::check_mediums_unchanged` return
+///   `Ok(())` (through the app: drop `same_mediums` in `update_request`);
+/// - links: in `check_listing_medium_link`, return `Valid` before reading the
+///   listing.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_listing_keeps_its_mediums_and_is_linked_only_to_them() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let all = [alice, bob, &mallory];
+    everyone_accepted(&conductors, &all).await;
+    let mediums = zome_index(&conductors[2], &mallory, "mediums_of_exchange_integrity").await;
+    let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let cash = a_medium(&conductors[0], alice, "GBP", "Pounds").await;
+    let hours = a_medium(&conductors[0], alice, "HRS", "Hours").await;
+    await_consistency_s(15, all).await.unwrap();
+
+    let mut input = sample_request("A lift", gardening.clone());
+    input.medium_of_exchange_hashes = vec![cash.clone()];
+    let record: Record = conductors[2]
+        .call(&mallory.zome("requests"), "create_request", input)
+        .await;
+    let original = record.action_address().clone();
+    let written: Request = record.entry().to_app_option().unwrap().expect("a request");
+    assert_eq!(written.medium_of_exchange_hashes, vec![cash.clone()], "the coordinator puts the mediums on the entry");
+    assert_eq!(written.medium_of_exchange_approvals.len(), 1, "with one approval each");
+    await_consistency_s(15, all).await.unwrap();
+
+    // Through the app: refused with a reason.
+    let moved = reason(
+        conductors[2]
+            .call_fallible::<_, Record>(
+                &mallory.zome("requests"),
+                "update_request",
+                serde_json::json!({
+                    "original_action_hash": original,
+                    "previous_action_hash": original,
+                    "updated_request": sample_request("A lift", gardening.clone()).request,
+                    "service_type_hash": gardening,
+                    "medium_of_exchange_hashes": [cash.clone(), hours.clone()],
+                }),
+            )
+            .await,
+    );
+    match moved {
+        Ok(record) => panic!("changing a listing's mediums should be refused, but wrote {}", record.action_address()),
+        Err(text) => assert!(text.contains("cannot change"), "the refusal should say the mediums cannot change; got {text}"),
+    }
+
+    // Past the coordinator.
+    let hourss = medium_approval_of(&conductors[2], &mallory, &hours).await;
+    let edit = |named: Vec<ActionHash>, approvals: Vec<ActionHash>| {
+        let mut entry = a_request("A lift, edited", None, Some(gardening.clone()), written.service_type_approval.clone());
+        entry.medium_of_exchange_hashes = named;
+        entry.medium_of_exchange_approvals = approvals;
+        entry
+    };
+    let added = forge_update(&conductors[2], &mallory, &original, edit(vec![cash.clone(), hours.clone()], vec![written.medium_of_exchange_approvals[0].clone(), hourss.clone()])).await;
+    refused(&added, "mediums of exchange cannot change", "an update adding a medium");
+    let swapped = forge_update(&conductors[2], &mallory, &original, edit(vec![cash.clone()], vec![hourss])).await;
+    refused(&swapped, "approvals cannot change", "an update swapping a medium's approval");
+    let kept = forge_update(&conductors[2], &mallory, &original, edit(written.medium_of_exchange_hashes.clone(), written.medium_of_exchange_approvals.clone())).await;
+    kept.unwrap_or_else(|e| panic!("an update keeping the mediums should be written; got {e}"));
+
+    // Links: only to a medium the entry names.
+    let to_hours = forge_a_link(&conductors[2], &mallory, mediums, REQUEST_TO_MEDIUM_LINK, &original, &hours).await;
+    refused(&to_hours, "only to a medium of exchange its entry names", "a request linked to a medium it does not name");
+    let from_hours = forge_a_link(&conductors[2], &mallory, mediums, MEDIUM_TO_REQUEST_LINK, &hours, &original).await;
+    refused(&from_hours, "only to a medium of exchange its entry names", "a medium linked to a request that does not name it");
+    let to_cash = forge_a_link(&conductors[2], &mallory, mediums, REQUEST_TO_MEDIUM_LINK, &original, &cash).await;
+    to_cash.unwrap_or_else(|e| panic!("a link to a medium the entry names should be written; got {e}"));
 }
 
 /// A listing may name its service type by a revision, as the list of

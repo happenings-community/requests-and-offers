@@ -11,7 +11,7 @@ use utils::{
 use crate::external_calls::{
   check_if_agent_is_administrator, check_if_entity_is_accepted, get_organization_members_links,
   delete_all_medium_of_exchange_links_for_entity, delete_all_service_type_links_for_entity,
-  get_agent_user, get_service_type_approval, link_to_medium_of_exchange, link_to_service_type,
+  get_agent_user, get_medium_of_exchange_approval, get_service_type_approval, link_to_medium_of_exchange, link_to_service_type,
   update_medium_of_exchange_links, update_service_type_links,
 };
 
@@ -23,6 +23,45 @@ pub struct OfferInput {
   /// several Commitments, not on the listing.
   service_type_hash: ActionHash,
   medium_of_exchange_hashes: Vec<ActionHash>,
+}
+
+/// Each medium a new listing names, resolved to its original record, with the
+/// decision that approved it, in the order given. Refuses a medium named
+/// twice, more than eight, or one that is not approved now.
+fn approved_mediums(hashes: &[ActionHash]) -> ExternResult<(Vec<ActionHash>, Vec<ActionHash>)> {
+  let mut mediums = Vec::new();
+  let mut approvals = Vec::new();
+  for hash in hashes {
+    let medium = resolve_chain_root(hash.clone());
+    if mediums.contains(&medium) {
+      return Err(CommonError::InvalidData("That medium of exchange is named twice".to_string()).into());
+    }
+    approvals.push(get_medium_of_exchange_approval(medium.clone())?.ok_or(CommonError::InvalidData(
+      "That medium of exchange is not approved".to_string(),
+    ))?);
+    mediums.push(medium);
+  }
+  if mediums.len() > utils::listings::MAX_MEDIUMS_OF_EXCHANGE {
+    return Err(
+      CommonError::InvalidData(format!(
+        "A listing names at most {} mediums of exchange",
+        utils::listings::MAX_MEDIUMS_OF_EXCHANGE
+      ))
+      .into(),
+    );
+  }
+  Ok((mediums, approvals))
+}
+
+/// Whether an update names the same mediums as the listing, in any order: the
+/// form may list them in another order than the entry holds them.
+fn same_mediums(given: &[ActionHash], held: &[ActionHash]) -> bool {
+  let mut given: Vec<ActionHash> = given.iter().cloned().map(resolve_chain_root).collect();
+  let mut held = held.to_vec();
+  given.sort();
+  given.dedup();
+  held.sort();
+  given == held
 }
 
 #[hdk_extern]
@@ -83,6 +122,11 @@ pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
     ))?,
   );
   offer.service_type_hash = Some(service_type_hash);
+  // The mediums of exchange, part of the terms, go on the entry too, each with
+  // the decision that approved it; validation holds both lists fixed.
+  let (medium_hashes, medium_approvals) = approved_mediums(&input.medium_of_exchange_hashes)?;
+  offer.medium_of_exchange_hashes = medium_hashes.clone();
+  offer.medium_of_exchange_approvals = medium_approvals;
   let offer_hash = create_entry(&EntryTypes::Offer(offer))?;
 
   let record = get(offer_hash.clone(), GetOptions::default())?.ok_or(
@@ -142,7 +186,7 @@ pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
   })?;
 
   // Create bidirectional links to mediums of exchange
-  for medium_of_exchange_hash in input.medium_of_exchange_hashes {
+  for medium_of_exchange_hash in medium_hashes {
     link_to_medium_of_exchange(MediumOfExchangeLinkInput {
       medium_of_exchange_hash: OriginalActionHash(medium_of_exchange_hash),
       action_hash: OriginalActionHash(offer_hash.clone()),
@@ -452,6 +496,19 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
   let mut updated_offer = input.updated_offer;
   updated_offer.service_type_hash = Some(service_type_hash.clone());
   updated_offer.service_type_approval = current_offer.service_type_approval.clone();
+  // The mediums are part of the terms: an update keeps them, and validation
+  // refuses one that does not. Say so here, before writing.
+  if !same_mediums(&input.medium_of_exchange_hashes, &current_offer.medium_of_exchange_hashes) {
+    return Err(
+      CommonError::InvalidData(
+        "A offer's mediums of exchange cannot change; publish a new listing for different ones"
+          .to_string(),
+      )
+      .into(),
+    );
+  }
+  updated_offer.medium_of_exchange_hashes = current_offer.medium_of_exchange_hashes.clone();
+  updated_offer.medium_of_exchange_approvals = current_offer.medium_of_exchange_approvals.clone();
   updated_offer.grant = if is_author {
     None
   } else {
@@ -495,7 +552,7 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
   update_medium_of_exchange_links(UpdateMediumOfExchangeLinksInput {
     action_hash: OriginalActionHash(updated_offer_hash.clone()),
     entity: "offer".to_string(),
-    new_medium_of_exchange_hashes: input.medium_of_exchange_hashes,
+    new_medium_of_exchange_hashes: current_offer.medium_of_exchange_hashes.clone(),
   })?;
 
   let record = get(updated_offer_hash.clone(), GetOptions::default())?.ok_or(

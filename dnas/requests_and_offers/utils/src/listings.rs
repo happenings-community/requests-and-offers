@@ -35,7 +35,7 @@
 
 use hdk::prelude::*;
 
-use crate::links::{writes, CatalogueState, EntryKind, MEDIUM_OF_EXCHANGE_STATUS, SERVICE_TYPE_STATUS};
+use crate::links::{writes, CatalogueState, EntryKind, MEDIUM_OF_EXCHANGE, MEDIUM_OF_EXCHANGE_STATUS, SERVICE_TYPE_STATUS};
 
 /// The integrity zome that registers `ServiceType`, as named in
 /// `dnas/requests_and_offers/workdir/dna.yaml`.
@@ -263,6 +263,125 @@ pub fn check_same_approval(before: &Option<ActionHash>, after: &Option<ActionHas
   }
 }
 
+// ── Mediums of exchange ──────────────────────────────────────────────────────
+//
+// A listing's mediums of exchange are part of its terms, like its service type:
+// set when it is created, never changed (a new listing for new terms). A
+// listing names none (a gift), or up to `MAX_MEDIUMS_OF_EXCHANGE`, each with
+// the decision that approved it, in the same order. The same limit applies as
+// for the service type: a medium approved and later retired can still be named
+// by its old approval; honest clients refuse it at the coordinator.
+
+/// The most mediums of exchange one listing names. Each costs validation two
+/// reads, so the bound keeps a listing's validation cheap; it is well above
+/// what anyone picks.
+pub const MAX_MEDIUMS_OF_EXCHANGE: usize = 8;
+
+/// The two fields of a request or offer the medium checks read, as
+/// [`ListingServiceType`] does for the service type, so
+/// `mediums_of_exchange_integrity` takes no dependency on the listing zomes.
+#[derive(Serialize, Deserialize, Debug, Clone, Default, SerializedBytes)]
+pub struct ListingMediums {
+  #[serde(default)]
+  pub medium_of_exchange_hashes: Vec<ActionHash>,
+  #[serde(default)]
+  pub medium_of_exchange_approvals: Vec<ActionHash>,
+}
+
+/// The shape of a listing's mediums as a pure function: at most
+/// [`MAX_MEDIUMS_OF_EXCHANGE`], each once, each with one approval.
+pub fn check_medium_list(hashes: &[ActionHash], approvals: &[ActionHash]) -> Result<(), String> {
+  if hashes.len() > MAX_MEDIUMS_OF_EXCHANGE {
+    return Err(format!("names at most {} mediums of exchange", MAX_MEDIUMS_OF_EXCHANGE));
+  }
+  if approvals.len() != hashes.len() {
+    return Err("must name one approval for each medium of exchange, in the same order".to_string());
+  }
+  for (i, hash) in hashes.iter().enumerate() {
+    if hashes[..i].contains(hash) {
+      return Err("names each medium of exchange once".to_string());
+    }
+  }
+  Ok(())
+}
+
+/// An update keeps both lists exactly, as a pure function.
+pub fn check_mediums_unchanged(before: &ListingMediums, after: &ListingMediums) -> Result<(), String> {
+  if before.medium_of_exchange_hashes != after.medium_of_exchange_hashes {
+    return Err("mediums of exchange cannot change; publish a new listing for different ones".to_string());
+  }
+  if before.medium_of_exchange_approvals != after.medium_of_exchange_approvals {
+    return Err("medium of exchange approvals cannot change on an update".to_string());
+  }
+  Ok(())
+}
+
+/// The medium of exchange rule for a request or offer. `update` is the action
+/// an update updates, `None` for a create; `noun` is "request" or "offer".
+pub fn check_listing_mediums(
+  mediums: &ListingMediums,
+  update: Option<&ActionHash>,
+  noun: &str,
+) -> ExternResult<ValidateCallbackResult> {
+  if let Some(previous) = update {
+    let record = must_get_valid_record(previous.clone())?;
+    let before: ListingMediums = match record.entry().to_app_option() {
+      Ok(Some(listing)) => listing,
+      _ => return Ok(invalid(format!("The {} this updates could not be read", noun))),
+    };
+    return Ok(match check_mediums_unchanged(&before, mediums) {
+      Ok(()) => ValidateCallbackResult::Valid,
+      Err(reason) => invalid(format!("A {}'s {}", noun, reason)),
+    });
+  }
+  let (hashes, approvals) = (&mediums.medium_of_exchange_hashes, &mediums.medium_of_exchange_approvals);
+  if let Err(reason) = check_medium_list(hashes, approvals) {
+    return Ok(invalid(format!("A {} {}", noun, reason)));
+  }
+  for (hash, approval) in hashes.iter().zip(approvals) {
+    let record = must_get_valid_record(hash.clone())?;
+    if !matches!(record.action().data, ActionData::Create(_)) || !writes(record.action(), &MEDIUM_OF_EXCHANGE)? {
+      return Ok(invalid(format!(
+        "A {}'s medium of exchange must be the original record of a medium of exchange",
+        noun
+      )));
+    }
+    if let Err(reason) = check_approval(&Some(approval.clone()), Catalogue::MediumOfExchange, hash)? {
+      return Ok(invalid(format!("A {} {}", noun, reason)));
+    }
+  }
+  Ok(ValidateCallbackResult::Valid)
+}
+
+/// The link rule for a listing and a medium of exchange, in either direction:
+/// the listing's own entry names that medium. `listing` is whichever end is
+/// the listing; `listing_zome` the integrity zome it must belong to.
+pub fn check_listing_medium_link(
+  listing: AnyLinkableHash,
+  medium: AnyLinkableHash,
+  listing_zome: &str,
+) -> ExternResult<ValidateCallbackResult> {
+  let Some(listing) = listing.into_action_hash() else {
+    return Ok(invalid("A listing's medium of exchange link must name the listing by action hash"));
+  };
+  let Some(medium) = medium.into_action_hash() else {
+    return Ok(invalid("A listing's medium of exchange link must name the medium by action hash"));
+  };
+  let record = must_get_valid_record(listing)?;
+  if !writes_entry_of(record.action(), listing_zome, LISTING_ENTRY_INDEX)? {
+    return Ok(invalid("A listing's medium of exchange link must join a listing of that kind"));
+  }
+  let named: ListingMediums = match record.entry().to_app_option() {
+    Ok(Some(listing)) => listing,
+    _ => return Ok(invalid("The listing this link names could not be read")),
+  };
+  Ok(if named.medium_of_exchange_hashes.contains(&medium) {
+    ValidateCallbackResult::Valid
+  } else {
+    invalid("A listing may be linked only to a medium of exchange its entry names")
+  })
+}
+
 /// The link rule for a listing and its service type, in either direction:
 /// the listing's own entry names the service type at the other end.
 ///
@@ -355,6 +474,43 @@ mod tests {
       check_decision(&decision(None, Some(1), CatalogueState::Approved), Catalogue::MediumOfExchange, &hash(1)),
       Ok(())
     );
+  }
+
+  #[test]
+  fn a_listing_names_up_to_eight_mediums_each_once_each_approved() {
+    let hashes: Vec<ActionHash> = (1..=8).map(hash).collect();
+    let approvals: Vec<ActionHash> = (11..=18).map(hash).collect();
+    assert_eq!(check_medium_list(&[], &[]), Ok(()), "a gift names none");
+    assert_eq!(check_medium_list(&hashes, &approvals), Ok(()));
+    let nine: Vec<ActionHash> = (1..=9).map(hash).collect();
+    let nine_approvals: Vec<ActionHash> = (11..=19).map(hash).collect();
+    assert!(check_medium_list(&nine, &nine_approvals).unwrap_err().contains("at most 8"));
+    assert!(check_medium_list(&hashes, &approvals[..7]).unwrap_err().contains("one approval for each"));
+    assert!(check_medium_list(&[hash(1), hash(1)], &[hash(11), hash(12)])
+      .unwrap_err()
+      .contains("each medium of exchange once"));
+  }
+
+  #[test]
+  fn an_update_keeps_the_mediums_and_their_approvals() {
+    let listed = ListingMediums {
+      medium_of_exchange_hashes: vec![hash(1), hash(2)],
+      medium_of_exchange_approvals: vec![hash(11), hash(12)],
+    };
+    assert_eq!(check_mediums_unchanged(&listed, &listed.clone()), Ok(()));
+    let mut moved = listed.clone();
+    moved.medium_of_exchange_hashes = vec![hash(1)];
+    moved.medium_of_exchange_approvals = vec![hash(11)];
+    assert!(check_mediums_unchanged(&listed, &moved).unwrap_err().contains("cannot change"));
+    let mut swapped = listed.clone();
+    swapped.medium_of_exchange_approvals = vec![hash(11), hash(13)];
+    assert!(check_mediums_unchanged(&listed, &swapped).unwrap_err().contains("approvals cannot change"));
+    // Reordering is a change too: the coordinator copies the lists, so an
+    // honest update never reorders.
+    let mut reordered = listed.clone();
+    reordered.medium_of_exchange_hashes.reverse();
+    reordered.medium_of_exchange_approvals.reverse();
+    assert!(check_mediums_unchanged(&listed, &reordered).is_err());
   }
 
   #[test]

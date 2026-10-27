@@ -1,5 +1,5 @@
 use hdi::prelude::*;
-use utils::listings::check_listing_service_type;
+use utils::listings::{check_listing_mediums, check_listing_service_type, ListingMediums};
 
 mod links;
 mod request;
@@ -52,6 +52,10 @@ fn validate_entry(
     EntryTypes::Request(request) => {
       let service_type_hash = request.service_type_hash.clone();
       let service_type_approval = request.service_type_approval.clone();
+      let mediums = ListingMediums {
+        medium_of_exchange_hashes: request.medium_of_exchange_hashes.clone(),
+        medium_of_exchange_approvals: request.medium_of_exchange_approvals.clone(),
+      };
       match validate_request(request.clone())? {
         ValidateCallbackResult::Valid => (),
         other => return Ok(other),
@@ -60,7 +64,11 @@ fn validate_entry(
         ValidateCallbackResult::Valid => (),
         other => return Ok(other),
       }
-      check_listing_service_type(&service_type_hash, &service_type_approval, update, "request")
+      match check_listing_service_type(&service_type_hash, &service_type_approval, update, "request")? {
+        ValidateCallbackResult::Valid => (),
+        other => return Ok(other),
+      }
+      check_listing_mediums(&mediums, update, "request")
     }
   }
 }
@@ -217,6 +225,8 @@ mod record_op_tests {
       removal_reason: None,
       service_type_hash: None,
       service_type_approval: None,
+      medium_of_exchange_hashes: vec![],
+      medium_of_exchange_approvals: vec![],
     }
     .try_into()
     .unwrap()

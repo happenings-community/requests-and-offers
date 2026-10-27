@@ -115,6 +115,8 @@ fn a_request(
         removal_reason: None,
         service_type_hash: service_type,
         service_type_approval: approval,
+        medium_of_exchange_hashes: vec![],
+        medium_of_exchange_approvals: vec![],
     }
 }
 

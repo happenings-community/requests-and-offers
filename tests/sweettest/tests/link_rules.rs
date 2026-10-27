@@ -66,6 +66,11 @@ async fn path_hash(conductor: &SweetConductor, mallory: &SweetCell, path: &str) 
 
 /// Mallory's member grant, read from her own grants.
 async fn member_grant(conductor: &SweetConductor, cell: &SweetCell) -> ActionHash {
+    role_grant(conductor, cell, "member").await
+}
+
+/// The agent's grant for a role, read from their own grants.
+async fn role_grant(conductor: &SweetConductor, cell: &SweetCell, role: &str) -> ActionHash {
     let records: Vec<Record> = conductor
         .call(&cell.zome("administration"), "get_agent_grants", cell.agent_pubkey().clone())
         .await;
@@ -73,11 +78,31 @@ async fn member_grant(conductor: &SweetConductor, cell: &SweetCell) -> ActionHas
         .into_iter()
         .find(|r| {
             let grant: RoleGrant = r.entry().to_app_option().unwrap().expect("a grant entry");
-            grant.role == "member"
+            grant.role == role
         })
-        .expect("an accepted member holds a member grant")
+        .unwrap_or_else(|| panic!("no {role} grant"))
         .action_address()
         .clone()
+}
+
+/// An organisation created by this agent and approved by Alice, who is the
+/// administrator: its creator then holds a coordinator grant scoped to it.
+async fn approved_organization(
+    conductors: &SweetConductorBatch,
+    i: usize,
+    cell: &SweetCell,
+    alice: &SweetCell,
+    name: &str,
+    everyone: &[&SweetCell],
+) -> ActionHash {
+    let record: Record = conductors[i]
+        .call(&cell.zome("users_organizations"), "create_organization", sample_organization(name))
+        .await;
+    let organization = record.action_address().clone();
+    await_consistency_s(30, everyone.iter().copied()).await.unwrap();
+    accept_entity(&conductors[0], alice, ENTITY_ORGANIZATIONS, organization.clone()).await;
+    await_consistency_s(30, everyone.iter().copied()).await.unwrap();
+    organization
 }
 
 fn reason<T, E: std::fmt::Debug>(outcome: Result<T, E>) -> Result<T, String> {
@@ -166,6 +191,17 @@ holochain_serialized_bytes::holochain_serial!(ServiceTypeStatus);
 
 /// `ServiceTypeStatus` is the second entry type of `service_types_integrity`.
 const SERVICE_TYPE_STATUS: u8 = 1;
+
+/// Mirror of `OrganizationRetirement` in `users_organizations_integrity`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct OrganizationRetirement {
+    organization: ActionHash,
+    grant: ActionHash,
+}
+holochain_serialized_bytes::holochain_serial!(OrganizationRetirement);
+
+/// `OrganizationRetirement` is the third entry type of `users_organizations_integrity`.
+const ORGANIZATION_RETIREMENT: u8 = 2;
 
 // ── Link type indexes, from the integrity zomes' enums ──────────────────────
 
@@ -523,4 +559,93 @@ async fn only_a_listings_creator_tombstones_it() {
         .call(&mallory.zome("requests"), "get_latest_request_record", request)
         .await;
     assert!(gone.is_none(), "the creator's own tombstone is written");
+}
+
+/// An organisation is shared: members, coordinators, listings and exchanges
+/// name it. Mallory coordinates her own approved organisation and tries to
+/// tombstone it past the coordinator: refused, on the record op and the
+/// entry op alike.
+///
+/// Red: in `users_organizations_integrity/src/lib.rs`, return `Valid` from
+/// both the `DeleteEntry` arm for an organisation and the `FlatOp::Delete`
+/// arm's refusal of `ORGANIZATION`. Either alone stays green.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_organisation_is_never_tombstoned() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let hers = approved_organization(&conductors, 1, &mallory, alice, "Mallory's", &[alice, &mallory]).await;
+
+    let tombstone = forge_tombstone(&conductors[1], &mallory, hers.clone()).await;
+    refused(&tombstone, "never tombstoned", "a tombstone of an organisation by its own coordinator");
+
+    let still_there: Option<Record> = conductors[0]
+        .call(&alice.zome("users_organizations"), "get_latest_organization_record", hers)
+        .await;
+    assert!(still_there.is_some(), "the organisation is still there");
+}
+
+/// Retiring an organisation is a role act for that organisation. Mallory
+/// coordinates her own, so she holds a real coordinator grant, scoped to
+/// hers. She forges a retirement of Alice's organisation carrying that grant,
+/// and another carrying her member grant: both refused. She retires her own
+/// through the app: it reads as gone, and Alice's does not.
+///
+/// Red: in `utils/src/links.rs`, return `Valid` from
+/// `check_organization_retirement` instead of checking the grant.
+#[tokio::test(flavor = "multi_thread")]
+async fn retiring_an_organisation_needs_a_grant_for_it() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let alices = approved_organization(&conductors, 0, alice, alice, "Alice's", &[alice, &mallory]).await;
+    let hers = approved_organization(&conductors, 1, &mallory, alice, "Mallory's", &[alice, &mallory]).await;
+    let index = zome_index(&conductors[1], &mallory, "users_organizations_integrity").await;
+
+    let coordinator = role_grant(&conductors[1], &mallory, "org_coordinator").await;
+    let with_her_coordinator_grant = forge_entry(
+        &conductors[1],
+        &mallory,
+        index,
+        ORGANIZATION_RETIREMENT,
+        OrganizationRetirement { organization: alices.clone(), grant: coordinator },
+    )
+    .await;
+    refused(
+        &with_her_coordinator_grant,
+        "retiring an organisation needs",
+        "a retirement of Alice's organisation carrying a grant for Mallory's",
+    );
+
+    let member = role_grant(&conductors[1], &mallory, "member").await;
+    let with_her_member_grant = forge_entry(
+        &conductors[1],
+        &mallory,
+        index,
+        ORGANIZATION_RETIREMENT,
+        OrganizationRetirement { organization: alices.clone(), grant: member },
+    )
+    .await;
+    refused(
+        &with_her_member_grant,
+        "retiring an organisation needs",
+        "a retirement of Alice's organisation carrying a member grant",
+    );
+
+    let _: ActionHash = conductors[1]
+        .call(&mallory.zome("users_organizations"), "delete_organization", hers.clone())
+        .await;
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+    let retired: bool = conductors[0]
+        .call(&alice.zome("users_organizations"), "is_organization_retired", hers.clone())
+        .await;
+    assert!(retired, "Mallory's organisation is retired");
+    let gone: Option<Record> = conductors[0]
+        .call(&alice.zome("users_organizations"), "get_latest_organization_record", hers)
+        .await;
+    assert!(gone.is_none(), "a retired organisation reads as gone");
+    let alices_still: Option<Record> = conductors[1]
+        .call(&mallory.zome("users_organizations"), "get_latest_organization_record", alices)
+        .await;
+    assert!(alices_still.is_some(), "Alice's organisation is untouched");
 }

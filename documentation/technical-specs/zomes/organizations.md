@@ -88,13 +88,16 @@ pub fn update_organization(input: UpdateOrganizationInput) -> ExternResult<Recor
 ##### `delete_organization`
 
 ```rust
-pub fn delete_organization(organization_original_action_hash: ActionHash) -> ExternResult<bool>
+pub fn delete_organization(organization_original_action_hash: ActionHash) -> ExternResult<ActionHash>
 ```
 
-- Deletes organization profile
-- Verifies coordinator permissions
-- Removes all associated links (members, coordinators, contacts, status)
-- Returns success boolean
+Retires the organisation; nothing is tombstoned (#234). An organisation is shared: members, coordinators, listings and exchanges name it.
+- The caller needs a `Coordinate` grant for this organisation: one of its coordinators, or an administrator. Validation checks the grant, so a modified client cannot skip it.
+- Writes an `OrganizationRetirement { organization, grant }` and an `OrganizationRetirements` link to it. Both are never edited or tombstoned.
+- Membership, coordinator and contact links stay, as the record of who belonged.
+- `get_latest_organization_record` returns `None` for a retired organisation, and `get_user_organizations` skips it, so it leaves every list.
+- `is_organization_retired` answers whether one has been retired.
+- Returns the retirement's hash, or the existing one if it was already retired. The name is kept so the interface's call is unchanged.
 
 #### Organization Retrieval
 
@@ -299,7 +302,7 @@ pub fn is_organization_contact(input: OrganizationUserInput) -> ExternResult<boo
 Contact links are automatically cleaned up in:
 - **`leave_organization`**: Removes contact link if the leaving member is the contact
 - **`remove_organization_member`**: Removes contact link if the removed member is the contact
-- **`delete_organization`**: Removes all contact links as part of organization cleanup
+- **`delete_organization`**: keeps them, as it keeps every membership link: it retires the organisation rather than removing it
 
 ### 7. Status Integration
 

@@ -15,6 +15,7 @@ use hdi::prelude::*;
 pub enum EntryTypes {
   User(User),
   Organization(Organization),
+  OrganizationRetirement(OrganizationRetirement),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -35,6 +36,9 @@ pub enum LinkTypes {
   OrganizationMembers,
   OrganizationStatus,
   OrganizationContacts,
+  /// From an organisation to the entry that retired it (#234). Appended, so
+  /// the indexes above stay as other zomes read them.
+  OrganizationRetirements,
 }
 
 #[hdk_extern]
@@ -58,6 +62,9 @@ fn validate_entry(
     EntryTypes::User(user) => validate_user(user),
     EntryTypes::Organization(organization) => {
       validate_organization_write(organization, author, update_of)
+    }
+    EntryTypes::OrganizationRetirement(retirement) => {
+      validate_organization_retirement(retirement, author, update_of)
     }
   }
 }
@@ -151,13 +158,28 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
               "User profile cannot be deleted",
             )))
           }
-          EntryTypes::Organization(_original_organization) => {
-            return Ok(ValidateCallbackResult::Valid)
+          // An organisation is shared: members, coordinators, listings and
+          // exchanges name it. It is retired, never tombstoned (#234).
+          EntryTypes::Organization(_) | EntryTypes::OrganizationRetirement(_) => {
+            return Ok(ValidateCallbackResult::Invalid(String::from(
+              "an organisation is never tombstoned; a coordinator or an administrator retires it",
+            )))
           }
         }
       }
       _ => (),
     },
+    // The entry op of the same tombstone, refused for the same reason.
+    FlatOp::Delete(OpDelete { action }) => {
+      for kind in [&utils::links::USER, &utils::links::ORGANIZATION, &utils::links::ORGANIZATION_RETIREMENT] {
+        if let ValidateCallbackResult::Invalid(reason) =
+          utils::links::refuse_tombstone(&action.deletes_address, kind)?
+        {
+          return Ok(ValidateCallbackResult::Invalid(reason));
+        }
+      }
+      return Ok(ValidateCallbackResult::Valid);
+    }
     FlatOp::Link(OpLink::CreateLink { link_type, action }) => match link_type {
       LinkTypes::OrganizationMembers => {
         return validate_create_link_organization_membership(

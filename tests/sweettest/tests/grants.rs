@@ -112,15 +112,6 @@ fn a_request(title: &str, grant: Option<ActionHash>, service_type: Option<Action
     }
 }
 
-/// An approved service type, written by Alice, the progenitor: a listing
-/// must name one (#257), and hers land approved.
-async fn a_service_type(conductor: &SweetConductor, alice: &SweetCell, name: &str) -> ActionHash {
-    let record: Record = conductor
-        .call(&alice.zome("service_types"), "create_service_type", sample_service_type(name))
-        .await;
-    record.action_address().clone()
-}
-
 fn reason<T, E: std::fmt::Debug>(outcome: Result<T, E>) -> Result<T, String> {
     outcome.map_err(|e| format!("{e:?}"))
 }

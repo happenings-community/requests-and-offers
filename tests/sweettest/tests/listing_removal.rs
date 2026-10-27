@@ -108,7 +108,7 @@ fn refused(outcome: &Result<ActionHash, String>, expected: &str, what: &str) {
     }
 }
 
-fn listing(title: &str) -> Request {
+fn listing(title: &str, service_type: &ActionHash) -> Request {
     Request {
         title: title.to_string(),
         description: "forged past the coordinator".to_string(),
@@ -124,6 +124,7 @@ fn listing(title: &str) -> Request {
         organization: None,
         membership: None,
         removal_reason: None,
+        service_type_hash: Some(service_type.clone()),
     }
 }
 
@@ -191,7 +192,7 @@ async fn a_listing_for_an_organisation_carries_its_authors_membership() {
 
     // Past the coordinator, with her member grant.
     let mine = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "member").await;
-    let mut forged = listing("no membership");
+    let mut forged = listing("no membership", &gardening);
     forged.grant = Some(mine.clone());
     forged.organization = Some(bobs_org.clone());
     refused(
@@ -199,7 +200,7 @@ async fn a_listing_for_an_organisation_carries_its_authors_membership() {
         "it names no membership",
         "a listing for an organisation with no membership",
     );
-    let mut forged = listing("Bob's membership");
+    let mut forged = listing("Bob's membership", &gardening);
     forged.grant = Some(mine.clone());
     forged.organization = Some(bobs_org.clone());
     forged.membership = Some(bobs_membership);
@@ -218,7 +219,7 @@ async fn a_listing_for_an_organisation_carries_its_authors_membership() {
         .expect("Mallory is a member of her own organisation")
         .create_link_hash
         .clone();
-    let mut forged = listing("another organisation's membership");
+    let mut forged = listing("another organisation's membership", &gardening);
     forged.grant = Some(mine);
     forged.organization = Some(bobs_org);
     forged.membership = Some(her_membership);
@@ -247,7 +248,7 @@ async fn a_listing_stays_in_the_organisation_it_was_posted_for() {
         .await;
     let original = record.action_address().clone();
 
-    let mut moved = listing("moved into an organisation");
+    let mut moved = listing("moved into an organisation", &gardening);
     moved.organization = Some(org);
     refused(
         &forge_update(&conductors[1], &mallory, &original, moved).await,
@@ -284,7 +285,7 @@ async fn a_removal_by_a_role_holder_says_who_and_why() {
 
     // A coordinator of another organisation, past the coordinator.
     let her_grant = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "org_coordinator").await;
-    let mut removal = listing("Alice's, for Bob's organisation");
+    let mut removal = listing("Alice's, for Bob's organisation", &gardening);
     removal.organization = Some(bobs_org.clone());
     removal.status = "Deleted".to_string();
     removal.grant = Some(her_grant);
@@ -374,7 +375,7 @@ async fn an_administrators_removal_without_a_reason_is_refused() {
     await_consistency_s(15, all).await.unwrap();
 
     let admin = grant_for_role(&conductors[1], &mallory, mallory.agent_pubkey(), "admin").await;
-    let mut removal = listing("Alice's");
+    let mut removal = listing("Alice's", &gardening);
     removal.status = "Deleted".to_string();
     removal.grant = Some(admin.clone());
     refused(
@@ -383,7 +384,7 @@ async fn an_administrators_removal_without_a_reason_is_refused() {
         "an administrator's removal with no reason",
     );
     // With a reason, the same write stands.
-    let mut removal = listing("Alice's");
+    let mut removal = listing("Alice's", &gardening);
     removal.status = "Deleted".to_string();
     removal.grant = Some(admin);
     removal.removal_reason = Some("against the terms".to_string());

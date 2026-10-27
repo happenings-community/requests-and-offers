@@ -1,8 +1,11 @@
+use std::collections::HashSet;
+
 use hdk::prelude::*;
 use users_organizations_integrity::*;
 use utils::{
   errors::{AdministrationError, CommonError, OrganizationsError, UsersError},
   find_original_action_hash,
+  links::{membership_end_tag, MAX_ENDED_LINKS},
   grants::{can_i, grant_tag, require_grant, Ability, GrantRoleInput, RevokeRolesOfInput, Role},
   EntityActionHash, OriginalActionHash, OrganizationContactInput, OrganizationUserInput,
   PreviousActionHash,
@@ -18,6 +21,76 @@ use crate::{
 fn require_coordinate(organization: &ActionHash) -> ExternResult<ActionHash> {
   can_i(Ability::Coordinate, Some(organization.clone()))?
     .ok_or_else(|| OrganizationsError::NotCoordinator.into())
+}
+
+// ============================================================================
+// MEMBERSHIP ENDS (#234)
+// ============================================================================
+//
+// Membership links are an index and are never tombstoned: a tombstone carries
+// no grant, so validation could not tell a coordinator from a stranger. Leaving
+// or removal writes a `MembershipEnd` naming the links it closes, and the link
+// readers below skip any link an end names. A member who rejoins gets new
+// links, which nothing names, so no clock decides whether they belong.
+
+/// Every membership link an organisation's ends have closed, read from the
+/// `MembershipEnds` tags.
+fn closed_links(organization: &ActionHash) -> ExternResult<HashSet<ActionHash>> {
+  let filter = LinkTypes::MembershipEnds
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let mut closed = HashSet::new();
+  for link in get_links(LinkQuery::new(organization.clone(), filter), GetStrategy::Network)? {
+    if let Ok(named) = utils::links::membership_end_from_tag(&link.tag) {
+      closed.extend(named);
+    }
+  }
+  Ok(closed)
+}
+
+/// Records the end of the links named: a membership, or a coordinator role. Writes
+/// one end per `MAX_ENDED_LINKS` links and returns the last.
+fn write_membership_end(
+  organization: &ActionHash,
+  user: &ActionHash,
+  links: Vec<ActionHash>,
+  grant: Option<ActionHash>,
+) -> ExternResult<ActionHash> {
+  // One end names at most MAX_ENDED_LINKS links, so a member someone has
+  // linked more often than that gets as many ends as it takes: a fixed limit
+  // must never pin anyone in (Aria, 26 Oct).
+  let mut last = None;
+  for chunk in links.chunks(MAX_ENDED_LINKS) {
+    let tag = membership_end_tag(chunk);
+    let end = create_entry(EntryTypes::MembershipEnd(MembershipEnd {
+      organization: organization.clone(),
+      user: user.clone(),
+      links: chunk.to_vec(),
+      grant: grant.clone(),
+    }))?;
+    create_link(organization.clone(), end.clone(), LinkTypes::MembershipEnds, tag)?;
+    last = Some(end);
+  }
+  last.ok_or_else(|| wasm_error!(WasmErrorInner::Guest("no open membership link to close".into())))
+}
+
+/// The links of one type from an organisation that no end has closed.
+fn current_links(organization: ActionHash, link_type: LinkTypes) -> ExternResult<Vec<Link>> {
+  let filter = link_type
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(organization.clone(), filter), GetStrategy::Network)?;
+  let closed = closed_links(&organization)?;
+  Ok(links.into_iter().filter(|link| !closed.contains(&link.create_link_hash)).collect())
+}
+
+/// The open links of one type between an organisation and a user, to close.
+fn open_links_to(links: Vec<Link>, other_end: &ActionHash) -> Vec<ActionHash> {
+  links
+    .into_iter()
+    .filter(|link| link.target.clone().into_action_hash().as_ref() == Some(other_end))
+    .map(|link| link.create_link_hash)
+    .collect()
 }
 
 #[hdk_extern]
@@ -103,7 +176,7 @@ pub fn register_approved_coordinator(input: ApprovedCoordinatorInput) -> ExternR
         input.user_original_action_hash.clone(),
         input.organization_original_action_hash.clone(),
         LinkTypes::UserOrganizations,
-        (),
+        grant_tag(&grant),
       )?;
     }
   }
@@ -199,7 +272,7 @@ pub fn add_member_to_organization(input: OrganizationUserInput) -> ExternResult<
     input.user_original_action_hash.0.clone(),
     input.organization_original_action_hash.0.clone(),
     LinkTypes::UserOrganizations,
-    (),
+    grant_tag(&grant),
   )?;
 
   Ok(true)
@@ -214,13 +287,7 @@ pub fn invite_member_to_organization(_input: OrganizationUserInput) -> ExternRes
 pub fn get_organization_members_links(
   organization_original_action_hash: ActionHash,
 ) -> ExternResult<Vec<Link>> {
-  let link_type_filter = LinkTypes::OrganizationMembers
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  get_links(
-    LinkQuery::new(organization_original_action_hash, link_type_filter),
-    GetStrategy::Network,
-  )
+  current_links(organization_original_action_hash, LinkTypes::OrganizationMembers)
 }
 
 #[hdk_extern]
@@ -273,10 +340,26 @@ pub fn get_user_organizations_links(
   let link_type_filter = LinkTypes::UserOrganizations
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  get_links(
-    LinkQuery::new(user_original_action_hash, link_type_filter),
+  let links = get_links(
+    LinkQuery::new(user_original_action_hash.clone(), link_type_filter),
     GetStrategy::Network,
-  )
+  )?;
+  // Each organisation's closed links, read once.
+  let mut closed_by_organization: std::collections::HashMap<ActionHash, HashSet<ActionHash>> =
+    std::collections::HashMap::new();
+  let mut current = Vec::new();
+  for link in links {
+    let Some(organization) = link.target.clone().into_action_hash() else {
+      continue;
+    };
+    if !closed_by_organization.contains_key(&organization) {
+      closed_by_organization.insert(organization.clone(), closed_links(&organization)?);
+    }
+    if !closed_by_organization[&organization].contains(&link.create_link_hash) {
+      current.push(link);
+    }
+  }
+  Ok(current)
 }
 
 #[hdk_extern]
@@ -368,13 +451,7 @@ pub fn invite_coordinator_to_organization(_input: OrganizationUserInput) -> Exte
 pub fn get_organization_coordinators_links(
   organization_original_action_hash: ActionHash,
 ) -> ExternResult<Vec<Link>> {
-  let link_type_filter = LinkTypes::OrganizationCoordinators
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  get_links(
-    LinkQuery::new(organization_original_action_hash, link_type_filter),
-    GetStrategy::Network,
-  )
+  current_links(organization_original_action_hash, LinkTypes::OrganizationCoordinators)
 }
 
 #[hdk_extern]
@@ -584,42 +661,25 @@ pub fn leave_organization(original_action_hash: ActionHash) -> ExternResult<bool
     }
   }
 
-  // Get both sets of links before deleting anything
-  let user_organizations_links = get_user_organizations_links(agent_user_action_hash.clone())?;
-  let organization_members_links = get_organization_members_links(original_action_hash.clone())?;
-
-  // Delete UserOrganizations link
-  for link in user_organizations_links {
-    if let Some(hash) = link.target.clone().into_action_hash() {
-      if hash == original_action_hash {
-        delete_link(link.create_link_hash, GetOptions::default())?;
-        break;
-      }
-    }
-  }
-
-  // Delete OrganizationMembers link
-  for link in organization_members_links.clone() {
-    if let Some(hash) = link.target.clone().into_action_hash() {
-      if hash == agent_user_action_hash {
-        delete_link(link.create_link_hash, GetOptions::default())?;
-        break;
-      }
-    }
-  }
-
-  // If this was the last member and we got here (meaning we weren't the last coordinator),
-  // delete the organization
-  if organization_members_links.len() <= 1 {
-    delete_organization(original_action_hash)?;
-  }
+  // The member's own end: no grant, because it is their own place (#234). The
+  // membership links stay as the record that they belonged. An organisation is
+  // retired by its coordinators, never as a side effect of someone leaving.
+  let mut closing = open_links_to(
+    get_organization_members_links(original_action_hash.clone())?,
+    &agent_user_action_hash,
+  );
+  closing.extend(open_links_to(
+    get_user_organizations_links(agent_user_action_hash.clone())?,
+    &original_action_hash,
+  ));
+  write_membership_end(&original_action_hash, &agent_user_action_hash, closing, None)?;
 
   Ok(true)
 }
 
 #[hdk_extern]
 pub fn remove_organization_member(input: OrganizationUserInput) -> ExternResult<ActionHash> {
-  require_coordinate(&input.organization_original_action_hash.0)?;
+  let grant = require_coordinate(&input.organization_original_action_hash.0)?;
 
   if !is_organization_accepted(&input.organization_original_action_hash.0)? {
     return Err(AdministrationError::EntityNotAccepted("organization".to_string()).into());
@@ -648,34 +708,23 @@ pub fn remove_organization_member(input: OrganizationUserInput) -> ExternResult<
     return Err(OrganizationsError::LastMember.into());
   }
 
-  let link = members_links
-    .into_iter()
-    .find(|link| {
-      link.target.clone().into_action_hash() == Some(input.user_original_action_hash.0.clone())
-    })
-    .ok_or(CommonError::LinkNotFound("member".to_string()))?;
-
-  delete_link(link.create_link_hash, GetOptions::default())?;
-
-  let user_organizations_links =
-    get_user_organizations_links(input.user_original_action_hash.0.clone())?;
-  let this_user_organizations_link = user_organizations_links.into_iter().find(|link| {
-    link.target.clone().into_action_hash() == Some(input.organization_original_action_hash.0.clone())
-  });
-
-  if this_user_organizations_link.is_none() {
-    return Err(CommonError::LinkNotFound("member".to_string()).into());
-  }
-
-  delete_link(
-    this_user_organizations_link.unwrap().create_link_hash,
-    GetOptions::default(),
+  // The coordinator's grant goes on the end, so validation can check it (#234).
+  let mut closing = open_links_to(members_links, &input.user_original_action_hash.0);
+  closing.extend(open_links_to(
+    get_user_organizations_links(input.user_original_action_hash.0.clone())?,
+    &input.organization_original_action_hash.0,
+  ));
+  write_membership_end(
+    &input.organization_original_action_hash.0,
+    &input.user_original_action_hash.0,
+    closing,
+    Some(grant),
   )
 }
 
 #[hdk_extern]
 pub fn remove_organization_coordinator(input: OrganizationUserInput) -> ExternResult<bool> {
-  require_coordinate(&input.organization_original_action_hash.0)?;
+  let grant = require_coordinate(&input.organization_original_action_hash.0)?;
 
   if !is_organization_accepted(&input.organization_original_action_hash.0)? {
     return Err(AdministrationError::EntityNotAccepted("organization".to_string()).into());
@@ -691,14 +740,7 @@ pub fn remove_organization_coordinator(input: OrganizationUserInput) -> ExternRe
     return Err(OrganizationsError::LastCoordinator.into());
   }
 
-  let link = get_organization_coordinators_links(input.organization_original_action_hash.0.clone())?
-    .into_iter()
-    .find(|link| {
-      link.target.clone().into_action_hash() == Some(input.user_original_action_hash.0.clone())
-    })
-    .ok_or(CommonError::LinkNotFound("coordinator".to_string()))?;
-
-  // Their coordinator grants go with the link; what they did as coordinator stands.
+  // Their coordinator grants are revoked; what they did as coordinator stands.
   for agent in get_user_agents(input.user_original_action_hash.0.clone())? {
     revoke_roles_of(RevokeRolesOfInput {
       holder: agent,
@@ -708,7 +750,13 @@ pub fn remove_organization_coordinator(input: OrganizationUserInput) -> ExternRe
     })?;
   }
 
-  delete_link(link.create_link_hash, GetOptions::default())?;
+  // The role ends; the membership stays (#234).
+  write_membership_end(
+    &input.organization_original_action_hash.0,
+    &input.user_original_action_hash.0,
+    open_links_to(coordinator_links, &input.user_original_action_hash.0),
+    Some(grant),
+  )?;
 
   Ok(true)
 }

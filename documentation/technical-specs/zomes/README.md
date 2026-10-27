@@ -37,7 +37,9 @@ Every link type has a rule in three parts. The parts live in `dnas/requests_and_
 
 **Organisations** are shared too: members, coordinators, listings and exchanges name them. An organisation is never tombstoned. One of its coordinators, or an administrator, retires it with an `OrganizationRetirement` that carries their `Coordinate` grant for that organisation; readers skip retired organisations. Its directory and status links are never tombstoned either.
 
-**Still open, and stated beside each type:** the writers and tombstones of the listing-to-catalogue links, of `UserOrganizations` and of `OrganizationContacts`. Coordinators and administrators write these for other members with no grant in the tag.
+**Membership** is held the same way: the member, coordinator and user-to-organisation links are an index and never tombstoned. Leaving or removal writes a `MembershipEnd`, by the member or carrying a coordinator's or administrator's grant, and readers skip ended memberships. See `organizations.md`.
+
+**Still open, and stated beside each type:** the writers and tombstones of the listing-to-catalogue links, and of `OrganizationContacts`, whose tag carries the contact's role as text the interface reads. Coordinators and administrators write these for other members with no grant in the tag.
 
 The full inventory, one row per link type, is in the first comment on #234.
 

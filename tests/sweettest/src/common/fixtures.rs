@@ -227,7 +227,7 @@ pub struct UpdateServiceTypeLinksInput {
 pub struct CreateRequestInput {
     pub request: RequestData,
     pub organization: Option<ActionHash>,
-    pub service_type_hashes: Vec<ActionHash>,
+    pub service_type_hash: ActionHash,
     pub medium_of_exchange_hashes: Vec<ActionHash>,
 }
 
@@ -245,8 +245,11 @@ pub struct RequestData {
     pub status: String,
 }
 
-/// Create a sample request input.
-pub fn sample_request(title: impl Into<String>) -> CreateRequestInput {
+/// Create a sample request input. A listing names one service type.
+pub fn sample_request(
+    title: impl Into<String>,
+    service_type_hash: ActionHash,
+) -> CreateRequestInput {
     CreateRequestInput {
         request: RequestData {
             title: title.into(),
@@ -261,7 +264,7 @@ pub fn sample_request(title: impl Into<String>) -> CreateRequestInput {
             status: "Active".to_string(),
         },
         organization: None,
-        service_type_hashes: vec![],
+        service_type_hash,
         medium_of_exchange_hashes: vec![],
     }
 }
@@ -273,7 +276,7 @@ pub fn sample_request(title: impl Into<String>) -> CreateRequestInput {
 pub struct CreateOfferInput {
     pub offer: OfferData,
     pub organization: Option<ActionHash>,
-    pub service_type_hashes: Vec<ActionHash>,
+    pub service_type_hash: ActionHash,
     pub medium_of_exchange_hashes: Vec<ActionHash>,
 }
 
@@ -289,7 +292,10 @@ pub struct OfferData {
 }
 
 /// Create a sample offer input.
-pub fn sample_offer(title: impl Into<String>) -> CreateOfferInput {
+pub fn sample_offer(
+    title: impl Into<String>,
+    service_type_hash: ActionHash,
+) -> CreateOfferInput {
     CreateOfferInput {
         offer: OfferData {
             title: title.into(),
@@ -301,7 +307,7 @@ pub fn sample_offer(title: impl Into<String>) -> CreateOfferInput {
             status: "Active".to_string(),
         },
         organization: None,
-        service_type_hashes: vec![],
+        service_type_hash,
         medium_of_exchange_hashes: vec![],
     }
 }

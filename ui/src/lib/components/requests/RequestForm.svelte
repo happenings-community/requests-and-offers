@@ -463,14 +463,16 @@
   <div class="card variant-ghost-surface p-4">
     <div class="mb-2 flex items-center justify-between">
       <h3 class="h3">{hasCurrencyMoEs() ? 'Additional Currencies' : 'Medium of Exchange'}</h3>
-      <button
-        type="button"
-        class="variant-ghost-primary btn btn-sm"
-        onclick={openSuggestMediumModal}
-        title="Suggest a new medium of exchange for administrator review"
-      >
-        💡 Suggest New
-      </button>
+      {#if mode !== 'edit'}
+        <button
+          type="button"
+          class="variant-ghost-primary btn btn-sm"
+          onclick={openSuggestMediumModal}
+          title="Suggest a new medium of exchange for administrator review"
+        >
+          💡 Suggest New
+        </button>
+      {/if}
     </div>
     <MediumOfExchangeSelector
       selectedMediums={selectedMediumOfExchange}
@@ -481,7 +483,13 @@
       name="mediumOfExchange"
       id="request-medium-of-exchange"
       mode="multiple"
+      disabled={mode === 'edit'}
     />
+    {#if mode === 'edit'}
+      <p class="text-sm text-surface-600 dark:text-surface-400">
+        A request's mediums of exchange can't be changed. For different ones, publish a new request.
+      </p>
+    {/if}
   </div>
 
   <div class="grid grid-cols-1 gap-4">

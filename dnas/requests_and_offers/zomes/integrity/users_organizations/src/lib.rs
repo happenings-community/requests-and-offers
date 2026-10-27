@@ -1,4 +1,5 @@
 pub mod organization;
+mod links;
 mod tests;
 pub mod user;
 
@@ -192,7 +193,15 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           action.tag.clone(),
         );
       }
-      _ => (),
+      other => {
+        return links::validate_create_link(
+          &other,
+          action.author(),
+          &action.base_address,
+          &action.target_address,
+          &action.tag,
+        );
+      }
     },
     FlatOp::Link(OpLink::DeleteLink {
       link_type,
@@ -217,7 +226,9 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           original_action.tag.clone(),
         );
       }
-      _ => (),
+      other => {
+        return Ok(links::validate_delete_link(&other, original_action.author(), action.author()));
+      }
     },
     _ => (),
   }

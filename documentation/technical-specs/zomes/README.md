@@ -16,6 +16,29 @@ For a higher-level overview of the system's technical foundation, see the main [
 - **[Messaging](./messaging.md)**: The signal layer. A nudge tells other agents that something addressed to them exists at an `ActionHash`; it carries the hash and never content, and the stored data stays the record. Coordinator only, so it does not change the DNA hash.
 - **[Mediums of Exchange](./mediums_of_exchange.md)**: Manages payment methods and value exchange mechanisms with approval workflow, supporting both traditional currencies and alternative exchange systems (time banking, LETS, etc.).
 
+## Link rules (#234)
+
+Every link type has a rule in three parts. The parts live in `dnas/requests_and_offers/utils/src/links.rs`; each zome's `links.rs` (or, for administration and exchanges, its `lib.rs`) assigns them.
+
+- **Shape.** A link's base and target are what its type declares: an agent key, one of its named paths, or a record that writes a named entry type. The tag is empty, except where a type declares otherwise:
+  - the approved and rejected status paths of service types and mediums of exchange carry the administrator's grant;
+  - the grants stack's roster and membership links carry a grant;
+  - `OrganizationContacts` carries the contact's role as 1 to 100 bytes of text.
+- **Writer.** The author of the record the link hangs from. Where a role acts for someone else, the tag names the writer's grant, checked with `check_act`.
+- **Tombstone.** A `DeleteLink` writes a tombstone; nothing is erased. Link types nothing tombstones refuse every tombstone. `AllOffers` and `AllRequests`, which nothing writes, refuse every create.
+
+**Shared things are never tombstoned.** A service type or medium of exchange is shared once suggested: listings and exchanges may name it. So neither it nor its status is ever tombstoned, by anyone. A role holder decides on it with a status entry (`ServiceTypeStatus`, `MediumOfExchangeStatus`) that carries their grant:
+- **Approve, reject and retire** each write a new status entry; the latest one stands.
+- **A suggestion with no status entry** is pending.
+- **The status-path links are indexes,** written once per status reached and never tombstoned. Readers take the state from the latest status link: each carries its decision in its tag, which validation checks against the status entry, so readers fetch no entry and cannot miss one. Ties are broken by the link's hash, so every peer reads the same state.
+- **"Delete"** in the interface now retires.
+
+**Listings.** A request or offer is tombstoned only by its creator. A role holder removes one with `remove_request` or `remove_offer`, an update that carries their grant and a reason. The active list links each listing's original record once and is never rewritten; readers leave out archived and removed listings by their status.
+
+**Still open, and stated beside each type:** the writers and tombstones of the listing-to-catalogue links, of `UserOrganizations` and of `OrganizationContacts`. Coordinators and administrators write these for other members with no grant in the tag.
+
+The full inventory, one row per link type, is in the first comment on #234.
+
 ---
 
 _(Internal Note: Guidelines below are for maintaining documentation consistency)_

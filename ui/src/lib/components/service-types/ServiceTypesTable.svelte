@@ -71,7 +71,7 @@
   function handleDelete(serviceType: UIServiceType) {
     if (
       serviceType.original_action_hash &&
-      confirm('Are you sure you want to delete this service type? This action cannot be undone.')
+      confirm('Retire this service type? It leaves every list, and listings that name it keep it.')
     ) {
       onDeleteServiceType(serviceType.original_action_hash);
     }
@@ -310,10 +310,10 @@
                         </svg>
                       </button>
                       <button
-                        aria-label="Delete service type"
+                        aria-label="Retire service type"
                         class="variant-ghost-error btn btn-sm"
                         onclick={() => handleDelete(serviceType)}
-                        title="Delete service type"
+                        title="Retire service type"
                       >
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path

@@ -103,3 +103,7 @@ path = "tests/grants.rs"
 [[test]]
 name = "listing_removal"
 path = "tests/listing_removal.rs"
+
+[[test]]
+name = "link_rules"
+path = "tests/link_rules.rs"

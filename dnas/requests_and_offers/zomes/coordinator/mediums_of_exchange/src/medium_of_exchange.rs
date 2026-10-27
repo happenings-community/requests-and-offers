@@ -1,7 +1,8 @@
 use hdk::prelude::*;
-use mediums_of_exchange_integrity::{EntryTypes, LinkTypes, MediumOfExchange};
+use mediums_of_exchange_integrity::{EntryTypes, LinkTypes, MediumOfExchange, MediumOfExchangeStatus};
 use utils::errors::{AdministrationError, CommonError};
-use utils::grants::{can_i, require_grant, Ability};
+use utils::grants::{can_i, grant_tag, require_grant, Ability};
+use utils::links::CatalogueState;
 use utils::{
   resolve_chain_root, GetMediumOfExchangeForEntityInput, MediumOfExchangeLinkInput,
   OriginalActionHash, PreviousActionHash, UpdateMediumOfExchangeLinksInput,
@@ -19,6 +20,51 @@ const REJECTED_MEDIUMS_OF_EXCHANGE_PATH: &str = "mediums_of_exchange.status.reje
 // Helper function to get path entry hash for a status path
 fn get_status_path_hash(status_path: &str) -> ExternResult<EntryHash> {
   Path::from(status_path).path_entry_hash()
+}
+
+/// A medium of exchange's state: the latest decision linked from it, or pending
+/// if there is none. The decision is read from each link's tag, which
+/// validation checks against its status entry, so no entry is fetched and none
+/// can be missed; ties are broken by the link's hash (#234).
+fn current_state(medium_of_exchange_hash: &ActionHash) -> ExternResult<CatalogueState> {
+  let filter = LinkTypes::MediumOfExchangeStatusUpdates
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(medium_of_exchange_hash.clone(), filter), GetStrategy::Network)?;
+  Ok(utils::links::latest_catalogue_state(&links))
+}
+
+/// Records an administrator's decision on a medium of exchange: a status
+/// entry carrying their grant, linked from the medium, and, for approved and
+/// rejected, an index link on that status path. Nothing is tombstoned: the
+/// medium is shared, and the latest decision is what readers see.
+fn decide(medium_of_exchange_hash: &ActionHash, state: CatalogueState) -> ExternResult<ActionHash> {
+  let grant = require_grant(Ability::Administer, None)?;
+  let status_hash = create_entry(EntryTypes::MediumOfExchangeStatus(MediumOfExchangeStatus {
+    medium_of_exchange: medium_of_exchange_hash.clone(),
+    state: state.clone(),
+    grant: Some(grant.clone()),
+  }))?;
+  create_link(
+    medium_of_exchange_hash.clone(),
+    status_hash.clone(),
+    LinkTypes::MediumOfExchangeStatusUpdates,
+    utils::links::catalogue_state_tag(&state),
+  )?;
+  let path = match state {
+    CatalogueState::Approved => Some(APPROVED_MEDIUMS_OF_EXCHANGE_PATH),
+    CatalogueState::Rejected => Some(REJECTED_MEDIUMS_OF_EXCHANGE_PATH),
+    _ => None,
+  };
+  if let Some(path) = path {
+    create_link(
+      get_status_path_hash(path)?,
+      medium_of_exchange_hash.clone(),
+      LinkTypes::AllMediumsOfExchange,
+      grant_tag(&grant),
+    )?;
+  }
+  Ok(status_hash)
 }
 
 /// Input for creating/suggesting a new medium of exchange
@@ -96,9 +142,6 @@ pub fn suggest_medium_of_exchange(input: MediumOfExchangeInput) -> ExternResult<
     (),
   )?;
 
-  // Remove from all status paths to ensure it only has one status
-  remove_medium_of_exchange_from_status_paths(medium_of_exchange_hash.clone())?;
-
   // Link to pending_mediums_of_exchange path
   let pending_path_hash = get_status_path_hash(PENDING_MEDIUMS_OF_EXCHANGE_PATH)?;
   create_link(
@@ -146,17 +189,8 @@ pub fn create_medium_of_exchange(input: MediumOfExchangeInput) -> ExternResult<R
     (),
   )?;
 
-  // Remove from all status paths to ensure it only has one status
-  remove_medium_of_exchange_from_status_paths(medium_of_exchange_hash.clone())?;
-
-  // Admin-created entries go directly to approved status
-  let approved_path_hash = get_status_path_hash(APPROVED_MEDIUMS_OF_EXCHANGE_PATH)?;
-  create_link(
-    approved_path_hash,
-    medium_of_exchange_hash.clone(),
-    LinkTypes::AllMediumsOfExchange,
-    (),
-  )?;
+  // Admin-created entries are approved as they are created.
+  decide(&medium_of_exchange_hash, CatalogueState::Approved)?;
 
   Ok(record)
 }
@@ -205,29 +239,17 @@ pub fn update_medium_of_exchange(input: UpdateMediumOfExchangeInput) -> ExternRe
   Ok(record)
 }
 
-/// Delete a medium of exchange (admin only)
+/// Retire a medium of exchange (admin only)
 #[hdk_extern]
 pub fn delete_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternResult<()> {
-  // Check admin permission
+  // Retires the medium of exchange. It is shared, and listings and exchanges
+  // may name it, so it is never tombstoned (#234): an administrator moves its
+  // status to retired, and it leaves every list.
   let is_admin = check_if_agent_is_administrator(agent_info()?.agent_initial_pubkey)?;
   if !is_admin {
     return Err(AdministrationError::Unauthorized.into());
   }
-
-  // Status-path links and the entry to tomb are both keyed by the chain root.
-  let medium_of_exchange_hash = resolve_chain_root(medium_of_exchange_hash);
-
-  // Get the record to verify it exists
-  let _record = get(medium_of_exchange_hash.clone(), GetOptions::default())?.ok_or(
-    CommonError::EntryNotFound("Could not find the medium of exchange to delete".to_string()),
-  )?;
-
-  // Remove from all status paths first
-  remove_medium_of_exchange_from_status_paths(medium_of_exchange_hash.clone())?;
-
-  // Delete the entry
-  delete_entry(medium_of_exchange_hash)?;
-
+  decide(&resolve_chain_root(medium_of_exchange_hash), CatalogueState::Retired)?;
   Ok(())
 }
 
@@ -297,12 +319,19 @@ pub fn get_all_mediums_of_exchange(_: ()) -> ExternResult<Vec<Record>> {
       )
     })
     .collect();
-  let records = HDK
+  let records: Vec<Record> = HDK
     .with(|hdk| hdk.borrow().get(get_input))?
     .into_iter()
     .flatten()
     .collect();
-  Ok(records)
+  // Retired mediums keep their index link; their status leaves them out.
+  let mut current = Vec::new();
+  for record in records {
+    if current_state(record.action_address())? != CatalogueState::Retired {
+      current.push(record);
+    }
+  }
+  Ok(current)
 }
 
 /// Get pending mediums of exchange (admin only)
@@ -337,6 +366,13 @@ pub fn get_rejected_mediums_of_exchange(_: ()) -> ExternResult<Vec<Record>> {
 
 // Helper function to get mediums of exchange by status
 fn get_mediums_of_exchange_by_status(status_path: &str) -> ExternResult<Vec<Record>> {
+  // The status path indexes every medium that ever reached that status; its
+  // latest status entry says whether it is there now.
+  let wanted = match status_path {
+    APPROVED_MEDIUMS_OF_EXCHANGE_PATH => CatalogueState::Approved,
+    REJECTED_MEDIUMS_OF_EXCHANGE_PATH => CatalogueState::Rejected,
+    _ => CatalogueState::Pending,
+  };
   let path_hash = get_status_path_hash(status_path)?;
   let link_type_filter = LinkTypes::AllMediumsOfExchange
     .try_into_filter()
@@ -345,9 +381,13 @@ fn get_mediums_of_exchange_by_status(status_path: &str) -> ExternResult<Vec<Reco
     LinkQuery::new(path_hash, link_type_filter),
     GetStrategy::Network,
   )?;
+  let mut seen = std::collections::HashSet::new();
   let mut records = Vec::new();
   for link in links {
     if let Some(target_hash) = link.target.into_action_hash() {
+      if !seen.insert(target_hash.clone()) || current_state(&target_hash)? != wanted {
+        continue;
+      }
       if let Some(record) = get_latest_medium_of_exchange_record(target_hash.clone())? {
         records.push(record);
       }
@@ -416,17 +456,7 @@ pub fn approve_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> Extern
     (),
   )?;
 
-  // Remove from all status paths
-  remove_medium_of_exchange_from_status_paths(medium_of_exchange_hash.clone())?;
-
-  // Link to approved path
-  let approved_path_hash = get_status_path_hash(APPROVED_MEDIUMS_OF_EXCHANGE_PATH)?;
-  create_link(
-    approved_path_hash,
-    medium_of_exchange_hash,
-    LinkTypes::AllMediumsOfExchange,
-    (),
-  )?;
+  decide(&medium_of_exchange_hash, CatalogueState::Approved)?;
 
   Ok(())
 }
@@ -443,49 +473,7 @@ pub fn reject_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternR
   // Status paths are keyed by the chain root (see approve_medium_of_exchange).
   let medium_of_exchange_hash = resolve_chain_root(medium_of_exchange_hash);
 
-  // Remove from all status paths
-  remove_medium_of_exchange_from_status_paths(medium_of_exchange_hash.clone())?;
-
-  // Link to rejected path
-  let rejected_path_hash = get_status_path_hash(REJECTED_MEDIUMS_OF_EXCHANGE_PATH)?;
-  create_link(
-    rejected_path_hash,
-    medium_of_exchange_hash,
-    LinkTypes::AllMediumsOfExchange,
-    (),
-  )?;
-
-  Ok(())
-}
-
-// Helper function to remove medium of exchange from all status paths
-fn remove_medium_of_exchange_from_status_paths(
-  medium_of_exchange_hash: ActionHash,
-) -> ExternResult<()> {
-  let status_paths = [
-    PENDING_MEDIUMS_OF_EXCHANGE_PATH,
-    APPROVED_MEDIUMS_OF_EXCHANGE_PATH,
-    REJECTED_MEDIUMS_OF_EXCHANGE_PATH,
-  ];
-
-  for status_path in status_paths.iter() {
-    let path_hash = get_status_path_hash(status_path)?;
-    let link_type_filter = LinkTypes::AllMediumsOfExchange
-      .try_into_filter()
-      .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-    let links = get_links(
-      LinkQuery::new(path_hash, link_type_filter),
-      GetStrategy::Network,
-    )?;
-
-    for link in links {
-      if let Some(target_hash) = link.target.into_action_hash() {
-        if target_hash == medium_of_exchange_hash {
-          delete_link(link.create_link_hash, GetOptions::default())?;
-        }
-      }
-    }
-  }
+  decide(&medium_of_exchange_hash, CatalogueState::Rejected)?;
 
   Ok(())
 }
@@ -782,25 +770,5 @@ pub fn delete_all_medium_of_exchange_links_for_entity(
 /// Check if a medium of exchange is approved (for internal use)
 #[hdk_extern]
 pub fn is_medium_of_exchange_approved(medium_of_exchange_hash: ActionHash) -> ExternResult<bool> {
-  // The approved-path link targets the chain root, so a revision hash from a list
-  // surface must be normalized before comparing (see approve_medium_of_exchange).
-  let medium_of_exchange_hash = resolve_chain_root(medium_of_exchange_hash);
-
-  // Get the approved path hash
-  let approved_path_hash = get_status_path_hash(APPROVED_MEDIUMS_OF_EXCHANGE_PATH)?;
-
-  // Check if there's a link from approved path to this medium of exchange
-  let link_type_filter = LinkTypes::AllMediumsOfExchange
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let links = get_links(
-    LinkQuery::new(approved_path_hash, link_type_filter),
-    GetStrategy::Network,
-  )?;
-
-  let found_approved = links
-    .into_iter()
-    .any(|link| link.target.into_action_hash() == Some(medium_of_exchange_hash.clone()));
-
-  Ok(found_approved)
+  Ok(current_state(&resolve_chain_root(medium_of_exchange_hash))? == CatalogueState::Approved)
 }

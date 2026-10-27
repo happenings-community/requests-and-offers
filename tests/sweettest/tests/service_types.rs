@@ -109,10 +109,15 @@ async fn basic_service_type_crud_operations() {
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
-    let after_delete: Option<Record> = conductors[1]
-        .call(&bob.zome("service_types"), "get_service_type", st_hash)
+    // A service type is never tombstoned: deleting it retires it (#234).
+    let state: String = conductors[1]
+        .call(&bob.zome("service_types"), "get_service_type_status", st_hash.clone())
         .await;
-    assert!(after_delete.is_none(), "Deleted service type should not be found");
+    assert_eq!(state, "retired", "a deleted service type is retired");
+    let approved: Vec<Record> = conductors[1]
+        .call(&bob.zome("service_types"), "get_approved_service_types", ())
+        .await;
+    assert!(!approved.iter().any(|r| r.action_address() == &st_hash), "and leaves the approved list");
 }
 
 // ── Admin permissions ─────────────────────────────────────────────────────────

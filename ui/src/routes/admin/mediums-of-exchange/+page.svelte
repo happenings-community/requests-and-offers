@@ -51,9 +51,9 @@
       type: 'component',
       component: { ref: ConfirmModal },
       meta: {
-        id: 'delete-medium-of-exchange',
-        message: `Are you sure you want to delete "${escapeHtml(mediumOfExchange.name)}" (${escapeHtml(mediumOfExchange.code)})? This action cannot be undone.`,
-        confirmLabel: 'Delete',
+        id: 'retire-medium-of-exchange',
+        message: `Retire "${escapeHtml(mediumOfExchange.name)}" (${escapeHtml(mediumOfExchange.code)})? It leaves every list, and listings that name it keep it.`,
+        confirmLabel: 'Retire',
         cancelLabel: 'Cancel'
       } as ConfirmModalMeta,
       response: (confirmed: boolean) => {

@@ -85,3 +85,34 @@ pub fn forge_link(input: ForgeLinkInput) -> ExternResult<ActionHash> {
 pub fn forge_get(action_hash: ActionHash) -> ExternResult<Option<Record>> {
   get(action_hash, GetOptions::default())
 }
+
+/// Tombstones a link.
+#[hdk_extern]
+pub fn forge_delete_link(create_link_hash: ActionHash) -> ExternResult<ActionHash> {
+  delete_link(create_link_hash, GetOptions::default())
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ForgeGetLinksInput {
+  pub base: AnyLinkableHash,
+  pub zome_index: u8,
+  pub link_type: u8,
+}
+
+/// The links of one type from a base, as this agent holds them.
+#[hdk_extern]
+pub fn forge_get_links(input: ForgeGetLinksInput) -> ExternResult<Vec<Link>> {
+  get_links(
+    LinkQuery::new(
+      input.base,
+      LinkTypeFilter::single_type(ZomeIndex(input.zome_index), LinkType(input.link_type)),
+    ),
+    GetStrategy::Local,
+  )
+}
+
+/// The hash of a path, which a test cannot compute outside the wasm host.
+#[hdk_extern]
+pub fn forge_path_hash(path: String) -> ExternResult<EntryHash> {
+  Path::from(path).path_entry_hash()
+}

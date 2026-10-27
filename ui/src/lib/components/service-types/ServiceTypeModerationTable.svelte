@@ -43,7 +43,7 @@
 
   const handleDelete = (hash: ActionHash) => {
     if (
-      confirm('Are you sure you want to delete this service type? This action cannot be undone.')
+      confirm('Retire this service type? It leaves every list, and listings that name it keep it.')
     ) {
       pipe(deleteServiceType(hash), E.runPromise);
     }

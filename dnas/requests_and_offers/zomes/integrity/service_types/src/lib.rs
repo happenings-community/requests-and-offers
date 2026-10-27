@@ -1,6 +1,7 @@
 use hdi::prelude::*;
 use utils::grants::{check_act, Ability};
 
+mod links;
 mod service_type;
 pub use service_type::*;
 
@@ -10,6 +11,7 @@ pub use service_type::*;
 #[unit_enum(UnitEntryTypes)]
 pub enum EntryTypes {
   ServiceType(ServiceType),
+  ServiceTypeStatus(ServiceTypeStatus),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -29,6 +31,9 @@ pub enum LinkTypes {
   // Users
   ServiceTypeToUser,
   UserToServiceType,
+
+  // From a service type's original record to each status entry decided on it.
+  ServiceTypeStatusUpdates,
 }
 
 #[hdk_extern]
@@ -55,6 +60,20 @@ fn validate_entry(
         ValidateCallbackResult::Valid => validate_service_type_grant(&grant, author, is_update),
         invalid => Ok(invalid),
       }
+    }
+    EntryTypes::ServiceTypeStatus(status) => {
+      if is_update {
+        return Ok(ValidateCallbackResult::Invalid(
+          "A status entry is never edited; a later decision is a new status entry".to_string(),
+        ));
+      }
+      utils::links::check_catalogue_status(
+        &status.service_type,
+        &status.state,
+        &status.grant,
+        author,
+        &utils::links::SERVICE_TYPE,
+      )
     }
   }
 }
@@ -105,9 +124,6 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     return Ok(ValidateCallbackResult::Valid);
   }
 
-  // TODO: Implement link validation for ServiceType links
-  // This will be completed in a future iteration after resolving HDI syntax
-  // Current focus is on frontend implementation since backend is fully functional
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
       OpEntry::CreateEntry { app_entry, action } => {
@@ -167,13 +183,42 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           }
         };
         match original_app_entry {
-          EntryTypes::ServiceType(_original_service_type) => {
-            // You can add specific delete validation for service types here if needed
+          EntryTypes::ServiceType(_) | EntryTypes::ServiceTypeStatus(_) => {
+            return Ok(ValidateCallbackResult::Invalid(format!(
+              "A service type and its statuses are never tombstoned; a role holder retires it through its status ({:?})",
+              action.deletes_address
+            )));
           }
         }
       }
       _ => (),
     },
+    FlatOp::Delete(OpDelete { action }) => {
+      for kind in [&utils::links::SERVICE_TYPE, &utils::links::SERVICE_TYPE_STATUS] {
+        if let ValidateCallbackResult::Invalid(reason) =
+          utils::links::refuse_tombstone(&action.deletes_address, kind)?
+        {
+          return Ok(ValidateCallbackResult::Invalid(reason));
+        }
+      }
+      return Ok(ValidateCallbackResult::Valid);
+    }
+    FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
+      return links::validate_create_link(
+        &link_type,
+        action.author(),
+        &action.base_address,
+        &action.target_address,
+        &action.tag,
+      );
+    }
+    FlatOp::Link(OpLink::DeleteLink {
+      link_type,
+      action,
+      original_action,
+    }) => {
+      return links::validate_delete_link(&link_type, original_action.author(), action.author());
+    }
     _ => (),
   }
   Ok(ValidateCallbackResult::Valid)

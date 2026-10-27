@@ -41,6 +41,15 @@ pub fn delete_all_service_type_links_for_entity(
   )
 }
 
+/// The decision that approved a medium of exchange, if its current state is approved.
+pub fn get_medium_of_exchange_approval(medium_of_exchange_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
+  external_local_call(
+    "get_medium_of_exchange_approval",
+    "mediums_of_exchange",
+    medium_of_exchange_hash,
+  )
+}
+
 pub fn link_to_medium_of_exchange(input: MediumOfExchangeLinkInput) -> ExternResult<()> {
   external_local_call("link_to_medium_of_exchange", "mediums_of_exchange", input)
 }

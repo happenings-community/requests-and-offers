@@ -126,6 +126,8 @@ fn listing(title: &str, service_type: &ActionHash, approval: &ActionHash) -> Req
         removal_reason: None,
         service_type_hash: Some(service_type.clone()),
         service_type_approval: Some(approval.clone()),
+        medium_of_exchange_hashes: vec![],
+        medium_of_exchange_approvals: vec![],
     }
 }
 

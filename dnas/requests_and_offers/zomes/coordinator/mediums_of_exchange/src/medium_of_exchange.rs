@@ -772,3 +772,21 @@ pub fn delete_all_medium_of_exchange_links_for_entity(
 pub fn is_medium_of_exchange_approved(medium_of_exchange_hash: ActionHash) -> ExternResult<bool> {
   Ok(current_state(&resolve_chain_root(medium_of_exchange_hash))? == CatalogueState::Approved)
 }
+
+/// The decision that approved a medium of exchange: the status entry behind its
+/// current state, when that state is approved. A listing names it, and
+/// validation checks it (#257).
+#[hdk_extern]
+pub fn get_medium_of_exchange_approval(medium_of_exchange_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
+  let filter = LinkTypes::MediumOfExchangeStatusUpdates
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(resolve_chain_root(medium_of_exchange_hash), filter),
+    GetStrategy::Network,
+  )?;
+  Ok(match utils::links::latest_catalogue_decision(&links) {
+    Some((CatalogueState::Approved, status)) => Some(status),
+    _ => None,
+  })
+}

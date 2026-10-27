@@ -168,11 +168,11 @@
               <span>{other ?? 'They'} {other ? 'gives' : 'give'} {termLabel(get)}</span>
             </div>
             <div class="flex items-center gap-2 text-sm">
-              <span
-                class="flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-xs text-white"
-              >
-                {(other ?? '?')[0]}
-              </span>
+              <img
+                src={exchanges.pictureOf(e)}
+                alt=""
+                class="h-6 w-6 rounded-full bg-surface-200 object-cover"
+              />
               <span>{other ?? '...'}</span>
               <span class="variant-filled-primary btn btn-sm ml-auto"
                 >{actionLabel(e, role)} &rarr;</span

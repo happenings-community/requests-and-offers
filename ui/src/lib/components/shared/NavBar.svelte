@@ -7,6 +7,8 @@
     type PopupSettings
   } from '@skeletonlabs/skeleton';
   import NavDropdown from '$lib/components/shared/NavDropdown.svelte';
+  import { getUserPictureUrl } from '$lib/utils';
+  import { myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
   import NetworkStatusPopup from '$lib/components/network/NetworkStatusPopup.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -48,6 +50,7 @@
   );
 
   const currentUser = $derived(usersStore.currentUser);
+  const myPicture = $derived(currentUser ? getUserPictureUrl(currentUser) : undefined);
   const agentIsAdministrator = $derived(administrationStore.agentIsAdministrator);
   const drawerStore = getDrawerStore();
   const drawerSettings: DrawerSettings = {
@@ -61,41 +64,11 @@
   }
 
   // Navigation menu configurations
-  function profileItems() {
-    const user = currentUser; // dereference the signal
-    return [
-      {
-        href: user ? '/user' : '/user/create',
-        label: user ? 'My Profile' : 'Create Profile',
-        icon: '👤',
-        description: user ? 'View and edit your profile' : 'Join the community'
-      },
-      {
-        href: '/requests?filter=my',
-        label: 'My Requests',
-        icon: '📋',
-        description: 'Manage your requests for help'
-      },
-      {
-        href: '/offers?filter=my',
-        label: 'My Offers',
-        icon: '🎯',
-        description: 'Manage your offers to help others'
-      },
-      {
-        href: '/my-listings',
-        label: 'My Listings',
-        icon: '📋',
-        description: 'Manage your requests and offers'
-      },
-      {
-        href: '/exchanges',
-        label: 'My Exchanges',
-        badge: pendingCount,
-        icon: '🤝',
-        description: 'Agreements you are part of'
-      }
-    ];
+  // My Activity, with the count of exchanges waiting on the member.
+  function activityItems() {
+    return myActivityItems().map((item) =>
+      item.href === '/exchanges' ? { ...item, badge: pendingCount } : item
+    );
   }
 
   // Exchanges waiting on this member: derived from the store's read model
@@ -186,14 +159,14 @@
   <div class="flex items-center">
     <a href="/" class="flex items-center gap-3 transition-opacity hover:opacity-80">
       <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="h-12 w-12" />
-      <span class="hidden text-lg font-bold text-white sm:block">Requests & Offers</span>
+      <span class="hidden whitespace-nowrap text-lg font-bold text-white sm:block">Requests & Offers</span>
     </a>
   </div>
 
   <!-- Desktop Navigation -->
-  <div class="hidden items-center gap-8 lg:flex">
+  <div class="hidden items-center gap-4 lg:flex xl:gap-8">
     <!-- Primary Actions -->
-    <div class="flex items-center gap-6">
+    <div class="flex items-center gap-3 xl:gap-6">
       <a
         href="/requests"
         class="variant-filled-secondary btn px-6 py-2 font-semibold shadow-md transition-colors hover:variant-filled-tertiary hover:shadow-lg"
@@ -211,27 +184,28 @@
     </div>
 
     <!-- Secondary Navigation -->
-    <div class="flex items-center gap-4 text-white">
-      <NavDropdown title="Profile" items={profileItems()} />
+    <div class="flex items-center gap-2 text-white xl:gap-4">
+      {#if currentUser}
+        <NavDropdown title="My Activity" items={activityItems()} />
+      {/if}
 
       <NavDropdown title="Community" items={communityItems} />
 
       <NavDropdown title="Resources" items={resourceItems} alignRight={true} />
     </div>
 
-    <!-- Connection Status Indicator -->
-    <div
-      class="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm transition-colors"
+    <!-- Connection Status Indicator: a button, so it reads as one -->
+    <button
+      type="button"
+      class="flex cursor-pointer items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm transition-colors hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-secondary-300"
+      aria-label={`Connection status: ${getConnectionText(finalConnectionStatus)}. Show network details`}
+      title="Network details"
       use:popup={popupStatus}
     >
-      <span
-        class="text-sm"
-        role="img"
-        aria-label={`Connection status: ${getConnectionText(finalConnectionStatus)}`}
-      >
+      <span class="text-sm" aria-hidden="true">
         {getConnectionIcon(finalConnectionStatus)}
       </span>
-    </div>
+    </button>
 
     <!-- Admin Access -->
     {#if agentIsAdministrator}
@@ -242,6 +216,24 @@
       >
         ⚙️ Admin
       </a>
+    {/if}
+
+    <!-- The member's own menu: their picture and name, top right -->
+    {#if currentUser}
+      <div class="text-white">
+        <NavDropdown
+          title={currentUser.name}
+          avatar={myPicture}
+          items={myProfileItems(true)}
+          alignRight={true}
+        />
+      </div>
+    {:else}
+      <a
+        href="/user/create"
+        class="variant-ringed-secondary btn border-2 px-4 py-2 text-sm text-white transition-colors hover:variant-filled-secondary"
+        >Create Profile</a
+      >
     {/if}
   </div>
 

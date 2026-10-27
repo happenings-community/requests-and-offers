@@ -96,6 +96,23 @@ export function statusLabel(exchange: UIExchange): string {
   return EXCHANGE_STATUS_LABEL[exchange.status];
 }
 
+/**
+ * The newest exchange made on one interest, if any. A counter is written after
+ * the proposal it answers, so the newest is where the negotiation stands now.
+ */
+export function latestOnInterest(
+  interest: ActionHash,
+  exchanges: UIExchange[]
+): UIExchange | undefined {
+  const key = interest.toString();
+  return exchanges
+    .filter((e) => e.agreement.interest.toString() === key)
+    .reduce<UIExchange | undefined>(
+      (newest, e) => (!newest || e.created_at > newest.created_at ? e : newest),
+      undefined
+    );
+}
+
 export type Turn = 'you' | 'them' | 'none';
 
 /** Whose move it is, from the record alone. */

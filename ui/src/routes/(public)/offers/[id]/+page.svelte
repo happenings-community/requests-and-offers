@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BackButton from '$lib/components/shared/BackButton.svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
@@ -261,10 +262,7 @@
 <section class="container mx-auto space-y-6 p-4">
   <!-- Navigation -->
   <div class="flex items-center justify-between">
-    <button class="variant-soft btn space-x-2" onclick={() => goto('/offers')}>
-      <span>🡰</span>
-      <span>Back to Offers</span>
-    </button>
+    <BackButton fallback="/offers" />
 
     {#if offer && (canEdit || canDelete)}
       <div class="flex gap-2">

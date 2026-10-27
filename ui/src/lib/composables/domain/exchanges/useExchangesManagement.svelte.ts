@@ -4,6 +4,7 @@ import usersStore from '$lib/stores/users.store.svelte';
 import offersStore from '$lib/stores/offers.store.svelte';
 import requestsStore from '$lib/stores/requests.store.svelte';
 import { runEffect } from '$lib/utils/effect';
+import { getUserPictureUrl } from '$lib/utils';
 import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
 import {
   awaitingMe,
@@ -92,6 +93,7 @@ export function useExchangesManagement(options: UseExchangesManagementOptions = 
   let order = $state<ExchangeOrder>('latest');
 
   const names = $state<Record<string, string>>({});
+  const pictures = $state<Record<string, string>>({});
   const titles = $state<Record<string, string>>({});
   let ready = $state(false);
   let error = $state<string | null>(null);
@@ -105,6 +107,9 @@ export function useExchangesManagement(options: UseExchangesManagementOptions = 
     exchanges.filter((e) => tabOf(e) === t && awaitingMe(e, me)).length;
 
   const nameOf = (exchange: UIExchange) => names[encodeHashToBase64(counterpartyOf(exchange, me))];
+  /** The other person's profile picture, or the default avatar. */
+  const pictureOf = (exchange: UIExchange) =>
+    pictures[encodeHashToBase64(counterpartyOf(exchange, me))] ?? '/default_avatar.webp';
   const titleOf = (exchange: UIExchange) => titles[encodeHashToBase64(exchange.agreement.listing)];
 
   /**
@@ -118,6 +123,7 @@ export function useExchangesManagement(options: UseExchangesManagementOptions = 
       if (!(other in names)) {
         const user = await runEffect(usersStore.getUserByActionHash(counterpartyOf(exchange, me)));
         names[other] = user?.name ?? 'A member';
+        if (user) pictures[other] = getUserPictureUrl(user);
       }
       const listing = encodeHashToBase64(exchange.agreement.listing);
       if (!(listing in titles)) {
@@ -191,6 +197,7 @@ export function useExchangesManagement(options: UseExchangesManagementOptions = 
     countIn,
     myTurnIn,
     nameOf,
+    pictureOf,
     titleOf,
     lastActivity,
     initialize

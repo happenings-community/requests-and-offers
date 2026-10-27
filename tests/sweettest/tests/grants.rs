@@ -564,8 +564,12 @@ async fn a_listing_keeps_its_service_type() {
 /// "request" is the offer is refused; a second link from the request to
 /// gardening is written.
 ///
-/// **To make this go red:** remove the link arm from `validate` in
-/// `service_types_integrity`. Every forged link is then written.
+/// The request link whose "request" is the offer is refused by #400's shape
+/// rule, which runs first, so its message is the shape's.
+///
+/// **To make this go red:** in `service_types_integrity/src/links.rs`, have
+/// `listing_link` return `check_create`'s verdict without calling
+/// `check_listing_link`. The three links to design are then written.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_listing_is_linked_only_to_its_own_service_type() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
@@ -594,7 +598,7 @@ async fn a_listing_is_linked_only_to_its_own_service_type() {
     refused(&offer_to_design, "its entry names", "a link from an offer to another service type");
 
     let wrong_kind = forge_a_link(&conductors[2], &mallory, service_types, REQUEST_TO_SERVICE_TYPE_LINK, &offer, &gardening).await;
-    refused(&wrong_kind, "a listing of that kind", "a request link from an offer");
+    refused(&wrong_kind, "the link's base must be a request", "a request link from an offer");
 
     let own = forge_a_link(&conductors[2], &mallory, service_types, REQUEST_TO_SERVICE_TYPE_LINK, &request, &gardening).await;
     own.unwrap_or_else(|e| panic!("a link from a request to its own service type should be written; got {e}"));

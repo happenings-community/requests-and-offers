@@ -11,7 +11,7 @@ use utils::{
 use crate::external_calls::{
   check_if_agent_is_administrator, check_if_entity_is_accepted, get_organization_members_links,
   delete_all_medium_of_exchange_links_for_entity, delete_all_service_type_links_for_entity,
-  get_agent_user, link_to_medium_of_exchange, link_to_service_type,
+  get_agent_user, get_service_type_approval, link_to_medium_of_exchange, link_to_service_type,
   update_medium_of_exchange_links, update_service_type_links,
 };
 
@@ -69,6 +69,20 @@ pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
     }
   };
   offer.removal_reason = None;
+  // The listing's one service type goes on the entry, where validation holds
+  // it fixed (#257); the link below is an index of it. Validation accepts only
+  // the type's original record, and a client may hold a revision (the list of
+  // approved types returns the latest), so resolve it as every link site does.
+  let service_type_hash = resolve_chain_root(input.service_type_hash.clone());
+  // Validation also requires the decision that approved it (#257). Only the
+  // type's current decision is named, so a retired or rejected type is refused
+  // here, before writing.
+  offer.service_type_approval = Some(
+    get_service_type_approval(service_type_hash.clone())?.ok_or(CommonError::InvalidData(
+      "That service type is not approved".to_string(),
+    ))?,
+  );
+  offer.service_type_hash = Some(service_type_hash);
   let offer_hash = create_entry(&EntryTypes::Offer(offer))?;
 
   let record = get(offer_hash.clone(), GetOptions::default())?.ok_or(
@@ -411,12 +425,33 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
       "Could not deserialize offer entry".to_string(),
     ))?;
 
+  // A listing's service type is its identity: an update keeps it, and
+  // validation refuses one that does not (#257). Say so here, before writing.
+  let service_type_hash =
+    current_offer
+      .service_type_hash
+      .clone()
+      .ok_or(CommonError::InvalidData(
+        "This offer names no service type".to_string(),
+      ))?;
+  if resolve_chain_root(input.service_type_hash.clone()) != service_type_hash {
+    return Err(
+      CommonError::InvalidData(
+        "A offer's service type cannot change; publish a new listing for a different one"
+          .to_string(),
+      )
+      .into(),
+    );
+  }
+
   if current_offer.status == ListingStatus::Archived {
     return Err(CommonError::CannotUpdateArchived("offer".to_string()).into());
   }
 
   // The creator needs no grant; an admin carries theirs. Never the client's.
   let mut updated_offer = input.updated_offer;
+  updated_offer.service_type_hash = Some(service_type_hash.clone());
+  updated_offer.service_type_approval = current_offer.service_type_approval.clone();
   updated_offer.grant = if is_author {
     None
   } else {
@@ -453,7 +488,7 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
     action_hash: OriginalActionHash(updated_offer_hash.clone()),
     entity: "offer".to_string(),
     // The shared link machinery stays plural: users carry several skills.
-    new_service_type_hashes: vec![input.service_type_hash],
+    new_service_type_hashes: vec![service_type_hash],
   })?;
 
   // Update medium of exchange links using the mediums_of_exchange zome

@@ -137,16 +137,24 @@ pub fn catalogue_state_from_tag(tag: &LinkTag) -> Result<CatalogueState, String>
 /// before it. As with an entry's latest version, acceptable for alpha 2; what
 /// the tag removes is the missed fetch and the tie.
 pub fn latest_catalogue_state(links: &[Link]) -> CatalogueState {
+  latest_catalogue_decision(links)
+    .map(|(state, _)| state)
+    .unwrap_or(CatalogueState::Pending)
+}
+
+/// The latest decision among a catalogue item's status-update links, by the
+/// same order as [`latest_catalogue_state`], with the status entry it links
+/// to: what a listing names as its approval (#257). `None` if there is none.
+pub fn latest_catalogue_decision(links: &[Link]) -> Option<(CatalogueState, ActionHash)> {
   links
     .iter()
     .filter_map(|link| {
-      catalogue_state_from_tag(&link.tag)
-        .ok()
-        .map(|state| ((link.timestamp, link.create_link_hash.clone()), state))
+      let state = catalogue_state_from_tag(&link.tag).ok()?;
+      let status = link.target.clone().into_action_hash()?;
+      Some(((link.timestamp, link.create_link_hash.clone()), (state, status)))
     })
     .max_by(|(a, _), (b, _)| a.cmp(b))
-    .map(|(_, state)| state)
-    .unwrap_or(CatalogueState::Pending)
+    .map(|(_, decision)| decision)
 }
 
 /// What one end of a link must be.

@@ -447,7 +447,13 @@
       required
       name="serviceTypes"
       id="request-service-types"
+      disabled={mode === 'edit'}
     />
+    {#if mode === 'edit'}
+      <p class="text-sm text-surface-600 dark:text-surface-400">
+        A request's service type can't be changed. For a different one, publish a new request.
+      </p>
+    {/if}
     {#if serviceTypesError}
       <p class="mt-1 text-sm text-error-500">{serviceTypesError}</p>
     {/if}

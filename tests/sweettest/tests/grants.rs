@@ -92,7 +92,12 @@ async fn grant_for_role(
         .0
 }
 
-fn a_request(title: &str, grant: Option<ActionHash>) -> Request {
+fn a_request(
+    title: &str,
+    grant: Option<ActionHash>,
+    service_type: Option<ActionHash>,
+    approval: Option<ActionHash>,
+) -> Request {
     Request {
         title: title.to_string(),
         description: "forged past the coordinator".to_string(),
@@ -108,6 +113,8 @@ fn a_request(title: &str, grant: Option<ActionHash>) -> Request {
         organization: None,
         membership: None,
         removal_reason: None,
+        service_type_hash: service_type,
+        service_type_approval: approval,
     }
 }
 
@@ -179,7 +186,14 @@ fn refused(outcome: &Result<ActionHash, String>, expected: &str, what: &str) {
 // ── Entry indexes, from the integrity zomes' enums ──────────────────────────
 
 const REQUEST: u8 = 0;
+/// In `service_types_integrity::LinkTypes`: `ServiceTypeToRequest`,
+/// `RequestToServiceType`, `OfferToServiceType`.
+const SERVICE_TYPE_TO_REQUEST_LINK: u8 = 2;
+const REQUEST_TO_SERVICE_TYPE_LINK: u8 = 3;
+const OFFER_TO_SERVICE_TYPE_LINK: u8 = 5;
 const SERVICE_TYPE: u8 = 0;
+/// `ServiceTypeStatusUpdates` in `service_types_integrity::LinkTypes`.
+const SERVICE_TYPE_STATUS_UPDATES_LINK: u8 = 8;
 /// After `Status`: `utils::grants::ROLE_GRANT_ENTRY_INDEX`.
 const ROLE_GRANT: u8 = 1;
 /// `OrganizationCoordinators` in `users_organizations_integrity::LinkTypes`.
@@ -204,12 +218,12 @@ async fn a_listing_carries_the_member_grant_its_author_holds() {
     let administration = zome_index(&conductors[2], &mallory, "administration_integrity").await;
 
     // No grant.
-    let no_grant = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("no grant", None)).await;
+    let no_grant = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("no grant", None, None, None)).await;
     refused(&no_grant, "needs a grant for Participate", "a listing with no grant");
 
     // Someone else's grant.
     let bobs = grant_for_role(&conductors[1], bob, bob.agent_pubkey(), "member").await;
-    let borrowed = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("borrowed", Some(bobs))).await;
+    let borrowed = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("borrowed", Some(bobs), None, None)).await;
     refused(&borrowed, "held by someone else", "a listing with Bob's grant");
 
     // A grant of the wrong role: Alice makes Mallory an administrator.
@@ -226,7 +240,7 @@ async fn a_listing_carries_the_member_grant_its_author_holds() {
         .await;
     await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
     let admin = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "admin").await;
-    let wrong_role = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("as admin", Some(admin))).await;
+    let wrong_role = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("as admin", Some(admin), None, None)).await;
     refused(&wrong_role, "does not cover Participate", "a listing with an admin grant");
 
     // A grant whose authority could not give it: a member grant resting on a
@@ -263,14 +277,331 @@ async fn a_listing_carries_the_member_grant_its_author_holds() {
     .await;
     refused(&on_bobs, "written by the holder of the grant it rests on", "a grant resting on Bob's grant");
 
-    // The honest write: her own member grant.
-    let honest = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("honest", Some(mine))).await;
+    // The honest write: her own member grant, and a service type (#257).
+    let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let approval = approval_of(&conductors[2], &mallory, &gardening).await;
+    let honest = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("honest", Some(mine), Some(gardening), Some(approval))).await;
     let hash = honest.unwrap_or_else(|e| panic!("a listing with its author's member grant should be written; got {e}"));
     await_consistency_s(30, [alice, bob, &mallory]).await.unwrap();
     let read: Option<Record> = conductors[0]
         .call(&alice.zome("requests"), "get_request", hash)
         .await;
     assert!(read.is_some(), "Alice should read the listing Mallory wrote with her grant");
+}
+
+/// Mallory writes a link of the given type, past the coordinator.
+async fn forge_a_link(
+    conductor: &SweetConductor,
+    mallory: &SweetCell,
+    zome_index: u8,
+    link_type: u8,
+    base: &ActionHash,
+    target: &ActionHash,
+) -> Result<ActionHash, String> {
+    reason(
+        conductor
+            .call_fallible(
+                &mallory.zome("forge"),
+                "forge_link",
+                serde_json::json!({
+                    "base": AnyLinkableHash::from(base.clone()),
+                    "target": AnyLinkableHash::from(target.clone()),
+                    "zome_index": zome_index,
+                    "link_type": link_type,
+                    "tag": Vec::<u8>::new(),
+                }),
+            )
+            .await,
+    )
+}
+
+/// A listing names one service type, and it is a real one (#257).
+///
+/// Past the coordinator, with her own member grant: a request naming no
+/// service type is refused, and so is one naming something that is not a
+/// service type (her grant's own record). One naming Alice's service type is
+/// written.
+///
+/// **To make this go red:** make `utils::listings::check_listing_service_type`
+/// return `Valid` for a create. Both forgeries are then written.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_listing_names_one_real_service_type() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let requests = zome_index(&conductors[2], &mallory, "requests_integrity").await;
+    let mine = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "member").await;
+    let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    let untyped = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("no type", Some(mine.clone()), None, None)).await;
+    refused(&untyped, "must name its service type", "a request naming no service type");
+
+    let not_a_type = forge_entry(
+        &conductors[2],
+        &mallory,
+        requests,
+        REQUEST,
+        a_request("a grant for a type", Some(mine.clone()), Some(mine.clone()), None),
+    )
+    .await;
+    refused(&not_a_type, "the original record of a service type", "a request naming a record that is not a service type");
+
+    let approval = approval_of(&conductors[2], &mallory, &gardening).await;
+    let typed = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("gardening", Some(mine), Some(gardening), Some(approval))).await;
+    typed.unwrap_or_else(|e| panic!("a request naming a service type should be written; got {e}"));
+}
+
+/// A listing names the decision that approved its service type, so a member
+/// cannot post under a type no role holder approved (#257). Five forgeries,
+/// past the coordinator, each with Mallory's own member grant:
+///
+/// - no approval;
+/// - a pending suggestion of hers, carrying gardening's approval, the only
+///   approval she can borrow (a pending suggestion has no decision of its own);
+/// - a suggestion Alice rejected, carrying the Rejected decision;
+/// - gardening, carrying design's approval;
+/// - gardening, carrying a record that is not a decision (gardening itself).
+///
+/// Then the honest write, and an update that swaps in another approval.
+///
+/// **To make each go red** (in `utils/src/listings.rs`):
+/// - no approval: in `check_approval`, return `Ok(Ok(()))` when `approval` is
+///   `None`;
+/// - pending, and another item's approval: in `check_decision`, drop the
+///   comparison of `decision.item(catalogue)` with `item`;
+/// - rejected: in `check_decision`, accept any state;
+/// - not a decision: in `check_approval`, drop the `writes(..)` check (the
+///   service type then fails to decode as a decision, a different refusal);
+/// - the swapped approval: make `check_same_approval` return `Ok(())`.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_listing_names_the_approval_of_its_service_type() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let all = [alice, bob, &mallory];
+    everyone_accepted(&conductors, &all).await;
+    let requests = zome_index(&conductors[2], &mallory, "requests_integrity").await;
+    let service_types = zome_index(&conductors[2], &mallory, "service_types_integrity").await;
+    let mine = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "member").await;
+    let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let design = a_service_type(&conductors[0], alice, "Design").await;
+    let pending: Record = conductors[2]
+        .call(&mallory.zome("service_types"), "suggest_service_type", sample_service_type("Mallory's pending"))
+        .await;
+    let pending = pending.action_address().clone();
+    let rejected: Record = conductors[2]
+        .call(&mallory.zome("service_types"), "suggest_service_type", sample_service_type("Mallory's rejected"))
+        .await;
+    let rejected = rejected.action_address().clone();
+    await_consistency_s(15, all).await.unwrap();
+    conductors[0]
+        .call::<_, ()>(&alice.zome("service_types"), "reject_service_type", rejected.clone())
+        .await;
+    await_consistency_s(15, all).await.unwrap();
+    let approval = approval_of(&conductors[2], &mallory, &gardening).await;
+    let designs = approval_of(&conductors[2], &mallory, &design).await;
+    let decisions: Vec<Link> = conductors[2]
+        .call(
+            &mallory.zome("forge"),
+            "forge_get_links",
+            serde_json::json!({
+                "base": AnyLinkableHash::from(rejected.clone()),
+                "zome_index": service_types,
+                "link_type": SERVICE_TYPE_STATUS_UPDATES_LINK,
+            }),
+        )
+        .await;
+    assert_eq!(decisions.len(), 1, "Alice's one decision on the rejected suggestion");
+    let rejection = decisions[0].target.clone().into_action_hash().expect("a status entry");
+
+    let forge = |title: &'static str, service_type: &ActionHash, approval: Option<ActionHash>| {
+        a_request(title, Some(mine.clone()), Some(service_type.clone()), approval)
+    };
+    let cases = [
+        (forge("no approval", &gardening, None), "must name the approval of its service type", "a request with no approval"),
+        (
+            forge("pending", &pending, Some(approval.clone())),
+            "the approval of another service type",
+            "a request under a pending suggestion, with a borrowed approval",
+        ),
+        (
+            forge("rejected", &rejected, Some(rejection)),
+            "rejected its service type, not an approval",
+            "a request under a rejected suggestion",
+        ),
+        (
+            forge("design's", &gardening, Some(designs.clone())),
+            "the approval of another service type",
+            "a request carrying another type's approval",
+        ),
+        (
+            forge("not a decision", &gardening, Some(gardening.clone())),
+            "not a decision on a service type",
+            "a request carrying a record that is not a decision",
+        ),
+    ];
+    for (entry, expected, what) in cases {
+        refused(&forge_entry(&conductors[2], &mallory, requests, REQUEST, entry).await, expected, what);
+    }
+
+    // Through the app, the rejected suggestion is refused before writing.
+    let through_the_app = reason(
+        conductors[2]
+            .call_fallible::<_, Record>(&mallory.zome("requests"), "create_request", sample_request("rejected", rejected))
+            .await,
+    );
+    assert!(through_the_app.is_err(), "the coordinator refuses a rejected service type");
+
+    // The honest write names gardening's approval; an update cannot swap it.
+    let honest = forge_entry(&conductors[2], &mallory, requests, REQUEST, forge("honest", &gardening, Some(approval.clone())))
+        .await
+        .unwrap_or_else(|e| panic!("a request naming its type's approval should be written; got {e}"));
+    let swapped = forge_update(&conductors[2], &mallory, &honest, a_request("honest, edited", None, Some(gardening.clone()), Some(designs))).await;
+    refused(&swapped, "approval cannot change", "an update swapping in another approval");
+    let kept = forge_update(&conductors[2], &mallory, &honest, a_request("honest, edited", None, Some(gardening), Some(approval))).await;
+    kept.unwrap_or_else(|e| panic!("an update keeping the approval should be written; got {e}"));
+}
+
+/// A listing may name its service type by a revision, as the list of
+/// approved types hands one out once a type has been edited. The coordinator
+/// resolves it to the original record, which is all validation accepts (#257).
+/// Alice edits gardening; Mallory posts a request naming the edit's hash. It is
+/// written, naming the original. Found by the e2e journey, where spec 02 edits
+/// the type that spec 09 later names.
+///
+/// **To make this go red:** in `create_request`, put
+/// `input.service_type_hash` on the entry without `resolve_chain_root`. The
+/// request is then refused at commit.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_listing_may_name_its_service_type_by_a_revision() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let revision: ActionHash = conductors[0]
+        .call(
+            &alice.zome("service_types"),
+            "update_service_type",
+            UpdateServiceTypeInput {
+                original_action_hash: gardening.clone(),
+                previous_action_hash: gardening.clone(),
+                updated_service_type: ServiceTypeEntry {
+                    name: "Gardening and growing".to_string(),
+                    ..sample_service_type("placeholder").service_type
+                },
+            },
+        )
+        .await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    let record: Record = conductors[2]
+        .call(&mallory.zome("requests"), "create_request", sample_request("Help with the beds", revision))
+        .await;
+    let written: Request = record.entry().to_app_option().unwrap().expect("a request");
+    assert_eq!(written.service_type_hash, Some(gardening), "the request names the type's original record");
+}
+
+/// A listing keeps its service type: an update naming another is refused,
+/// through the coordinator and past it (#257).
+///
+/// Mallory posts a request for gardening through the app. The app refuses to
+/// move it to design, with a reason. Past the coordinator, her own update
+/// naming design is refused by validation; one keeping gardening is written.
+///
+/// **To make this go red:** make `utils::listings::check_unchanged` return
+/// `Ok(())`. The forged update is then written.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_listing_keeps_its_service_type() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let design = a_service_type(&conductors[0], alice, "Design").await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    let record: Record = conductors[2]
+        .call(&mallory.zome("requests"), "create_request", sample_request("A lift", gardening.clone()))
+        .await;
+    let original = record.action_address().clone();
+    let written: Request = record.entry().to_app_option().unwrap().expect("a request");
+    assert_eq!(written.service_type_hash, Some(gardening.clone()), "the coordinator puts the service type on the entry");
+
+    // Through the app: refused with a reason.
+    let moved = reason(
+        conductors[2]
+            .call_fallible::<_, Record>(
+                &mallory.zome("requests"),
+                "update_request",
+                serde_json::json!({
+                    "original_action_hash": original,
+                    "previous_action_hash": original,
+                    "updated_request": sample_request("A lift", design.clone()).request,
+                    "service_type_hash": design,
+                    "medium_of_exchange_hashes": [],
+                }),
+            )
+            .await,
+    );
+    match moved {
+        Ok(record) => panic!("moving a listing to another service type should be refused, but wrote {}", record.action_address()),
+        Err(text) => assert!(text.contains("cannot change"), "the refusal should say the type cannot change; got {text}"),
+    }
+
+    // Past the coordinator: validation refuses the move, and keeps the same type.
+    let forged = forge_update(&conductors[2], &mallory, &original, a_request("A lift, moved", None, Some(design.clone()), written.service_type_approval.clone())).await;
+    refused(&forged, "cannot change", "an update moving a listing to another service type");
+    let kept = forge_update(&conductors[2], &mallory, &original, a_request("A lift, retitled", None, Some(gardening), written.service_type_approval.clone())).await;
+    kept.unwrap_or_else(|e| panic!("an update keeping the service type should be written; got {e}"));
+}
+
+/// A listing is linked only to the service type its own entry names, in
+/// either direction, and only a listing of the right kind (#257).
+///
+/// Mallory posts a request and an offer for gardening through the app. Past
+/// the coordinator: links from the request to design, from design to the
+/// request, and from the offer to design are refused; a request link whose
+/// "request" is the offer is refused; a second link from the request to
+/// gardening is written.
+///
+/// The request link whose "request" is the offer is refused by #400's shape
+/// rule, which runs first, so its message is the shape's.
+///
+/// **To make this go red:** in `service_types_integrity/src/links.rs`, have
+/// `listing_link` return `check_create`'s verdict without calling
+/// `check_listing_link`. The three links to design are then written.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_listing_is_linked_only_to_its_own_service_type() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let service_types = zome_index(&conductors[2], &mallory, "service_types_integrity").await;
+    let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let design = a_service_type(&conductors[0], alice, "Design").await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    let request: Record = conductors[2]
+        .call(&mallory.zome("requests"), "create_request", sample_request("A lift", gardening.clone()))
+        .await;
+    let offer: Record = conductors[2]
+        .call(&mallory.zome("offers"), "create_offer", sample_offer("Pruning", gardening.clone()))
+        .await;
+    let (request, offer) = (request.action_address().clone(), offer.action_address().clone());
+
+    let to_design = forge_a_link(&conductors[2], &mallory, service_types, REQUEST_TO_SERVICE_TYPE_LINK, &request, &design).await;
+    refused(&to_design, "its entry names", "a link from a request to another service type");
+
+    let from_design = forge_a_link(&conductors[2], &mallory, service_types, SERVICE_TYPE_TO_REQUEST_LINK, &design, &request).await;
+    refused(&from_design, "its entry names", "a link from another service type to a request");
+
+    let offer_to_design = forge_a_link(&conductors[2], &mallory, service_types, OFFER_TO_SERVICE_TYPE_LINK, &offer, &design).await;
+    refused(&offer_to_design, "its entry names", "a link from an offer to another service type");
+
+    let wrong_kind = forge_a_link(&conductors[2], &mallory, service_types, REQUEST_TO_SERVICE_TYPE_LINK, &offer, &gardening).await;
+    refused(&wrong_kind, "the link's base must be a request", "a request link from an offer");
+
+    let own = forge_a_link(&conductors[2], &mallory, service_types, REQUEST_TO_SERVICE_TYPE_LINK, &request, &gardening).await;
+    own.unwrap_or_else(|e| panic!("a link from a request to its own service type should be written; got {e}"));
 }
 
 /// A listing is edited by its author, who needs no grant, or by an
@@ -290,7 +621,7 @@ async fn a_listing_is_edited_by_its_author_or_an_administrator() {
     await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
 
     // Mallory, neither author nor administrator, past the coordinator.
-    let forged = forge_update(&conductors[2], &mallory, &original, a_request("Mallory's edit", None)).await;
+    let forged = forge_update(&conductors[2], &mallory, &original, a_request("Mallory's edit", None, Some(st.clone()), None)).await;
     refused(&forged, "needs a grant for Administer", "an edit by a member who is not the author");
 
     let edit = |title: &str| {

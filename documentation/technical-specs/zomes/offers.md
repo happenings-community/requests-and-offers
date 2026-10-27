@@ -174,7 +174,7 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record>
 
 Updates an existing offer with new data.
 
-During an update, the `offers_coordinator` zome replaces the `OfferToServiceType` link with one to `input.service_type_hash`, which must name an approved `ServiceType`.
+During an update, the offer's service type stays as it is: `input.service_type_hash` must equal the one the offer already names, or the `offers_coordinator` zome refuses the update ("A offer's service type cannot change; publish a new listing for a different one"). Validation holds it fixed too (#257).
 
 **Parameters:**
 
@@ -182,7 +182,7 @@ During an update, the `offers_coordinator` zome replaces the `OfferToServiceType
   - `original_action_hash`: The original action hash
   - `previous_action_hash`: The most recent action hash
   - `updated_offer`: The updated offer data
-  - `service_type_hash`: The one approved service type the offer names after the update
+  - `service_type_hash`: The offer's one service type, unchanged; a different hash is refused
 
 **Returns:**
 
@@ -404,7 +404,7 @@ Retrieves the organization associated with an offer, if any.
 
 - Title must be between 3 and 50 characters.
 - Description must be between 10 and 1000 characters. Supports markdown formatting (rendered on frontend with `marked` + `DOMPurify`).
-- Exactly one service type, `service_type_hash`, which must be approved. This holds by convention for now: the coordinator and the form require it, but integrity validation does not check it yet. Enforcing it in validation is tracked in #257 and lands with the Holochain 0.7 migration.
+- Exactly one service type, `service_type_hash`, on the entry itself, which the coordinator fills in. Validation (`utils::listings`, #257) requires it on a create, requires it to name a `ServiceType` record, and holds it unchanged on every update. The links between an offer and its service type must match it, in both directions (`service_types_integrity`). Beside it, `service_type_approval` names the `ServiceTypeStatus` entry that approved the type, which the coordinator fills in from the type's current decision. Validation requires it on a create, reads it with `must_get_valid_record`, and checks that it decides this very service type and that its decision is `Approved`; an update carries the same approval. The limit that remains: a type approved and later retired can still be named by its old approval, since that decision stays a valid record. Honest clients refuse a retired type at the coordinator.
 - Time preference must be specified.
 - Exchange preference must be specified.
 - Interaction type must be specified.

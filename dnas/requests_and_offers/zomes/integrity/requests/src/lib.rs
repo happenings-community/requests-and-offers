@@ -1,4 +1,5 @@
 use hdi::prelude::*;
+use utils::listings::check_listing_service_type;
 
 mod links;
 mod request;
@@ -39,17 +40,28 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
 /// the record.
 ///
 /// `update` is the action an update updates, `None` for a create: the grant
-/// rule needs it to find the request's creator. Field rules run first.
+/// rule needs it to find the request's creator, and the service type rule to
+/// find the revision whose type this one must keep. Field rules run first,
+/// then the grant, then the service type (#257).
 fn validate_entry(
   app_entry: EntryTypes,
   author: &AgentPubKey,
   update: Option<&ActionHash>,
 ) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
-    EntryTypes::Request(request) => match validate_request(request.clone())? {
-      ValidateCallbackResult::Valid => validate_request_write(&request, author, update),
-      other => Ok(other),
-    },
+    EntryTypes::Request(request) => {
+      let service_type_hash = request.service_type_hash.clone();
+      let service_type_approval = request.service_type_approval.clone();
+      match validate_request(request.clone())? {
+        ValidateCallbackResult::Valid => (),
+        other => return Ok(other),
+      }
+      match validate_request_write(&request, author, update)? {
+        ValidateCallbackResult::Valid => (),
+        other => return Ok(other),
+      }
+      check_listing_service_type(&service_type_hash, &service_type_approval, update, "request")
+    }
   }
 }
 
@@ -203,6 +215,8 @@ mod record_op_tests {
       organization: None,
       membership: None,
       removal_reason: None,
+      service_type_hash: None,
+      service_type_approval: None,
     }
     .try_into()
     .unwrap()

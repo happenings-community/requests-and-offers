@@ -135,6 +135,21 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await expect(page.locator('text=No pending users.')).toBeVisible({ timeout: 10_000 });
   });
 
+  test('approval gives the member an hREA agent', async ({ page }) => {
+    // Approving announces the acceptance, which is what the hREA store listens
+    // for to create the member's Person agent (#339 review). Without it the
+    // member is accepted in the DNA but has no agent.
+    await gotoApp(page, '/admin/hrea-test');
+    await page
+      .getByRole('tab', { name: /Agents/ })
+      .first()
+      .click();
+    await page.getByRole('tab', { name: /Person Agents/ }).click();
+    await expect(page.locator('table.table').getByText('E2E Tester').first()).toBeVisible({
+      timeout: 30_000
+    });
+  });
+
   test('accepted profile can now create offers', async ({ page }) => {
     await gotoApp(page, '/offers');
 

@@ -90,6 +90,20 @@ test.describe.serial('06 — organizations: creation, moderation, edit', () => {
     await page.getByRole('button', { name: 'Close' }).click();
   });
 
+  test('approval gives the organization an hREA agent', async ({ page }) => {
+    // As for members: approving announces the acceptance, and the hREA store
+    // creates the Organization agent from it (#339 review).
+    await gotoApp(page, '/admin/hrea-test');
+    await page
+      .getByRole('tab', { name: /Agents/ })
+      .first()
+      .click();
+    await page.getByRole('tab', { name: /Organization Agents/ }).click();
+    await expect(page.locator('table.table').getByText(ORG_NAME).first()).toBeVisible({
+      timeout: 30_000
+    });
+  });
+
   test('accepted organization appears publicly with a working detail page', async ({ page }) => {
     await gotoApp(page, '/organizations');
     await expect(page.locator(`text=${ORG_NAME}`).first()).toBeVisible({ timeout: 15_000 });

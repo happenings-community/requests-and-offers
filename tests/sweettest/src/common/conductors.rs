@@ -377,3 +377,11 @@ pub async fn a_service_type(conductor: &SweetConductor, admin: &SweetCell, name:
         .await;
     record.action_address().clone()
 }
+
+/// The decision that approved a service type, as a listing names it (#257).
+pub async fn approval_of(conductor: &SweetConductor, cell: &SweetCell, service_type: &ActionHash) -> ActionHash {
+    let approval: Option<ActionHash> = conductor
+        .call(&cell.zome("service_types"), "get_service_type_approval", service_type.clone())
+        .await;
+    approval.expect("the service type should be approved")
+}

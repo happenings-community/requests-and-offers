@@ -11,7 +11,7 @@ use utils::{
 use crate::external_calls::{
   check_if_agent_is_administrator, check_if_entity_is_accepted, get_organization_members_links,
   delete_all_medium_of_exchange_links_for_entity, delete_all_service_type_links_for_entity,
-  get_agent_user, link_to_medium_of_exchange, link_to_service_type,
+  get_agent_user, get_service_type_approval, link_to_medium_of_exchange, link_to_service_type,
   update_medium_of_exchange_links, update_service_type_links,
 };
 
@@ -73,7 +73,16 @@ pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
   // it fixed (#257); the link below is an index of it. Validation accepts only
   // the type's original record, and a client may hold a revision (the list of
   // approved types returns the latest), so resolve it as every link site does.
-  offer.service_type_hash = Some(resolve_chain_root(input.service_type_hash.clone()));
+  let service_type_hash = resolve_chain_root(input.service_type_hash.clone());
+  // Validation also requires the decision that approved it (#257). Only the
+  // type's current decision is named, so a retired or rejected type is refused
+  // here, before writing.
+  offer.service_type_approval = Some(
+    get_service_type_approval(service_type_hash.clone())?.ok_or(CommonError::InvalidData(
+      "That service type is not approved".to_string(),
+    ))?,
+  );
+  offer.service_type_hash = Some(service_type_hash);
   let offer_hash = create_entry(&EntryTypes::Offer(offer))?;
 
   let record = get(offer_hash.clone(), GetOptions::default())?.ok_or(
@@ -442,6 +451,7 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
   // The creator needs no grant; an admin carries theirs. Never the client's.
   let mut updated_offer = input.updated_offer;
   updated_offer.service_type_hash = Some(service_type_hash.clone());
+  updated_offer.service_type_approval = current_offer.service_type_approval.clone();
   updated_offer.grant = if is_author {
     None
   } else {

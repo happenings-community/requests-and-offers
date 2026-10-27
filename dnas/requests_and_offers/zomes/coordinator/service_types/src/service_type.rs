@@ -432,6 +432,24 @@ pub fn is_service_type_approved(service_type_hash: ActionHash) -> ExternResult<b
   Ok(current_state(&resolve_chain_root(service_type_hash))? == CatalogueState::Approved)
 }
 
+/// The decision that approved a service type: the status entry behind its
+/// current state, when that state is approved. A listing names it, and
+/// validation checks it (#257).
+#[hdk_extern]
+pub fn get_service_type_approval(service_type_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
+  let filter = LinkTypes::ServiceTypeStatusUpdates
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(
+    LinkQuery::new(resolve_chain_root(service_type_hash), filter),
+    GetStrategy::Network,
+  )?;
+  Ok(match utils::links::latest_catalogue_decision(&links) {
+    Some((CatalogueState::Approved, status)) => Some(status),
+    _ => None,
+  })
+}
+
 /// Get the status of a service type: pending, approved, rejected or retired
 #[hdk_extern]
 pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<String> {

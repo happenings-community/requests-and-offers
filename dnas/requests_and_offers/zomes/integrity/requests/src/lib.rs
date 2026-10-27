@@ -51,6 +51,7 @@ fn validate_entry(
   match app_entry {
     EntryTypes::Request(request) => {
       let service_type_hash = request.service_type_hash.clone();
+      let service_type_approval = request.service_type_approval.clone();
       match validate_request(request.clone())? {
         ValidateCallbackResult::Valid => (),
         other => return Ok(other),
@@ -59,7 +60,7 @@ fn validate_entry(
         ValidateCallbackResult::Valid => (),
         other => return Ok(other),
       }
-      check_listing_service_type(&service_type_hash, update, "request")
+      check_listing_service_type(&service_type_hash, &service_type_approval, update, "request")
     }
   }
 }
@@ -215,6 +216,7 @@ mod record_op_tests {
       membership: None,
       removal_reason: None,
       service_type_hash: None,
+      service_type_approval: None,
     }
     .try_into()
     .unwrap()

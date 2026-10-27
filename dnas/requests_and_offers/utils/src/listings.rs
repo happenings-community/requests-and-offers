@@ -15,11 +15,27 @@
 //! - a link between a listing and a service type, in either direction, joins a
 //!   listing to the type its own entry names ([`check_listing_link`]).
 //!
-//! What this does not check: whether the service type is approved. Approval is
-//! a status that changes over time, so a validator cannot read it the same way
-//! on every peer. The coordinator refuses an unapproved type at creation.
+//! A new listing also names the decision that approved its service type:
+//! `service_type_approval`, the hash of a `ServiceTypeStatus` entry. Approval
+//! is a status that moves over time, so no validator can ask whether a type
+//! is approved *now* and get the same answer as every other peer. A decision
+//! entry, though, never changes: validation reads it with
+//! `must_get_valid_record` and checks that it decides this very service type
+//! and that its decision is `Approved` ([`check_approval`]). An update carries
+//! the same approval as the revision it updates. So a modified client cannot
+//! post a listing under a suggestion nobody approved, or one that was
+//! rejected, which would let it use the network without the role's say.
+//!
+//! The limit that remains: a service type approved and later retired can
+//! still be named by its old approval, since that decision stays a valid
+//! record. Honest clients refuse a retired type at the coordinator, which
+//! names only the type's current approval. Closing this needs validation to
+//! know which decision is the latest, which ordering by time cannot settle
+//! the same way on every peer (see `utils::links::latest_catalogue_state`).
 
 use hdk::prelude::*;
+
+use crate::links::{writes, CatalogueState, EntryKind, MEDIUM_OF_EXCHANGE_STATUS, SERVICE_TYPE_STATUS};
 
 /// The integrity zome that registers `ServiceType`, as named in
 /// `dnas/requests_and_offers/workdir/dna.yaml`.
@@ -41,6 +57,100 @@ pub const LISTING_ENTRY_INDEX: u8 = 0;
 pub struct ListingServiceType {
   #[serde(default)]
   pub service_type_hash: Option<ActionHash>,
+  #[serde(default)]
+  pub service_type_approval: Option<ActionHash>,
+}
+
+/// A shared catalogue whose items a listing names: what its decisions are
+/// called, and which field of a decision names the item.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Catalogue {
+  ServiceType,
+  MediumOfExchange,
+}
+
+impl Catalogue {
+  pub fn name(&self) -> &'static str {
+    match self {
+      Catalogue::ServiceType => "service type",
+      Catalogue::MediumOfExchange => "medium of exchange",
+    }
+  }
+
+  fn decision_kind(&self) -> &'static EntryKind {
+    match self {
+      Catalogue::ServiceType => &SERVICE_TYPE_STATUS,
+      Catalogue::MediumOfExchange => &MEDIUM_OF_EXCHANGE_STATUS,
+    }
+  }
+}
+
+/// The fields of a `ServiceTypeStatus` or `MediumOfExchangeStatus` entry these
+/// checks read. As with [`ListingServiceType`], decoding into this keeps the
+/// listing zomes free of dependencies on the catalogue zomes: serde ignores
+/// the grant, and the field the other catalogue uses is simply absent.
+#[derive(Serialize, Deserialize, Debug, Clone, SerializedBytes)]
+pub struct CatalogueDecision {
+  #[serde(default)]
+  pub service_type: Option<ActionHash>,
+  #[serde(default)]
+  pub medium_of_exchange: Option<ActionHash>,
+  pub state: CatalogueState,
+}
+
+impl CatalogueDecision {
+  fn item(&self, catalogue: Catalogue) -> Option<&ActionHash> {
+    match catalogue {
+      Catalogue::ServiceType => self.service_type.as_ref(),
+      Catalogue::MediumOfExchange => self.medium_of_exchange.as_ref(),
+    }
+  }
+}
+
+/// The approval rule as a pure function: the decision is about this item, and
+/// it approved it.
+pub fn check_decision(decision: &CatalogueDecision, catalogue: Catalogue, item: &ActionHash) -> Result<(), String> {
+  if decision.item(catalogue) != Some(item) {
+    return Err(format!("names the approval of another {}", catalogue.name()));
+  }
+  match decision.state {
+    CatalogueState::Approved => Ok(()),
+    ref state => Err(format!(
+      "names a decision that {} its {}, not an approval",
+      match state {
+        CatalogueState::Rejected => "rejected",
+        CatalogueState::Retired => "retired",
+        _ => "left pending",
+      },
+      catalogue.name()
+    )),
+  }
+}
+
+/// The approval a listing names for one catalogue item: a valid decision
+/// record of that catalogue, about that item, that approved it.
+/// `Ok(Err(reason))` is a refusal; the reason reads after "A request ".
+pub fn check_approval(
+  approval: &Option<ActionHash>,
+  catalogue: Catalogue,
+  item: &ActionHash,
+) -> ExternResult<Result<(), String>> {
+  let Some(approval) = approval else {
+    return Ok(Err(format!("must name the approval of its {}", catalogue.name())));
+  };
+  let record = must_get_valid_record(approval.clone())?;
+  if !matches!(record.action().data, ActionData::Create(_)) || !writes(record.action(), catalogue.decision_kind())? {
+    return Ok(Err(format!(
+      "names as its {} approval a record that is not a decision on a {}",
+      catalogue.name(),
+      catalogue.name()
+    )));
+  }
+  let decision: CatalogueDecision = match record.entry().to_app_option() {
+    Ok(Some(decision)) => decision,
+    _ => return Ok(Err(format!("names a {} decision that could not be read", catalogue.name()))),
+  };
+  Ok(check_decision(&decision, catalogue, item))
 }
 
 /// The index of a named integrity zome in this DNA.
@@ -76,6 +186,7 @@ fn invalid(reason: impl Into<String>) -> ValidateCallbackResult {
 /// the reason.
 pub fn check_listing_service_type(
   service_type_hash: &Option<ActionHash>,
+  service_type_approval: &Option<ActionHash>,
   update: Option<&ActionHash>,
   noun: &str,
 ) -> ExternResult<ValidateCallbackResult> {
@@ -99,7 +210,12 @@ pub fn check_listing_service_type(
           noun
         )));
       }
-      Ok(ValidateCallbackResult::Valid)
+      Ok(
+        match check_approval(service_type_approval, Catalogue::ServiceType, service_type_hash)? {
+          Ok(()) => ValidateCallbackResult::Valid,
+          Err(reason) => invalid(format!("A {} {}", noun, reason)),
+        },
+      )
     }
     Some(previous) => {
       let record = must_get_valid_record(previous.clone())?;
@@ -112,8 +228,11 @@ pub fn check_listing_service_type(
           )))
         }
       };
+      if let Err(reason) = check_unchanged(&before.service_type_hash, service_type_hash) {
+        return Ok(invalid(format!("A {}'s {}", noun, reason)));
+      }
       Ok(
-        match check_unchanged(&before.service_type_hash, service_type_hash) {
+        match check_same_approval(&before.service_type_approval, service_type_approval) {
           Ok(()) => ValidateCallbackResult::Valid,
           Err(reason) => invalid(format!("A {}'s {}", noun, reason)),
         },
@@ -131,6 +250,16 @@ pub fn check_unchanged(before: &Option<ActionHash>, after: &ActionHash) -> Resul
       Err("service type cannot change; publish a new listing for a different one".to_string())
     }
     None => Err("previous revision names no service type".to_string()),
+  }
+}
+
+/// An update carries the approval the previous revision named, so an edit
+/// never needs a fresh decision and never swaps one in.
+pub fn check_same_approval(before: &Option<ActionHash>, after: &Option<ActionHash>) -> Result<(), String> {
+  match (before, after) {
+    (Some(before), Some(after)) if before == after => Ok(()),
+    (None, _) => Err("previous revision names no service type approval".to_string()),
+    _ => Err("service type approval cannot change on an update".to_string()),
   }
 }
 
@@ -197,6 +326,65 @@ mod tests {
       .unwrap_err()
       .contains("cannot change"));
     assert!(check_unchanged(&None, &hash(2)).is_err());
+  }
+
+  fn decision(service_type: Option<u8>, medium: Option<u8>, state: CatalogueState) -> CatalogueDecision {
+    CatalogueDecision {
+      service_type: service_type.map(hash),
+      medium_of_exchange: medium.map(hash),
+      state,
+    }
+  }
+
+  #[test]
+  fn an_approval_is_an_approved_decision_on_this_item() {
+    let st = Catalogue::ServiceType;
+    assert_eq!(check_decision(&decision(Some(1), None, CatalogueState::Approved), st, &hash(1)), Ok(()));
+    assert!(check_decision(&decision(Some(2), None, CatalogueState::Approved), st, &hash(1))
+      .unwrap_err()
+      .contains("another service type"));
+    assert!(check_decision(&decision(Some(1), None, CatalogueState::Rejected), st, &hash(1))
+      .unwrap_err()
+      .contains("rejected"));
+    assert!(check_decision(&decision(Some(1), None, CatalogueState::Retired), st, &hash(1))
+      .unwrap_err()
+      .contains("retired"));
+    // A medium's decision never stands for a service type, even with the same hash.
+    assert!(check_decision(&decision(None, Some(1), CatalogueState::Approved), st, &hash(1)).is_err());
+    assert_eq!(
+      check_decision(&decision(None, Some(1), CatalogueState::Approved), Catalogue::MediumOfExchange, &hash(1)),
+      Ok(())
+    );
+  }
+
+  #[test]
+  fn an_update_keeps_the_approval() {
+    assert_eq!(check_same_approval(&Some(hash(3)), &Some(hash(3))), Ok(()));
+    assert!(check_same_approval(&Some(hash(3)), &Some(hash(4))).unwrap_err().contains("cannot change"));
+    assert!(check_same_approval(&Some(hash(3)), &None).is_err());
+    assert!(check_same_approval(&None, &Some(hash(3))).is_err());
+  }
+
+  #[test]
+  fn a_decision_reads_through_the_partial_struct() {
+    #[derive(Serialize, Deserialize, Debug)]
+    struct ServiceTypeStatus {
+      service_type: ActionHash,
+      state: CatalogueState,
+      grant: Option<ActionHash>,
+    }
+    holochain_serialized_bytes::holochain_serial!(ServiceTypeStatus);
+    let bytes: SerializedBytes = ServiceTypeStatus {
+      service_type: hash(5),
+      state: CatalogueState::Approved,
+      grant: Some(hash(6)),
+    }
+    .try_into()
+    .unwrap();
+    let read: CatalogueDecision = bytes.try_into().unwrap();
+    assert_eq!(read.service_type, Some(hash(5)));
+    assert_eq!(read.medium_of_exchange, None);
+    assert_eq!(read.state, CatalogueState::Approved);
   }
 
   #[test]

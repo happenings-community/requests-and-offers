@@ -67,6 +67,12 @@ pub struct Request {
   /// unchanged: the coordinator fills it in.
   #[serde(default)]
   pub service_type_hash: Option<ActionHash>,
+  /// The decision that approved `service_type_hash`: a `ServiceTypeStatus`
+  /// entry whose state is `Approved`. Validation requires it on a create and
+  /// holds it fixed on an update; see `utils::listings::check_approval`. The
+  /// serde default is for decoding only: the coordinator fills it in.
+  #[serde(default)]
+  pub service_type_approval: Option<ActionHash>,
 }
 
 /// Validates a request entry

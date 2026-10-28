@@ -244,12 +244,12 @@
         listing = item;
         loadedType = listingType;
         if (item.creator) creator = await runEffect(usersStore.getUserByActionHash(item.creator));
-        const names = await Promise.all(
-          (item.service_type_hashes ?? []).map(async (h: ActionHash) => {
-            const st = await runEffect(serviceTypesStore.getServiceType(h));
-            return st?.name ?? null;
-          })
-        );
+        // One listing names one service type (#256). A hash that will not resolve is a
+        // failure, as for the mediums below, so it stays in the list as null.
+        const st = item.service_type_hash
+          ? await runEffect(serviceTypesStore.getServiceType(item.service_type_hash))
+          : null;
+        const names: (string | null)[] = item.service_type_hash ? [st?.name ?? null] : [];
         const found = await Promise.all(
           (item.medium_of_exchange_hashes ?? []).map(async (h: ActionHash) => {
             const m = await runEffect(mediumsOfExchangeStore.getMediumOfExchange(h));

@@ -323,21 +323,19 @@
           />
         </header>
 
-        <!-- Service Types -->
+        <!-- Service Type -->
         <section class="mb-6">
-          <h3 class="h4 mb-3 font-semibold">Service Types</h3>
-          {#if request.service_type_hashes && request.service_type_hashes.length > 0}
+          <h3 class="h4 mb-3 font-semibold">Service Type</h3>
+          {#if request.service_type_hash}
             <div class="flex flex-wrap gap-2">
-              {#each request.service_type_hashes as serviceTypeHash}
-                <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} showLink={true} />
-              {/each}
+              <ServiceTypeTag serviceTypeActionHash={request.service_type_hash} showLink={true} />
             </div>
           {:else if termsState(request) === 'loading'}
             <p class="text-surface-500">{TERMS_LOADING}</p>
           {:else if termsState(request) === 'failed'}
             <p class="text-warning-700 dark:text-warning-300">{TERMS_FAILED}</p>
           {:else}
-            <p class="text-surface-500">No service types specified.</p>
+            <p class="text-surface-500">No service type specified.</p>
           {/if}
         </section>
 

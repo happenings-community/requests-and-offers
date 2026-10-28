@@ -20,6 +20,7 @@
 <div
   class="markdown-renderer prose prose-sm max-w-none text-[inherit] dark:prose-invert {className}"
 >
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitised by DOMPurify above (#211) -->
   {@html html}
 </div>
 

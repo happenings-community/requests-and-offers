@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty network: profiles, organisations, requests, offers and exchanges from alpha 1 do not carry over. Alpha data stays disposable until the breaking-version migration lands (#144). Notice to testers: `documentation/releases/v0.6.0-alpha.2-network-reset.md` (#195).
 
+### Features
+
+- **Requests and Offers**: A listing names exactly one service type, and needs an approved service type before it can be published. Several services in one exchange belong on the agreement, as separate commitments. Not yet enforced in validation; tracked in #257 (#256)
+
 ### Documentation
 
 - **Versioning**: The rule before 1.0, minor for breaking DNA changes and patch for the rest, with breaking changes batched (`documentation/guides/versioning.md`)

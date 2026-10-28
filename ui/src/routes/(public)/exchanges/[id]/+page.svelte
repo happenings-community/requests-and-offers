@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { decodeHashFromBase64 } from '@holochain/client';
@@ -73,6 +74,10 @@
    */
   const pluggedBack = getBackToChat();
   const BackToChat = $derived(pluggedBack());
+
+  // Keep the exchange current while it is open, so the other member's moves
+  // show without a reload (#334). Stops itself once nothing more can happen.
+  onMount(() => details.watch());
 </script>
 
 <svelte:head>
@@ -128,6 +133,11 @@
     {@const a = exchange.agreement}
     {@const state = exchangeState(exchange)}
     {@const closure = closureOf(exchange)}
+    {#if details.stale}
+      <p class="text-sm text-surface-500" role="status">
+        Can't reach the network just now. Showing the last update; this page keeps trying.
+      </p>
+    {/if}
     <header class="space-y-2">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h1 class="h2"><a class="anchor" href={listingHref}>{listingTitle || '...'}</a></h1>

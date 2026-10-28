@@ -4,6 +4,8 @@ import usersStore from '$lib/stores/users.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils/toast';
 import { reasonOf } from '$lib/utils/error-shape';
+import { plainZomeError } from '$lib/utils/zome-refusals';
+import { isUserApproved } from '$lib/utils';
 import type { ListingType } from '$lib/types/holochain';
 import type { UIInterest, UIUser } from '$lib/types/ui';
 import { paths } from '$lib/paths';
@@ -49,6 +51,8 @@ export function useListingInterest(options: UseListingInterestOptions) {
   let busy = $state(false);
 
   const me = $derived(usersStore.currentUser?.original_action_hash);
+  /** Only an accepted member can register interest or propose; the zome refuses anyone else. */
+  const canAct = $derived(isUserApproved(usersStore.currentUser));
   const isMine = (interest: UIInterest) => !!me && interest.user.toString() === me.toString();
   const mine = $derived(interests.find(isMine) ?? null);
   const others = $derived(interests.filter((i) => !isMine(i)));
@@ -57,7 +61,13 @@ export function useListingInterest(options: UseListingInterestOptions) {
   const hrefFor = (interest: UIInterest) => proposeHref(interest, listingHash(), listingType());
 
   function fail(e: unknown) {
-    showToast(e instanceof Error ? e.message : String(e), 'error');
+    const { message, details } = plainZomeError(e);
+    showToast(message, 'error', 8000, {
+      label: 'Copy details',
+      response: () => {
+        navigator.clipboard?.writeText(details).catch(() => {});
+      }
+    });
   }
 
   /**
@@ -129,6 +139,9 @@ export function useListingInterest(options: UseListingInterestOptions) {
     },
     get me() {
       return me;
+    },
+    get canAct() {
+      return canAct;
     },
     personOf,
     hrefFor,

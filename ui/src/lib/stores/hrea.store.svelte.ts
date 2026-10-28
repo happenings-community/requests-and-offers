@@ -1836,15 +1836,13 @@ export const createHreaStore = (): E.Effect<
 
           // 2. Find service type resource specifications
           const serviceTypeResourceSpecs: ResourceSpecification[] = [];
-          if (request.service_type_hashes) {
-            for (const serviceTypeHash of request.service_type_hashes) {
-              const resourceSpec = findResourceSpecByActionHash(
-                state.resourceSpecifications,
-                serviceTypeHash.toString()
-              );
-              if (resourceSpec) {
-                serviceTypeResourceSpecs.push(resourceSpec);
-              }
+          if (request.service_type_hash) {
+            const resourceSpec = findResourceSpecByActionHash(
+              state.resourceSpecifications,
+              request.service_type_hash.toString()
+            );
+            if (resourceSpec) {
+              serviceTypeResourceSpecs.push(resourceSpec);
             }
           }
 
@@ -2115,15 +2113,13 @@ export const createHreaStore = (): E.Effect<
 
           // 2. Find service type resource specifications
           const serviceTypeResourceSpecs: ResourceSpecification[] = [];
-          if (offer.service_type_hashes) {
-            for (const serviceTypeHash of offer.service_type_hashes) {
-              const resourceSpec = findResourceSpecByActionHash(
-                state.resourceSpecifications,
-                serviceTypeHash.toString()
-              );
-              if (resourceSpec) {
-                serviceTypeResourceSpecs.push(resourceSpec);
-              }
+          if (offer.service_type_hash) {
+            const resourceSpec = findResourceSpecByActionHash(
+              state.resourceSpecifications,
+              offer.service_type_hash.toString()
+            );
+            if (resourceSpec) {
+              serviceTypeResourceSpecs.push(resourceSpec);
             }
           }
 

@@ -627,7 +627,7 @@ The project integrates with **hREA (Holochain Resource-Event-Agent)** framework 
 // Requests → hREA Intents
 export const mapRequestToIntent = (request: UIRequest): Intent => ({
   action: IntentAction.WORK,
-  resourceClassifiedAs: request.serviceTypeHashes,
+  resourceClassifiedAs: [request.serviceTypeHash],
   name: request.title,
   note: request.description,
 });

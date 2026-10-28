@@ -17,6 +17,7 @@
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
+  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import ContactDisplay from '$lib/components/shared/listings/ContactDisplay.svelte';
   import type { UIRequest, UIUser, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
@@ -268,21 +269,17 @@
 
       <!-- Service Type -->
       <div>
-        <h3 class="h4 mb-2 font-semibold">Service Types</h3>
-        {#if request.service_type_hashes && request.service_type_hashes.length > 0}
-          <ul class="flex flex-wrap gap-2">
-            {#each request.service_type_hashes}
-              <li>
-                <span class="variant-soft-primary badge text-xs">Service Type</span>
-              </li>
-            {/each}
-          </ul>
+        <h3 class="h4 mb-2 font-semibold">Service Type</h3>
+        {#if request.service_type_hash}
+          <div class="flex flex-wrap gap-2">
+            <ServiceTypeTag serviceTypeActionHash={request.service_type_hash} showLink={false} />
+          </div>
         {:else if termsState(request) === 'loading'}
           <p class="text-surface-500">{TERMS_LOADING}</p>
         {:else if termsState(request) === 'failed'}
           <p class="text-warning-700 dark:text-warning-300">{TERMS_FAILED}</p>
         {:else}
-          <p class="text-surface-500">No service types found.</p>
+          <p class="text-surface-500">No service type found.</p>
         {/if}
       </div>
 

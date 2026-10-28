@@ -121,15 +121,15 @@
         runEffect(offersStore.getActiveOffers())
       ]);
 
-      // Filter requests and offers that include this service type
+      // A listing names one service type: keep those that name this one
       const serviceTypeHashString = serviceTypeHash.toString();
 
-      relatedRequests = allRequests.filter((request) =>
-        request.service_type_hashes?.some((hash) => hash.toString() === serviceTypeHashString)
+      relatedRequests = allRequests.filter(
+        (request) => request.service_type_hash?.toString() === serviceTypeHashString
       );
 
-      relatedOffers = allOffers.filter((offer) =>
-        offer.service_type_hashes?.some((hash) => hash.toString() === serviceTypeHashString)
+      relatedOffers = allOffers.filter(
+        (offer) => offer.service_type_hash?.toString() === serviceTypeHashString
       );
     } catch (err) {
       console.warn('Failed to load related content:', err);

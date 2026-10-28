@@ -54,6 +54,7 @@
   allowCreating={false}
   title="Profile Required for Creating Offers"
   description="Create a profile to make offers to the community."
+  blockedAction="view or create offers"
 >
   <div class="container mx-auto p-4">
     <!-- Tab Switcher -->

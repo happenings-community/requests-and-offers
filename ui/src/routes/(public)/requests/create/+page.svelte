@@ -109,6 +109,7 @@
   allowCreating={true}
   title="Profile Required to Create Requests"
   description="You need an approved profile to create requests for help from the community."
+  blockedAction="create requests"
   redirectToProfile={true}
 >
   <PrerequisitesGuard

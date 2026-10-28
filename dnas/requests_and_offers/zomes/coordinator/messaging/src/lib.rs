@@ -82,8 +82,8 @@ pub enum Signal {
 
 /// Grant any agent the right to call `recv_remote_signal` on this zome, which
 /// is what makes cross-agent delivery possible. `create_cap_grant` commits it
-/// as a Private entry on this agent's own source chain (verified in hdk 0.6.0
-/// capability.rs), so it is never gossiped.
+/// as a Private entry on this agent's own source chain (hdk 0.7.0
+/// `capability.rs:124`), so it is never gossiped.
 ///
 /// The grant is Unrestricted by necessity: you cannot know your correspondents
 /// in advance. Filtering unsolicited or abusive signals is an application-layer
@@ -92,15 +92,15 @@ pub enum Signal {
 /// `init` does run lazily, on a cell's first zome call, but a recipient does
 /// not need priming for that reason. An inbound remote signal is itself a zome
 /// call, and the conductor runs `init` before it checks authorisation
-/// (holochain 0.6.1: `conductor/cell.rs:721` calls `check_or_run_zome_init`,
+/// (holochain 0.7.0: `conductor/cell.rs:747` calls `check_or_run_zome_init`,
 /// and `is_authorized` is reached later, at
-/// `core/workflow/call_zome_workflow.rs:250`). The grant is therefore committed
+/// `core/workflow/call_zome_workflow.rs:252`). The grant is therefore committed
 /// by the very call that needs it.
 ///
 /// The hazard is on the sending side instead: `send_remote_signal` looks each
 /// recipient up in the *sender's* local peer store and skips anyone it cannot
 /// find there, with a bare `continue` and no error returned to the caller
-/// (holochain_p2p 0.6.1: `spawn/actor.rs:1575-1583`). A correspondent the
+/// (holochain_p2p 0.7.0: `spawn/actor.rs:1825-1834`). A correspondent the
 /// sender has not yet discovered is silently not sent to.
 ///
 /// `init` runs once per cell, so a cell that existed before this zome joined it
@@ -109,8 +109,8 @@ pub enum Signal {
 /// cells silently unable to receive nudges; a fresh install does not hit this.
 #[hdk_extern]
 pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
-    // GrantedFunctions::Listed takes a HashSet<(ZomeName, FunctionName)> in
-    // 0.6.0 (not the BTreeSet older references use). Type is inferred from the
+    // GrantedFunctions::Listed takes a HashSet<(ZomeName, FunctionName)>
+    // (not the BTreeSet older references use). Type is inferred from the
     // Listed(..) use below, so no explicit annotation is needed.
     let mut fns = HashSet::new();
     fns.insert((zome_info()?.name, "recv_remote_signal".into()));
@@ -138,11 +138,11 @@ pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
 /// `Ok(())` means only that the signal was handed to the network for signing and
 /// sending. It is not a delivery receipt, and there is no error path for a send
 /// that fails: the host function spawns a detached task and returns `Ok(())`
-/// immediately (holochain 0.6.1:
-/// `core/ribosome/host_fn/send_remote_signal.rs:46` spawns, `:118` returns),
+/// immediately (holochain 0.7.0:
+/// `core/ribosome/host_fn/send_remote_signal.rs:44` spawns, `:116` returns),
 /// logging any failure at `tracing::info!`. Below it, the p2p layer logs send
 /// failures at `tracing::debug!` and skips recipients missing from the sender's
-/// peer store (`holochain_p2p` `spawn/actor.rs:1575-1583`).
+/// peer store (`holochain_p2p` 0.7.0 `spawn/actor.rs:1825-1834`).
 ///
 /// So a nudge reaches a recipient only if they are online *and* already
 /// discovered by this agent, and neither condition is reported back.

@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import { Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import ActionBar from '$lib/components/shared/ActionBar.svelte';
+  import ExternalLink from '$lib/components/shared/ExternalLink.svelte';
   import type { UIOrganization, UIStatus } from '$lib/types/ui';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { AdministrationEntity } from '$lib/types/holochain';
@@ -155,14 +156,10 @@
           <h3 class="h4 mb-3 font-semibold">Links & Resources</h3>
           <div class="space-y-2">
             {#each organization.urls as url}
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
+              <ExternalLink
+                text={url}
                 class="block truncate text-tertiary-500 transition-colors hover:text-tertiary-600 hover:underline"
-              >
-                {url}
-              </a>
+              />
             {/each}
           </div>
         </div>

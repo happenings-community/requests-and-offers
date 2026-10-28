@@ -43,6 +43,14 @@ Development workflow and guidelines:
 - Testing strategy
 - Documentation standards
 
+### [Versioning](./versioning.md)
+
+How the next version number is chosen:
+
+- Minor for breaking DNA changes before 1.0, patch for the rest
+- Breaking changes batched into one network reset
+- Pre-releases and the rule after 1.0
+
 ### [Kangaroo Deployment Process](./kangaroo-deployment-process.md)
 
 Comprehensive cross-platform desktop application deployment:

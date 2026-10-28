@@ -80,6 +80,13 @@ test.describe.serial('06 — organizations: creation, moderation, edit', () => {
 
     // Decisions are made from the details screen, after the application (#331).
     await page.getByRole('button', { name: 'Review application' }).first().click();
+    // The accept event writes the hREA agent in the background, and the hREA
+    // store says so in one console line (#339). Listen before approving. The hREA
+    // Test page is no check: it creates any missing agent itself when it opens.
+    const agentWritten = page.waitForEvent('console', {
+      predicate: (message) => message.text().includes('has an organization agent'),
+      timeout: 30_000
+    });
     await page.getByRole('button', { name: 'Approve', exact: true }).click();
 
     await expect(
@@ -88,18 +95,8 @@ test.describe.serial('06 — organizations: creation, moderation, edit', () => {
       timeout: 10_000
     });
     await page.getByRole('button', { name: 'Close' }).click();
-    // The agent is written in the background after the toast, so look for it
-    // in the same session: a reload here would cut the write off (#339 review).
-    await page.getByRole('button', { name: 'Developer' }).click();
-    await page.getByRole('link', { name: 'hREA Test' }).click();
-    await page
-      .getByRole('tab', { name: /Agents/ })
-      .first()
-      .click();
-    await page.getByRole('tab', { name: /Organization Agents/ }).click();
-    await expect(page.locator('table.table').getByText(ORG_NAME).first()).toBeVisible({
-      timeout: 30_000
-    });
+    // Wait in the same session: a reload here would cut the write off.
+    await agentWritten;
   });
 
   test('accepted organization appears publicly with a working detail page', async ({ page }) => {

@@ -25,9 +25,6 @@ pub struct Offer {
   pub title: String,
   /// A detailed description of the offer (max 1000 characters, supports markdown)
   pub description: String,
-  /// ActionHashes of approved ServiceType entries that define the nature of the offer.
-  /// These are validated against the `service_types` zome.
-  pub service_type_action_hashes: Vec<ActionHash>,
   /// Preferred time of day for the work/interaction
   pub time_preference: TimePreference,
   /// The offerer's time zone
@@ -118,14 +115,14 @@ Creates a new offer entry with the provided information.
 
 During creation, the `offers_coordinator` zome must:
 
-- Validate that each `ActionHash` in `input.offer.service_type_action_hashes` corresponds to an existing and _approved_ `ServiceType` by calling the `service_types_coordinator` zome.
-- Create `OfferToServiceType` links for each valid and approved `ServiceType` ActionHash.
+- Link the offer to the one `ServiceType` named by `input.service_type_hash`, through the `service_types_coordinator` zome, which refuses a service type that is not approved.
 
 **Parameters:**
 
 - `input`: An `OfferInput` struct containing:
   - `offer`: The offer data
   - `organization`: Optional organization hash to associate with the offer
+  - `service_type_hash`: The one approved service type this offer names. A listing names one service; several services in one exchange belong on the agreement, as separate commitments.
 
 **Returns:**
 
@@ -177,10 +174,7 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record>
 
 Updates an existing offer with new data.
 
-During an update, if `service_type_action_hashes` are modified, the `offers_coordinator` zome must:
-
-- Validate new `ServiceType` ActionHashes against approved types in the `service_types_coordinator` zome.
-- Remove old `OfferToServiceType` links and create new ones as necessary.
+During an update, the `offers_coordinator` zome replaces the `OfferToServiceType` link with one to `input.service_type_hash`, which must name an approved `ServiceType`.
 
 **Parameters:**
 
@@ -188,6 +182,7 @@ During an update, if `service_type_action_hashes` are modified, the `offers_coor
   - `original_action_hash`: The original action hash
   - `previous_action_hash`: The most recent action hash
   - `updated_offer`: The updated offer data
+  - `service_type_hash`: The one approved service type the offer names after the update
 
 **Returns:**
 
@@ -409,8 +404,7 @@ Retrieves the organization associated with an offer, if any.
 
 - Title must be between 3 and 50 characters.
 - Description must be between 10 and 1000 characters. Supports markdown formatting (rendered on frontend with `marked` + `DOMPurify`).
-- `service_type_action_hashes` array must not be empty.
-- Each `ActionHash` in `service_type_action_hashes` must point to a valid and _approved_ `ServiceType` entry, validated by calling the `service_types_coordinator` zome.
+- Exactly one service type, `service_type_hash`, which must be approved. This holds by convention for now: the coordinator and the form require it, but integrity validation does not check it yet. Enforcing it in validation is tracked in #257 and lands with the Holochain 0.7 migration.
 - Time preference must be specified.
 - Exchange preference must be specified.
 - Interaction type must be specified.

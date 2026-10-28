@@ -455,3 +455,13 @@ pub async fn setup_agents_and_a_forger(
     conductors.exchange_peer_info().await;
     (conductors, cells, mallory)
 }
+
+/// An approved service type, written by `admin` (an administrator, such as the
+/// progenitor): a listing must name one (#256), and an administrator's own
+/// service types land approved.
+pub async fn a_service_type(conductor: &SweetConductor, admin: &SweetCell, name: &str) -> ActionHash {
+    let record: Record = conductor
+        .call(&admin.zome("service_types"), "create_service_type", crate::common::sample_service_type(name))
+        .await;
+    record.action_address().clone()
+}

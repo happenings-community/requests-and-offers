@@ -3,6 +3,7 @@ use hdk::prelude::*;
 use utils::{
   errors::{AdministrationError, CommonError},
   find_original_action_hash,
+  grants::{require_grant, Ability},
 };
 
 use crate::external_calls::{check_if_entity_is_accepted, get_agent_user};
@@ -302,10 +303,12 @@ pub fn create_interest(input: CreateInterestInput) -> ExternResult<Record> {
   if listing_record.action().author() == &my_pubkey()? {
     return Err(CommonError::InvalidData("a member cannot register interest in their own listing".to_string()).into());
   }
+  let grant = require_grant(Ability::Participate, None)?;
   let hash = create_entry(&EntryTypes::Interest(Interest {
     listing: listing.clone(),
     listing_type: input.listing_type,
     user: me.clone(),
+    grant: Some(grant),
   }))?;
   create_link(listing, hash.clone(), LinkTypes::ListingInterests, ())?;
   create_link(me, hash.clone(), LinkTypes::UserInterests, ())?;
@@ -371,6 +374,7 @@ pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<Record> {
     ListingType::Request => (interested_user, listing_author_user),
   };
 
+  let grant = require_grant(Ability::Participate, None)?;
   let hash = create_entry(&EntryTypes::Agreement(Agreement {
     listing: listing.clone(),
     listing_type: input.listing_type,
@@ -383,6 +387,7 @@ pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<Record> {
     medium: input.medium,
     terms: input.terms,
     delivery_timeframe: input.delivery_timeframe,
+    grant: Some(grant),
   }))?;
   create_link(listing, hash.clone(), LinkTypes::ListingAgreements, ())?;
   create_link(my_user, hash.clone(), LinkTypes::UserAgreements, ())?;

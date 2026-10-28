@@ -79,7 +79,7 @@ Messages are stored encrypted on the shared DNA and linked from the recipient's 
 
 | Data | Where it lives | Who can read it |
 |---|---|---|
-| `EncryptedMessage` (nonce and ciphertext only) | public entry on the DHT | anyone holds it; only the recipient agent can decrypt it |
+| `EncryptedMessage` (nonce, ciphertext and the sender's member grant) | public entry on the DHT | anyone holds it; only the recipient agent can decrypt it. The grant says no more than the author's key on the action already does |
 | `Inbox` link, recipient's agent key to the message's action hash, empty tag | public link | anyone can see that A wrote to B, and when |
 | conversation ID, content, `MessageKind` | inside the ciphertext | the recipient agent, and the sending agent |
 | `Block`, `Unblock`, `ReadMarker`, `ReportResolution` | private entries on the author's own chain | the author only |
@@ -88,11 +88,11 @@ The kind of a message, personal or a technical report, is inside the encryption 
 
 ### 6.2. Validation (`messaging_integrity`)
 
-Refused: a ciphertext over `MAX_CIPHERTEXT_BYTES` (17 KiB); any update to a messaging entry; a delete by anyone but the author; an `Inbox` link whose base is not an agent key, whose target is not an `EncryptedMessage`, whose author is not the message's author, or whose tag is not empty; and a link delete by anyone but the link's author, so a recipient cannot destroy the sender's record of what they sent.
+Refused: a message that does not carry a member grant held by its author, the same rule a listing has, so an agent who was never accepted cannot use the network to carry messages; a ciphertext over `MAX_CIPHERTEXT_BYTES` (17 KiB); any update to a messaging entry; a delete by anyone but the author; an `Inbox` link whose base is not an agent key, whose target is not an `EncryptedMessage`, whose author is not the message's author, or whose tag is not empty; and a link delete by anyone but the link's author, so a recipient cannot destroy the sender's record of what they sent.
 
 Agent-activity ops skip validation, as in every other integrity zome since #280: no rule here applies to them.
 
-What validation cannot prove is who a ciphertext was sealed to. It proves the link's author wrote the message, not that the message was encrypted to the link's base.
+What validation cannot prove is that a grant has not been revoked since, so a suspended member's message is caught on read, where `get_inbox` drops authors who are not accepted now. Nor can it prove who a ciphertext was sealed to. It proves the link's author wrote the message, not that the message was encrypted to the link's base.
 
 ### 6.3. Sending
 

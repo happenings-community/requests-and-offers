@@ -48,10 +48,16 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
 /// `must_get_valid_record` trusts the record authority's verdict. A rule run
 /// on the entry op alone is never seen by the authority that answers for
 /// the record.
-fn validate_entry(app_entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
+fn validate_entry(
+  app_entry: EntryTypes,
+  author: &AgentPubKey,
+  update_of: Option<&ActionHash>,
+) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
     EntryTypes::User(user) => validate_user(user),
-    EntryTypes::Organization(organization) => validate_organization(organization),
+    EntryTypes::Organization(organization) => {
+      validate_organization_write(organization, author, update_of)
+    }
   }
 }
 
@@ -74,14 +80,28 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
-        return validate_entry(app_entry);
+      OpEntry::CreateEntry { app_entry, action } => {
+        return validate_entry(app_entry, action.author(), None);
+      }
+      OpEntry::UpdateEntry { app_entry, action } => {
+        return validate_entry(
+          app_entry,
+          action.author(),
+          Some(&action.original_action_address),
+        );
       }
       _ => (),
     },
     FlatOp::CreateRecord(store_record) => match store_record {
-      OpRecord::CreateEntry { app_entry, .. } | OpRecord::UpdateEntry { app_entry, .. } => {
-        return validate_entry(app_entry);
+      OpRecord::CreateEntry { app_entry, action } => {
+        return validate_entry(app_entry, action.author(), None);
+      }
+      OpRecord::UpdateEntry { app_entry, action } => {
+        return validate_entry(
+          app_entry,
+          action.author(),
+          Some(&action.original_action_address),
+        );
       }
       OpRecord::DeleteEntry { action } => {
         let original_record = must_get_valid_record(action.deletes_address.clone())?;
@@ -137,6 +157,68 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       }
       _ => (),
     },
+    FlatOp::Link(OpLink::CreateLink { link_type, action }) => match link_type {
+      LinkTypes::OrganizationMembers => {
+        return validate_create_link_organization_membership(
+          action.author(),
+          &action.base_address,
+          &action.tag,
+          "members",
+        );
+      }
+      LinkTypes::OrganizationCoordinators => {
+        return validate_create_link_organization_membership(
+          action.author(),
+          &action.base_address,
+          &action.tag,
+          "coordinators",
+        );
+      }
+      // The update-chain rules, routed as they are (#234): both ends of the
+      // link are records of this type.
+      LinkTypes::UserUpdates => {
+        return validate_create_link_user_updates(
+          action.clone(),
+          action.base_address.clone(),
+          action.target_address.clone(),
+          action.tag.clone(),
+        );
+      }
+      LinkTypes::OrganizationUpdates => {
+        return validate_create_link_organization_updates(
+          action.clone(),
+          action.base_address.clone(),
+          action.target_address.clone(),
+          action.tag.clone(),
+        );
+      }
+      _ => (),
+    },
+    FlatOp::Link(OpLink::DeleteLink {
+      link_type,
+      action,
+      original_action,
+    }) => match link_type {
+      LinkTypes::UserUpdates => {
+        return validate_delete_link_user_updates(
+          action.clone(),
+          original_action.clone(),
+          action.base_address.clone(),
+          original_action.target_address.clone(),
+          original_action.tag.clone(),
+        );
+      }
+      LinkTypes::OrganizationUpdates => {
+        return validate_delete_link_organization_updates(
+          action.clone(),
+          original_action.clone(),
+          action.base_address.clone(),
+          original_action.target_address.clone(),
+          original_action.tag.clone(),
+        );
+      }
+      _ => (),
+    },
     _ => (),
   }
   Ok(ValidateCallbackResult::Valid)
@@ -181,6 +263,7 @@ mod record_op_tests {
       email: "hello@example.org".to_string(),
       urls: vec![],
       location: "Colchester".to_string(),
+      grant: None,
     }
     .try_into()
     .unwrap()

@@ -7,6 +7,7 @@ use crate::external_calls::{
 };
 use crate::roles::{require_enabled, require_holder, role_holders, RoleDirection, RoleRef};
 use crate::{send_nudge, SendNudgeInput};
+use utils::grants::{can_i, Ability};
 
 /// Returned when a member's agent keys cannot be found from this device right now.
 ///
@@ -295,6 +296,16 @@ fn deliver(
 ) -> ExternResult<Vec<SentMessage>> {
   require_may_write_to(me, body, recipients)?;
 
+  // The integrity zome refuses a message without the sender's member grant. Every caller
+  // has already passed `require_accepted_member`, which gives the clearer error, so a
+  // missing grant here means acceptance and grant have come apart: say so rather than
+  // let the write fail on a validation message.
+  let grant = can_i(Ability::Participate, None)?.ok_or_else(|| {
+    wasm_error!(WasmErrorInner::Guest(
+      "Your membership has no member grant yet, so you cannot send messages".to_string()
+    ))
+  })?;
+
   let plaintext = XSalsa20Poly1305Data::from(
     ExternIO::encode(body)
       .map_err(|e| wasm_error!(WasmErrorInner::Guest(format!("Could not encode message: {e:?}"))))?
@@ -324,7 +335,10 @@ fn deliver(
     let encrypted =
       ed_25519_x_salsa20_poly1305_encrypt(me.clone(), agent.clone(), plaintext.clone())?;
 
-    let hash = create_entry(&EntryTypes::EncryptedMessage(EncryptedMessage { encrypted }))?;
+    let hash = create_entry(&EntryTypes::EncryptedMessage(EncryptedMessage {
+      encrypted,
+      grant: Some(grant.clone()),
+    }))?;
 
     // Base is the recipient's agent key, target is the action hash. Validation proves
     // the link's author wrote the message it points at.

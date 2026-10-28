@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import usersStore from '$lib/stores/users.store.svelte';
+  import { canBrowseFor } from '$lib/utils/profile-access';
   import type { Snippet } from 'svelte';
 
   type Props = {
@@ -166,23 +167,9 @@
   });
 
   // Check if current action is allowed based on profile state
-  const canBrowse = $derived(() => {
-    if (!allowBrowsing) return false;
-    const state = profileState().state;
-
-    // Allow browsing for accepted and pending users
-    if (['accepted', 'pending'].includes(state)) {
-      return true;
-    }
-
-    // Fallback: allow browsing for error states to prevent complete lockout
-    if (['error', 'unknown'].includes(state)) {
-      console.log('🔄 [ProfileGuard] Allowing browsing in error/unknown state as fallback');
-      return true;
-    }
-
-    return false;
-  });
+  // Accepted members only; pending is blocked like rejected (#335). Error and
+  // unknown still browse as a fallback, so a fault never locks out a member.
+  const canBrowse = $derived(() => allowBrowsing && canBrowseFor(profileState().state));
 
   const canCreate = $derived(() => {
     if (!allowCreating) return false;
@@ -239,7 +226,9 @@
   const secondaryAction = $derived(() => {
     const state = profileState().state;
 
-    if (state === 'missing' || state === 'unknown') {
+    // Not offered to a member without a profile: the community pages are
+    // members only (#335), so the link would only lead back here.
+    if (state === 'unknown') {
       return {
         label: 'Browse Community',
         href: '/users',

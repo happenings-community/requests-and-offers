@@ -77,14 +77,19 @@ export function useApprovalWatch({ onAccepted, onInformationRequested }: UseAppr
           AdministrationEntity.Users
         )
       );
+      // Another check (a focus during a tick) may have settled the watch while
+      // this one was waiting for its answer: then it has nothing left to say.
+      if (settled) return;
       const change = approvalChange(user.status?.status_type, latest?.status_type);
       if (change === 'accepted') {
         stop();
         onAccepted();
       } else if (change === 'left-pending') {
-        // Rejected or suspended: refresh so the profile guards show the right screen.
-        stop();
+        // Rejected or suspended: refresh so the profile guards show the right
+        // screen. Stop only once that has worked; if it fails, the next tick
+        // finds the member still pending here and tries again.
         await runEffect(usersStore.refreshCurrentUser());
+        stop();
       } else {
         // Still pending: has an administrator asked for more information?
         const request = newInformationRequest(

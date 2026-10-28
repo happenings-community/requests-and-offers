@@ -6,7 +6,8 @@ const state = vi.hoisted(() => ({
     status?: { status_type: string; reason?: string };
   },
   latest: null as null | { status_type: string; reason?: string },
-  refreshed: 0
+  refreshed: 0,
+  refreshFails: false
 }));
 
 vi.mock('$lib/stores/users.store.svelte', () => ({
@@ -27,7 +28,10 @@ vi.mock('$lib/stores/administration.store.svelte', () => ({
 
 // The store methods return effects; here they are tokens resolved by this stub.
 vi.mock('$lib/utils/effect', () => ({
-  runEffect: async (token: string) => (token === 'status' ? state.latest : null)
+  runEffect: async (token: string) => {
+    if (token === 'refresh' && state.refreshFails) throw new Error('no answer');
+    return token === 'status' ? state.latest : null;
+  }
 }));
 
 import {
@@ -64,6 +68,7 @@ describe('useApprovalWatch', () => {
     state.currentUser = pendingUser();
     state.latest = null;
     state.refreshed = 0;
+    state.refreshFails = false;
   });
 
   it('calls onAccepted once when the pending member is accepted', async () => {
@@ -73,6 +78,25 @@ describe('useApprovalWatch', () => {
     await watch.check();
     await watch.check();
     expect(onAccepted).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onAccepted once when two checks overlap', async () => {
+    const onAccepted = vi.fn();
+    const watch = useApprovalWatch({ onAccepted });
+    state.latest = { status_type: 'accepted' };
+    // A focus event while a tick is still waiting for its answer.
+    await Promise.all([watch.check(), watch.check()]);
+    expect(onAccepted).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps trying when the refresh after a rejection fails', async () => {
+    const watch = useApprovalWatch({ onAccepted: vi.fn() });
+    state.latest = { status_type: 'rejected' };
+    state.refreshFails = true;
+    await watch.check();
+    state.refreshFails = false;
+    await watch.check();
+    expect(state.refreshed).toBe(2);
   });
 
   it('does nothing while the member is still pending', async () => {
@@ -171,6 +195,7 @@ describe('useApprovalWatch information requests (#331)', () => {
     state.currentUser = pendingUser();
     state.latest = null;
     state.refreshed = 0;
+    state.refreshFails = false;
   });
 
   it('announces a new request once, refreshes the profile, and keeps watching', async () => {

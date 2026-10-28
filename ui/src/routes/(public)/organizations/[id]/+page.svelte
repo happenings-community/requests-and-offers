@@ -177,7 +177,11 @@
   // Load organization when the component mounts
   $effect(() => {
     // untrack: the refresh writes the current user, which must not re-run this effect
-    untrack(() => Promise.all([loadOrganization(), runEffect(usersStore.refreshCurrentUser())]));
+    untrack(() =>
+      Promise.all([loadOrganization(), runEffect(usersStore.refreshCurrentUser())]).catch((err) =>
+        console.error('Failed to load the organisation page:', err)
+      )
+    );
   });
 
   let organizationLogoUrl = $derived.by(() =>
@@ -272,7 +276,7 @@
                   Edit Organization
                 </a>
               {/if}
-              {#if currentUserIsAccepted && (agentIsMember || agentIsCoordinator)}
+              {#if currentUserIsAccepted && agentIsMember}
                 <button class="variant-filled-error btn" onclick={handleLeaveOrganization}>
                   Leave Organization
                 </button>

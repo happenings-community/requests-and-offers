@@ -126,6 +126,13 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
 
     // Decisions are made from the details screen, after the application (#331).
     await page.getByRole('button', { name: 'Review application' }).first().click();
+    // The accept event writes the hREA agent in the background, and the hREA
+    // store says so in one console line (#339). Listen before approving. The hREA
+    // Test page is no check: it creates any missing agent itself when it opens.
+    const agentWritten = page.waitForEvent('console', {
+      predicate: (message) => message.text().includes('has a person agent'),
+      timeout: 30_000
+    });
     await page.getByRole('button', { name: 'Approve', exact: true }).click();
 
     await expect(page.locator('text=User status updated successfully.').first()).toBeVisible({
@@ -133,6 +140,8 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     });
     await page.getByRole('button', { name: 'Close' }).click();
     await expect(page.locator('text=No pending users.')).toBeVisible({ timeout: 10_000 });
+    // Wait in the same session: a reload here would cut the write off.
+    await agentWritten;
   });
 
   test('accepted profile can now create offers', async ({ page }) => {

@@ -180,7 +180,7 @@
               break;
             case 'accept-user':
             case 'accept-organization':
-              await updateStatus({ status_type: 'accepted' });
+              await acceptEntity();
               break;
             case 'reject-user':
             case 'reject-organization':
@@ -225,7 +225,42 @@
   const hasDecisionNote = $derived(decisionNote.trim().length > 0);
 
   async function approveApplication() {
-    await updateStatus({ status_type: 'accepted' });
+    await acceptEntity();
+  }
+
+  // Accepting goes through approveUser and approveOrganization rather than a
+  // plain status update: they also announce the acceptance (user:accepted,
+  // organization:accepted), which is what the hREA store listens for to create
+  // the member's or organisation's agent. A plain update was accepted in the
+  // DNA with no agent until something else synced it (#339 review). The latest
+  // status read on mount stands in for the entity's own, which may be stale.
+  async function acceptEntity() {
+    if (!userStatus?.original_action_hash) {
+      toastStore.trigger({
+        message: 'Status information is missing. Please refresh and try again.',
+        background: 'variant-filled-error'
+      });
+      return;
+    }
+    const acceptance =
+      entityType === AdministrationEntity.Users
+        ? administrationStore.approveUser({ ...(entity as UIUser), status: userStatus })
+        : administrationStore.approveOrganization({
+            ...(entity as UIOrganization),
+            status: userStatus
+          });
+    const result = await updateErrorBoundary.execute(acceptance);
+    toastStore.trigger(
+      result !== null
+        ? {
+            message: `${entityType === AdministrationEntity.Users ? 'User' : 'Organization'} status updated successfully.`,
+            background: 'variant-filled-success'
+          }
+        : {
+            message: 'Failed to update status. Please try again.',
+            background: 'variant-filled-error'
+          }
+    );
   }
 
   async function requestInformation() {

@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import { getModalStore, getToastStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
   import type { Revision, UIOrganization, UIRequest, UIOffer } from '$lib/types/ui';
+  import ExternalLink from '$lib/components/shared/ExternalLink.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
@@ -336,7 +337,7 @@
           <ul class="list-inside list-disc">
             {#each organization.urls as url}
               <li>
-                <a href={url} target="_blank" rel="noopener noreferrer" class="anchor">{url}</a>
+                <ExternalLink text={url} class="anchor" />
               </li>
             {/each}
           </ul>

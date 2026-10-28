@@ -2,7 +2,6 @@
 mod status_tests {
   use chrono::Duration;
   use hdi::prelude::Timestamp;
-  use utils::timetamp_now;
 
   use crate::status::*;
 
@@ -55,15 +54,39 @@ mod status_tests {
     assert_eq!(status.suspended_until, None);
   }
 
+  /// Fixed times, so the result never depends on when the test runs.
+  fn hours(n: i64) -> Timestamp {
+    Timestamp::from_micros(Duration::hours(n).num_microseconds().unwrap_or(0))
+  }
+
   #[test]
   fn test_unsuspend_if_time_passed() {
-    let now = timetamp_now();
-    let timestamp_1_hours_ago = Timestamp::from_micros(
-      timetamp_now().as_micros() - Duration::hours(1).num_microseconds().unwrap_or(0),
-    );
-
-    let mut status = Status::suspend("test", Some((Duration::hours(1), &timestamp_1_hours_ago)));
-    status.unsuspend_if_time_passed(&now);
+    // A one-hour suspension that started two hours ago ended an hour ago.
+    let mut status = Status::suspend("test", Some((Duration::hours(1), &hours(8))));
+    assert!(status.unsuspend_if_time_passed(&hours(10)));
     assert_eq!(status.status_type, "accepted");
+    assert_eq!(status.suspended_until, None);
+    assert_eq!(status.reason, None);
+  }
+
+  #[test]
+  fn test_unsuspend_when_time_runs_out_exactly() {
+    let mut status = Status::suspend("test", Some((Duration::hours(1), &hours(9))));
+    assert!(status.unsuspend_if_time_passed(&hours(10)));
+    assert_eq!(status.status_type, "accepted");
+    assert_eq!(status.suspended_until, None);
+    assert_eq!(status.reason, None);
+  }
+
+  #[test]
+  fn test_suspension_with_time_left_stays() {
+    // Thirty minutes of a one-hour suspension remain: it must not be lifted early.
+    let started = Timestamp::from_micros(
+      hours(10).as_micros() - Duration::minutes(30).num_microseconds().unwrap_or(0),
+    );
+    let mut status = Status::suspend("test", Some((Duration::hours(1), &started)));
+    assert!(!status.unsuspend_if_time_passed(&hours(10)));
+    assert_eq!(status.status_type, "suspended temporarily");
+    assert!(status.suspended_until.is_some());
   }
 }

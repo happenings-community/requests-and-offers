@@ -3,6 +3,7 @@
   import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import { encodeHashToBase64 } from '@holochain/client';
   import { goto } from '$app/navigation';
+  import ExternalLink from '$lib/components/shared/ExternalLink.svelte';
   import {
     formatDate,
     getUserPictureUrl,
@@ -360,14 +361,7 @@
             <ul class="list-inside list-disc">
               {#each request.links as link}
                 <li>
-                  <a
-                    href={link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="text-blue-600 hover:underline"
-                  >
-                    {link}
-                  </a>
+                  <ExternalLink text={link} class="text-blue-600 hover:underline" />
                 </li>
               {/each}
             </ul>

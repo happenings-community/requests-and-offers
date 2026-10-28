@@ -161,14 +161,14 @@ impl Status {
     None
   }
 
-  /// Automatically unsuspends `self` if less than 1 hour of suspension time remains.
+  /// Unsuspends `self` once the suspension's time has run out, and not before.
   ///
-  /// Returns `true` if the entity was unsuspended (i.e., the threshold was met), or `false`
-  /// if the suspension period has not yet elapsed. For indefinitely suspended entities
-  /// (no `suspended_until`), this always returns `false`.
+  /// Returns `true` if the entity was unsuspended, or `false` if any suspension time
+  /// remains. For indefinitely suspended entities (no `suspended_until`), this always
+  /// returns `false`.
   pub fn unsuspend_if_time_passed(&mut self, now: &Timestamp) -> bool {
     if let Some(time) = self.get_suspension_time_remaining(now) {
-      if time.is_zero() || time < Duration::hours(1) {
+      if time <= Duration::zero() {
         self.unsuspend();
         return true;
       }

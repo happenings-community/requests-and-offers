@@ -208,8 +208,8 @@ export function useRequestDetails(options: UseRequestDetailsOptions = {}): UseRe
     }
 
     // Set service type hashes
-    if (request.service_type_hashes) {
-      state.serviceTypeHashes = request.service_type_hashes;
+    if (request.service_type_hash) {
+      state.serviceTypeHashes = [request.service_type_hash];
     }
 
     // Execute parallel effects if any

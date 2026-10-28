@@ -64,6 +64,7 @@
   const mine = $derived(interest.mine);
   const others = $derived(interest.others);
   const me = $derived(interest.me);
+  const canAct = $derived(interest.canAct);
   const loaded = $derived(interest.loaded);
   const loadError = $derived(interest.loadError);
   const busy = $derived(interest.busy);
@@ -114,7 +115,7 @@
         </ul>
       {/if}
     </div>
-  {:else if me}
+  {:else if me && canAct}
     <div class="space-y-2 text-center" data-testid="listing-door">
       {#if mine}
         <div class="alert variant-soft-primary py-2 text-sm">

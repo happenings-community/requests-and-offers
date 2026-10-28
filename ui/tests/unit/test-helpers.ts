@@ -32,7 +32,7 @@ export async function createTestRequest(): Promise<RequestInput> {
     time_zone: 'UTC',
     interaction_type: 'Virtual' as InteractionType,
     links: [],
-    service_type_hashes: [],
+    service_type_hash: await fakeActionHash(),
     medium_of_exchange_hashes: [],
     status: ListingStatus.Active
   };
@@ -105,7 +105,7 @@ export async function createTestOffer(): Promise<OfferInput> {
     time_zone: 'UTC',
     interaction_type: 'Virtual' as InteractionType,
     links: [],
-    service_type_hashes: [],
+    service_type_hash: await fakeActionHash(),
     medium_of_exchange_hashes: [],
     status: ListingStatus.Active
   };

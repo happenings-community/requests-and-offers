@@ -64,11 +64,11 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
   test('offers list is profile-gated for visitors without a profile', async ({ page }) => {
     await gotoApp(page, '/offers');
 
-    // With no profile at all, ProfileGuard renders its blocked view (browsing
-    // /offers requires at least a profile) with a Create Profile CTA.
-    await expect(
-      page.getByRole('heading', { name: 'Profile Required for Creating Offers' })
-    ).toBeVisible({ timeout: 15_000 });
+    // With no profile at all, the members-only guard on the public pages
+    // renders its blocked view (#335) with a Create Profile CTA.
+    await expect(page.getByRole('heading', { name: 'Members only' })).toBeVisible({
+      timeout: 15_000
+    });
     await expect(page.getByRole('link', { name: 'Create Profile', exact: true })).toBeVisible();
   });
 
@@ -92,7 +92,7 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await page.getByRole('button', { name: 'Create Profile' }).click();
 
     // Success is announced in a Skeleton alert modal before redirecting.
-    await expect(page.getByRole('heading', { name: /Welcome to hCRON!/i })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /Welcome to Requests & Offers/i })).toBeVisible({
       timeout: 15_000
     });
     await page.getByRole('button', { name: /^Ok/ }).click();
@@ -101,14 +101,23 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await expect(page.locator('text=e2e_tester').first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test('pending profile cannot create offers yet', async ({ page }) => {
+  test('pending profile cannot browse offers yet', async ({ page }) => {
     await gotoApp(page, '/offers');
 
-    // ProfileGuard renders a disabled create control while the profile is
-    // pending administrator approval.
-    await expect(page.locator('text=Profile Approval Required').first()).toBeVisible({
+    // A pending member gets the same blocked view as a rejected one (#335):
+    // listings open once an administrator approves the profile.
+    await expect(page.getByRole('heading', { name: 'Members only' })).toBeVisible({
       timeout: 15_000
     });
+    await expect(
+      page.locator('text=Your profile is pending approval from administrators.').first()
+    ).toBeVisible();
+  });
+
+  test('pending profile can still open its own profile page', async ({ page }) => {
+    await gotoApp(page, '/user');
+
+    await expect(page.locator('text=e2e_tester').first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('first agent approves its own profile from the admin dashboard', async ({ page }) => {

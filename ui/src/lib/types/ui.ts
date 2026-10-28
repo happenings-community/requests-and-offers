@@ -61,7 +61,8 @@ export type UIRequest = RequestInDHT & {
   organization?: ActionHash;
   created_at?: number;
   updated_at?: number;
-  service_type_hashes?: ActionHash[];
+  /** Optional here because it arrives from a links fetch, not the entry. */
+  service_type_hash?: ActionHash;
   medium_of_exchange_hashes?: ActionHash[];
   authorPubKey?: Uint8Array; // For permission checking fallback
   /**
@@ -86,7 +87,8 @@ export type UIOffer = OfferInDHT & {
   organization?: ActionHash;
   created_at?: number;
   updated_at?: number;
-  service_type_hashes?: ActionHash[];
+  /** Optional here because it arrives from a links fetch, not the entry. */
+  service_type_hash?: ActionHash;
   medium_of_exchange_hashes?: ActionHash[];
   /**
    * Whether the listing's service types and mediums were actually read.

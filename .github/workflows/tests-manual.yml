@@ -84,6 +84,7 @@ jobs:
           - offers
           - exchanges
           - mediums_of_exchange
+          - record_op_premise
           - administration_administrator_management
           - administration_progenitor
           - administration_status_management

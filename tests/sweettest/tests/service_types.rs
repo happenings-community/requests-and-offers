@@ -278,278 +278,212 @@ async fn service_type_validation_empty_description_fails() {
 
 // ── Linking ───────────────────────────────────────────────────────────────────
 
-/// Link and unlink a service type to a request; verify counts.
-/// Translated from `service-types.test.ts / ServiceType linking with requests and offers`.
-#[tokio::test(flavor = "multi_thread")]
-async fn service_type_link_to_request_and_unlink() {
-    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
+// ── Listings and their service type ──────────────────────────────────────────
+//
+// A listing names one approved service type when it is created, and creating
+// it is what links it. Nothing links or unlinks a listing afterwards: the
+// service type is what the listing is about, and proposals and agreements
+// inherit it. Editing a listing replaces its one type with another through
+// update_service_type_links; deleting a listing clears its links.
+//
+// Users will link and unlink skills on their profile through the same
+// externs; that path is not built yet and is not tested here.
 
-    conductors[0]
-        .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
-        .await;
-    conductors[1]
-        .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
-        .await;
+/// Alice (progenitor, admin) and Bob (accepted member) on two conductors.
+/// Returns Bob's user hash alongside, since some tests need it.
+macro_rules! two_agents_bob_accepted {
+    () => {{
+        let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
 
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+        conductors[0]
+            .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
+            .await;
+        conductors[1]
+            .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
+            .await;
 
-    // Accept Bob so he can create requests.
-    let bob_links: Vec<Link> = conductors[1]
-        .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
-        .await;
-    let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
-    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
+        await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+        let bob_links: Vec<Link> = conductors[1]
+            .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
+            .await;
+        let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
+        accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
 
-    // Alice creates two service types (admin-only → auto-approved).
-    let web_dev: Record = conductors[0]
-        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Web Development"))
-        .await;
-    let _design: Record = conductors[0]
-        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Design Services"))
-        .await;
+        await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
-    let web_dev_hash = web_dev.signed_action.hashed.hash.clone();
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Bob creates a request.
-    let req: Record = conductors[1]
-        .call(&bob.zome("requests"), "create_request", sample_request("Help needed"))
-        .await;
-    let req_hash = req.signed_action.hashed.hash.clone();
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Link the service type to the request.
-    let _: () = conductors[1]
-        .call(
-            &bob.zome("service_types"),
-            "link_to_service_type",
-            ServiceTypeLinkInput {
-                service_type_hash: web_dev_hash.clone(),
-                action_hash: req_hash.clone(),
-                entity: "request".to_string(),
-            },
-        )
-        .await;
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    let requests_for_st: Vec<Record> = conductors[0]
-        .call(&alice.zome("service_types"), "get_requests_for_service_type", web_dev_hash.clone())
-        .await;
-    assert_eq!(requests_for_st.len(), 1, "Should have one request linked");
-
-    let sts_for_req: Vec<ActionHash> = conductors[0]
-        .call(
-            &alice.zome("service_types"),
-            "get_service_types_for_entity",
-            GetServiceTypeForEntityInput {
-                original_action_hash: req_hash.clone(),
-                entity: "request".to_string(),
-            },
-        )
-        .await;
-    assert_eq!(sts_for_req.len(), 1);
-    assert_eq!(sts_for_req[0], web_dev_hash);
-
-    // Unlink the service type.
-    let _: () = conductors[1]
-        .call(
-            &bob.zome("service_types"),
-            "unlink_from_service_type",
-            ServiceTypeLinkInput {
-                service_type_hash: web_dev_hash.clone(),
-                action_hash: req_hash.clone(),
-                entity: "request".to_string(),
-            },
-        )
-        .await;
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    let after_unlink: Vec<Record> = conductors[0]
-        .call(&alice.zome("service_types"), "get_requests_for_service_type", web_dev_hash)
-        .await;
-    assert_eq!(after_unlink.len(), 0, "No requests after unlinking");
+        (conductors, alice, bob)
+    }};
 }
 
-/// `update_service_type_links` replaces the old set with the new set.
-/// Translated from `service-types.test.ts / ServiceType update links management`.
+/// Creating a listing that names an approved service type links the two, in
+/// both directions, without any further call.
 #[tokio::test(flavor = "multi_thread")]
-async fn service_type_update_links_replaces_old() {
-    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
-
-    conductors[0]
-        .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
-        .await;
-    conductors[1]
-        .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
-        .await;
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Accept Bob.
-    let bob_links: Vec<Link> = conductors[1]
-        .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
-        .await;
-    let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
-    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Alice creates three service types.
-    let web_dev: Record = conductors[0]
-        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Web Development"))
-        .await;
-    let design: Record = conductors[0]
-        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Design"))
-        .await;
-    let marketing: Record = conductors[0]
-        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Marketing"))
-        .await;
-
-    let web_dev_hash = web_dev.signed_action.hashed.hash.clone();
-    let design_hash = design.signed_action.hashed.hash.clone();
-    let marketing_hash = marketing.signed_action.hashed.hash.clone();
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Bob creates a request to use as the entity.
-    let req: Record = conductors[1]
-        .call(&bob.zome("requests"), "create_request", sample_request("Help needed"))
-        .await;
-    let req_hash = req.signed_action.hashed.hash.clone();
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Initial link set: web_dev + design.
-    let _: () = conductors[1]
-        .call(
-            &bob.zome("service_types"),
-            "update_service_type_links",
-            UpdateServiceTypeLinksInput {
-                action_hash: req_hash.clone(),
-                entity: "request".to_string(),
-                new_service_type_hashes: vec![web_dev_hash.clone(), design_hash.clone()],
-            },
-        )
-        .await;
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    let initial_sts: Vec<ActionHash> = conductors[0]
-        .call(
-            &alice.zome("service_types"),
-            "get_service_types_for_entity",
-            GetServiceTypeForEntityInput {
-                original_action_hash: req_hash.clone(),
-                entity: "request".to_string(),
-            },
-        )
-        .await;
-    assert_eq!(initial_sts.len(), 2);
-
-    // Update links: web_dev + marketing (remove design, add marketing).
-    let _: () = conductors[1]
-        .call(
-            &bob.zome("service_types"),
-            "update_service_type_links",
-            UpdateServiceTypeLinksInput {
-                action_hash: req_hash.clone(),
-                entity: "request".to_string(),
-                new_service_type_hashes: vec![web_dev_hash.clone(), marketing_hash.clone()],
-            },
-        )
-        .await;
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    let updated_sts: Vec<ActionHash> = conductors[0]
-        .call(
-            &alice.zome("service_types"),
-            "get_service_types_for_entity",
-            GetServiceTypeForEntityInput {
-                original_action_hash: req_hash.clone(),
-                entity: "request".to_string(),
-            },
-        )
-        .await;
-    assert_eq!(updated_sts.len(), 2);
-
-    // Design should no longer be linked to this request.
-    let requests_for_design: Vec<Record> = conductors[0]
-        .call(&alice.zome("service_types"), "get_requests_for_service_type", design_hash)
-        .await;
-    assert_eq!(requests_for_design.len(), 0, "Design should have no request links after update");
-
-    // Marketing should now be linked.
-    let requests_for_marketing: Vec<Record> = conductors[0]
-        .call(&alice.zome("service_types"), "get_requests_for_service_type", marketing_hash)
-        .await;
-    assert_eq!(requests_for_marketing.len(), 1, "Marketing should have one request link");
-}
-
-/// `delete_all_service_type_links_for_entity` clears request links without affecting offer links.
-/// Translated from `service-types.test.ts / ServiceType deletion and link cleanup`.
-#[tokio::test(flavor = "multi_thread")]
-async fn service_type_link_cleanup_for_entity() {
-    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
-
-    conductors[0]
-        .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
-        .await;
-    conductors[1]
-        .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
-        .await;
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Accept Bob.
-    let bob_links: Vec<Link> = conductors[1]
-        .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
-        .await;
-    let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
-    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+async fn a_listing_names_an_approved_service_type() {
+    let (conductors, alice, bob) = two_agents_bob_accepted!();
 
     let st: Record = conductors[0]
-        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Test Service"))
+        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Gardening"))
         .await;
     let st_hash = st.signed_action.hashed.hash.clone();
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
-    // Bob creates a request and an offer.
     let req: Record = conductors[1]
-        .call(&bob.zome("requests"), "create_request", sample_request("Request for cleanup test"))
+        .call(&bob.zome("requests"), "create_request", sample_request("Help in the garden", st_hash.clone()))
+        .await;
+    let req_hash = req.signed_action.hashed.hash.clone();
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let requests: Vec<Record> = conductors[0]
+        .call(&alice.zome("service_types"), "get_requests_for_service_type", st_hash.clone())
+        .await;
+    assert_eq!(requests.len(), 1, "the service type has the request linked");
+    assert_eq!(requests[0].signed_action.hashed.hash, req_hash, "and it is that request");
+
+    let types: Vec<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("service_types"),
+            "get_service_types_for_entity",
+            GetServiceTypeForEntityInput { original_action_hash: req_hash, entity: "request".to_string() },
+        )
+        .await;
+    assert_eq!(types, vec![st_hash], "the request names exactly that service type");
+}
+
+/// A listing cannot name a service type that is still pending approval.
+/// Creation links the type, and the link is refused for unapproved types.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_listing_cannot_name_a_pending_service_type() {
+    let (conductors, alice, bob) = two_agents_bob_accepted!();
+
+    let pending: Record = conductors[1]
+        .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("Pending Service"))
+        .await;
+    let pending_hash = pending.signed_action.hashed.hash.clone();
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let result = conductors[1]
+        .call_fallible::<_, Record>(
+            &bob.zome("requests"),
+            "create_request",
+            sample_request("Names a pending type", pending_hash),
+        )
+        .await;
+    assert!(result.is_err(), "a listing cannot name a pending service type");
+}
+
+/// A listing cannot name a service type that an admin has rejected.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_listing_cannot_name_a_rejected_service_type() {
+    let (conductors, alice, bob) = two_agents_bob_accepted!();
+
+    let suggestion: Record = conductors[1]
+        .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("Rejected Service"))
+        .await;
+    let rejected_hash = suggestion.signed_action.hashed.hash.clone();
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let _: () = conductors[0]
+        .call(&alice.zome("service_types"), "reject_service_type", rejected_hash.clone())
+        .await;
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let result = conductors[1]
+        .call_fallible::<_, Record>(
+            &bob.zome("offers"),
+            "create_offer",
+            sample_offer("Names a rejected type", rejected_hash),
+        )
+        .await;
+    assert!(result.is_err(), "a listing cannot name a rejected service type");
+}
+
+/// Editing a listing replaces its one service type with another. This is
+/// what update_request and update_offer send: a single hash, never a set.
+#[tokio::test(flavor = "multi_thread")]
+async fn editing_a_listing_replaces_its_service_type() {
+    let (conductors, alice, bob) = two_agents_bob_accepted!();
+
+    let first: Record = conductors[0]
+        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Web Development"))
+        .await;
+    let second: Record = conductors[0]
+        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Design"))
+        .await;
+    let first_hash = first.signed_action.hashed.hash.clone();
+    let second_hash = second.signed_action.hashed.hash.clone();
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let req: Record = conductors[1]
+        .call(&bob.zome("requests"), "create_request", sample_request("Help needed", first_hash.clone()))
+        .await;
+    let req_hash = req.signed_action.hashed.hash.clone();
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let _: () = conductors[1]
+        .call(
+            &bob.zome("service_types"),
+            "update_service_type_links",
+            UpdateServiceTypeLinksInput {
+                action_hash: req_hash.clone(),
+                entity: "request".to_string(),
+                new_service_type_hashes: vec![second_hash.clone()],
+            },
+        )
+        .await;
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let types: Vec<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("service_types"),
+            "get_service_types_for_entity",
+            GetServiceTypeForEntityInput { original_action_hash: req_hash.clone(), entity: "request".to_string() },
+        )
+        .await;
+    assert_eq!(types, vec![second_hash.clone()], "the request now names the second type, and only it");
+
+    let for_first: Vec<Record> = conductors[0]
+        .call(&alice.zome("service_types"), "get_requests_for_service_type", first_hash)
+        .await;
+    assert_eq!(for_first.len(), 0, "the first type no longer has the request");
+
+    let for_second: Vec<Record> = conductors[0]
+        .call(&alice.zome("service_types"), "get_requests_for_service_type", second_hash)
+        .await;
+    assert_eq!(for_second.len(), 1, "the second type has it");
+    assert_eq!(for_second[0].signed_action.hashed.hash, req_hash);
+}
+
+/// Tombstoning one listing's service-type links leaves another listing's live,
+/// even when both name the same type. Links are not erased: DeleteLink actions
+/// mark them superseded, and queries stop returning them. This is what the
+/// listing delete paths call.
+#[tokio::test(flavor = "multi_thread")]
+async fn tombstoning_one_listings_links_leaves_others_live() {
+    let (conductors, alice, bob) = two_agents_bob_accepted!();
+
+    let st: Record = conductors[0]
+        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Shared Service"))
+        .await;
+    let st_hash = st.signed_action.hashed.hash.clone();
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let req: Record = conductors[1]
+        .call(&bob.zome("requests"), "create_request", sample_request("Request naming it", st_hash.clone()))
         .await;
     let req_hash = req.signed_action.hashed.hash.clone();
 
     let offer: Record = conductors[1]
-        .call(&bob.zome("offers"), "create_offer", sample_offer("Offer for cleanup test"))
-        .await;
-    let offer_hash = offer.signed_action.hashed.hash.clone();
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Link the service type to both.
-    let _: () = conductors[1]
-        .call(
-            &bob.zome("service_types"),
-            "link_to_service_type",
-            ServiceTypeLinkInput { service_type_hash: st_hash.clone(), action_hash: req_hash.clone(), entity: "request".to_string() },
-        )
-        .await;
-    let _: () = conductors[1]
-        .call(
-            &bob.zome("service_types"),
-            "link_to_service_type",
-            ServiceTypeLinkInput { service_type_hash: st_hash.clone(), action_hash: offer_hash.clone(), entity: "offer".to_string() },
-        )
+        .call(&bob.zome("offers"), "create_offer", sample_offer("Offer naming it", st_hash.clone()))
         .await;
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
@@ -563,7 +497,6 @@ async fn service_type_link_cleanup_for_entity() {
     assert_eq!(requests_before.len(), 1);
     assert_eq!(offers_before.len(), 1);
 
-    // Delete all service type links for the request entity.
     let _: () = conductors[1]
         .call(
             &bob.zome("service_types"),
@@ -577,164 +510,11 @@ async fn service_type_link_cleanup_for_entity() {
     let requests_after: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_requests_for_service_type", st_hash.clone())
         .await;
-    assert_eq!(requests_after.len(), 0, "Request links should be cleared");
+    assert_eq!(requests_after.len(), 0, "the request's link is gone");
 
-    // Offer links must remain untouched.
     let offers_after: Vec<Record> = conductors[0]
         .call(&alice.zome("service_types"), "get_offers_for_service_type", st_hash)
         .await;
-    assert_eq!(offers_after.len(), 1, "Offer links should be unaffected");
-}
-
-// ── Linking enforcement ───────────────────────────────────────────────────────
-
-/// Approved service types (created by admin) can be linked to requests.
-/// Translated from `linking-enforcement.test.ts / Approved Service Types can be linked`.
-#[tokio::test(flavor = "multi_thread")]
-async fn approved_service_type_can_be_linked_to_request() {
-    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
-
-    conductors[0]
-        .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
-        .await;
-    conductors[1]
-        .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
-        .await;
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Accept Bob so he can create requests.
-    let bob_links: Vec<Link> = conductors[1]
-        .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
-        .await;
-    let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
-    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Alice creates an approved service type.
-    let st: Record = conductors[0]
-        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Approved Service"))
-        .await;
-    let st_hash = st.signed_action.hashed.hash.clone();
-
-    // Bob creates a request.
-    let req: Record = conductors[1]
-        .call(&bob.zome("requests"), "create_request", sample_request("Linking test"))
-        .await;
-    let req_hash = req.signed_action.hashed.hash.clone();
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Linking an approved service type must succeed.
-    let result = conductors[1]
-        .call_fallible::<_, ()>(
-            &bob.zome("service_types"),
-            "link_to_service_type",
-            ServiceTypeLinkInput { service_type_hash: st_hash, action_hash: req_hash, entity: "request".to_string() },
-        )
-        .await;
-    assert!(result.is_ok(), "Approved service type should be linkable");
-}
-
-/// Pending service types (via suggest_service_type) cannot be linked.
-/// Translated from `linking-enforcement.test.ts / Pending Service Types cannot be linked`.
-#[tokio::test(flavor = "multi_thread")]
-async fn pending_service_type_cannot_be_linked() {
-    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
-
-    conductors[0]
-        .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
-        .await;
-    conductors[1]
-        .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
-        .await;
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Accept Bob.
-    let bob_links: Vec<Link> = conductors[1]
-        .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
-        .await;
-    let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
-    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Bob suggests a service type (lands in pending, not approved).
-    let pending: Record = conductors[1]
-        .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("Pending Service"))
-        .await;
-    let pending_hash = pending.signed_action.hashed.hash.clone();
-
-    let req: Record = conductors[1]
-        .call(&bob.zome("requests"), "create_request", sample_request("Linking test"))
-        .await;
-    let req_hash = req.signed_action.hashed.hash.clone();
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Linking a pending service type must fail.
-    let result = conductors[1]
-        .call_fallible::<_, ()>(
-            &bob.zome("service_types"),
-            "link_to_service_type",
-            ServiceTypeLinkInput { service_type_hash: pending_hash, action_hash: req_hash, entity: "request".to_string() },
-        )
-        .await;
-    assert!(result.is_err(), "Pending service type should not be linkable");
-}
-
-/// Rejected service types cannot be linked.
-/// Translated from `linking-enforcement.test.ts / Rejected Service Types cannot be linked`.
-#[tokio::test(flavor = "multi_thread")]
-async fn rejected_service_type_cannot_be_linked() {
-    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
-
-    conductors[0]
-        .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
-        .await;
-    conductors[1]
-        .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
-        .await;
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Accept Bob.
-    let bob_links: Vec<Link> = conductors[1]
-        .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
-        .await;
-    let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
-    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Bob suggests; Alice rejects.
-    let suggestion: Record = conductors[1]
-        .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("Rejected Service"))
-        .await;
-    let st_hash = suggestion.signed_action.hashed.hash.clone();
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    let _: () = conductors[0]
-        .call(&alice.zome("service_types"), "reject_service_type", st_hash.clone())
-        .await;
-
-    let offer: Record = conductors[1]
-        .call(&bob.zome("offers"), "create_offer", sample_offer("Offer for linking test"))
-        .await;
-    let offer_hash = offer.signed_action.hashed.hash.clone();
-
-    await_consistency_s(15, [&alice, &bob]).await.unwrap();
-
-    // Linking a rejected service type must fail.
-    let result = conductors[1]
-        .call_fallible::<_, ()>(
-            &bob.zome("service_types"),
-            "link_to_service_type",
-            ServiceTypeLinkInput { service_type_hash: st_hash, action_hash: offer_hash, entity: "offer".to_string() },
-        )
-        .await;
-    assert!(result.is_err(), "Rejected service type should not be linkable");
+    assert_eq!(offers_after.len(), 1, "the offer's link is untouched");
+    assert_eq!(offers_after[0].signed_action.hashed.hash, offer.signed_action.hashed.hash);
 }

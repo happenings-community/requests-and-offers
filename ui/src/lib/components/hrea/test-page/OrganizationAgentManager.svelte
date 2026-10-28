@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import type { Agent } from '$lib/types/hrea';
@@ -21,7 +22,7 @@
   });
 
   $effect(() => {
-    administrationStore.fetchAllOrganizations();
+    untrack(() => runEffect(administrationStore.fetchAllOrganizations())).catch((e) => console.error(e));
   });
 
   // Effect to create retroactive mappings when both organizations and agents are available

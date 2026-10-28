@@ -1,4 +1,5 @@
 import usersStore from '$lib/stores/users.store.svelte';
+import { runEffect } from '$lib/utils/effect';
 import { formatUserName } from '$lib/schemas/users.schemas';
 import { paths } from '$lib/paths';
 
@@ -217,7 +218,7 @@ export function useProfileValidation(options: UseProfileValidationOptions = {}) 
   const startAutoRefresh = () => {
     if (autoRefresh && !refreshIntervalId) {
       refreshIntervalId = setInterval(() => {
-        refreshProfile();
+        runEffect(refreshProfile()).catch((e) => console.error('Failed to refresh the profile:', e));
       }, refreshInterval);
     }
   };

@@ -81,8 +81,19 @@ async fn setup_with_offer() -> (SweetConductorBatch, SweetCell, SweetCell, Actio
     accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user_hash).await;
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
+    // A listing names one service type.
+    let st_record: Record = conductors[0]
+        .call(
+            &alice.zome("service_types"),
+            "create_service_type",
+            sample_service_type("Web Design Review"),
+        )
+        .await;
+    let st_hash = st_record.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
     let offer: Record = conductors[0]
-        .call(&alice.zome("offers"), "create_offer", sample_offer("Web design review"))
+        .call(&alice.zome("offers"), "create_offer", sample_offer("Web design review", st_hash.clone()))
         .await;
     let offer_hash = offer.signed_action.hashed.hash.clone();
     await_consistency_s(15, [&alice, &bob]).await.unwrap();

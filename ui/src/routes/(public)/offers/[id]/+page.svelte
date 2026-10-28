@@ -316,17 +316,15 @@
           />
         </header>
 
-        <!-- Service Types -->
+        <!-- Service Type -->
         <section class="mb-6">
-          <h3 class="h4 mb-3 font-semibold">Service Types</h3>
-          {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
+          <h3 class="h4 mb-3 font-semibold">Service Type</h3>
+          {#if offer.service_type_hash}
             <div class="flex flex-wrap gap-2">
-              {#each offer.service_type_hashes as serviceTypeHash}
-                <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} showLink={true} />
-              {/each}
+              <ServiceTypeTag serviceTypeActionHash={offer.service_type_hash} showLink={true} />
             </div>
           {:else}
-            <p class="text-surface-500">No service types specified.</p>
+            <p class="text-surface-500">No service type specified.</p>
           {/if}
         </section>
 

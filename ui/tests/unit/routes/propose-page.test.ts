@@ -83,7 +83,7 @@ beforeEach(() => {
     title: 'Garden clearance',
     description: 'A morning of it',
     creator: AUTHOR,
-    service_type_hashes: [hash(5)],
+    service_type_hash: hash(5),
     medium_of_exchange_hashes: [hash(6)]
   });
   getInterestsForListing.mockResolvedValue([{ interest_hash: INTEREST, user: MEMBER }]);

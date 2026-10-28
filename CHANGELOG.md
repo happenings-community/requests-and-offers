@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### ⚠️ Network reset
+
+Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty network: profiles, organisations, requests, offers and exchanges from alpha 1 do not carry over. Alpha data stays disposable until the breaking-version migration lands (#144). Notice to testers: `documentation/releases/v0.6.0-alpha.2-network-reset.md` (#195).
+
+### Documentation
+
+- **Versioning**: The rule before 1.0, minor for breaking DNA changes and patch for the rest, with breaking changes batched (`documentation/guides/versioning.md`)
+
 ## [0.6.0-alpha.1] - 2026-09-14
 
 ### 🚀 Alpha Baseline Release

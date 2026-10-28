@@ -92,7 +92,7 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await page.getByRole('button', { name: 'Create Profile' }).click();
 
     // Success is announced in a Skeleton alert modal before redirecting.
-    await expect(page.getByRole('heading', { name: /Welcome to hCRON!/i })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /Welcome to Requests & Offers/i })).toBeVisible({
       timeout: 15_000
     });
     await page.getByRole('button', { name: /^Ok/ }).click();

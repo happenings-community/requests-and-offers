@@ -24,6 +24,7 @@
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
   import NavBar from '$lib/components/shared/NavBar.svelte';
+  import ContactAdminsFooter from '$lib/components/shared/ContactAdminsFooter.svelte';
   import { setConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
   import { connectToHolochain, isHolochainConnected } from '$lib/utils/holochain-client.utils';
   import { deriveConnectionStatus } from '$lib/utils/network-status';
@@ -551,11 +552,12 @@
   {@render children()}
 {:else}
   <!-- Main app routes with navigation -->
-  <div class="grid min-h-screen grid-rows-[auto_1fr]">
+  <div class="grid min-h-screen grid-rows-[auto_1fr_auto]">
     <NavBar {connectionStatus} {lastPingTime} {pingError} {networkSeed} {networkInfo} />
     <main class="flex flex-col items-center justify-center py-10">
       {@render children()}
     </main>
+    <ContactAdminsFooter />
   </div>
 
   <!-- Toast Container -->

@@ -26,7 +26,11 @@ vi.mock('$lib/stores/exchanges.store.svelte', () => ({
 
 vi.mock('$lib/stores/users.store.svelte', () => ({
   default: {
-    currentUser: { original_action_hash: new Uint8Array(Array(39).fill(1)) },
+    // Accepted, since only an accepted member may act on a listing (#336).
+    currentUser: {
+      original_action_hash: new Uint8Array(Array(39).fill(1)),
+      status: { status_type: 'accepted' }
+    },
     getUserByActionHash: () => Promise.resolve(null)
   }
 }));

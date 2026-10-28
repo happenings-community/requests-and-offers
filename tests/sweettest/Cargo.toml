@@ -89,6 +89,10 @@ name = "mediums_of_exchange"
 path = "tests/mediums_of_exchange.rs"
 
 [[test]]
+name = "messaging"
+path = "tests/messaging.rs"
+
+[[test]]
 name = "record_op_premise"
 path = "tests/record_op_premise.rs"
 

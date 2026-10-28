@@ -126,13 +126,10 @@
         }
         listing = item;
         if (item.creator) creator = await runEffect(usersStore.getUserByActionHash(item.creator));
-        const names = await Promise.all(
-          (item.service_type_hashes ?? []).map(async (h: ActionHash) => {
-            const st = await runEffect(serviceTypesStore.getServiceType(h));
-            return st?.name ?? null;
-          })
-        );
-        services = names.filter((n): n is string => !!n);
+        const st = item.service_type_hash
+          ? await runEffect(serviceTypesStore.getServiceType(item.service_type_hash))
+          : null;
+        services = st?.name ? [st.name] : [];
         service = services[0] ?? item.title;
         const found = await Promise.all(
           (item.medium_of_exchange_hashes ?? []).map(async (h: ActionHash) => {

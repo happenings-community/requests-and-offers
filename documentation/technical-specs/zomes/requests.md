@@ -25,9 +25,6 @@ pub struct Request {
   pub title: String,
   /// A detailed description of the request (max 1000 characters, supports markdown)
   pub description: String,
-  /// ActionHashes of approved ServiceType entries that define the nature of the request.
-  /// These are validated against the `service_types` zome.
-  pub service_type_action_hashes: Vec<ActionHash>,
   /// How the requester prefers to be contacted (Email, Phone, Other)
   pub contact_preference: ContactPreference,
   /// The date range when the request is valid/needed
@@ -137,14 +134,14 @@ Creates a new request entry with the provided information.
 
 During creation, the `requests_coordinator` zome must:
 
-- Validate that each `ActionHash` in `input.request.service_type_action_hashes` corresponds to an existing and _approved_ `ServiceType` by calling the `service_types_coordinator` zome.
-- Create `RequestToServiceType` links for each valid and approved `ServiceType` ActionHash.
+- Link the request to the one `ServiceType` named by `input.service_type_hash`, through the `service_types_coordinator` zome, which refuses a service type that is not approved.
 
 **Parameters:**
 
 - `input`: A `RequestInput` struct containing:
   - `request`: The request data
   - `organization`: Optional organization hash to associate with the request
+  - `service_type_hash`: The one approved service type this request names. A listing names one service; several services in one exchange belong on the agreement, as separate commitments.
 
 **Returns:**
 
@@ -196,10 +193,7 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record>
 
 Updates an existing request with new data.
 
-During an update, if `service_type_action_hashes` are modified, the `requests_coordinator` zome must:
-
-- Validate new `ServiceType` ActionHashes against approved types in the `service_types_coordinator` zome.
-- Remove old `RequestToServiceType` links and create new ones as necessary.
+During an update, the `requests_coordinator` zome replaces the `RequestToServiceType` link with one to `input.service_type_hash`, which must name an approved `ServiceType`.
 
 **Parameters:**
 
@@ -207,6 +201,7 @@ During an update, if `service_type_action_hashes` are modified, the `requests_co
   - `original_action_hash`: The original action hash
   - `previous_action_hash`: The most recent action hash
   - `updated_request`: The updated request data
+  - `service_type_hash`: The one approved service type the request names after the update
 
 **Returns:**
 
@@ -384,8 +379,7 @@ Retrieves the organization associated with a request, if any.
 
 - Title must be between 3 and 50 characters.
 - Description must be between 10 and 1000 characters. Supports markdown formatting (rendered on frontend with `marked` + `DOMPurify`).
-- `service_type_action_hashes` array must not be empty.
-- Each `ActionHash` in `service_type_action_hashes` must point to a valid and _approved_ `ServiceType` entry, validated by calling the `service_types_coordinator` zome.
+- Exactly one service type, `service_type_hash`, which must be approved. This holds by convention for now: the coordinator and the form require it, but integrity validation does not check it yet. Enforcing it in validation is tracked in #257 and lands with the Holochain 0.7 migration.
 - Links array must be present (can be empty).
 
 ## Client Integration

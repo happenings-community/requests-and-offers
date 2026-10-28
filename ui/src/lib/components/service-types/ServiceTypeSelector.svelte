@@ -16,6 +16,8 @@
     maxVisible?: number;
     name?: string;
     id?: string;
+    /** Listings name one service type: a pick replaces the current one. */
+    single?: boolean;
   };
 
   const {
@@ -27,7 +29,8 @@
     disabled = false,
     maxVisible = 5,
     name,
-    id
+    id,
+    single = false
   }: Props = $props();
 
   // Toast store for notifications
@@ -181,7 +184,10 @@
     const serviceTypeHash = serviceType.original_action_hash!;
     const hashString = serviceTypeHash.toString();
 
-    if (isChecked) {
+    if (isChecked && single) {
+      // One service type per listing: the new pick replaces the old one
+      selectedHashes = [serviceTypeHash];
+    } else if (isChecked) {
       // Add to selection if not already present
       if (!selectedHashes.some((hash) => hash.toString() === hashString)) {
         selectedHashes = [...selectedHashes, serviceTypeHash];
@@ -251,7 +257,7 @@
           </span>
         {/if}
 
-        {#if !disabled && selectedServiceTypeObjects.length > 0}
+        {#if !disabled && !single && selectedServiceTypeObjects.length > 0}
           <button
             type="button"
             class="variant-soft-error chip text-xs"

@@ -337,6 +337,21 @@ const result = await Effect.runPromise(
 );
 ```
 
+#### Network information
+
+`getNetworkInfo(roleName?: RoleName): Promise<NetworkInfo>` calls the `misc` zome's `get_network_info` for the role (default `requests_and_offers`).
+
+```typescript
+export interface NetworkInfo {
+  networkSeed: string;
+  dnaHash: string;
+  roleName: string;
+  integrityZomeNames?: string[];
+}
+```
+
+`integrityZomeNames` lists the DNA's integrity zomes, which says which optional modules this network was created with. It is optional because a DNA built before the field existed returns without it. **A missing list means not known**, never that a module is absent: code that checks for a module must treat `undefined` as unknown and keep its present-mode behaviour until the list has been read.
+
 ### hREA Service
 
 **File**: `ui/src/lib/services/hrea.service.ts`

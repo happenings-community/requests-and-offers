@@ -14,9 +14,9 @@
 //! zome call, so the conductor runs Bob's `init` (committing the cap grant that
 //! authorises `recv_remote_signal`) before it checks whether Alice's call is
 //! authorised: `handle_call_remote` goes through the same `call_zome`, which runs
-//! `check_or_run_zome_init` first (holochain 0.6.1, `conductor/cell.rs:396` then
-//! `:721`, with `is_authorized` reached later at
-//! `core/workflow/call_zome_workflow.rs:250`).
+//! `check_or_run_zome_init` first (holochain 0.7.0, `conductor/cell.rs:394` then
+//! `:747`, with `is_authorized` reached later at
+//! `core/workflow/call_zome_workflow.rs:252`).
 //!
 //! What that costs is worth knowing, because it sets the deadline below. The
 //! first zome call on a cell costs about twenty seconds here, whatever it calls,
@@ -123,10 +123,10 @@ const SIGNAL_DEADLINE: Duration = Duration::from_secs(240);
 /// Non-delivery is silent by nature, so there is nothing to observe on failure
 /// unless the test keeps it: `send_remote_signal` skips any recipient missing
 /// from the sender's peer store with a bare `continue` and no error
-/// (holochain_p2p 0.6.1, `spawn/actor.rs:1575-1583`), and the host function
+/// (holochain_p2p 0.7.0, `spawn/actor.rs:1825-1834`), and the host function
 /// spawns a detached task that logs transport failures rather than returning
-/// them (holochain 0.6.1, `host_fn/send_remote_signal.rs:46`, returning `Ok(())`
-/// at `:118`). So on timeout this reports the last app signal that arrived but
+/// them (holochain 0.7.0, `host_fn/send_remote_signal.rs:44`, returning `Ok(())`
+/// at `:116`). So on timeout this reports the last app signal that arrived but
 /// could not be decoded as a `MessagingSignal`, separating "nothing arrived at
 /// all" from "something arrived in a shape this test does not recognise".
 /// `recipient` names whose stream it is, so a fan-out failure says who missed out.

@@ -119,9 +119,11 @@
       if (!confirmed) return;
 
       loading = true;
-      await organizationsStore.removeCoordinator(
-        organization.original_action_hash!,
-        coordinator.original_action_hash
+      await runEffect(
+        organizationsStore.removeCoordinator(
+          organization.original_action_hash!,
+          coordinator.original_action_hash
+        )
       );
 
       toastStore.trigger({

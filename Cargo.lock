@@ -4506,6 +4506,7 @@ dependencies = [
  "hdi",
  "holochain_serialized_bytes",
  "serde",
+ "utils",
 ]
 
 [[package]]
@@ -4539,6 +4540,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "messaging"
+version = "0.0.1"
+dependencies = [
+ "hdk",
+ "serde",
 ]
 
 [[package]]
@@ -6331,9 +6340,12 @@ version = "0.1.0"
 dependencies = [
  "holochain",
  "holochain_serialized_bytes",
+ "holochain_state",
  "rmp-serde",
  "serde",
  "serde_json",
+ "sodoken",
+ "sqlx",
  "tokio",
 ]
 
@@ -7058,6 +7070,7 @@ dependencies = [
  "hdi",
  "holochain_serialized_bytes",
  "serde",
+ "utils",
 ]
 
 [[package]]

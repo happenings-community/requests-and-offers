@@ -38,15 +38,6 @@ pub fn validate_organization(organization: Organization) -> ExternResult<Validat
   Ok(ValidateCallbackResult::Valid)
 }
 
-pub fn validate_update_organization(
-  _action: Update,
-  _organization: Organization,
-  _original_action: TypedAction<EntryCreationData>,
-  _original_organization: Organization,
-) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Valid)
-}
-
 pub fn validate_delete_organization(
   _action: Delete,
   _original_action: TypedAction<EntryCreationData>,

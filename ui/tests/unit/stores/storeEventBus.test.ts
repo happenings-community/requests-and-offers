@@ -66,7 +66,7 @@ describe('StoreEventBus', () => {
       links: [],
       original_action_hash: mockHash,
       previous_action_hash: mockHash,
-      service_type_hashes: [mockHash],
+      service_type_hash: mockHash,
       status: ListingStatus.Active
     };
 
@@ -79,7 +79,7 @@ describe('StoreEventBus', () => {
       links: [],
       original_action_hash: mockHash,
       previous_action_hash: mockHash,
-      service_type_hashes: [mockHash],
+      service_type_hash: mockHash,
       status: ListingStatus.Active
     };
 

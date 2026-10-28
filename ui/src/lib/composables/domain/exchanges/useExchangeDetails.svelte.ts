@@ -108,11 +108,19 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
     showToast(e instanceof Error ? e.message : String(e), 'error');
   }
 
+  // Counts this member's own writes and the re-reads started, so a re-read can
+  // tell whether its answer is still the newest thing the page knows. Not
+  // reactive: nothing renders them.
+  let writes = 0;
+  let reads = 0;
+
   /** Runs one write, keeps the page honest about being busy, reports either way. */
   async function act(done: string, run: () => Promise<UIExchange>): Promise<boolean> {
     busy = true;
+    writes += 1;
     try {
       exchange = await run();
+      failedReads = 0;
       showToast(done, 'success');
       note = '';
       return true;
@@ -178,7 +186,9 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
   /**
    * Re-reads the exchange so the other member's moves (marking done, a review,
    * a reply) show without a reload (#334). Skipped while this member's own
-   * write is in flight, since that write returns the fresh exchange itself. A
+   * write is in flight, since that write returns the fresh exchange itself, and
+   * an answer is dropped if the member wrote, or another re-read started, while
+   * it was on its way: it would show the state from before that move. A
    * single failure is quiet and the next tick tries again; after several in a row
    * the page says it is showing the last update, so a lost connection is not
    * mistaken for nothing happening.
@@ -186,9 +196,14 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
   async function refresh(): Promise<void> {
     const target = agreementHash();
     if (!target || busy || !exchange) return;
+    const writesAtStart = writes;
+    const read = ++reads;
     try {
       const fresh = await runEffect(exchangesStore.getExchange(target));
-      if (!busy) exchange = fresh;
+      // Kept only if nothing newer arrived meanwhile: no write of this member's
+      // began, even one already finished, and no later re-read was started.
+      if (busy || writes !== writesAtStart || read !== reads) return;
+      exchange = fresh;
       failedReads = 0;
     } catch {
       failedReads += 1;

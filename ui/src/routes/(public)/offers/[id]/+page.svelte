@@ -3,6 +3,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
+  import ExternalLink from '$lib/components/shared/ExternalLink.svelte';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -387,14 +388,7 @@
             <ul class="list-inside list-disc space-y-1">
               {#each offer.links as link}
                 <li>
-                  <a
-                    href={link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="text-primary-500 hover:underline dark:text-primary-400"
-                  >
-                    {link}
-                  </a>
+                  <ExternalLink text={link} class="text-primary-500 hover:underline dark:text-primary-400" />
                 </li>
               {/each}
             </ul>

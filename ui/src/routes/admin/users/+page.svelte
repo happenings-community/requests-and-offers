@@ -7,6 +7,7 @@
   import UsersTable from '$lib/components/users/UsersTable.svelte';
   import { runEffect } from '@/lib/utils/effect';
   import { storeEventBus } from '$lib/stores/storeEvents';
+  import { paths } from '$lib/paths';
 
   const management = useUsersManagement();
 
@@ -82,7 +83,7 @@
   {/if}
 
   <div class="flex justify-center gap-4">
-    <a href="/admin/users/status-history" class="variant-ghost-secondary btn w-fit">
+    <a href={paths.adminUsersStatusHistory()} class="variant-ghost-secondary btn w-fit">
       Status History
     </a>
     {#if !management.isLoading && management.error}

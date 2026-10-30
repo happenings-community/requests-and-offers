@@ -1,10 +1,18 @@
 <script lang="ts">
   import { encodeHashToBase64 } from '@holochain/client';
   import { useExchangesManagement } from '$lib/composables/domain/exchanges/useExchangesManagement.svelte';
+  import exchangesStore from '$lib/stores/exchanges.store.svelte';
+  import InterestedIn from '$lib/components/exchanges/InterestedIn.svelte';
+  import ReachPerson from '$lib/components/exchanges/ReachPerson.svelte';
+  import { runEffect } from '$lib/utils/effect';
+  import { EXCHANGE_STRINGS as S, fill } from '$lib/strings/exchanges.strings';
   import {
     actionLabel,
+    counterpartyOf,
+    exchangeState,
     exchangeStatusVariant,
     formatWhen,
+    isProposal,
     roleOf,
     statusLabel,
     termLabel,
@@ -12,6 +20,7 @@
     wroteIt,
     type ExchangeTab
   } from '$lib/utils/exchange-ui';
+  import { paths } from '$lib/paths';
 
   const TABS: { key: ExchangeTab; label: string; icon: string; blurb: string; ring: string }[] = [
     {
@@ -38,11 +47,32 @@
   ];
 
   const exchanges = useExchangesManagement();
+
+  let view = $state<'exchanges' | 'interested'>('exchanges');
+  /** How many listings I am interested in; `null` until read, and again if the read fails. */
+  let interestCount = $state<number | null>(null);
+
+  /** A confident 0 is a claim; an unread or failed count shows the tab without one. */
+  async function countInterests(): Promise<void> {
+    try {
+      const mine = await runEffect(exchangesStore.getMyInterests());
+      interestCount = mine?.length ?? 0;
+    } catch {
+      interestCount = null;
+    }
+  }
+
+  $effect(() => {
+    void countInterests();
+  });
+
   const b64 = encodeHashToBase64;
   const me = $derived(exchanges.me);
 
   $effect(() => {
     exchanges.initialize();
+    // Nothing of messaging is loaded here any more (H4): the count rides inside whatever
+    // the layout plugged in, which also owns the poll that keeps it fresh.
   });
 </script>
 
@@ -56,131 +86,183 @@
     <p class="text-surface-500">Deals you're proposing, working through, and have completed</p>
   </header>
 
-  <div class="grid gap-4 md:grid-cols-3" role="tablist" aria-label="Exchange groups">
-    {#each TABS as t (t.key)}
-      <button
-        class="card space-y-2 p-4 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {exchanges.tab ===
-        t.key
-          ? `ring-2 ${t.ring}`
-          : ''}"
-        role="tab"
-        aria-selected={exchanges.tab === t.key}
-        onclick={() => (exchanges.tab = t.key)}
-      >
-        <div class="flex items-start justify-between">
-          <span class="text-2xl">{t.icon}</span>
-          <span class="text-3xl font-bold">{exchanges.countIn(t.key)}</span>
-        </div>
-        <h2 class="h4">{t.label}</h2>
-        <p class="text-sm text-surface-500">{t.blurb}</p>
-        {#if exchanges.myTurnIn(t.key) > 0}
-          <span class="variant-filled-secondary badge">{exchanges.myTurnIn(t.key)} your turn</span>
-        {/if}
-      </button>
-    {/each}
+  <!--
+    The outer switch, above the three exchange groups. Interested in is a different kind
+    of thing from an exchange, not a fourth group of them: a listing you are watching has
+    no agreement and no turn. Keeping it at this level is what stops it being filtered by
+    controls that mean nothing for it.
+  -->
+  <div class="flex flex-wrap gap-2" role="tablist" aria-label="View">
+    <button
+      type="button"
+      class="btn btn-sm {view === 'exchanges' ? 'variant-filled-primary' : 'variant-ghost'}"
+      role="tab"
+      aria-selected={view === 'exchanges'}
+      onclick={() => (view = 'exchanges')}
+    >
+      {fill(S.exchanges.tab.exchanges, {
+        count:
+          exchanges.countIn('proposals') +
+          exchanges.countIn('active') +
+          exchanges.countIn('completed')
+      })}
+    </button>
+    <button
+      type="button"
+      class="btn btn-sm {view === 'interested' ? 'variant-filled-primary' : 'variant-ghost'}"
+      role="tab"
+      aria-selected={view === 'interested'}
+      onclick={() => (view = 'interested')}
+      data-testid="interested-tab"
+    >
+      {interestCount === null
+        ? S.exchanges.tab.interestedUncounted
+        : fill(S.exchanges.tab.interested, { count: interestCount })}
+    </button>
   </div>
 
-  <div class="flex flex-wrap items-center gap-4 text-sm">
-    <label class="flex items-center gap-2"
-      ><span class="text-surface-500">Side</span>
-      <select class="select-sm select w-auto" bind:value={exchanges.side}>
-        <option value="all">All</option><option value="provider">I give</option><option
-          value="receiver">I receive</option
-        >
-      </select></label
-    >
-    <label class="flex items-center gap-2"
-      ><span class="text-surface-500">From</span>
-      <select class="select-sm select w-auto" bind:value={exchanges.origin}>
-        <option value="all">All</option><option value="Offer">An offer</option><option
-          value="Request">A request</option
-        >
-      </select></label
-    >
-    <label class="flex items-center gap-2"
-      ><span class="text-surface-500">Turn</span>
-      <select class="select-sm select w-auto" bind:value={exchanges.turn}>
-        <option value="all">All</option><option value="you">Mine</option><option value="them"
-          >Theirs</option
-        >
-      </select></label
-    >
-    <label class="flex items-center gap-2"
-      ><span class="text-surface-500">Order</span>
-      <select class="select-sm select w-auto" bind:value={exchanges.order}>
-        <option value="latest">Latest first</option><option value="oldest">Oldest first</option>
-      </select></label
-    >
-  </div>
-
-  {#if exchanges.error}
-    <div class="alert variant-filled-error">{exchanges.error}</div>
-  {:else if !exchanges.ready}
-    <p class="text-surface-500">Loading your exchanges...</p>
-  {:else if exchanges.shown.length === 0}
-    <div class="card space-y-3 p-6 text-center">
-      <p class="text-surface-500">
-        {exchanges.filtered
-          ? `Nothing ${exchanges.tab} matches those filters.`
-          : `No ${exchanges.tab} exchanges yet.`}
-      </p>
-      <a class="variant-filled-primary btn" href="/requests">Browse listings to start one</a>
-    </div>
+  {#if view === 'interested'}
+    <!-- A withdrawal inside the tab changes the count above it. -->
+    <InterestedIn onchange={countInterests} />
   {:else}
-    <ul class="space-y-3">
-      {#each exchanges.shown as e (b64(e.agreement_hash))}
-        {@const role = roleOf(e, me)}
-        {@const other = exchanges.nameOf(e)}
-        {@const give = role === 'provider' ? e.agreement.primary : e.agreement.reciprocal}
-        {@const get = role === 'provider' ? e.agreement.reciprocal : e.agreement.primary}
-        <li>
-          <a
-            class="card block space-y-3 p-4 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700"
-            href={`/exchanges/${b64(e.agreement_hash)}`}
-          >
-            <div class="flex flex-wrap items-center gap-2 text-sm">
-              <span class="badge {exchangeStatusVariant(e.status)}">{statusLabel(e)}</span>
-              {#if turnOf(e, me) === 'you'}<span class="variant-filled-secondary badge"
-                  >Your turn</span
-                >
-              {:else if turnOf(e, me) === 'them'}<span class="variant-soft-surface badge"
-                  >Waiting on {other ?? 'them'}</span
-                >{/if}
-              {#if e.agreement.medium}<span class="variant-soft-surface badge"
-                  >{e.agreement.medium}</span
-                >{/if}
-              <span class="text-surface-500"
-                >{role === 'provider' ? 'You provide' : 'You receive'}</span
-              >
-              {#if e.status === 'Proposed' || e.status === 'Declined'}
-                <span class="text-surface-500"
-                  >Proposed by {wroteIt(e, me) ? 'you' : (other ?? '...')}</span
-                >
-              {/if}
-              <span class="ml-auto text-xs text-surface-500"
-                >{formatWhen(exchanges.lastActivity(e))}</span
-              >
-            </div>
-            <h3 class="h4">{exchanges.titleOf(e) ?? '...'}</h3>
-            <div class="flex flex-wrap items-center gap-2 text-sm">
-              <span>You give {termLabel(give)}</span>
-              <span class="text-surface-500">&#8646;</span>
-              <span>{other ?? 'They'} {other ? 'gives' : 'give'} {termLabel(get)}</span>
-            </div>
-            <div class="flex items-center gap-2 text-sm">
-              <span
-                class="flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-xs text-white"
-              >
-                {(other ?? '?')[0]}
-              </span>
-              <span>{other ?? '...'}</span>
-              <span class="variant-filled-primary btn btn-sm ml-auto"
-                >{actionLabel(e, role)} &rarr;</span
-              >
-            </div>
-          </a>
-        </li>
+    <div class="grid gap-4 md:grid-cols-3" role="tablist" aria-label="Exchange groups">
+      {#each TABS as t (t.key)}
+        <button
+          class="card space-y-2 p-4 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {exchanges.tab ===
+          t.key
+            ? `ring-2 ${t.ring}`
+            : ''}"
+          role="tab"
+          aria-selected={exchanges.tab === t.key}
+          onclick={() => (exchanges.tab = t.key)}
+        >
+          <div class="flex items-start justify-between">
+            <span class="text-2xl">{t.icon}</span>
+            <span class="text-3xl font-bold">{exchanges.countIn(t.key)}</span>
+          </div>
+          <h2 class="h4">{t.label}</h2>
+          <p class="text-sm text-surface-500">{t.blurb}</p>
+          <!--
+          No attention number here (Sam, 4 October). The same events are already counted
+          once as unopened conversations, and a second number over them made one proposal
+          look like two things to deal with. The rows say "Your turn" instead.
+        -->
+        </button>
       {/each}
-    </ul>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-4 text-sm">
+      <label class="flex items-center gap-2"
+        ><span class="text-surface-500">Side</span>
+        <select class="select-sm select w-auto" bind:value={exchanges.side}>
+          <option value="all">All</option><option value="provider">I give</option><option
+            value="receiver">I receive</option
+          >
+        </select></label
+      >
+      <label class="flex items-center gap-2"
+        ><span class="text-surface-500">From</span>
+        <select class="select-sm select w-auto" bind:value={exchanges.origin}>
+          <option value="all">All</option><option value="Offer">An offer</option><option
+            value="Request">A request</option
+          >
+        </select></label
+      >
+      <label class="flex items-center gap-2"
+        ><span class="text-surface-500">Turn</span>
+        <select class="select-sm select w-auto" bind:value={exchanges.turn}>
+          <option value="all">All</option><option value="you">Mine</option><option value="them"
+            >Theirs</option
+          >
+        </select></label
+      >
+      <label class="flex items-center gap-2"
+        ><span class="text-surface-500">Order</span>
+        <select class="select-sm select w-auto" bind:value={exchanges.order}>
+          <option value="latest">Latest first</option><option value="oldest">Oldest first</option>
+        </select></label
+      >
+    </div>
+
+    {#if exchanges.error}
+      <div class="alert variant-filled-error">{exchanges.error}</div>
+    {:else if !exchanges.ready}
+      <p class="text-surface-500">Loading your exchanges...</p>
+    {:else if exchanges.shown.length === 0}
+      <div class="card space-y-3 p-6 text-center">
+        <p class="text-surface-500">
+          {exchanges.filtered
+            ? `Nothing ${exchanges.tab} matches those filters.`
+            : `No ${exchanges.tab} exchanges yet.`}
+        </p>
+        <a class="variant-filled-primary btn" href={paths.requests()}
+          >Browse listings to start one</a
+        >
+      </div>
+    {:else}
+      <ul class="space-y-3">
+        {#each exchanges.shown as e (b64(e.agreement_hash))}
+          {@const role = roleOf(e, me)}
+          {@const other = exchanges.nameOf(e)}
+          {@const give = role === 'provider' ? e.agreement.primary : e.agreement.reciprocal}
+          {@const get = role === 'provider' ? e.agreement.reciprocal : e.agreement.primary}
+          <li>
+            <a
+              class="card block space-y-3 p-4 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700"
+              href={paths.exchangeDetail(b64(e.agreement_hash))}
+            >
+              <div class="flex flex-wrap items-center gap-2 text-sm">
+                <span class="badge {exchangeStatusVariant(e.status)}">{statusLabel(e)}</span>
+                {#if turnOf(e, me) === 'you'}<span class="variant-filled-secondary badge"
+                    >{S.exchanges.yourTurn}</span
+                  >
+                {:else if turnOf(e, me) === 'them'}<span class="variant-soft-surface badge"
+                    >Waiting on {other ?? 'them'}</span
+                  >{/if}
+                {#if e.agreement.medium}<span class="variant-soft-surface badge"
+                    >{e.agreement.medium}</span
+                  >{/if}
+                <span class="text-surface-500"
+                  >{role === 'provider' ? 'You provide' : 'You receive'}</span
+                >
+                {#if isProposal(exchangeState(e))}
+                  <span class="text-surface-500"
+                    >Proposed by {wroteIt(e, me) ? 'you' : (other ?? '...')}</span
+                  >
+                {/if}
+                <span class="ml-auto text-xs text-surface-500"
+                  >{formatWhen(exchanges.lastActivity(e))}</span
+                >
+              </div>
+              <h3 class="h4">{exchanges.titleOf(e) ?? '...'}</h3>
+              <div class="flex flex-wrap items-center gap-2 text-sm">
+                <span>You give {termLabel(give)}</span>
+                <span class="text-surface-500">&#8646;</span>
+                <span>{other ?? 'They'} {other ? 'gives' : 'give'} {termLabel(get)}</span>
+              </div>
+              <div class="flex items-center gap-2 text-sm">
+                <span
+                  class="flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-xs text-white"
+                >
+                  {(other ?? '?')[0]}
+                </span>
+                <span>{other ?? '...'}</span>
+                <span class="variant-filled-primary btn btn-sm ml-auto"
+                  >{actionLabel(e, role)} &rarr;</span
+                >
+              </div>
+            </a>
+            <!--
+            Outside the card's anchor, not inside it: a link within a link is invalid and
+            the browser picks one for you. Go to chat is a second destination, so it gets
+            its own.
+          -->
+            <div class="flex flex-wrap items-center gap-2 px-4 pb-3">
+              <ReachPerson person={counterpartyOf(e, me)} />
+            </div>
+          </li>
+        {/each}
+      </ul>
+    {/if}
   {/if}
 </section>

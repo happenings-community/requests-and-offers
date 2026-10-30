@@ -4,6 +4,7 @@
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import { waitForHolochainConnection } from '$lib/utils/holochain-client.utils';
   import { Effect as E } from 'effect';
+  import { paths } from '$lib/paths';
 
   type Props = {
     serviceTypeActionHash?: ActionHash;
@@ -120,7 +121,7 @@
   const linkUrl = $derived(() => {
     if (!showLink || !serviceTypeActionHash) return null;
     const encodedHash = safeEncodeHash(serviceTypeActionHash);
-    return encodedHash ? `/service-types/${encodedHash}` : null;
+    return encodedHash ? paths.serviceTypeDetail(encodedHash) : null;
   });
 </script>
 

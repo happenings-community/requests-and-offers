@@ -5,6 +5,20 @@
   import type { AgentPubKey } from '@holochain/client';
   import usersStore from '$lib/stores/users.store.svelte';
   import hc from '$lib/services/HolochainClientService.svelte';
+  import messagingPresence from '$lib/services/messagingPresence.svelte';
+  // The layout is the one place that may see both sides of the seam, which is why the
+  // extension points are plugged in here and nowhere else (brief H4).
+  import { setReachPerson } from '$lib/extensions/reach-person';
+  import { setUnreadCount } from '$lib/extensions/unread-count';
+  import { setShareListing } from '$lib/extensions/share-listing';
+  import { setBackToChat } from '$lib/extensions/back-to-chat';
+  import { setFirstContact } from '$lib/extensions/first-contact';
+  import GoToChat from '$lib/components/messaging/GoToChat.svelte';
+  import ShareListing from '$lib/components/messaging/ShareListing.svelte';
+  import BackToConversation from '$lib/components/messaging/BackToConversation.svelte';
+  import FirstContactLink from '$lib/components/messaging/FirstContactLink.svelte';
+  import messagingStore from '$lib/stores/messaging.store.svelte';
+  import { unopenedConversations } from '$lib/utils/messaging-threads';
   import { initializeHotReload } from '@theweave/api';
   import weaveStore from '$lib/stores/weave.store.svelte';
   import {
@@ -32,6 +46,7 @@
   import { initializeToast } from '@/lib/utils/toast';
   import ApprovalWatcher from '$lib/components/users/ApprovalWatcher.svelte';
   import { Effect as E, pipe, Schedule, Duration } from 'effect';
+  import { paths } from '$lib/paths';
 
   type Props = {
     children: Snippet;
@@ -88,7 +103,7 @@
   }
 
   // Check if current route is admin
-  const isAdminRoute = $derived(page.url.pathname.startsWith('/admin'));
+  const isAdminRoute = $derived(page.url.pathname.startsWith(paths.admin()));
 
   storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
@@ -121,6 +136,83 @@
     },
     networkSeed: () => networkSeed,
     networkInfo: () => networkInfo
+  });
+
+  /**
+   * Plug messaging into the exchange pages and the nav bar (R121, brief H4).
+   *
+   * **Providers, not components**, because of when each answer is known: `setContext` runs
+   * now, while this layout initialises, and whether this network has messaging is read from
+   * the DNA a moment later in step 3. Both are read at render time instead, so one plug at
+   * init still answers correctly once the DNA has been read, and the pages re-render when
+   * it does.
+   *
+   * `isAbsent` is false until the DNA says otherwise, so a page that renders before step 3
+   * shows Go to chat rather than hiding it. A fault leaves it there too, which is the right
+   * way round: a chat link that fails is better than a network losing its messaging.
+   */
+  setReachPerson(() => (messagingPresence.isAbsent ? undefined : GoToChat));
+  /**
+   * No badge until something has actually been counted.
+   *
+   * `undefined` means "no badge", and it has to cover both cases honestly: a network
+   * without conversations, and the moment before the first load has returned. A zero there
+   * would be a claim nobody had checked yet, which is the same mistake as reading a failed
+   * check as an answer. An empty thread list is indistinguishable from an unread one, so
+   * the first load is what makes a count possible.
+   */
+  let counted = $state(false);
+  setUnreadCount(() => {
+    if (messagingPresence.isAbsent || !counted) return undefined;
+    return unopenedConversations(messagingStore.threads);
+  });
+  setShareListing(() => (messagingPresence.isAbsent ? undefined : ShareListing));
+  setBackToChat(() => (messagingPresence.isAbsent ? undefined : BackToConversation));
+  /**
+   * What a proposal puts on the network depends on who can read it, and that is a sentence
+   * about conversations, so a network without them says nothing and the formal page renders
+   * its link plainly.
+   */
+  setFirstContact(() => (messagingPresence.isAbsent ? undefined : FirstContactLink));
+
+  /**
+   * Keep the plugged-in count fresh, and only while there is messaging to count.
+   *
+   * This poll was the nav bar's, riding alongside its exchanges refresh. It belongs on this
+   * side of the seam now: the nav bar renders a number and owns no messaging timing, and an
+   * exchange page renders Go to chat without loading anything itself. Same fifteen seconds
+   * as before, and #51 still replaces it with a signal.
+   *
+   * Skipped entirely on a network without messaging, so an absent network makes no
+   * messaging calls at all — which is what makes the absent-mode hand test honest.
+   *
+   * **The outbox and the signals live here too, for the same reason.** A message held
+   * because the other person's devices could not be reached belongs to the member, not
+   * to the conversation it was typed in; retried only while that chat was open, it was
+   * never sent to anyone they did not go back to. So the retry timer, the browser's
+   * online event and the nudge-and-receipt listener are started once, with the poll,
+   * and stopped with it.
+   */
+  $effect(() => {
+    if (messagingPresence.isAbsent || !usersStore.currentUser) return;
+    const refresh = () =>
+      runEffect(messagingStore.loadConversations())
+        .then(() => {
+          counted = true;
+        })
+        .catch(() => {});
+    void refresh();
+    const interval = setInterval(refresh, 15000);
+    const stopRetrying = messagingStore.startRetrying();
+    const stopListening = messagingStore.listen();
+    const flush = () => void runEffect(messagingStore.flushOutbox());
+    window.addEventListener('online', flush);
+    return () => {
+      clearInterval(interval);
+      stopRetrying();
+      stopListening();
+      window.removeEventListener('online', flush);
+    };
   });
 
   // Step 1: Connect to Holochain with retry logic (exponential backoff, 3 attempts, 10s timeout)
@@ -207,6 +299,17 @@
         catch: (error) => new Error(`Failed to get network info: ${error}`)
       });
       networkInfo = info;
+
+      /**
+       * Tell the presence module what this network is (H2, R121).
+       *
+       * Whether messaging exists here was chosen at genesis and is fixed for the life of
+       * the DNA, so this is the only place that has to say it: one read, no re-asking, no
+       * timing of its own. If this step fails, `catchAll` below marks it skipped and
+       * nothing is handed over — presence stays "not read yet", which reads as present,
+       * because a fault is not absence.
+       */
+      yield* E.sync(() => messagingPresence.read(info.integrityZomeNames));
 
       yield* E.logInfo(`🌐 [3/4] Network Seed: ${networkSeed}`);
       console.log(`🌐 NETWORK SEED VERIFICATION: ${networkSeed}`);

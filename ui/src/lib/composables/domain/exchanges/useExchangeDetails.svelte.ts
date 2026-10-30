@@ -19,6 +19,7 @@ import {
 } from '$lib/utils/exchange-ui';
 import type { ReviewInput } from '$lib/types/holochain';
 import type { UIExchange, UIUser } from '$lib/types/ui';
+import { paths } from '$lib/paths';
 
 /**
  * One exchange: what it says, whose move it is, and the six things a party can
@@ -37,10 +38,7 @@ export function validateReview(input: ReviewInput): string | null {
 /** Where a counter-proposal is written, carrying the agreement's own context. */
 export function counterProposalHref(exchange: UIExchange): string {
   const { interest, listing, listing_type } = exchange.agreement;
-  return (
-    `/exchanges/propose?interest=${encodeHashToBase64(interest)}` +
-    `&listing=${encodeHashToBase64(listing)}&type=${listing_type}`
-  );
+  return paths.exchangePropose({ listing, type: listing_type, interest });
 }
 
 /** How often an open exchange page re-reads its exchange (#334). */

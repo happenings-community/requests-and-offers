@@ -13,6 +13,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { getMyAgentPubKey } from '$lib/utils/holochain-client.utils';
   import { Effect as E } from 'effect';
+  import { paths } from '$lib/paths';
 
   // State
   let isLoading = $state(true);
@@ -116,7 +117,7 @@
       });
 
       // Navigate back to the offer detail page
-      goto(`/offers/${offerId}`);
+      goto(paths.offerDetail(offerId!));
     } catch (err) {
       console.error('Failed to update offer:', err);
       toastStore.trigger({
@@ -235,10 +236,12 @@
     <div class="mb-6 flex items-center justify-between">
       <h1 class="h1">Edit Offer</h1>
       <div class="flex gap-2">
-        <button class="variant-soft btn" onclick={() => goto(`/offers/${offerId}`)}>
+        <button class="variant-soft btn" onclick={() => goto(paths.offerDetail(offerId!))}>
           Cancel
         </button>
-        <button class="variant-soft btn" onclick={() => goto('/offers')}> Back to Offers </button>
+        <button class="variant-soft btn" onclick={() => goto(paths.offers())}>
+          Back to Offers
+        </button>
       </div>
     </div>
 
@@ -267,7 +270,7 @@
           </p>
         </div>
         <div class="alert-actions">
-          <button class="variant-filled btn" onclick={() => goto(`/offers/${offerId}`)}>
+          <button class="variant-filled btn" onclick={() => goto(paths.offerDetail(offerId!))}>
             View Offer
           </button>
         </div>

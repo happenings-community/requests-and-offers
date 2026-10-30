@@ -1,4 +1,5 @@
 import type { ActionHash } from '@holochain/client';
+import { readFilter } from '$lib/paths';
 import type { UIOffer, BaseComposableState, UIUser } from '$lib/types/ui';
 // Note: Using local error types for now during bridge implementation
 import offersStore from '$lib/stores/offers.store.svelte';
@@ -46,7 +47,7 @@ export function useOffersManagement(): UseOffersManagement {
   // Initialize filter type from URL parameters
   const getInitialFilterType = (): 'all' | 'my' | 'organization' => {
     if (!page.url) return 'all';
-    const filterParam = page.url.searchParams.get('filter');
+    const filterParam = readFilter(page.url);
     if (filterParam === 'my' || filterParam === 'organization') {
       return filterParam;
     }
@@ -73,7 +74,7 @@ export function useOffersManagement(): UseOffersManagement {
   $effect(() => {
     if (!page.url || isChangingFilterProgrammatically) return;
 
-    const filterParam = page.url.searchParams.get('filter');
+    const filterParam = readFilter(page.url);
     if (filterParam === 'my' || filterParam === 'organization') {
       if (state.filterType !== filterParam) {
         state.filterType = filterParam;

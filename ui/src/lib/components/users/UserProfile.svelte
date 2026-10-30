@@ -30,6 +30,7 @@
   import { Effect as E } from 'effect';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import ProgenitorBadge from '$lib/components/users/ProgenitorBadge.svelte';
+  import { paths } from '$lib/paths';
 
   // Props
   let { user, isCurrentUser = false } = $props<{ user: UIUser; isCurrentUser?: boolean }>();
@@ -233,13 +234,13 @@
     <div class="mb-6 flex w-full items-center justify-between">
       <h1 class="h1">
         {#if isCurrentUser}
-          Welcome <span class="font-bold text-primary-500"><UserName user={user} /></span>!
+          Welcome <span class="font-bold text-primary-500"><UserName {user} /></span>!
         {:else}
-          <span class="font-bold text-primary-500"><UserName user={user} /></span>'s Profile
+          <span class="font-bold text-primary-500"><UserName {user} /></span>'s Profile
         {/if}
       </h1>
       {#if isCurrentUser}
-        <a href="/user/edit" class="variant-filled-primary btn">Edit Profile</a>
+        <a href={paths.myProfileEdit()} class="variant-filled-primary btn">Edit Profile</a>
       {/if}
     </div>
 
@@ -362,7 +363,7 @@
                       {/if}
                     </p>
                     {#if isCurrentUser}
-                      <a href="/organizations" class="variant-filled-primary btn"
+                      <a href={paths.organizations()} class="variant-filled-primary btn"
                         >Browse Organizations</a
                       >
                     {/if}
@@ -397,7 +398,7 @@
                 <div>
                   <h3 class="h3">{isCurrentUser ? 'My Requests' : 'Requests'}</h3>
                   {#if isCurrentUser && user.status?.status_type === 'accepted'}
-                    <a href="/requests/create" class="variant-filled-primary btn"
+                    <a href={paths.requestCreate()} class="variant-filled-primary btn"
                       >Create New Request</a
                     >
                   {/if}
@@ -455,7 +456,9 @@
                 <div>
                   <h3 class="h3">{isCurrentUser ? 'My Offers' : 'Offers'}</h3>
                   {#if isCurrentUser && user.status?.status_type === 'accepted'}
-                    <a href="/offers/create" class="variant-filled-primary btn">Create New Offer</a>
+                    <a href={paths.offerCreate()} class="variant-filled-primary btn"
+                      >Create New Offer</a
+                    >
                   {/if}
                 </div>
               </div>

@@ -4,6 +4,7 @@
   import { useOrganizationsManagement } from '$lib/composables';
   import OrganizationsTable from '$lib/components/organizations/OrganizationsTable.svelte';
   import OrganizationFilterControls from '$lib/components/organizations/OrganizationFilterControls.svelte';
+  import { paths } from '$lib/paths';
 
   const management = useOrganizationsManagement();
 
@@ -65,7 +66,7 @@
   <h1 class="h1 text-center">Organizations Management</h1>
 
   <div class="flex justify-center gap-4">
-    <a href="/admin/organizations/status-history" class="variant-ghost-secondary btn w-fit">
+    <a href={paths.adminOrganizationsStatusHistory()} class="variant-ghost-secondary btn w-fit">
       Status History
     </a>
     {#if !management.isLoading && management.error}

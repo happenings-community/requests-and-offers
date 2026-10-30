@@ -4,9 +4,9 @@
   import OrganizationDetailsModal from '$lib/components/organizations/OrganizationDetailsModal.svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { encodeHashToBase64 } from '@holochain/client';
   import { getOrganizationLogoUrl } from '$lib/utils';
   import { stripMarkdown } from '$lib/utils/markdown';
+  import { paths } from '$lib/paths';
 
   type Props = {
     organizations: UIOrganization[];
@@ -19,14 +19,14 @@
   const modalComponent: ModalComponent = { ref: OrganizationDetailsModal };
 
   function handleOrganizationAction(organization: UIOrganization) {
-    if ($page.url.pathname.startsWith('/admin')) {
+    if ($page.url.pathname.startsWith(paths.admin())) {
       modalStore.trigger({
         type: 'component',
         component: modalComponent,
         meta: { organization }
       });
     } else {
-      goto(`/organizations/${encodeHashToBase64(organization.original_action_hash!)}`);
+      goto(paths.organizationDetail(organization.original_action_hash!));
     }
   }
 </script>

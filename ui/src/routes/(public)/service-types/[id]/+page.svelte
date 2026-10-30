@@ -11,6 +11,7 @@
   import RequestCard from '$lib/components/requests/RequestCard.svelte';
   import OfferCard from '$lib/components/offers/OfferCard.svelte';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
+  import { paths } from '$lib/paths';
 
   // Local state
   let isLoading = $state(true);
@@ -169,7 +170,7 @@
 <section class="container mx-auto space-y-6 p-4">
   <!-- Navigation -->
   <div class="flex items-center justify-between">
-    <button class="variant-soft btn" onclick={() => goto('/service-types')}>
+    <button class="variant-soft btn" onclick={() => goto(paths.serviceTypes())}>
       ← Back to Service Types
     </button>
 
@@ -296,7 +297,7 @@
               {#if relatedRequests.length > 6}
                 <div class="pt-4 text-center">
                   <a
-                    href="/requests?service_type={encodeURIComponent(serviceType.name)}"
+                    href={paths.requests({ serviceType: serviceType.name })}
                     class="variant-soft-primary btn"
                   >
                     View All {relatedRequests.length} Requests
@@ -332,7 +333,7 @@
               {#if relatedOffers.length > 6}
                 <div class="pt-4 text-center">
                   <a
-                    href="/offers?service_type={encodeURIComponent(serviceType.name)}"
+                    href={paths.offers({ serviceType: serviceType.name })}
                     class="variant-soft-primary btn"
                   >
                     View All {relatedOffers.length} Offers
@@ -446,7 +447,7 @@
       <p class="mb-4 text-surface-600 dark:text-surface-400">
         The requested service type could not be found or may have been removed.
       </p>
-      <button class="variant-filled-primary btn" onclick={() => goto('/service-types')}>
+      <button class="variant-filled-primary btn" onclick={() => goto(paths.serviceTypes())}>
         Browse All Service Types
       </button>
     </div>

@@ -7,6 +7,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
+  import { paths } from '$lib/paths';
 
   const management = useOrganizationsManagement({ filter: 'accepted' });
   const { currentUser } = $derived(usersStore);
@@ -37,7 +38,7 @@
       // but we keep it for robustness.
       return;
     }
-    goto('/organizations/create');
+    goto(paths.organizationCreate());
   }
 </script>
 

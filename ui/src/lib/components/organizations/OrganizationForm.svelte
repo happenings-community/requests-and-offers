@@ -15,6 +15,7 @@
   import { encodeHashToBase64 } from '@holochain/client';
   import { runEffect } from '$lib/utils/effect';
   import type { Record as HcRecord } from '@holochain/client';
+  import { paths } from '$lib/paths';
 
   type Props = {
     mode: 'create' | 'edit';
@@ -135,7 +136,7 @@
       );
 
       const orgId = encodeHashToBase64(orgActionHash);
-      goto(`/organizations/${orgId}`);
+      goto(paths.organizationDetail(orgId));
     } catch (err) {
       error = 'Failed to create mocked organization';
       console.error('Mocked organization creation error:', err);
@@ -213,7 +214,7 @@
             organizationsStore.createOrganization(organizationData)
           );
           const orgId = encodeHashToBase64(record.signed_action.hashed.hash);
-          goto(`/organizations/${orgId}`);
+          goto(paths.organizationDetail(orgId));
         } else if (mode === 'edit' && organization?.original_action_hash) {
           const updatedOrganization = await runEffect(
             organizationsStore.updateOrganization(
@@ -228,7 +229,7 @@
               confirmLabel: 'Ok !'
             })
           );
-          goto('/organizations');
+          goto(paths.organizations());
         }
       }
 

@@ -205,6 +205,24 @@ export type CancellationInDHT = {
   note: string;
 };
 
+/**
+ * Every exchange status, in one place.
+ *
+ * The list exists so the places where status actually decides something — what a card
+ * says, and whose turn it is — can switch over it exhaustively with a `never` check, and
+ * fail to compile when a status is added. Keeping separate lists of "terminal" states
+ * beside each of them is how one gets forgotten.
+ */
+export const EXCHANGE_STATUSES = [
+  'Proposed',
+  'Agreed',
+  'OneSideDone',
+  'Complete',
+  'Reviewed',
+  'Declined',
+  'Cancelled'
+] as const;
+
 export type ExchangeStatus =
   | 'Proposed'
   | 'Agreed'

@@ -1,7 +1,6 @@
 use hdk::prelude::*;
-use messaging_integrity::{EntryTypes, LinkTypes, ReadMarker};
+use messaging_integrity::{EntryTypes, LinkTypes};
 
-use crate::blocks::{get_blocks, is_blocked};
 use crate::cases::CaseRef;
 use crate::external_calls::{check_if_entity_is_accepted, get_agent_user};
 use crate::message::MessageBody;
@@ -20,6 +19,15 @@ pub struct Message {
   pub to: AgentPubKey,
   pub at: Timestamp,
   pub content: String,
+  /// Matches copies of one message. Empty on anything written before send ids existed.
+  #[serde(default)]
+  pub send_id: String,
+  /// How far the sender has read in this conversation, if they are telling.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub read_up_to: Option<Timestamp>,
+  /// A listing published from this conversation, on a card-only message.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub listing: Option<ActionHash>,
   /// Which role this is addressed to, or sent as. `None` on a personal message, and the
   /// only thing that separates role traffic from chat: `get_inbox` drops every message
   /// that has one.
@@ -57,10 +65,8 @@ pub enum InboxEntry {
 
 /// Everything addressed to this agent that it is willing to show, as personal chat.
 ///
-/// Four filters, all on the reading side on purpose:
+/// Three filters, all on the reading side on purpose:
 ///
-/// - **Blocked authors are dropped.** Blocking is private to this chain, so no other
-///   node can apply it.
 /// - **Authors who are not accepted members *now* are dropped.** The sender-side check
 ///   in `send_message` passed when the message was written, but a status can change
 ///   afterwards, and a modified client could have skipped it. The recipient's own node
@@ -71,6 +77,13 @@ pub enum InboxEntry {
 /// - **Every role message is dropped here**, for everyone. Role traffic never mixes with
 ///   personal messages: a holder reaches it through `get_role_inbox`, and
 ///   a member through `get_my_role_correspondence`.
+///
+/// **Blocking is not one of these any more.** It was, from private `Block` entries on
+/// this agent's chain, and the comment here used to claim that made it private. That was
+/// false: a private entry hides its content but not its timing, and a `Block` committed
+/// moments after a message arrived named who had been blocked to anyone watching, since
+/// there was usually only one candidate. Blocking is now the reader's own app's business,
+/// applied once to this read and to every other.
 ///
 /// The last filter is unconditional, where #301's was administrators-only. It no longer
 /// depends on who is asking, so `get_inbox` makes no cross-zome call of its own.
@@ -231,7 +244,6 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
   // Both of these were once per message, which meant a full chain scan and two
   // cross-zome calls per message. The interface calls this on every app open, so the
   // block list is read once and each distinct author is checked once.
-  let blocked = get_blocks(())?.blocked;
   let mut authors = AuthorFacts::new();
   // Same reasoning for the role check: one cross-zome call per (author, role) whose role
   // is actually in question, rather than one per message. A case with forty notes from
@@ -247,9 +259,6 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
     };
 
     let from = record.action().author().clone();
-    if blocked.contains(&from) {
-      continue;
-    }
 
     if !authors.accepted(&from)? {
       continue;
@@ -279,6 +288,9 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
           to: me.clone(),
           at,
           content: body.content,
+          send_id: body.send_id,
+          read_up_to: body.read_up_to,
+          listing: body.listing,
           role: body.role,
           direction: body.direction,
           case: body.case,
@@ -316,8 +328,9 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
 pub enum MessageRead {
   /// Not on this agent's shard, or no such action.
   NotFound,
-  /// Held, and deliberately not shown: the author is blocked, or is not an accepted
-  /// member now.
+  /// Held, and deliberately not shown: the author is not an accepted member now, or is
+  /// claiming a role they do not hold. **Blocking is not among these any more**, and is
+  /// applied by the reader's own app instead.
   Withheld,
   /// Held, and this agent cannot decrypt it. The normal case for a copy encrypted to
   /// somebody else, including another of this member's own agents.
@@ -342,7 +355,7 @@ pub fn get_message(hash: ActionHash) -> ExternResult<MessageRead> {
   let from = record.action().author().clone();
 
   let mut authors = AuthorFacts::new();
-  if is_blocked(&from)? || !authors.accepted(&from)? {
+  if !authors.accepted(&from)? {
     return Ok(MessageRead::Withheld);
   }
 
@@ -376,6 +389,9 @@ pub fn get_message(hash: ActionHash) -> ExternResult<MessageRead> {
         to: me,
         at: record.action().timestamp(),
         content: body.content,
+        send_id: body.send_id,
+        read_up_to: body.read_up_to,
+        listing: body.listing,
         role: body.role,
         direction: body.direction,
         case: body.case,
@@ -435,6 +451,9 @@ pub fn get_sent(_: ()) -> ExternResult<Vec<Message>> {
         to,
         at: record.action().timestamp(),
         content: body.content,
+        send_id: body.send_id,
+        read_up_to: body.read_up_to,
+        listing: body.listing,
         role: body.role,
         direction: body.direction,
         case: body.case,
@@ -456,54 +475,70 @@ pub fn get_sent(_: ()) -> ExternResult<Vec<Message>> {
   Ok(out)
 }
 
-/// Record how far this agent has read in one conversation.
-///
-/// A private entry on this agent's own chain, so unread counts survive a restart
-/// without publishing anything about reading habits.
-///
-/// **`ReadMarker.conversation_id` now holds the counterparty's `User` hash**, because a
-/// thread is keyed by the person and nothing else. The field keeps its name:
-/// renaming it would change a private entry type in the integrity zome, and the brief
-/// says this part needs no integrity change. The name is wrong and the type is right.
-#[hdk_extern]
-pub fn mark_read(input: ReadMarker) -> ExternResult<()> {
-  create_entry(&EntryTypes::ReadMarker(input))?;
-  Ok(())
+/// What `find_sent` is asked.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FindSentInput {
+  pub send_id: String,
+  /// Only look at this agent's own actions from this time onwards.
+  pub since: Timestamp,
 }
 
-/// The latest read position per conversation, newest wins.
+/// Did this agent already send the message with this id?
+///
+/// **This is what replaces guessing after a send gets no answer.** A timeout tells us
+/// nothing about whether the call committed, so instead of deciding, the app looks: if
+/// the entry is on this agent's own chain the message was sent, and if it is not it was
+/// not. Nothing is retried on a guess and nothing is sent twice.
+///
+/// **Bounded by `since`**, which is when the outbox item was created. The chain query
+/// itself is local and cheap; what costs is fetching and decrypting each message, and
+/// nothing before `since` is touched. So the check does not get slower as a member's
+/// history grows, which matters because it runs on a failure path.
+///
+/// An empty `send_id` finds nothing. Messages written before send ids existed carry none,
+/// and matching them all on emptiness would report any old message as this one.
 #[hdk_extern]
-pub fn get_read_markers(_: ()) -> ExternResult<Vec<ReadMarker>> {
+pub fn find_sent(input: FindSentInput) -> ExternResult<Option<ActionHash>> {
+  if input.send_id.is_empty() {
+    return Ok(None);
+  }
+  let me = agent_info()?.agent_initial_pubkey;
+
   let records = query(
     ChainQueryFilter::new()
-      .include_entries(true)
-      .action_type(ActionType::Create),
+      .include_entries(false)
+      .action_type(ActionType::CreateLink),
   )?;
 
-  let mut latest: Vec<ReadMarker> = Vec::new();
-
-  for record in records {
-    let Some(EntryType::App(def)) = record.action().entry_type() else {
+  for link_record in records {
+    if link_record.action().timestamp() < input.since {
+      continue;
+    }
+    let ActionData::CreateLink(create_link) = &link_record.action().data else {
       continue;
     };
-    let Some(entry) = record.entry().as_option() else {
+    match LinkTypes::from_type(create_link.zome_index, create_link.link_type)? {
+      Some(LinkTypes::Inbox) => (),
+      _ => continue,
+    }
+    let Some(to) = create_link.base_address.clone().into_agent_pub_key() else {
       continue;
     };
-    if let Some(EntryTypes::ReadMarker(marker)) =
-      EntryTypes::deserialize_from_type(*def.zome_index, def.entry_index, entry)?
-    {
-      match latest
-        .iter_mut()
-        .find(|m| m.conversation_id == marker.conversation_id)
-      {
-        Some(existing) if existing.up_to < marker.up_to => *existing = marker,
-        Some(_) => (),
-        None => latest.push(marker),
+    let Some(hash) = create_link.target_address.clone().into_action_hash() else {
+      continue;
+    };
+    let Some(record) = get(hash.clone(), GetOptions::default())? else {
+      continue;
+    };
+    if let Some(body) = decrypt_body(&record, me.clone(), to)? {
+      if body.send_id == input.send_id {
+        return Ok(Some(hash));
       }
     }
   }
 
-  Ok(latest)
+  Ok(None)
 }
 
 /// Decrypt one stored message, or `None` if this agent cannot read it.

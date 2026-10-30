@@ -13,50 +13,28 @@ pub struct EncryptedMessage {
   pub encrypted: XSalsa20Poly1305EncryptedData,
 }
 
-/// A private note on the author's own chain that they have blocked an agent.
-///
-/// Blocks are per agent rather than per member, because an agent key is what a
-/// signal and a link carry. Nothing about a block is published.
-#[derive(Clone, PartialEq)]
-#[hdk_entry_helper]
-pub struct Block {
-  pub agent: AgentPubKey,
-}
-
-/// The reverse of a `Block`, also private. Both are kept rather than the block
-/// being deleted, so a member can see who they blocked before and undo a mistake:
-/// current state is whichever of the two is later for a given agent.
-#[derive(Clone, PartialEq)]
-#[hdk_entry_helper]
-pub struct Unblock {
-  pub agent: AgentPubKey,
-}
-
-/// How far the author has read in one conversation. Private, and never used by
-/// validation: it exists so unread counts survive a restart.
-#[derive(Clone, PartialEq)]
-#[hdk_entry_helper]
-pub struct ReadMarker {
-  pub conversation_id: String,
-  pub up_to: Timestamp,
-}
-
 /// Largest ciphertext this zome will accept, derived from the plaintext bounds the
 /// coordinator enforces rather than picked for roundness.
 ///
-/// The plaintext is a msgpack map of `content` (up to 16 KiB, matching
-/// `MAX_CONTENT_BYTES`) and, on a role message, a role reference, a direction and a
-/// case reference: a `case_id` of up to `MAX_CASE_ID_BYTES`, the opener's `User`
-/// hash, a kind and an event, the largest of which carries one more `ActionHash`.
-/// Allowing for msgpack's field names and length prefixes that is a little under
-/// 16.5 KiB, and crypto_box adds a 16-byte authentication tag. The nonce is a
-/// separate fixed-size field of `XSalsa20Poly1305EncryptedData` and is not counted
-/// here.
+/// The plaintext is a msgpack map, and the worst case is a **role message**: `content`
+/// at `MAX_CONTENT_BYTES` (16 KiB), a `send_id` at `MAX_SEND_ID_BYTES` (64), a role
+/// reference whose largest form is a named permission at `MAX_PERMISSION_BYTES` (64), a
+/// direction, and a case reference carrying a `case_id` at `MAX_CASE_ID_BYTES` (64), the
+/// opener's `User` hash, a kind, and an event whose largest form holds one more
+/// `ActionHash`.
 ///
-/// The conversation ID this was once derived from is gone: a thread is keyed by the
-/// counterparty and carries no context. Replacing its 256 bytes with the case fields
-/// moved the worst case slightly *down*, so the constant below did not have to move
-/// and no message that used to fit stops fitting.
+/// Adding msgpack's camelCase field names and length prefixes, that is about 16,803
+/// bytes, and crypto_box adds a 16-byte authentication tag: **about 16,819 against the
+/// 17,408 below, leaving roughly 580 bytes spare.** The nonce is a separate fixed-size
+/// field of `XSalsa20Poly1305EncryptedData` and is not counted here.
+///
+/// A personal message is far smaller, and the two fields added to it here cannot both
+/// grow: `listing` is only ever set on a card-only message, whose `content` is empty,
+/// which `send_message` enforces. `read_up_to` is a timestamp.
+///
+/// The constant has not moved since it was first derived from a conversation ID and a
+/// content bound. Each reshape since has fitted inside it, which is why no message that
+/// used to fit has ever stopped fitting.
 ///
 /// 17 KiB leaves a few hundred bytes of headroom for the encoding rather than
 /// sitting exactly on the arithmetic, because a validation rule that rejects a

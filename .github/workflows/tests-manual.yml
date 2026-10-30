@@ -92,6 +92,7 @@ jobs:
           - administration_successive_profile_updates
           - messaging
           - messaging_inbox
+          - messaging_roles
     steps:
       - uses: actions/checkout@v5
         with:

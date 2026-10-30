@@ -132,7 +132,9 @@
         <table class="w-full">
           <thead>
             <tr>
-              <th class="bg-surface-100-800-token text-surface-900-50-token px-4 py-3 font-medium">
+              <th
+                class="bg-surface-100-800-token text-surface-900-50-token px-4 py-3 text-left font-medium"
+              >
                 {#if sorting}
                   <button
                     class="flex items-center space-x-1 transition-colors hover:text-primary-600 {sorting.isSortedBy(
@@ -151,10 +153,12 @@
                 {/if}
               </th>
               <th
-                class="bg-surface-100-800-token text-surface-900-50-token hidden max-w-[120px] px-4 py-3 font-medium sm:table-cell md:max-w-none"
+                class="bg-surface-100-800-token text-surface-900-50-token hidden max-w-[120px] px-4 py-3 text-left font-medium sm:table-cell md:max-w-none"
                 >Description</th
               >
-              <th class="px-4 py-3 font-medium">
+              <th
+                class="bg-surface-100-800-token text-surface-900-50-token px-4 py-3 text-left font-medium"
+              >
                 {#if sorting}
                   <button
                     class="flex items-center space-x-1 transition-colors hover:text-primary-500 {sorting.isSortedBy(
@@ -173,7 +177,7 @@
                 {/if}
               </th>
               <th
-                class="bg-surface-100-800-token text-surface-900-50-token hidden px-4 py-3 font-medium md:table-cell"
+                class="bg-surface-100-800-token text-surface-900-50-token hidden px-4 py-3 text-left font-medium md:table-cell"
               >
                 {#if sorting}
                   <button
@@ -193,7 +197,7 @@
                 {/if}
               </th>
               <th
-                class="bg-surface-100-800-token text-surface-900-50-token hidden px-4 py-3 font-medium md:table-cell"
+                class="bg-surface-100-800-token text-surface-900-50-token hidden px-4 py-3 text-left font-medium md:table-cell"
               >
                 {#if sorting}
                   <button

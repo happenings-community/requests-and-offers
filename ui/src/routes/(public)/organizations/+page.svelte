@@ -41,7 +41,7 @@
   }
 </script>
 
-<section class="flex flex-col gap-8">
+<section class="container mx-auto flex flex-col gap-8 p-4">
   <h1 class="h1 text-center">Organizations</h1>
 
   {#if management.error}

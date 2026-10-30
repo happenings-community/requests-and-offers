@@ -356,15 +356,27 @@ const createEventHandlers = (
   handleOfferUpdatedFn: (offer: UIOffer) => E.Effect<Proposal | null, HreaError>,
   retryPendingProposals: () => void
 ) => {
+  // The two "accepted" lines below are what the e2e specs wait for: they come only
+  // from the accept event, never from the hREA Test page's retroactive mapping,
+  // which creates any missing agent itself and so cannot show this path worked.
   const handleUserAccepted = (user: UIUser) => {
     pipe(createPersonFromUser(user), E.runPromise)
-      .then(() => retryPendingProposals())
+      .then((agent) => {
+        if (agent) console.log(`hREA Store: accepted user "${user.name}" has a person agent`);
+        retryPendingProposals();
+      })
       .catch((err) => console.error('hREA Store: Failed to create person agent:', err));
   };
 
   const handleOrganizationAccepted = (organization: UIOrganization) => {
     pipe(createOrganizationFromOrg(organization), E.runPromise)
-      .then(() => retryPendingProposals())
+      .then((agent) => {
+        if (agent)
+          console.log(
+            `hREA Store: accepted organization "${organization.name}" has an organization agent`
+          );
+        retryPendingProposals();
+      })
       .catch((err) => console.error('hREA Store: Failed to create organization agent:', err));
   };
 

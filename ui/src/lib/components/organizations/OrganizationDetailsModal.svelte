@@ -52,13 +52,6 @@
 
 <article class="hcron-modal">
   {#if organization}
-    {#if isAdminPage}
-      <!-- Admin Actions -->
-      <div class="mb-6">
-        <ActionBar entity={organization} />
-      </div>
-    {/if}
-
     <!-- Header Section -->
     <div class="mb-6 flex flex-col items-center gap-6">
       <div class="shrink-0">
@@ -165,6 +158,13 @@
         </div>
       {/if}
     </div>
+
+    <!-- Admin actions and the decision come after the whole application (#331) -->
+    {#if isAdminPage}
+      <div class="mt-6 border-t border-surface-500 pt-6">
+        <ActionBar entity={organization} />
+      </div>
+    {/if}
   {:else}
     <div class="py-8 text-center text-surface-500">
       <p>No organization details available</p>
@@ -184,6 +184,15 @@
     >
       View Full Details
     </button>
-    <button class="variant-filled-surface btn" onclick={() => modalStore.close()}> Close </button>
+    <button
+      class="variant-filled-surface btn"
+      onclick={() => {
+        // Let the opener refresh, as backdrop and Escape already do.
+        $modalStore[0]?.response?.(false);
+        modalStore.close();
+      }}
+    >
+      Close
+    </button>
   </div>
 </article>

@@ -21,6 +21,7 @@
   import { useErrorBoundary } from '$lib/composables/ui/useErrorBoundary.svelte';
   import { ADMINISTRATION_CONTEXTS } from '$lib/errors/error-contexts';
   import ErrorDisplay from '$lib/components/shared/ErrorDisplay.svelte';
+  import { cleanReason } from '$lib/utils/admin-contacts';
 
   type Props = {
     entity: UIUser | UIOrganization;
@@ -147,10 +148,14 @@
       response: async (response) => {
         if (!response) return;
 
-        if (meta.id === 'suspend-temporarily') {
-          await handleSuspendTemporarily(response.data);
-        } else {
-          await handleSuspendIndefinitely(response.data);
+        // Each prompt routes by its own id; nothing falls through to a suspension.
+        switch (meta.id) {
+          case 'suspend-temporarily':
+            await handleSuspendTemporarily(response.data);
+            break;
+          case 'suspend-indefinitely':
+            await handleSuspendIndefinitely(response.data);
+            break;
         }
 
         modalStore.close();
@@ -175,11 +180,12 @@
               break;
             case 'accept-user':
             case 'accept-organization':
-              await updateStatus({ status_type: 'accepted' });
+              await acceptEntity();
               break;
             case 'reject-user':
             case 'reject-organization':
-              await updateStatus({ status_type: 'rejected' });
+              await updateStatus({ status_type: 'rejected', reason: cleanReason(decisionNote) });
+              decisionNote = '';
               break;
           }
 
@@ -212,13 +218,70 @@
     );
   }
 
+  // The decision on a pending application is made at the bottom of the details
+  // screen, after the whole application (#331). One message box serves both a
+  // request for more information (required) and a rejection reason (optional).
+  let decisionNote = $state('');
+  const hasDecisionNote = $derived(decisionNote.trim().length > 0);
+
+  async function approveApplication() {
+    await acceptEntity();
+  }
+
+  // Accepting goes through approveUser and approveOrganization rather than a
+  // plain status update: they also announce the acceptance (user:accepted,
+  // organization:accepted), which is what the hREA store listens for to create
+  // the member's or organisation's agent. A plain update was accepted in the
+  // DNA with no agent until something else synced it (#339 review). The latest
+  // status read on mount stands in for the entity's own, which may be stale.
+  async function acceptEntity() {
+    if (!userStatus?.original_action_hash) {
+      toastStore.trigger({
+        message: 'Status information is missing. Please refresh and try again.',
+        background: 'variant-filled-error'
+      });
+      return;
+    }
+    const acceptance =
+      entityType === AdministrationEntity.Users
+        ? administrationStore.approveUser({ ...(entity as UIUser), status: userStatus })
+        : administrationStore.approveOrganization({
+            ...(entity as UIOrganization),
+            status: userStatus
+          });
+    const result = await updateErrorBoundary.execute(acceptance);
+    toastStore.trigger(
+      result !== null
+        ? {
+            message: `${entityType === AdministrationEntity.Users ? 'User' : 'Organization'} status updated successfully.`,
+            background: 'variant-filled-success'
+          }
+        : {
+            message: 'Failed to update status. Please try again.',
+            background: 'variant-filled-error'
+          }
+    );
+  }
+
+  async function requestInformation() {
+    const reason = cleanReason(decisionNote);
+    if (!reason) return;
+    // Stays pending: the request is recorded as the status reason.
+    await updateStatus({ status_type: 'pending', reason });
+    decisionNote = '';
+  }
+
   function handleRejectModal() {
     queueAndReverseModal(
       confirmModal({
         id: entityType === AdministrationEntity.Users ? 'reject-user' : 'reject-organization',
-        message: `Are you sure you want to reject this ${entityType === AdministrationEntity.Users ? 'user' : 'organization'}?`,
-        confirmLabel: 'Yes',
-        cancelLabel: 'No'
+        message: `Reject this ${entityType === AdministrationEntity.Users ? 'user' : 'organization'}? ${
+          hasDecisionNote
+            ? 'Your message is shown to them as the reason.'
+            : 'No reason will be given.'
+        }`,
+        confirmLabel: 'Reject',
+        cancelLabel: 'Cancel'
       }),
       modalStore
     );
@@ -245,7 +308,7 @@
     );
   }
 
-  async function updateStatus(newStatus: { status_type: string }) {
+  async function updateStatus(newStatus: { status_type: string; reason?: string }) {
     const statusType = newStatus.status_type as StatusType;
 
     console.log('Debug ActionBar - updateStatus called:', {
@@ -273,13 +336,13 @@
             entity.original_action_hash!,
             userStatus.original_action_hash,
             previousActionHash,
-            { status_type: statusType }
+            { status_type: statusType, reason: newStatus.reason }
           )
         : administrationStore.updateOrganizationStatus(
             entity.original_action_hash!,
             userStatus.original_action_hash,
             previousActionHash,
-            { status_type: statusType }
+            { status_type: statusType, reason: newStatus.reason }
           );
 
     // Use error boundary for the update operation
@@ -483,15 +546,9 @@
     <button class="variant-filled-tertiary btn rounded-lg" onclick={handleStatusHistoryModal}>
       Status History
     </button>
-    {#if userStatus?.status_type === 'pending' || userStatus?.status_type === 'rejected'}
+    {#if userStatus?.status_type === 'rejected'}
       <button class="variant-filled-success btn rounded-lg" onclick={handleAcceptModal}>
         Accept
-      </button>
-    {/if}
-
-    {#if userStatus?.status_type === 'pending'}
-      <button class="variant-filled-error btn rounded-lg" onclick={handleRejectModal}>
-        Reject
       </button>
     {/if}
 
@@ -517,3 +574,43 @@
     {/if}
   {/if}
 </div>
+
+{#if page.url.pathname !== '/admin/administrators' && userStatus?.status_type === 'pending'}
+  <!-- Decision on a pending application, after the whole application (#331) -->
+  <section class="card mt-6 space-y-4 p-4" aria-labelledby="application-decision">
+    <h3 id="application-decision" class="h4">Decision</h3>
+    <label class="label">
+      <span>Message to the applicant</span>
+      <textarea
+        class="textarea"
+        rows="3"
+        bind:value={decisionNote}
+        placeholder={entityType === AdministrationEntity.Users
+          ? 'What you need to know, or why the application is declined'
+          : 'Why the application is declined'}
+      ></textarea>
+    </label>
+    <p class="text-sm text-surface-400">
+      {entityType === AdministrationEntity.Users
+        ? 'Needed to request more information; optional when rejecting; not sent when approving.'
+        : 'Optional when rejecting; not sent when approving.'}
+    </p>
+    <div class="flex flex-wrap justify-center gap-4">
+      <button class="variant-filled-success btn rounded-lg" onclick={approveApplication}>
+        Approve
+      </button>
+      {#if entityType === AdministrationEntity.Users}
+        <button
+          class="variant-filled-warning btn rounded-lg"
+          onclick={requestInformation}
+          disabled={!hasDecisionNote}
+        >
+          Request more information
+        </button>
+      {/if}
+      <button class="variant-filled-error btn rounded-lg" onclick={handleRejectModal}>
+        Reject
+      </button>
+    </div>
+  </section>
+{/if}

@@ -1,6 +1,9 @@
 pub mod dna_properties;
 pub mod errors;
 pub mod types;
+/// Host-only helpers for calling an integrity zome's `validate` with one op.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod validation_harness;
 
 pub use dna_properties::DnaProperties;
 use errors::CommonError;
@@ -45,14 +48,14 @@ pub fn find_original_action_hash(action_hash: ActionHash) -> ExternResult<Origin
     let record = get(current_hash.clone(), GetOptions::default())?
       .ok_or(CommonError::RecordNotFound("entity".to_string()))?;
 
-    match record.action().clone() {
-      Action::Create(_) => {
+    match &record.action().data {
+      ActionData::Create(_) => {
         // This is the original creation action
         return Ok(OriginalActionHash(current_hash));
       }
-      Action::Update(update_action) => {
+      ActionData::Update(update_action) => {
         // This is an update, continue traversing backwards
-        current_hash = update_action.original_action_address;
+        current_hash = update_action.original_action_address.clone();
       }
       _ => {
         // Unexpected action type

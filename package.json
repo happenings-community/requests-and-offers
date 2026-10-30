@@ -38,7 +38,7 @@
     "build:ui": "cd ui && bun run build"
   },
   "devDependencies": {
-    "@holochain/hc-spin": "^0.601.3",
+    "@holochain/hc-spin": "^0.700.0",
     "@theweave/cli": "0.15.10",
     "caniuse-lite": "^1.0.30001735",
     "concurrently": "^6.5.1",
@@ -48,8 +48,5 @@
   },
   "workspaces": [
     "ui"
-  ],
-  "patchedDependencies": {
-    "@valueflows/vf-graphql-holochain@0.600.0-rc.0": "patches/@valueflows%2Fvf-graphql-holochain@0.600.0-rc.0.patch"
-  }
+  ]
 }

@@ -86,18 +86,9 @@ pub fn validate_user(user: User) -> ExternResult<ValidateCallbackResult> {
   Ok(ValidateCallbackResult::Valid)
 }
 
-pub fn validate_update_user(
-  _action: Update,
-  _user: User,
-  _original_action: EntryCreationAction,
-  _original_user: User,
-) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Valid)
-}
-
 pub fn validate_delete_user(
   _action: Delete,
-  _original_action: EntryCreationAction,
+  _original_action: TypedAction<EntryCreationData>,
   _original_user: User,
 ) -> ExternResult<ValidateCallbackResult> {
   Ok(ValidateCallbackResult::Invalid(String::from(
@@ -106,7 +97,7 @@ pub fn validate_delete_user(
 }
 
 pub fn validate_create_link_user_updates(
-  _action: CreateLink,
+  _action: TypedAction<CreateLinkData>,
   base_address: AnyLinkableHash,
   target_address: AnyLinkableHash,
   _tag: LinkTag,
@@ -134,8 +125,8 @@ pub fn validate_create_link_user_updates(
 }
 
 pub fn validate_delete_link_user_updates(
-  _action: DeleteLink,
-  _original_action: CreateLink,
+  _action: TypedAction<DeleteLinkData>,
+  _original_action: TypedAction<CreateLinkData>,
   _base: AnyLinkableHash,
   _target: AnyLinkableHash,
   _tag: LinkTag,

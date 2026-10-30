@@ -48,7 +48,7 @@ permissions:
 
 jobs:
   sweettest:
-    # One job per test binary, not one job for all fourteen.
+    # One job per test binary, not one job for all of them.
     #
     # The single-job version was measured and it does not work: run 34930626083
     # ran 2h13m, passed 28 tests with zero failures, and was killed by "the
@@ -57,7 +57,7 @@ jobs:
     # verdict is not a check, whatever the tests do.
     #
     # Splitting turns roughly three serial hours into one job's worth of wall
-    # clock, because the binaries run on fourteen runners at once. Each leg
+    # clock, because the binaries run on separate runners at once. Each leg
     # still pays the compile, which is why exactly one of them saves the cache
     # below; every later run restores it.
     name: Sweettest (${{ matrix.target }})
@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:
-      # One red binary must not cancel the other thirteen. Same reason the
+      # One red binary must not cancel the others. Same reason the
       # command carries --no-fail-fast.
       fail-fast: false
       matrix:
@@ -84,11 +84,13 @@ jobs:
           - offers
           - exchanges
           - mediums_of_exchange
+          - record_op_premise
           - administration_administrator_management
           - administration_progenitor
           - administration_status_management
           - administration_profile_status_consistency
           - administration_successive_profile_updates
+          - messaging
     steps:
       - uses: actions/checkout@v5
         with:
@@ -104,7 +106,7 @@ jobs:
           name: holochain-ci
 
       # shared-key, not key: every matrix leg must read and write ONE cache
-      # entry, or fourteen multi-gigabyte copies blow the repository's cache
+      # entry, or a multi-gigabyte copy per leg blows the repository's cache
       # quota. save-if picks a single writer for the same reason.
       #
       # workspaces points at target/native-tests because that is where the run
@@ -122,7 +124,7 @@ jobs:
         with:
           bun-version: '1.4.2'
 
-      # Only one leg removes the label. Fourteen concurrent DELETEs would all
+      # Only one leg removes the label. A DELETE from every leg at once would all
       # succeed or all no-op, but the log noise hides real failures.
       - name: Remove the trigger label so it can be applied again
         if: github.event_name == 'pull_request' && matrix.target == 'misc'
@@ -133,6 +135,9 @@ jobs:
           gh api -X DELETE \
             "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/${{ github.event.label.name }}" \
             || echo "label already removed"
+
+      - name: Verify vendored tarballs
+        run: cd vendor && sha256sum -c valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz.sha256
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -196,10 +201,16 @@ jobs:
             cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} --no-run
             mapfile -t cases < <(cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} -- --list | sed -n "s/: test$//p")
             echo "${#cases[@]} tests in ${{ matrix.target }}"
+            # --show-output because libtest hides the output of a passing test, and
+            # some of these tests print measurements that are only interesting
+            # when they pass: the messaging suite logs how long each recipient
+            # took to receive its signal, which is how its deadline gets set from
+            # this runner rather than from a developer machine. Each case is
+            # already folded into its own ::group::, so this costs no noise.
             failed=()
             for case in "${cases[@]}"; do
               echo "::group::$case"
-              cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} -- --exact "$case" || failed+=("$case")
+              cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} -- --exact "$case" --show-output || failed+=("$case")
               echo "::endgroup::"
             done
             if [ "${#failed[@]}" -ne 0 ]; then
@@ -210,7 +221,7 @@ jobs:
           '
 
   # One stable check name over the matrix, so a reviewer reads a single verdict
-  # and branch protection has one thing to require instead of fourteen.
+  # and branch protection has one thing to require instead of one per leg.
   sweettest-result:
     name: Sweettest (Rust integration)
     needs: sweettest
@@ -262,6 +273,9 @@ jobs:
           gh api -X DELETE \
             "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/${{ github.event.label.name }}" \
             || echo "label already removed"
+
+      - name: Verify vendored tarballs
+        run: cd vendor && sha256sum -c valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz.sha256
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

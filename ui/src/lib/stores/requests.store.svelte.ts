@@ -140,7 +140,7 @@ const createUIRequest = createUIEntityFromRecord<RequestInDHT, UIRequest>(
       // Holochain action timestamps are microseconds; UI dates are milliseconds.
       created_at: Math.floor(timestamp / 1000),
       updated_at: Math.floor(timestamp / 1000),
-      service_type_hashes: serviceTypeHashes,
+      service_type_hash: serviceTypeHashes[0],
       medium_of_exchange_hashes: mediumOfExchangeHashes,
       // Field for permission checking fallback
       authorPubKey
@@ -157,7 +157,7 @@ const processRecord = (
   requestsService: RequestsService
 ): E.Effect<UIRequest, RequestError, never> => {
   const requestHash = record.signed_action.hashed.hash;
-  const authorPubKey = record.signed_action.hashed.content.author;
+  const authorPubKey = record.signed_action.hashed.content.header.author;
 
   return pipe(
     E.all({
@@ -231,9 +231,10 @@ const createEnhancedUIRequest = (
  */
 const convertRequestInputForService = (input: RequestInput): RequestInput => ({
   ...input,
-  service_type_hashes: input.service_type_hashes.map((hash) =>
-    typeof hash === 'string' ? hash : actionHashToSchemaType(hash)
-  ),
+  service_type_hash:
+    typeof input.service_type_hash === 'string'
+      ? input.service_type_hash
+      : actionHashToSchemaType(input.service_type_hash),
   medium_of_exchange_hashes: input.medium_of_exchange_hashes.map((hash) =>
     typeof hash === 'string' ? hash : actionHashToSchemaType(hash)
   )
@@ -336,12 +337,12 @@ export const createRequestsStore = (): E.Effect<
           ),
           E.tap((record) =>
             E.sync(() => {
-              const authorPubKey = record.signed_action.hashed.content.author;
+              const authorPubKey = record.signed_action.hashed.content.header.author;
               const creator = usersStore.currentUser?.original_action_hash;
               const entity = createUIRequest(record, {
                 authorPubKey,
                 creator,
-                serviceTypeHashes: request.service_type_hashes,
+                serviceTypeHashes: [request.service_type_hash],
                 mediumOfExchangeHashes: request.medium_of_exchange_hashes
               });
               if (entity) {

@@ -236,6 +236,7 @@
     const confirmed = await new Promise<boolean>((resolve) => {
       modalStore.trigger({
         type: 'component',
+        title: 'Delete service type',
         component: confirmModalComponent,
         meta: {
           message:
@@ -257,6 +258,7 @@
     const confirmed = await new Promise<boolean>((resolve) => {
       modalStore.trigger({
         type: 'component',
+        title: 'Reject service type',
         component: confirmModalComponent,
         meta: {
           message:
@@ -325,7 +327,7 @@
   {:else if isLoading}
     <div class="flex h-64 items-center justify-center">
       <span class="loading loading-spinner text-primary"></span>
-      <p class="ml-4">Loading service type...</p>
+      <p role="status" class="ml-4">Loading service type...</p>
     </div>
   {:else if serviceType}
     <!-- Main Content -->
@@ -461,7 +463,7 @@
           {#if loadingRelatedContent}
             <div class="flex items-center justify-center py-8">
               <span class="loading loading-spinner loading-sm"></span>
-              <p class="ml-2">Loading related requests...</p>
+              <p role="status" class="ml-2">Loading related requests...</p>
             </div>
           {:else if relatedRequests.length === 0}
             <p class="py-4 text-surface-500 dark:text-surface-300">No requests are currently using this service type.</p>
@@ -497,7 +499,7 @@
           {#if loadingRelatedContent}
             <div class="flex items-center justify-center py-8">
               <span class="loading loading-spinner loading-sm"></span>
-              <p class="ml-2">Loading related offers...</p>
+              <p role="status" class="ml-2">Loading related offers...</p>
             </div>
           {:else if relatedOffers.length === 0}
             <p class="py-4 text-surface-500 dark:text-surface-300">No offers are currently using this service type.</p>

@@ -103,6 +103,7 @@
   const confirmModal = (meta: ConfirmModalMeta, user: UIUser): ModalSettings => {
     return {
       type: 'component',
+      title: 'Add administrator',
       component: confirmModalComponent,
       meta,
       async response(r: boolean) {
@@ -150,8 +151,9 @@
   <header class="mb-4">
     <h3 class="h3">Add Administrator</h3>
     <div class="input-group input-group-divider mt-4 grid-cols-[auto_1fr_auto]">
-      <div class="input-group-shim">🔍</div>
+      <div class="input-group-shim" aria-hidden="true">🔍</div>
       <input
+        aria-label="Search users"
         type="search"
         placeholder="Search users..."
         bind:value={searchInput}

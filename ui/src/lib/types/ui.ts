@@ -233,13 +233,19 @@ export interface UseModalOptions {
 
 // Modal composable actions
 export interface UseModalActions {
-  open: (component: SvelteComponentType, props?: Record<string, unknown>) => Promise<unknown>;
+  open: (
+    component: SvelteComponentType,
+    title: string,
+    props?: Record<string, unknown>
+  ) => Promise<unknown>;
   close: (result?: unknown) => void;
   confirm: (message: string, options?: ConfirmOptions) => Promise<boolean>;
 }
 
 // Confirm modal options
 export interface ConfirmOptions {
+  /** Names the dialog for assistive technology; defaults to the confirm label. */
+  title?: string;
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: 'danger' | 'warning' | 'info';

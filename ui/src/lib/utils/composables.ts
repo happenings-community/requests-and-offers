@@ -22,13 +22,16 @@ export function useModal(options: UseModalOptions = {}): UseModalActions {
   const { autoFocus = true, closeOnEscape = true, closeOnOutsideClick = true } = options;
 
   // Open a modal with a component
+  // The title names the dialog for assistive technology (Skeleton's aria-label); a component modal does not show it.
   const open = (
     component: SvelteComponentType,
+    title: string,
     props: Record<string, unknown> = {}
   ): Promise<unknown> => {
     return new Promise((resolve) => {
       modalStore.trigger({
         type: 'component',
+        title: title,
         component: { ref: component, props },
         response: (result: unknown) => resolve(result)
       });
@@ -45,13 +48,14 @@ export function useModal(options: UseModalOptions = {}): UseModalActions {
     message: string,
     options: ConfirmOptions = {}
   ): E.Effect<boolean, never> => {
-    const { confirmLabel = 'Confirm', cancelLabel = 'Cancel', variant = 'info' } = options;
+    const { title, confirmLabel = 'Confirm', cancelLabel = 'Cancel', variant = 'info' } = options;
 
     return E.promise<boolean>(
       () =>
         new Promise((resolve) => {
           modalStore.trigger({
             type: 'component',
+            title: title ?? confirmLabel,
             component: { ref: ConfirmModal },
             meta: {
               id: crypto.randomUUID(),

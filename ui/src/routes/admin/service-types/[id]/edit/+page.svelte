@@ -38,7 +38,7 @@
   {:else if isLoading}
     <div class="flex h-64 items-center justify-center">
       <span class="loading loading-spinner text-primary"></span>
-      <p class="ml-4">Loading service type...</p>
+      <p role="status" class="ml-4">Loading service type...</p>
     </div>
   {:else if serviceType}
     <div class="card p-6">

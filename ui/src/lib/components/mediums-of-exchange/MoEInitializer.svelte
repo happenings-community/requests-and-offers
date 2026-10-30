@@ -181,6 +181,7 @@
   <div class="card p-4">
     <div class="flex items-center justify-center space-x-2">
       <div
+        aria-hidden="true"
         class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-500 dark:border-primary-400"
       ></div>
       <span class="text-sm">Checking existing mediums of exchange...</span>
@@ -240,7 +241,10 @@
       >
         {#if isOtherInitializationRunning}
           <div class="flex items-center space-x-2">
-            <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+            <div
+              aria-hidden="true"
+              class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"
+            ></div>
             <span>Waiting for other initialization...</span>
           </div>
         {:else}

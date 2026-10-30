@@ -95,7 +95,7 @@
   {#if management.isLoading}
     <div class="flex items-center justify-center gap-2">
       <ConicGradient stops={conicStops} spin />
-      <p>Loading users...</p>
+      <p role="status">Loading users...</p>
     </div>
   {:else if management.error}
     <div class="alert variant-filled-error">

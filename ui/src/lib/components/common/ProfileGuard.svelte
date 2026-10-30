@@ -282,6 +282,7 @@
       <div class="mb-6">
         {#if profileState().state === 'missing'}
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -296,6 +297,7 @@
           </svg>
         {:else if profileState().state === 'pending'}
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -310,6 +312,7 @@
           </svg>
         {:else if profileState().state === 'error'}
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -324,6 +327,7 @@
           </svg>
         {:else}
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"

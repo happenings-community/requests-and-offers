@@ -91,7 +91,7 @@
         </div>
       {:else if adminLoadingStatus === 'loading'}
         <div class="flex h-full flex-col items-center justify-center space-y-4">
-          <p class="text-surface-200">Loading administrator data...</p>
+          <p role="status" class="text-surface-200">Loading administrator data...</p>
           <ConicGradient stops={conicStops} spin>Loading</ConicGradient>
           <p class="text-sm text-surface-400 dark:text-surface-300">Checking your administrator privileges...</p>
         </div>

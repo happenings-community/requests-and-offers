@@ -88,6 +88,7 @@
       <span class="badge ml-1 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700" aria-hidden="true">{shown(total)}</span>
     {/if}
     <svg
+      aria-hidden="true"
       class="ml-1 inline-block h-4 w-4 transition-transform duration-200 {isHovered
         ? 'rotate-180'
         : ''}"

@@ -129,10 +129,10 @@
       <table class="table table-hover">
         <thead>
           <tr>
-            <th>Agent ID</th>
-            <th>Name</th>
-            <th>Associated User</th>
-            <th>Note</th>
+            <th scope="col">Agent ID</th>
+            <th scope="col">Name</th>
+            <th scope="col">Associated User</th>
+            <th scope="col">Note</th>
           </tr>
         </thead>
         <tbody>

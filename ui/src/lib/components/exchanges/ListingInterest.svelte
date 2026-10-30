@@ -29,7 +29,12 @@
       ref: ContactModal,
       props: { user: creator, organization, listingType: noun, listingTitle }
     };
-    modalStore.trigger({ type: 'component', component, meta: { title: '', body: '' } });
+    modalStore.trigger({
+      type: 'component',
+      title: `Interested in this ${noun}?`,
+      component,
+      meta: { title: '', body: '' }
+    });
   }
 
   const interest = useListingInterest({

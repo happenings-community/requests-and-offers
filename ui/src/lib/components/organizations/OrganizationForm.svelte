@@ -33,6 +33,7 @@
   const modalStore = getModalStore();
   const alertModal = (meta: AlertModalMeta): ModalSettings => ({
     type: 'component',
+    title: 'Organization saved',
     component: alertModalComponent,
     meta
   });
@@ -152,6 +153,7 @@
       const confirmed = await new Promise<boolean>((resolve) => {
         modalStore.trigger({
           type: 'component',
+          title: 'Delete organization',
           component: confirmModalComponent,
           meta: {
             id: 'delete-organization',

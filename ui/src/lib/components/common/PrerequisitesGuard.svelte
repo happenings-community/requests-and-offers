@@ -62,6 +62,7 @@
     <div class="card variant-soft-warning mx-auto max-w-2xl p-8 text-center">
       <div class="mb-6">
         <svg
+          aria-hidden="true"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"

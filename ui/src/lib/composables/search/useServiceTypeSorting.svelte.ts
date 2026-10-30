@@ -16,6 +16,8 @@ export interface ServiceTypeSortReturn {
   toggleSort: (field: ServiceTypeSortField) => void;
   getSortIcon: (field: ServiceTypeSortField) => string;
   isSortedBy: (field: ServiceTypeSortField) => boolean;
+  /** The column's `aria-sort` value, so the sorted column and its direction are announced. */
+  getAriaSort: (field: ServiceTypeSortField) => 'ascending' | 'descending' | 'none';
 }
 
 export function useServiceTypeSorting(
@@ -107,12 +109,18 @@ export function useServiceTypeSorting(
     return state.field === field;
   }
 
+  function getAriaSort(field: ServiceTypeSortField): 'ascending' | 'descending' | 'none' {
+    if (state.field !== field) return 'none';
+    return state.direction === 'asc' ? 'ascending' : 'descending';
+  }
+
   return {
     sortState: state,
     sortServiceTypes,
     updateSort,
     toggleSort,
     getSortIcon,
-    isSortedBy
+    isSortedBy,
+    getAriaSort
   };
 }

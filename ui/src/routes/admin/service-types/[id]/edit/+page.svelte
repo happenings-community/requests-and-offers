@@ -65,6 +65,6 @@
       </section>
     </div>
   {:else}
-    <div class="text-center text-xl text-surface-500">Service type not found.</div>
+    <div class="text-center text-xl text-surface-500 dark:text-surface-300">Service type not found.</div>
   {/if}
 </section>

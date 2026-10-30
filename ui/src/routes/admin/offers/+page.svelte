@@ -45,8 +45,8 @@
     </div>
   {:else if management.filteredOffers.length === 0}
     <div class="bg-surface-100-800-token/90 card variant-soft p-8 text-center backdrop-blur-lg">
-      <span class="material-symbols-outlined mb-4 text-6xl text-surface-500">inbox</span>
-      <p class="text-xl text-surface-500">
+      <span class="material-symbols-outlined mb-4 text-6xl text-surface-500 dark:text-surface-300">inbox</span>
+      <p class="text-xl text-surface-500 dark:text-surface-300">
         {#if management.currentUser}
           No offers found in the system.
         {:else}

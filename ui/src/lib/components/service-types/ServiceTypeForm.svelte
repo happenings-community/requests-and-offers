@@ -77,7 +77,7 @@
           Edit Service Type
         {/if}
       </h2>
-      <p class="text-surface-600 dark:text-surface-400">
+      <p class="text-surface-600 dark:text-surface-300">
         {#if mode === 'suggest'}
           Your suggestion will be reviewed by an administrator.
         {:else}
@@ -105,7 +105,7 @@
         <label class="label">
           <span class="flex items-center justify-between">
             <span>Description <span class="text-error-500">*</span></span>
-            <span class="text-sm text-surface-500"
+            <span class="text-sm text-surface-500 dark:text-surface-300"
               >({formState.description.length}/500 characters)</span
             >
           </span>
@@ -127,7 +127,7 @@
           <input type="checkbox" class="checkbox" bind:checked={formState.technical} />
           <span class="label-text">
             <span>Technical Service</span>
-            <span class="block text-sm text-surface-500">
+            <span class="block text-sm text-surface-500 dark:text-surface-300">
               Check if this service requires technical skills or knowledge
             </span>
           </span>

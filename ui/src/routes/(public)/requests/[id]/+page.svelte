@@ -428,7 +428,7 @@
                       />
                     {:else}
                       <div
-                        class="flex h-full w-full items-center justify-center bg-secondary-500 text-white"
+                        class="variant-filled-secondary flex h-full w-full items-center justify-center"
                       >
                         <span class="text-lg font-semibold">
                           {organization.name ? organization.name.charAt(0).toUpperCase() : 'O'}

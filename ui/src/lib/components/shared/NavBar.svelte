@@ -13,6 +13,7 @@
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
   import { turnOf } from '$lib/utils/exchange-ui';
   import { runEffect } from '$lib/utils/effect';
+  import { ADMIN_SHORTCUT_ARIA } from '$lib/utils/admin-shortcut';
   import { onMount } from 'svelte';
   import {
     getConnectionStatusContext,
@@ -239,6 +240,7 @@
         href="/admin"
         class="variant-ringed-secondary btn border-2 px-4 py-2 text-sm text-white transition-colors hover:variant-filled-secondary"
         aria-label="Access administration panel"
+        aria-keyshortcuts={ADMIN_SHORTCUT_ARIA}
       >
         ⚙️ Admin
       </a>

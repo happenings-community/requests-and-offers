@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import hreaStore from '$lib/stores/hrea.store.svelte';
   import { formatUserName } from '$lib/schemas/users.schemas';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -18,7 +19,7 @@
   });
 
   $effect(() => {
-    administrationStore.fetchAllUsers();
+    untrack(() => runEffect(administrationStore.fetchAllUsers())).catch((e) => console.error(e));
   });
 
   // Effect to create retroactive mappings when both users and agents are available

@@ -72,3 +72,4 @@ Start with the [unified design](frontend-refactoring/00-unified-refactoring-desi
 - [Frontend Refactoring Programme](frontend-refactoring/README.md) — proposed evolution of the store, error and testing layers
 - [Membrane Management](MEMBRANE_MANAGEMENT.md) — in-DHT membrane enforcement
 - [Membrane Management (Off-DHT)](MEMBRANE_MANAGEMENT_OFF_DHT.md) — off-DHT companion
+- [Notification Architecture](NOTIFICATION_ARCHITECTURE.md) — durable notification primitive; interest markers as first consumer, flagging second

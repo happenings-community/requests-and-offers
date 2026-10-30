@@ -192,6 +192,13 @@ export function useAdminStatusCheck() {
  * the Alt+A shortcut appear at once. Failures are logged, never thrown: the background check
  * still catches up.
  */
+/**
+ * How long the immediate re-check may take. The profile form waits on it before
+ * its welcome message and redirect, so an unanswered check must not hold a new
+ * member on the form; the background check catches up afterwards.
+ */
+export const RECHECK_TIMEOUT_MS = 5_000;
+
 export async function recheckAdminStatusNow(): Promise<void> {
   try {
     await E.runPromise(
@@ -200,7 +207,11 @@ export async function recheckAdminStatusNow(): Promise<void> {
           const service = yield* AdminStatusServiceTag;
           yield* service.verifyAdminStatus();
         }),
-        E.provide(AdminStatusServiceLive)
+        E.provide(AdminStatusServiceLive),
+        E.timeoutFail({
+          duration: Duration.millis(RECHECK_TIMEOUT_MS),
+          onTimeout: () => new Error(`No answer within ${RECHECK_TIMEOUT_MS / 1000} seconds`)
+        })
       )
     );
   } catch (error) {

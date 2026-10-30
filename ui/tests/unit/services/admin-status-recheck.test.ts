@@ -10,6 +10,7 @@ import {
   AdminStatusServiceLive,
   AdminStatusServiceTag,
   recheckAdminStatusNow,
+  RECHECK_TIMEOUT_MS,
   useAdminStatusCheck
 } from '$lib/services/adminStatus.service.svelte';
 
@@ -34,6 +35,23 @@ describe('recheckAdminStatusNow (#206)', () => {
     check.mockReturnValue(E.succeed(true));
     await recheckAdminStatusNow();
     expect(useAdminStatusCheck().isAdmin).toBe(true);
+  });
+
+  it('gives up after a few seconds when the conductor never answers', async () => {
+    // The profile form waits on this before its welcome message and redirect,
+    // so a check that never returns must not leave a new member on the form.
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      check.mockReturnValue(E.never);
+      let settled = false;
+      const recheck = recheckAdminStatusNow().then(() => (settled = true));
+      await vi.advanceTimersByTimeAsync(RECHECK_TIMEOUT_MS);
+      expect(settled).toBe(true);
+      await recheck;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not throw when the check fails', async () => {

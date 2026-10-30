@@ -69,6 +69,7 @@ Start with the [unified design](frontend-refactoring/00-unified-refactoring-desi
 - [The Progenitor Pattern](../progenitor.md) — network bootstrap mechanism
 - [Administration Zome Spec](../technical-specs/zomes/administration.md) — admin/progenitor API
 - [hREA Integration](hrea-integration.md) — Valueflows economic layer
+- [Validation and Known Limits](validation.md) — what the network enforces, and the gaps still open
 - [Frontend Refactoring Programme](frontend-refactoring/README.md) — proposed evolution of the store, error and testing layers
 - [Membrane Management](MEMBRANE_MANAGEMENT.md) — in-DHT membrane enforcement
 - [Membrane Management (Off-DHT)](MEMBRANE_MANAGEMENT_OFF_DHT.md) — off-DHT companion

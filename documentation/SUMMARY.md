@@ -98,6 +98,7 @@
 # Architecture
 
 - [hREA Integration](architecture/hrea-integration.md)
+- [Validation and Known Limits](architecture/validation.md)
 
 ---
 

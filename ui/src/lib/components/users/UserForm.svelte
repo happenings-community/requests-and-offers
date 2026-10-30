@@ -10,7 +10,7 @@
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { AlertModalMeta } from '$lib/types/ui';
-  import { createMockedUsers } from '$lib/utils/mocks';
+  import { loadMocks } from '$lib/utils/load-mocks';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import { goto } from '$app/navigation';
   import weaveStore from '$lib/stores/weave.store.svelte';
@@ -114,6 +114,7 @@
     isLoading = true;
     error = null;
     try {
+      const { createMockedUsers } = await loadMocks();
       let userData: UserInDHT = (await createMockedUsers())[0];
 
       await onSubmit(userData);

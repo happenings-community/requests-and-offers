@@ -4,7 +4,7 @@
   import { FileDropzone, Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import { createMockedOrganizations } from '$lib/utils/mocks';
+  import { loadMocks } from '$lib/utils/load-mocks';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import type { OrganizationInDHT } from '$lib/types/holochain';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
@@ -115,6 +115,7 @@
     isLoading = true;
     error = null;
     try {
+      const { createMockedOrganizations } = await loadMocks();
       let org: OrganizationInDHT = (await createMockedOrganizations())[0];
 
       const record = await runEffect(organizationsStore.createOrganization(org));

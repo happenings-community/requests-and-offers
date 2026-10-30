@@ -23,7 +23,7 @@ It describes `dev`. A PR that changes what validation enforces updates this page
 
 | Limit | Effect | Closed by |
 |---|---|---|
-| In every integrity zome, entry create and update rules run on the entry op only, not the record op | A write refused by the entry authorities can still read as valid wherever a rule reaches it with `must_get_valid_record` | #348 (approved) for six zomes; #343 for exchanges |
+| In `exchanges`, entry create rules run on the entry op only, not the record op (the other six integrity zomes run them on both since #348) | An exchange step refused by the entry authorities can still read as valid wherever a rule reaches it with `must_get_valid_record` | #343 |
 | Role rules (administrator, coordinator, member) are coordinator-only | A modified client can write entries that only a role holder should write | the grants stack: #377, #378, #379 |
 | `service_types`, `offers`, `requests` and `mediums_of_exchange` validate no link type, and `users_organizations` validates few | Any agent can write those links, with any base, any target and up to a kilobyte of tag, including approving a service type or medium of exchange through its status-path link | #400 (#234 phase 1), on the grants stack; the approval link carries the administrator's grant |
 | Tombstones of entries are unchecked in most zomes | Any agent can tombstone an approved service type or medium of exchange, another member's listing, or another member's organisation | #400 for listings (only the creator tombstones), service types and mediums of exchange (never tombstoned; retired by status); #406 for organisations (never tombstoned; retired by an entry carrying a coordinator's or administrator's grant) |
@@ -49,4 +49,4 @@ It describes `dev`. A PR that changes what validation enforces updates this page
 - **Administration:**
   - its link types are routed to rules;
   - with the grants stack, every grant is checked back to its root.
-- **Field rules on every entry type** (lengths, required fields, allowed values) run on the entry op today, and on the record op too once #348 and #343 merge.
+- **Field rules on every entry type** (lengths, required fields, allowed values) run on the record op as well as the entry op in six zomes (#348), and in `exchanges` once #343 merges.

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
@@ -225,6 +226,10 @@
   });
 </script>
 
+<svelte:head>
+  <title>{pageTitle('Edit Request')}</title>
+</svelte:head>
+
 <PrerequisitesGuard
   title="Prerequisites Required for Requests"
   description="Requests require both service types and mediums of exchange. Administrators need to create/approve these before users can edit requests."
@@ -245,7 +250,7 @@
     {#if error}
       <div class="alert variant-filled-error mb-4">
         <div class="alert-message">
-          <h3 class="h3">Error</h3>
+          <h2 class="h3">Error</h2>
           <p>{error}</p>
         </div>
         <div class="alert-actions">
@@ -261,7 +266,7 @@
     {:else if !canEdit}
       <div class="alert variant-filled-warning mb-4">
         <div class="alert-message">
-          <h3 class="h3">Access Denied</h3>
+          <h2 class="h3">Access Denied</h2>
           <p>You don't have permission to edit this request.</p>
         </div>
         <div class="alert-actions">

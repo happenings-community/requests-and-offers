@@ -10,6 +10,8 @@
   import NetworkStatusPopup from '$lib/components/network/NetworkStatusPopup.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import { page } from '$app/state';
+  import { isCurrentPage } from '$lib/utils/document';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
   import { turnOf } from '$lib/utils/exchange-ui';
   import { runEffect } from '$lib/utils/effect';
@@ -179,9 +181,11 @@
         return 'Unknown';
     }
   }
+
+  const current = (href: string) => (isCurrentPage(href, page.url) ? 'page' : undefined);
 </script>
 
-<nav class="flex h-20 w-full items-center justify-between bg-primary-500 px-4 shadow-lg">
+<nav aria-label="Main" class="flex h-20 w-full items-center justify-between bg-primary-500 px-4 shadow-lg">
   <!-- Logo Section -->
   <div class="flex items-center">
     <a href="/" class="flex items-center gap-3 transition-opacity hover:opacity-80">
@@ -196,6 +200,7 @@
     <div class="flex items-center gap-6">
       <a
         href="/requests"
+        aria-current={current('/requests')}
         class="variant-filled-secondary btn px-6 py-2 font-semibold shadow-md transition-colors hover:variant-filled-tertiary hover:shadow-lg"
         aria-label="Browse requests - discover opportunities to help"
       >
@@ -203,6 +208,7 @@
       </a>
       <a
         href="/offers"
+        aria-current={current('/offers')}
         class="variant-filled-warning btn px-6 py-2 font-semibold shadow-md transition-colors hover:variant-filled-error hover:shadow-lg"
         aria-label="Browse offers - see how others can help you"
       >
@@ -237,6 +243,7 @@
     {#if agentIsAdministrator}
       <a
         href="/admin"
+        aria-current={current('/admin')}
         class="variant-ringed-secondary btn border-2 px-4 py-2 text-sm text-white transition-colors hover:variant-filled-secondary"
         aria-label="Access administration panel"
       >

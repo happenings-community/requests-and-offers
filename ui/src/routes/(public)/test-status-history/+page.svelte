@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   // Simple test page to verify our TDD logging for status history
   import { onMount } from 'svelte';
 
@@ -86,6 +87,10 @@
     );
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Status History Test')}</title>
+</svelte:head>
 
 <div class="container mx-auto p-8">
   <h1 class="h1 mb-8 text-center">TDD Status History Test</h1>

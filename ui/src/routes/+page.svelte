@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { onMount } from 'svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { isHolochainConnected } from '$lib/utils/holochain-client.utils';
@@ -77,6 +78,10 @@
     }
   ];
 </script>
+
+<svelte:head>
+  <title>{pageTitle()}</title>
+</svelte:head>
 
 <section class="mx-auto w-full max-w-6xl px-4 py-8">
   {#if error}

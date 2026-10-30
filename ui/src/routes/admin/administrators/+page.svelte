@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
   import { onMount } from 'svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -25,6 +26,10 @@
     });
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Administrators', 'Admin')}</title>
+</svelte:head>
 
 <section class="flex flex-col gap-10">
   <h1 class="h1 text-center">Administrators management</h1>

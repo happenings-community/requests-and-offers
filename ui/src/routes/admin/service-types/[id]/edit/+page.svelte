@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import ServiceTypeForm from '$lib/components/service-types/ServiceTypeForm.svelte';
   import { useServiceTypeDetails } from '$lib/composables';
 
@@ -18,6 +19,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>{pageTitle('Edit Service Type', 'Admin')}</title>
+</svelte:head>
+
 <section class="space-y-6">
   <div class="flex items-center justify-between">
     <h1 class="h1">Edit Service Type</h1>
@@ -27,7 +32,7 @@
   {#if error}
     <div class="alert variant-filled-error">
       <div class="alert-message">
-        <h3 class="h3">Error</h3>
+        <h2 class="h3">Error</h2>
         <p>{error}</p>
       </div>
       <div class="alert-actions">

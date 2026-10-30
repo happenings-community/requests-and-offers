@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import NavButton from '$lib/components/shared/NavButton.svelte';
   import UsersTable from '$lib/components/users/UsersTable.svelte';
   import UserFilterControls from '$lib/components/users/UserFilterControls.svelte';
@@ -55,8 +56,12 @@
   }
 </script>
 
+<svelte:head>
+  <title>{pageTitle('Users')}</title>
+</svelte:head>
+
 <section class="flex flex-col gap-4">
-  <h2 class="h1 text-center">Users</h2>
+  <h1 class="h1 text-center">Users</h1>
 
   <!-- Test mode banner -->
   {#if showTestMode}
@@ -76,7 +81,7 @@
   <!-- Network peers section (test mode only) -->
   {#if showTestMode && networkPeers.length > 0}
     <div class="test-peers-section">
-      <h3 class="h4 mb-4">All Network Peers (Test Mode)</h3>
+      <h2 class="h4 mb-4">All Network Peers (Test Mode)</h2>
       <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {#each networkPeers as peer (peer)}
           <div class="card variant-ghost p-4">

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { onMount } from 'svelte';
   import type { UIOrganization, UIUser } from '$lib/types/ui';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -249,21 +250,25 @@
   });
 </script>
 
+<svelte:head>
+  <title>{pageTitle('Dashboard', 'Admin')}</title>
+</svelte:head>
+
 <section class="space-y-8">
   <h1 class="h1">Admin Dashboard</h1>
 
   <!-- System At a Glance -->
   <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
     <div class="card variant-filled-surface p-4">
-      <h3 class="h3">{dashboardState.data.administrators.length}</h3>
+      <h2 class="h3">{dashboardState.data.administrators.length}</h2>
       <p class="text-sm text-gray-400">Administrators</p>
     </div>
     <div class="card variant-filled-surface p-4">
-      <h3 class="h3">{dashboardState.data.allUsers.length}</h3>
+      <h2 class="h3">{dashboardState.data.allUsers.length}</h2>
       <p class="text-sm text-gray-400">Total Users</p>
     </div>
     <div class="card variant-filled-surface p-4">
-      <h3 class="h3">{dashboardState.data.allOrganizations.length}</h3>
+      <h2 class="h3">{dashboardState.data.allOrganizations.length}</h2>
       <p class="text-sm text-gray-400">Total Organizations</p>
     </div>
   </div>

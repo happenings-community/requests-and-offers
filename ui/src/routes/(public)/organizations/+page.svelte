@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import OrganizationsTable from '$lib/components/organizations/OrganizationsTable.svelte';
@@ -40,6 +41,10 @@
     goto('/organizations/create');
   }
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Organizations')}</title>
+</svelte:head>
 
 <section class="flex flex-col gap-8">
   <h1 class="h1 text-center">Organizations</h1>

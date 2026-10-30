@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { encodeHashToBase64 } from '@holochain/client';
   import { useExchangesManagement } from '$lib/composables/domain/exchanges/useExchangesManagement.svelte';
   import {
@@ -47,7 +48,7 @@
 </script>
 
 <svelte:head>
-  <title>My Exchanges</title>
+  <title>{pageTitle('My Exchanges')}</title>
 </svelte:head>
 
 <section class="container mx-auto space-y-6 p-4">

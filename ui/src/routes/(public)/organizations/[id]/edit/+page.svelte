@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
@@ -181,6 +182,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>{pageTitle('Edit Organization')}</title>
+</svelte:head>
+
 <div class="container mx-auto max-w-3xl py-8">
   {#if error}
     <div class="alert variant-filled-error" role="alert">
@@ -195,7 +200,7 @@
     <div class="card w-full p-6">
       <header class="mb-4">
         <div class="flex items-center justify-between">
-          <h2 class="h2">Edit Organization</h2>
+          <h1 class="h2">Edit Organization</h1>
           <button
             class="variant-ghost-surface btn"
             onclick={() => goto(`/organizations/${$page.params.id}`)}
@@ -215,7 +220,7 @@
 
     <!-- Contact Person Management -->
     <div class="card mt-6 w-full p-6">
-      <h3 class="h3 mb-4">Contact Person</h3>
+      <h2 class="h3 mb-4">Contact Person</h2>
 
       {#if organization.contact}
         <div class="mb-4 flex items-center justify-between">

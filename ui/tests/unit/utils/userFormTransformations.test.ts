@@ -12,6 +12,8 @@ import {
   type UserFormInput
 } from '$lib/schemas/users.schemas';
 import type { UserInDHT } from '$lib/schemas/users.schemas';
+import { UserFormInputSchema, UserInDHTSchema } from '$lib/schemas/users.schemas';
+import { Either, Schema as S } from 'effect';
 
 // Minimal valid form input for tests - only name fields vary
 const baseForm: Omit<UserFormInput, 'given_name' | 'family_name'> = {
@@ -168,5 +170,23 @@ describe('round-trip: form -> DHT -> form', () => {
     const roundTripped = dhtToFormInput(formInputToDHT(original));
     expect(roundTripped.given_name).toBe('Sting');
     expect(roundTripped.family_name).toBe('.');
+  });
+});
+
+describe('nickname is optional (#139)', () => {
+  const decodeForm = S.decodeUnknownEither(UserFormInputSchema);
+  const decodeDHT = S.decodeUnknownEither(UserInDHTSchema);
+  const form = { ...baseForm, given_name: 'Ada', family_name: 'Lovelace' };
+
+  it('accepts an empty nickname, in the form and from the DHT', () => {
+    expect(Either.isRight(decodeForm({ ...form, nickname: '' }))).toBe(true);
+    expect(Either.isRight(decodeDHT({ ...baseDHT, name: 'Ada Lovelace', nickname: '' }))).toBe(true);
+    expect(formInputToDHT({ ...form, nickname: '' }).nickname).toBe('');
+  });
+
+  it('accepts a few handles up to 150 characters, and refuses more', () => {
+    expect(Either.isRight(decodeForm({ ...form, nickname: 'h'.repeat(150) }))).toBe(true);
+    expect(Either.isLeft(decodeForm({ ...form, nickname: 'h'.repeat(151) }))).toBe(true);
+    expect(Either.isLeft(decodeDHT({ ...baseDHT, name: 'Ada Lovelace', nickname: 'h'.repeat(151) }))).toBe(true);
   });
 });

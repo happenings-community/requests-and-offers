@@ -2,8 +2,8 @@
   import { escapeHtml } from '$lib/utils/safe-html';
   import { browser } from '$app/environment';
   import { encodeHashToBase64 } from '@holochain/client';
-  import { Avatar, FileDropzone, getModalStore } from '@skeletonlabs/skeleton';
-  import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+  import { Avatar, FileDropzone, getModalStore, popup } from '@skeletonlabs/skeleton';
+  import type { ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
   import type { UserInDHT, UserType } from '$lib/types/holochain';
   import type { UIUser } from '$lib/types/ui';
   import { formInputToDHT, dhtToFormInput, formatUserName, type UserFormInput } from '$lib/schemas/users.schemas';
@@ -51,6 +51,12 @@
     component: alertModalComponent,
     meta
   });
+
+  const nicknamePopup: PopupSettings = {
+    event: 'click',
+    target: 'nicknameHelpPopup',
+    placement: 'bottom'
+  };
 
   // Form state
   let form: HTMLFormElement | undefined = $state();
@@ -268,16 +274,43 @@
   </p>
 
   <label class="label text-lg">
-    Nickname* :
+    Nickname/Handle :
     <input
       type="text"
       class="input"
       name="nickname"
       value={weaveStore.mossNickname ?? user?.nickname ?? ''}
       readonly={weaveStore.hasMossNickname}
-      required
+      placeholder="e.g. platform: @handle"
+      maxlength="150"
     />
   </label>
+
+  {#if !weaveStore.hasMossNickname}
+    <div class="-mt-2 flex items-center gap-2 text-sm opacity-75">
+      <span>A handle people know you by elsewhere.</span>
+      <button
+        type="button"
+        class="opacity-75 hover:opacity-100 focus:outline-none"
+        use:popup={nicknamePopup}
+        aria-label="More about the nickname field"
+      >
+        ⓘ
+      </button>
+    </div>
+
+    <div
+      class="card z-20 max-w-sm rounded-lg border border-surface-700 bg-surface-800 p-3 text-sm text-white shadow-xl"
+      data-popup="nicknameHelpPopup"
+    >
+      <p>
+        You can list a few — e.g.
+        <code>instagram: @handle, mastodon: @handle</code>. Just a friendly bridge to
+        wherever else you show up online.
+      </p>
+      <div class="bg-surface-800 arrow"></div>
+    </div>
+  {/if}
 
   <MarkdownField
     bind:value={bio}

@@ -19,9 +19,12 @@ describe('raw HTML in components', () => {
       const source = readFileSync(file, 'utf8');
       for (const match of source.matchAll(/\{@html\s+([^}]+)\}/g)) {
         const expr = match[1].trim();
+        // renderMarkdown (utils/markdown.ts) returns DOMPurify.sanitize's output.
         const sanitised =
           /^safeHtml\(/.test(expr) ||
-          new RegExp(`\\b${expr}\\s*=\\s*\\$derived\\(\\s*DOMPurify\\.sanitize\\(`).test(source);
+          new RegExp(
+            `\\b${expr}\\s*=\\s*\\$derived\\(\\s*(?:DOMPurify\\.sanitize|renderMarkdown)\\(`
+          ).test(source);
         if (!sanitised) offenders.push(`${file}: {@html ${expr}}`);
       }
     }

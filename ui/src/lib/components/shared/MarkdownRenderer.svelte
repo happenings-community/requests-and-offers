@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { marked } from 'marked';
-  import DOMPurify from 'dompurify';
+  import { renderMarkdown } from '$lib/utils/markdown';
 
   type Props = {
     content: string;
@@ -9,18 +8,14 @@
 
   const { content, class: className = '' }: Props = $props();
 
-  marked.setOptions({
-    breaks: true,
-    gfm: true
-  });
-
-  const html = $derived(DOMPurify.sanitize(marked.parse(content || '') as string));
+  const html = $derived(renderMarkdown(content));
 </script>
 
 <div
   class="markdown-renderer prose prose-sm max-w-none text-[inherit] dark:prose-invert {className}"
 >
   <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitised by DOMPurify above (#211) -->
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -- renderMarkdown sanitises with DOMPurify (#211, #300) -->
   {@html html}
 </div>
 

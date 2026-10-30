@@ -18,7 +18,9 @@ use crate::external_calls::{
 pub struct OfferInput {
   offer: Offer,
   organization: Option<ActionHash>,
-  service_type_hashes: Vec<ActionHash>,
+  /// A listing names one service. The plural lives on the agreement, as
+  /// several Commitments, not on the listing.
+  service_type_hash: ActionHash,
   medium_of_exchange_hashes: Vec<ActionHash>,
 }
 
@@ -94,14 +96,12 @@ pub fn create_offer(input: OfferInput) -> ExternResult<Record> {
     )?;
   }
 
-  // Create bidirectional links to service types
-  for service_type_hash in input.service_type_hashes {
-    link_to_service_type(ServiceTypeLinkInput {
-      service_type_hash: OriginalActionHash(service_type_hash),
-      action_hash: OriginalActionHash(offer_hash.clone()),
-      entity: "offer".to_string(),
-    })?;
-  }
+  // Create the bidirectional link to this listing's service type
+  link_to_service_type(ServiceTypeLinkInput {
+    service_type_hash: OriginalActionHash(input.service_type_hash),
+    action_hash: OriginalActionHash(offer_hash.clone()),
+    entity: "offer".to_string(),
+  })?;
 
   // Create bidirectional links to mediums of exchange
   for medium_of_exchange_hash in input.medium_of_exchange_hashes {
@@ -339,7 +339,7 @@ pub struct UpdateOfferInput {
   pub original_action_hash: OriginalActionHash,
   pub previous_action_hash: PreviousActionHash,
   pub updated_offer: Offer,
-  pub service_type_hashes: Vec<ActionHash>,
+  pub service_type_hash: ActionHash,
   pub medium_of_exchange_hashes: Vec<ActionHash>,
 }
 
@@ -423,7 +423,8 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
   update_service_type_links(UpdateServiceTypeLinksInput {
     action_hash: OriginalActionHash(updated_offer_hash.clone()),
     entity: "offer".to_string(),
-    new_service_type_hashes: input.service_type_hashes,
+    // The shared link machinery stays plural: users carry several skills.
+    new_service_type_hashes: vec![input.service_type_hash],
   })?;
 
   // Update medium of exchange links using the mediums_of_exchange zome

@@ -152,9 +152,11 @@
       if (!confirmed) return;
 
       loading = true;
-      await organizationsStore.removeMember(
-        organization.original_action_hash,
-        member.original_action_hash
+      await runEffect(
+        organizationsStore.removeMember(
+          organization.original_action_hash,
+          member.original_action_hash
+        )
       );
 
       toastStore.trigger({

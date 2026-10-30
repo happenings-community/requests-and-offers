@@ -10,3 +10,5 @@ name = "messaging"
 [dependencies]
 hdk = { workspace = true }
 serde = { workspace = true }
+messaging_integrity = { workspace = true }
+utils = { workspace = true }

@@ -386,7 +386,7 @@
                 {/each}
               </div>
               {#if hasCurrencySelection()}
-                <div class="mt-2 text-xs italic text-surface-400">
+                <div class="mt-2 text-xs italic text-surface-500 dark:text-surface-300">
                   💡 This section stays open while currencies are selected
                 </div>
               {/if}

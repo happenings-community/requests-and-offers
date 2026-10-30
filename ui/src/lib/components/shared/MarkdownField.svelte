@@ -94,7 +94,7 @@
       {#if value.trim()}
         <MarkdownRenderer content={value} />
       {:else}
-        <p class="italic text-surface-400">
+        <p class="italic text-surface-600 dark:text-surface-300">
           Nothing to preview yet — switch to Edit mode and type some markdown.
         </p>
       {/if}

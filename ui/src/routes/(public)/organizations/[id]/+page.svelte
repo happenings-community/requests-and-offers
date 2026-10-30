@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { pageTitle } from '$lib/utils/document';
   import { page } from '$app/state';
   import { getModalStore, getToastStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
@@ -178,7 +179,12 @@
   $inspect(organization?.contact);
   // Load organization when the component mounts
   $effect(() => {
-    Promise.all([loadOrganization(), usersStore.refreshCurrentUser()]);
+    // untrack: the refresh writes the current user, which must not re-run this effect
+    untrack(() =>
+      Promise.all([loadOrganization(), runEffect(usersStore.refreshCurrentUser())]).catch((err) =>
+        console.error('Failed to load the organisation page:', err)
+      )
+    );
   });
 
   let organizationLogoUrl = $derived.by(() =>
@@ -282,7 +288,7 @@
                   Edit Organization
                 </a>
               {/if}
-              {#if !agentIsCoordinator && currentUserIsAccepted && agentIsMember}
+              {#if currentUserIsAccepted && agentIsMember}
                 <button class="variant-filled-error btn" onclick={handleLeaveOrganization}>
                   Leave Organization
                 </button>

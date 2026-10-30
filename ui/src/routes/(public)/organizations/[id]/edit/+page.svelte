@@ -161,7 +161,7 @@
       if (!organizationHash) {
         throw new Error('Invalid organization ID');
       }
-      const success = await organizationsStore.deleteOrganization(organizationHash);
+      const success = await runEffect(organizationsStore.deleteOrganization(organizationHash));
 
       if (success) {
         toastStore.trigger({

@@ -54,13 +54,6 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
   Ok(ValidateCallbackResult::Valid)
 }
 
-pub fn validate_agent_joining(
-  _agent_pub_key: AgentPubKey,
-  _membrane_proof: &Option<MembraneProof>,
-) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Valid)
-}
-
 // ============================================================================
 // AllAdministrators LINK VALIDATION
 // ============================================================================
@@ -133,6 +126,19 @@ fn validate_delete_link_agent_administrators(
   Ok(ValidateCallbackResult::Valid)
 }
 
+/// Every rule for a new or updated entry, run for both ops of the write.
+///
+/// Holochain sends the entry op and the record op of a create or update to
+/// different authorities, by entry hash and by action hash, and
+/// `must_get_valid_record` trusts the record authority's verdict. A rule run
+/// on the entry op alone is never seen by the authority that answers for
+/// the record.
+fn validate_entry(app_entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
+  match app_entry {
+    EntryTypes::Status(status) => validate_status(status),
+  }
+}
+
 // ============================================================================
 // VALIDATE CALLBACK
 // ============================================================================
@@ -140,7 +146,8 @@ fn validate_delete_link_agent_administrators(
 /// HDK integrity validation callback. Dispatches every DHT operation to the appropriate
 /// type-specific validator.
 ///
-/// - `CreateEntry` ops are routed to entry-type validators (e.g., `validate_status`).
+/// - `CreateEntry` and `CreateRecord` ops for a create or update are routed to the
+///   entry-type validators (e.g., `validate_status`) through [`validate_entry`].
 /// - `Link` ops (create and delete) are routed to link-type validators.
 /// - All other ops (agent activity, countersigning, etc.) return `Valid` by default.
 #[hdk_extern]
@@ -160,12 +167,15 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, .. } => match app_entry {
-        EntryTypes::Status(status) => validate_status(status),
-      },
-      OpEntry::UpdateEntry { app_entry, .. } => match app_entry {
-        EntryTypes::Status(status) => validate_status(status),
-      },
+      OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
+        validate_entry(app_entry)
+      }
+      _ => Ok(ValidateCallbackResult::Valid),
+    },
+    FlatOp::CreateRecord(store_record) => match store_record {
+      OpRecord::CreateEntry { app_entry, .. } | OpRecord::UpdateEntry { app_entry, .. } => {
+        validate_entry(app_entry)
+      }
       _ => Ok(ValidateCallbackResult::Valid),
     },
     FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
@@ -219,5 +229,55 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       }
     }
     _ => Ok(ValidateCallbackResult::Valid),
+  }
+}
+
+#[cfg(test)]
+mod record_op_tests {
+  //! A create or update reaches the DHT as two ops that go to different
+  //! authorities, `CreateEntry` by entry hash and `CreateRecord` by action hash,
+  //! and `must_get_valid_record` asks the record authority. So every rule the
+  //! entry op runs must give the same verdict on the record op.
+  use hdi::prelude::*;
+  use utils::validation_harness::{create_ops, set_zome_types, update_ops};
+
+  use crate::{validate, EntryTypes, LinkTypes, Status};
+
+  fn unknown_status() -> SerializedBytes {
+    Status {
+      status_type: "bogus".to_string(),
+      reason: None,
+      suspended_until: None,
+    }
+    .try_into()
+    .unwrap()
+  }
+
+  fn verdicts((entry_op, record_op): (Op, Op)) -> (ValidateCallbackResult, ValidateCallbackResult) {
+    set_zome_types(EntryTypes::ENUM_LEN, LinkTypes::ENUM_LEN);
+    let entry = validate(entry_op).unwrap();
+    let record = validate(record_op).unwrap();
+    println!("entry op:  {entry:?}\nrecord op: {record:?}");
+    (entry, record)
+  }
+
+  #[test]
+  fn a_create_the_entry_op_refuses_is_refused_on_the_record_op_too() {
+    let (entry, record) = verdicts(create_ops(0, unknown_status()));
+    assert_eq!(
+      entry,
+      ValidateCallbackResult::Invalid("Invalid status type: bogus".into())
+    );
+    assert_eq!(record, entry);
+  }
+
+  #[test]
+  fn an_update_the_entry_op_refuses_is_refused_on_the_record_op_too() {
+    let (entry, record) = verdicts(update_ops(0, unknown_status()));
+    assert_eq!(
+      entry,
+      ValidateCallbackResult::Invalid("Invalid status type: bogus".into())
+    );
+    assert_eq!(record, entry);
   }
 }

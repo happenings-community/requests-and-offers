@@ -6,6 +6,7 @@
   import OrganizationFilterControls from '$lib/components/organizations/OrganizationFilterControls.svelte';
   import { useOrganizationsManagement } from '$lib/composables';
   import usersStore from '$lib/stores/users.store.svelte';
+  import { runEffect } from '$lib/utils/effect';
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
 
   const management = useOrganizationsManagement({ filter: 'accepted' });
@@ -26,7 +27,9 @@
 
   onMount(() => {
     management.loadOrganizations();
-    usersStore.refreshCurrentUser();
+    runEffect(usersStore.refreshCurrentUser()).catch((e) =>
+      console.error('Failed to refresh the current user:', e)
+    );
   });
 
   function handleCreateOrganization() {

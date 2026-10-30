@@ -1,10 +1,7 @@
 <script lang="ts">
   import { pageTitle } from '$lib/utils/document';
   import ServiceTypeForm from '$lib/components/service-types/ServiceTypeForm.svelte';
-  import type { ServiceTypeInDHT } from '$lib/types/holochain';
   import { useServiceTypeDetails } from '$lib/composables';
-  import { showToast } from '$lib/utils';
-  import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 
   // Initialize the composable with edit-specific behavior
   const serviceTypeDetails = useServiceTypeDetails({
@@ -14,29 +11,11 @@
   // Destructure for template convenience
   const { isLoading, error, serviceType, navigateBack, refreshData } = $derived(serviceTypeDetails);
 
-  // Handle form submission
-  async function handleUpdateServiceType(updatedServiceType: ServiceTypeInDHT) {
-    if (!serviceType?.original_action_hash || !serviceType?.previous_action_hash) {
-      showToast('Cannot update service type: missing action hashes', 'error');
-      return;
-    }
-
-    try {
-      await serviceTypesStore.updateServiceType(
-        serviceType.original_action_hash,
-        serviceType.previous_action_hash,
-        updatedServiceType
-      );
-
-      showToast('Service type updated successfully');
-      navigateBack();
-    } catch (err) {
-      console.error('Failed to update service type:', err);
-      showToast(
-        `Failed to update service type: ${err instanceof Error ? err.message : String(err)}`,
-        'error'
-      );
-    }
+  // ServiceTypeForm saves the edit itself (useServiceTypeFormManagement) and
+  // shows its own success toast, then calls this. Saving again here would write
+  // a second update from the same previous action and fork the history.
+  function handleUpdateServiceType() {
+    navigateBack();
   }
 </script>
 

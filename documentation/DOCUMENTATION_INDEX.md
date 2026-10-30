@@ -119,6 +119,7 @@
 - **[Users](technical-specs/zomes/users.md)** - User management
 - **[Users Organizations](technical-specs/zomes/users_organizations.md)** - User-organization relationships
 - **[Exchanges](technical-specs/zomes/exchanges.md)** - Entry and link types, validation rules, derived state, the callable surface, and the frontend layer map
+- **[Messaging](technical-specs/zomes/messaging.md)** - The signal layer: one ActionHash per nudge, never content
 - **[Mediums of Exchange](technical-specs/zomes/mediums_of_exchange.md)** - Currency and payment method management
 
 #### 🤖 AI Development Rules (`/ai/rules/`) - **CONSOLIDATED**

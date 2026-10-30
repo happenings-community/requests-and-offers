@@ -2,6 +2,7 @@
   import type { UIUser, UIOrganization } from '$lib/types/ui';
   import UserName from '$lib/components/users/UserName.svelte';
   import { formatUserName } from '$lib/schemas/users.schemas';
+  import ExternalLink from '$lib/components/shared/ExternalLink.svelte';
   import { getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
   import { getToastStore } from '@skeletonlabs/skeleton';
 
@@ -94,14 +95,7 @@
           <div class="flex items-center justify-between text-sm">
             <div>
               <span class="font-medium">Website:</span>
-              <a
-                href={organization.urls[0]}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="ml-1 text-primary-500 hover:underline"
-              >
-                {organization.urls[0]}
-              </a>
+              <ExternalLink text={organization.urls[0]} class="ml-1 text-primary-500 hover:underline" />
             </div>
             <button
               class="btn-icon btn-icon-sm hover:variant-soft-primary"

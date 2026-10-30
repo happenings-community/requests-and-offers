@@ -2,6 +2,7 @@
   import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import type { UIOffer, UIUser, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
   import { encodeHashToBase64 } from '@holochain/client';
+  import ExternalLink from '$lib/components/shared/ExternalLink.svelte';
   import { goto } from '$app/navigation';
   import {
     formatDate,
@@ -16,6 +17,7 @@
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
+  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import ContactDisplay from '$lib/components/shared/listings/ContactDisplay.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
   import { runEffect } from '$lib/utils/effect';
@@ -262,17 +264,13 @@
 
       <!-- Service Type -->
       <div>
-        <h3 class="h4 mb-2 font-semibold">Service Types</h3>
-        {#if offer?.service_type_hashes && offer.service_type_hashes.length > 0}
+        <h3 class="h4 mb-2 font-semibold">Service Type</h3>
+        {#if offer?.service_type_hash}
           <div class="flex flex-wrap gap-2">
-            <span class="variant-soft-primary badge">
-              {offer.service_type_hashes.length} service type{offer.service_type_hashes.length !== 1
-                ? 's'
-                : ''} selected
-            </span>
+            <ServiceTypeTag serviceTypeActionHash={offer.service_type_hash} showLink={false} />
           </div>
         {:else}
-          <p class="text-surface-500">No service types specified.</p>
+          <p class="text-surface-500">No service type specified.</p>
         {/if}
       </div>
 
@@ -318,14 +316,7 @@
             <ul class="list-inside list-disc">
               {#each offer.links as link}
                 <li>
-                  <a
-                    href={link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="text-blue-600 hover:underline"
-                  >
-                    {link}
-                  </a>
+                  <ExternalLink text={link} class="text-blue-600 hover:underline" />
                 </li>
               {/each}
             </ul>

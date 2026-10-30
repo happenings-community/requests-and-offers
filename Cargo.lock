@@ -28,7 +28,7 @@ name = "administration"
 version = "0.0.1"
 dependencies = [
  "administration_integrity",
- "chrono 0.3.0",
+ "chrono",
  "hdk",
  "serde",
  "utils",
@@ -38,7 +38,7 @@ dependencies = [
 name = "administration_integrity"
 version = "0.0.1"
 dependencies = [
- "chrono 0.3.0",
+ "chrono",
  "hdi",
  "holochain_serialized_bytes",
  "serde",
@@ -242,7 +242,7 @@ dependencies = [
  "num-traits",
  "rusticata-macros",
  "thiserror 2.0.18",
- "time 0.3.55",
+ "time",
 ]
 
 [[package]]
@@ -747,16 +747,6 @@ dependencies = [
 
 [[package]]
 name = "chrono"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "158b0bd7d75cbb6bf9c25967a48a2e9f77da95876b858eadfabaa99cd069de6e"
-dependencies = [
- "num",
- "time 0.1.45",
-]
-
-[[package]]
-name = "chrono"
 version = "0.4.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c469d952047f47f91b68d1cba3f10d63c11d73e4636f24f08daf0278abf01c4d"
@@ -1181,7 +1171,7 @@ version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5877d3fbf742507b66bc2a1945106bd30dd8504019d596901ddd012a4dd01740"
 dependencies = [
- "chrono 0.4.41",
+ "chrono",
  "once_cell",
  "winnow 0.6.26",
 ]
@@ -2211,7 +2201,7 @@ dependencies = [
  "cfg-if",
  "js-sys",
  "libc",
- "wasi 0.11.1+wasi-snapshot-preview1",
+ "wasi",
  "wasm-bindgen",
 ]
 
@@ -2617,7 +2607,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "bytes",
- "chrono 0.4.41",
+ "chrono",
  "clap",
  "derive_more",
  "diff",
@@ -2978,7 +2968,7 @@ dependencies = [
  "async-recursion",
  "base64 0.22.1",
  "bytes",
- "chrono 0.4.41",
+ "chrono",
  "cron",
  "derive_more",
  "fallible-iterator",
@@ -3033,7 +3023,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d5afc6c729af5ecd4fa82431157946a5efbb1ceee8b068cf90c8be772bed0313"
 dependencies = [
- "chrono 0.4.41",
+ "chrono",
  "serde",
 ]
 
@@ -3043,7 +3033,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a0ff873a00e757224a88f00855d67ece38b4d95872f012e0ad5457de1f025966"
 dependencies = [
- "chrono 0.4.41",
+ "chrono",
  "derive_more",
  "inferno",
  "serde_json",
@@ -3706,7 +3696,7 @@ dependencies = [
  "serde",
  "smallvec",
  "strum 0.28.0",
- "time 0.3.55",
+ "time",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -3837,7 +3827,7 @@ dependencies = [
  "sha1 0.11.0",
  "simdutf8",
  "strum 0.28.0",
- "time 0.3.55",
+ "time",
  "tokio",
  "tokio-rustls",
  "tokio-rustls-acme",
@@ -4585,7 +4575,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a69bcab0ad47271a0234d9422b131806bf3968021e5dc9328caf2d4cd58557fc"
 dependencies = [
  "libc",
- "wasi 0.11.1+wasi-snapshot-preview1",
+ "wasi",
  "windows-sys 0.61.2",
 ]
 
@@ -4877,7 +4867,7 @@ dependencies = [
  "pin-project-lite",
  "serde",
  "socket2",
- "time 0.3.55",
+ "time",
  "tokio",
  "tokio-util",
  "tracing",
@@ -4992,17 +4982,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num"
-version = "0.1.43"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9bdb1fb680e609c2e0930c1866cafdd0be7e7c7a1ecf92aec71ed8d99d3e133"
-dependencies = [
- "num-integer",
- "num-iter",
- "num-traits",
-]
-
-[[package]]
 name = "num-bigint"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5034,17 +5013,6 @@ version = "0.1.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7969661fd2958a5cb096e56c8e1ad0444ac2bbcd0061bd28660485a44879858f"
 dependencies = [
- "num-traits",
-]
-
-[[package]]
-name = "num-iter"
-version = "0.1.45"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1429034a0490724d0075ebb2bc9e875d6503c3cf69e235a8941aa757d83ef5bf"
-dependencies = [
- "autocfg",
- "num-integer",
  "num-traits",
 ]
 
@@ -5583,7 +5551,7 @@ dependencies = [
  "indexmap 2.14.2",
  "quick-xml 0.42.0",
  "serde",
- "time 0.3.55",
+ "time",
 ]
 
 [[package]]
@@ -5641,7 +5609,7 @@ dependencies = [
  "serde",
  "smallvec",
  "socket2",
- "time 0.3.55",
+ "time",
  "tokio",
  "tokio-util",
  "tower-layer",
@@ -6188,7 +6156,7 @@ dependencies = [
  "pem",
  "ring",
  "rustls-pki-types",
- "time 0.3.55",
+ "time",
  "x509-parser",
  "yasna",
  "zeroize",
@@ -7018,7 +6986,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c522100790450cf78eeac1507263d0a350d4d5b30df0c8e1fe051a10c22b376e"
 dependencies = [
  "base64 0.22.1",
- "chrono 0.4.41",
+ "chrono",
  "hex",
  "indexmap 1.9.3",
  "indexmap 2.14.2",
@@ -7028,7 +6996,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "serde_with_macros",
- "time 0.3.55",
+ "time",
 ]
 
 [[package]]
@@ -7799,17 +7767,6 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.1.45"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b797afad3f312d1c66a56d11d0316f916356d11bd158fbc6ca6389ff6bf805a"
-dependencies = [
- "libc",
- "wasi 0.10.0+wasi-snapshot-preview1",
- "winapi",
-]
-
-[[package]]
-name = "time"
 version = "0.3.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb87b95ec50ddfa440816d227a17b2ccbdda963a316a727fda0fc4334f7d134"
@@ -7912,7 +7869,7 @@ checksum = "1af8573b15fdad8d66da116198cd8fd8d87ff62a67c1c6c3df7f62da1170793f"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
- "chrono 0.4.41",
+ "chrono",
  "futures",
  "log",
  "num-bigint",
@@ -7925,7 +7882,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
- "time 0.3.55",
+ "time",
  "tokio",
  "tokio-rustls",
  "webpki-roots",
@@ -8164,7 +8121,7 @@ checksum = "786d480bce6247ab75f005b14ae1624ad978d3029d9113f0a22fa1ac773faeaf"
 dependencies = [
  "crossbeam-channel",
  "thiserror 2.0.18",
- "time 0.3.55",
+ "time",
  "tracing-subscriber",
 ]
 
@@ -8235,7 +8192,7 @@ dependencies = [
  "sharded-slab",
  "smallvec",
  "thread_local",
- "time 0.3.55",
+ "time",
  "tracing",
  "tracing-core",
  "tracing-log",
@@ -8445,7 +8402,6 @@ dependencies = [
 name = "users_organizations_integrity"
 version = "0.0.1"
 dependencies = [
- "chrono 0.3.0",
  "email_address",
  "hdi",
  "holochain_serialized_bytes",
@@ -8481,7 +8437,6 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 name = "utils"
 version = "0.0.1"
 dependencies = [
- "chrono 0.3.0",
  "getrandom 0.3.4",
  "hdk",
  "holochain_serialized_bytes",
@@ -8545,7 +8500,7 @@ dependencies = [
  "anyhow",
  "derive_builder",
  "rustversion",
- "time 0.3.55",
+ "time",
  "vergen",
  "vergen-lib",
 ]
@@ -8594,12 +8549,6 @@ checksum = "bfa7760aed19e106de2c7c0b581b509f2f25d3dacaf737cb82ac61bc6d760b0e"
 dependencies = [
  "try-lock",
 ]
-
-[[package]]
-name = "wasi"
-version = "0.10.0+wasi-snapshot-preview1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a143597ca7c7793eff794def352d41792a93c481eb1042423ff7ff72ba2c31f"
 
 [[package]]
 name = "wasi"
@@ -9555,7 +9504,7 @@ version = "0.18.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c81b85c57a57500e56669586496bf2abd5cf082b9d32995251185d105208b64"
 dependencies = [
- "chrono 0.4.41",
+ "chrono",
  "futures",
  "log",
  "serde",
@@ -9604,7 +9553,7 @@ dependencies = [
  "ring",
  "rusticata-macros",
  "thiserror 2.0.18",
- "time 0.3.55",
+ "time",
 ]
 
 [[package]]
@@ -9658,7 +9607,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5f6765e852b9b4dc8e2a76843e4d64d1cea8e79bcde0b6901aea8e7c7f08282"
 dependencies = [
  "bit-vec 0.9.1",
- "time 0.3.55",
+ "time",
 ]
 
 [[package]]
@@ -9812,7 +9761,7 @@ dependencies = [
  "pbkdf2",
  "ppmd-rust",
  "sha1 0.11.0",
- "time 0.3.55",
+ "time",
  "typed-path",
  "zeroize",
  "zopfli",

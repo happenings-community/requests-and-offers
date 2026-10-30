@@ -27,7 +27,9 @@ hdk = "=0.7.0"
 holochain_serialized_bytes = "*"
 thiserror = "^2.0"
 serde = "^1.0"
-chrono = "^0.3"
+# Only chrono::Duration (TimeDelta) is used, for timed suspensions; no clock, so no default features.
+# chrono 0.3 pulled in time 0.1 (#305).
+chrono = { version = "0.4.41", default-features = false }
 getrandom = { version = "^0.3", features = ["wasm_js"] }
 
 # Test-only deps — NOT compiled to WASM, only used by requests_and_offers_sweettest

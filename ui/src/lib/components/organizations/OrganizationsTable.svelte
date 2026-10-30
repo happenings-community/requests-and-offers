@@ -66,11 +66,11 @@
               <td>
                 <div class="font-medium">{organization.name}</div>
                 <!-- Compact description display -->
-                <div class="line-clamp-1 text-xs text-surface-400">
+                <div class="line-clamp-1 text-xs text-surface-700 dark:text-surface-300">
                   {stripMarkdown(organization.description)}
                 </div>
                 <!-- Show members and email inline on smaller screens where those columns are hidden -->
-                <div class="flex gap-2 text-xs text-surface-400 xl:hidden">
+                <div class="flex gap-2 text-xs text-surface-700 dark:text-surface-300 xl:hidden">
                   <span>{organization.members.length} members</span>
                   {#if organization.email}
                     <span class="max-w-[8rem] truncate">{organization.email}</span>

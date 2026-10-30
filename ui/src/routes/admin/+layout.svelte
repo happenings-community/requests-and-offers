@@ -85,7 +85,7 @@
         <div class="flex h-full flex-col items-center justify-center space-y-4">
           <p class="text-surface-200">Initializing admin panel...</p>
           <ConicGradient stops={conicStops} spin>Loading</ConicGradient>
-          <p class="text-sm text-surface-400">
+          <p class="text-sm text-surface-400 dark:text-surface-300">
             Connection status is shown in the navigation bar above.
           </p>
         </div>
@@ -93,12 +93,12 @@
         <div class="flex h-full flex-col items-center justify-center space-y-4">
           <p role="status" class="text-surface-200">Loading administrator data...</p>
           <ConicGradient stops={conicStops} spin>Loading</ConicGradient>
-          <p class="text-sm text-surface-400">Checking your administrator privileges...</p>
+          <p class="text-sm text-surface-400 dark:text-surface-300">Checking your administrator privileges...</p>
         </div>
       {:else if adminLoadingStatus === 'failed'}
         <div class="flex h-full flex-col items-center justify-center space-y-4">
           <p class="text-warning-400">⚠️ Admin data loading failed</p>
-          <p class="text-sm text-surface-400">
+          <p class="text-sm text-surface-400 dark:text-surface-300">
             Unable to verify administrator status. Please refresh the page.
           </p>
           <button class="variant-filled-primary btn" onclick={() => window.location.reload()}>

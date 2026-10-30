@@ -240,7 +240,7 @@
           </thead>
           <tbody>
             {#each sortedServiceTypes as serviceType (serviceType.original_action_hash?.toString() || `${serviceType.name}-${serviceType.description.slice(0, 10)}`)}
-              <tr class="cursor-pointer hover:bg-surface-50-900-token hover:opacity-50">
+              <tr class="cursor-pointer hover:bg-surface-50-900-token">
                 <td class="border-surface-200-700-token border-t px-4 py-3 font-medium">
                   <button
                     class="text-left transition-colors hover:text-primary-600"
@@ -274,7 +274,7 @@
                       {formatDate(new Date(serviceType.created_at))}
                     </span>
                   {:else}
-                    <span class="text-surface-400">—</span>
+                    <span class="text-surface-500 dark:text-surface-300">—</span>
                   {/if}
                 </td>
                 <td
@@ -285,7 +285,7 @@
                       {formatDate(new Date(serviceType.updated_at))}
                     </span>
                   {:else}
-                    <span class="text-surface-400">—</span>
+                    <span class="text-surface-500 dark:text-surface-300">—</span>
                   {/if}
                 </td>
                 {#if showActions}

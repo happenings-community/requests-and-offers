@@ -388,7 +388,9 @@
               <h4 class="flex-1 font-semibold text-primary-600 dark:text-primary-400">
                 {spec.name}
               </h4>
-              <i class="fa-solid fa-external-link ml-2 mt-1 text-sm text-surface-400"></i>
+              <i
+                class="fa-solid fa-external-link ml-2 mt-1 text-sm text-surface-500 dark:text-surface-400"
+              ></i>
             </div>
 
             <!-- Action Hash Reference -->

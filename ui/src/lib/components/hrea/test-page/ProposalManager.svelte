@@ -360,7 +360,9 @@
                   {/if}
                 </div>
               </div>
-              <i class="fa-solid fa-external-link ml-2 mt-1 text-sm text-surface-400"></i>
+              <i
+                class="fa-solid fa-external-link ml-2 mt-1 text-sm text-surface-500 dark:text-surface-400"
+              ></i>
             </div>
 
             <!-- Source Entity Information -->

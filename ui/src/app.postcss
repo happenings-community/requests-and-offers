@@ -20,6 +20,23 @@ td {
   @apply grid place-content-center;
 }
 
+/*
+ * Respect a visitor's request for reduced motion everywhere: spinners, pulses,
+ * Tailwind transitions and Skeleton animations stop or settle at once. Motion is
+ * unchanged for everyone else. Svelte transitions also need `reducedMotion()`
+ * from `$lib/utils/motion`, because Svelte times outros from its own duration.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 .hcron-modal {
   @apply z-50 flex max-h-[90vh] w-11/12 flex-col gap-4 overflow-auto rounded-lg bg-surface-500 p-10 text-white shadow-xl dark:bg-surface-800 md:w-4/5;
 }

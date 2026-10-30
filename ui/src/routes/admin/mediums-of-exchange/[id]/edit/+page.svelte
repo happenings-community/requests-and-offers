@@ -70,7 +70,7 @@
   <div class="mb-6 flex items-center justify-between">
     <div>
       <h1 class="h1 text-3xl font-bold">Edit Medium of Exchange</h1>
-      <p class="mt-2 text-surface-600 dark:text-surface-400">
+      <p class="mt-2 text-surface-600 dark:text-surface-300">
         Modify the details of this currency or payment method.
       </p>
     </div>

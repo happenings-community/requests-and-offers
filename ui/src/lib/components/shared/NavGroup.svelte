@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { slide } from 'svelte/transition';
+  import { slide as svelteSlide } from 'svelte/transition';
+  import { reducedMotion } from '$lib/utils/motion';
+
+  const slide = reducedMotion(svelteSlide);
 
   let { title = '', children }: { title: string; children: any } = $props();
   let isOpen = $state(false);

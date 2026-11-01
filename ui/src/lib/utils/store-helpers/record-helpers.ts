@@ -49,7 +49,7 @@ export const createUIEntityFromRecord = <TEntry, TEntity extends CacheableEntity
       // Decode MessagePack entry
       const entry = decodeRecord(record) as TEntry;
       const actionHash = record.signed_action.hashed.hash;
-      const timestamp = record.signed_action.hashed.content.timestamp;
+      const timestamp = record.signed_action.hashed.content.header.timestamp;
 
       return entityMapper(entry, actionHash, timestamp, additionalData);
     } catch (error) {
@@ -77,7 +77,7 @@ export const createEntityFactory = <TEntry, TEntity extends CacheableEntity>(
       try {
         const entry = decodeRecord(record) as TEntry;
         const actionHash = record.signed_action.hashed.hash;
-        const timestamp = record.signed_action.hashed.content.timestamp;
+        const timestamp = record.signed_action.hashed.content.header.timestamp;
 
         const baseEntity = mapper(entry, actionHash, timestamp);
 

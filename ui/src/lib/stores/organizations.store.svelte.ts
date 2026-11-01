@@ -352,11 +352,13 @@ export const createOrganizationsStore = (): E.Effect<
             // original_action_address pointing back to the CREATE action, which is
             // where all member/coordinator links are anchored. Using the update hash
             // for link lookups returns empty results — hence the "No members found" bug.
+            // Since Holochain 0.7 the variant fields live under action.data. The cast
+            // stays because @holochain/client 0.21's ActionData union omits Update.
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const actionContent = record.signed_action.hashed.content as any;
+            const actionData = record.signed_action.hashed.content.data as any;
             const trueOriginalHash: ActionHash =
-              actionContent.type === 'Update' && actionContent.original_action_address
-                ? (actionContent.original_action_address as ActionHash)
+              actionData.type === 'Update' && actionData.original_action_address
+                ? (actionData.original_action_address as ActionHash)
                 : record.signed_action.hashed.hash;
 
             return pipe(

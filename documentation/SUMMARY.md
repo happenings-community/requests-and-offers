@@ -112,6 +112,7 @@
 - [Effect-TS Primer](guides/effect-ts-primer.md)
 - [Testing](guides/testing.md)
 - [Continuous Integration](guides/continuous-integration.md)
+- [Project Board Automation](guides/project-board-automation.md)
 - [Deployment](guides/deployment.md)
 - [Docker Compose Configurations](docker-compose-configurations.md)
 - [Contributing](guides/contributing.md)

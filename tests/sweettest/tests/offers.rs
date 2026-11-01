@@ -24,13 +24,30 @@ async fn basic_offer_crud_operations() {
         .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
         .await;
     let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
-    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user_hash).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user_hash.clone()).await;
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // A listing names one service type, so Alice creates one first.
+    // A progenitor's service type lands approved.
+    let st_record: Record = conductors[0]
+        .call(
+            &alice.zome("service_types"),
+            "create_service_type",
+            sample_service_type("Web Design"),
+        )
+        .await;
+    let st_hash = st_record.signed_action.hashed.hash.clone();
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Alice creates an offer.
     let offer_record: Record = conductors[0]
-        .call(&alice.zome("offers"), "create_offer", sample_offer("Offering web design help"))
+        .call(
+            &alice.zome("offers"),
+            "create_offer",
+            sample_offer("Offering web design help", st_hash.clone()),
+        )
         .await;
 
     let offer_hash = offer_record.signed_action.hashed.hash.clone();
@@ -50,7 +67,7 @@ async fn basic_offer_crud_operations() {
     assert!(!all_offers.is_empty());
 
     // Alice updates the offer.
-    let mut updated_input = sample_offer("Updated offer title");
+    let mut updated_input = sample_offer("Updated offer title", st_hash.clone());
     updated_input.offer.title = "Updated offer title".to_string();
     let _: Record = conductors[0]
         .call(
@@ -60,7 +77,7 @@ async fn basic_offer_crud_operations() {
                 "original_action_hash": offer_hash,
                 "previous_action_hash": offer_record.signed_action.hashed.hash,
                 "updated_offer": updated_input.offer,
-                "service_type_hashes": [],
+                "service_type_hash": st_hash,
                 "medium_of_exchange_hashes": []
             }),
         )
@@ -73,6 +90,23 @@ async fn basic_offer_crud_operations() {
         .await;
     let updated_offer: Offer = latest.unwrap().entry().to_app_option().unwrap().expect("entry");
     assert_eq!(updated_offer.title, "Updated offer title");
+
+    // The list endpoints resolve each link target to its latest revision, so the
+    // edit shows on both lists. UserOffers stays anchored at the Create, so this
+    // is the list that only the resolve can get right.
+    let active: Vec<Record> = conductors[0]
+        .call(&alice.zome("offers"), "get_active_offers", ())
+        .await;
+    let mine: Vec<Record> = conductors[0]
+        .call(&alice.zome("offers"), "get_user_offers", alice_user_hash)
+        .await;
+    for (list, listed) in [("get_active_offers", active), ("get_user_offers", mine)] {
+        let titles: Vec<String> = listed
+            .iter()
+            .map(|record| record.entry().to_app_option::<Offer>().unwrap().unwrap().title)
+            .collect();
+        assert_eq!(titles, vec!["Updated offer title".to_string()], "{list}");
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -95,9 +129,25 @@ async fn offer_archive_and_delete() {
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
+    // A listing names one service type.
+    let st_record: Record = conductors[0]
+        .call(
+            &alice.zome("service_types"),
+            "create_service_type",
+            sample_service_type("Archival Services"),
+        )
+        .await;
+    let st_hash = st_record.signed_action.hashed.hash.clone();
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
     // Alice creates an offer.
     let offer_record: Record = conductors[0]
-        .call(&alice.zome("offers"), "create_offer", sample_offer("Offer to archive"))
+        .call(
+            &alice.zome("offers"),
+            "create_offer",
+            sample_offer("Offer to archive", st_hash.clone()),
+        )
         .await;
     let offer_hash = offer_record.signed_action.hashed.hash.clone();
 
@@ -105,7 +155,7 @@ async fn offer_archive_and_delete() {
     let archived_offer = OfferData {
         title: "Offer to archive".to_string(),
         status: "Archived".to_string(),
-        ..sample_offer("x").offer
+        ..sample_offer("x", st_hash.clone()).offer
     };
     let _: Record = conductors[0]
         .call(
@@ -115,7 +165,7 @@ async fn offer_archive_and_delete() {
                 "original_action_hash": offer_hash,
                 "previous_action_hash": offer_record.signed_action.hashed.hash,
                 "updated_offer": archived_offer,
-                "service_type_hashes": [],
+                "service_type_hash": st_hash,
                 "medium_of_exchange_hashes": []
             }),
         )
@@ -129,6 +179,21 @@ async fn offer_archive_and_delete() {
     let archived_offer: Offer =
         archived.unwrap().entry().to_app_option().unwrap().expect("entry");
     assert_eq!(archived_offer.status, "Archived");
+
+    // archive_offer moves the listing onto the archived path, and the archived
+    // list resolves it to its latest revision like every other list.
+    let _: bool = conductors[0]
+        .call(&alice.zome("offers"), "archive_offer", offer_hash.clone())
+        .await;
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let archived_list: Vec<Record> = conductors[0]
+        .call(&alice.zome("offers"), "get_archived_offers", ())
+        .await;
+    assert_eq!(archived_list.len(), 1, "one archived offer");
+    let listed: Offer = archived_list[0].entry().to_app_option().unwrap().expect("entry");
+    assert_eq!(listed.status, "Archived");
 
     // Delete the offer.
     let _: bool = conductors[0]

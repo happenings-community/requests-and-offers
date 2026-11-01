@@ -60,7 +60,7 @@ Validation may read only what the entry names, through `must_get_valid_record`; 
 
 **The kind rule** (`validate_term`): a `Gift` or `Tbd` term names no resource and carries no quantity; a `Service` or `Currency` term names the specification it conforms to. Any quantity present must be finite, greater than zero, and carry a unit.
 
-**Refused outright**: every update (`StoreRecord` update ops are invalid for all six types), every link delete, and every entry delete except an `Interest` deleted by its author.
+**Refused outright**: every update (`CreateRecord` update ops are invalid for all six types), every link delete, and every entry delete except an `Interest` deleted by its author.
 
 ### 2.3. Link Types
 

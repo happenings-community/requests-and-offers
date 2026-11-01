@@ -67,7 +67,7 @@
 
   async function fetchUsers() {
     try {
-      await administrationStore.fetchAllUsers();
+      await runEffect(administrationStore.fetchAllUsers());
       filteredUsers = nonAdministrators;
     } catch (error) {
       toastStore.trigger({

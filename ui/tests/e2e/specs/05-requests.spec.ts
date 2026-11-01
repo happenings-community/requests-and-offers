@@ -5,6 +5,7 @@ import {
   gotoApp,
   selectTimezone,
   createTestClient,
+  closeTestClient,
   callZome,
   ensureAcceptedUser,
   ensureServiceType,
@@ -53,7 +54,7 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
   });
 
   test.afterAll(async () => {
-    await client.client.close();
+    await closeTestClient(client);
   });
 
   test('form refuses to save with a link typed but not added', async ({ page }) => {
@@ -109,6 +110,12 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
 
     await expect(page).toHaveURL(/\/requests$/, { timeout: 15_000 });
     await expect(page.locator(`text=${REQUEST_TITLE}`).first()).toBeVisible({ timeout: 10_000 });
+
+    // The list row names the service type. Reading the hash's length instead
+    // printed "39 types", the byte count of one hash (#256).
+    const row = page.locator('tr', { hasText: REQUEST_TITLE }).first();
+    await expect(row).toContainText('E2E Service Type', { timeout: 10_000 });
+    await expect(row).not.toContainText(/\d+ types?\b/);
   });
 
   test('request detail page renders the request', async ({ page }) => {
@@ -120,7 +127,7 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
     });
     await expect(page.locator('text=Created by the requests e2e journey.').first()).toBeVisible();
     // Heading role — plain text hits the hidden nav dropdown item first.
-    await expect(page.getByRole('heading', { name: 'Service Types' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Service Type', exact: true })).toBeVisible();
   });
 
   test('user edits the request through the form', async ({ page }) => {

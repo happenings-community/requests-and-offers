@@ -167,10 +167,10 @@ describe('validateReview', () => {
 });
 
 describe('proposal links', () => {
-  it('carries the interest, the listing and its type into the counter-proposal', () => {
+  it('sends a counter-proposal to its own page for the proposal it answers', () => {
     const href = counterProposalHref(exchange());
-    expect(href).toContain('/exchanges/propose?interest=');
-    expect(href).toContain('&type=Offer');
+    expect(href).toMatch(/^\/exchanges\/[^/]+\/counter$/);
+    expect(href).not.toContain('propose');
   });
 
   it('builds the same link from an interest on a listing', () => {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { safeHtml } from '$lib/utils/safe-html';
   import type { AlertModalMeta } from '$lib/types/ui';
   import { getModalStore } from '@skeletonlabs/skeleton';
 
@@ -8,7 +9,8 @@
 
 <article class="hcron-modal z-50 !bg-surface-800">
   <div class="flex flex-col items-center gap-8">
-    {@html message}
+    <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitised by safeHtml (#211) -->
+    {@html safeHtml(message)}
     <button class="variant-filled-secondary btn" onclick={modalStore.close}>
       {confirmLabel || 'Ok'}
     </button>

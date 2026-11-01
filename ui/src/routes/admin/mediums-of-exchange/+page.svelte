@@ -1,6 +1,9 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { TabGroup, Tab, getModalStore } from '@skeletonlabs/skeleton';
+  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
+  import type { ConfirmModalMeta } from '$lib/types/ui';
+  import { escapeHtml } from '$lib/utils/safe-html';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
   import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
   import type { ActionHash } from '@holochain/client';
@@ -45,9 +48,14 @@
 
   const handleDelete = (mediumOfExchange: UIMediumOfExchange) => {
     modalStore.trigger({
-      type: 'confirm',
-      title: 'Delete Medium of Exchange',
-      body: `Are you sure you want to delete "${mediumOfExchange.name}" (${mediumOfExchange.code})? This action cannot be undone.`,
+      type: 'component',
+      component: { ref: ConfirmModal },
+      meta: {
+        id: 'delete-medium-of-exchange',
+        message: `Are you sure you want to delete "${escapeHtml(mediumOfExchange.name)}" (${escapeHtml(mediumOfExchange.code)})? This action cannot be undone.`,
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel'
+      } as ConfirmModalMeta,
       response: (confirmed: boolean) => {
         if (confirmed && mediumOfExchange.original_action_hash) {
           runEffect(deleteMediumOfExchange(mediumOfExchange.original_action_hash));
@@ -86,7 +94,7 @@
   <div class="mb-6 flex items-center justify-between">
     <div>
       <h1 class="h1 text-3xl font-bold">Manage Mediums of Exchange</h1>
-      <p class="mt-2 text-surface-600 dark:text-surface-400">
+      <p class="mt-2 text-surface-600 dark:text-surface-300">
         Create, review, and manage mediums of exchange. Approve currencies to make them available
         for users when creating offers and requests.
       </p>

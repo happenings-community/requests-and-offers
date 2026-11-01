@@ -132,7 +132,7 @@ const createServiceTypeCacheLookup = (serviceTypesService: ServiceTypesService) 
 
         // Get the actual status instead of defaulting to 'approved'
         const status = yield* serviceTypesService.getServiceTypeStatus(hash);
-        const authorPubKey = record.signed_action.hashed.content.author;
+        const authorPubKey = record.signed_action.hashed.content.header.author;
         const entity = createUIServiceType(record, {
           status: status as 'pending' | 'approved' | 'rejected',
           authorPubKey
@@ -275,7 +275,7 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.createServiceType(serviceType),
           E.tap((record) => {
-            const authorPubKey = record.signed_action.hashed.content.author;
+            const authorPubKey = record.signed_action.hashed.content.header.author;
             const entity = createUIServiceType(record, { status: 'approved', authorPubKey });
             if (entity) {
               E.runSync(cache.set(encodeHashToBase64(record.signed_action.hashed.hash), entity));
@@ -353,7 +353,7 @@ export const createServiceTypesStore = (): E.Effect<
                 }
 
                 // Use the actual status instead of defaulting to 'approved'
-                const authorPubKey = record.signed_action.hashed.content.author;
+                const authorPubKey = record.signed_action.hashed.content.header.author;
                 const serviceType = createUIServiceType(record, {
                   status: status as 'pending' | 'approved' | 'rejected',
                   authorPubKey
@@ -400,7 +400,7 @@ export const createServiceTypesStore = (): E.Effect<
               E.map((record) => {
                 if (!record) return { record: null, updatedServiceType: null };
 
-                const authorPubKey = record.signed_action.hashed.content.author;
+                const authorPubKey = record.signed_action.hashed.content.header.author;
                 const baseEntity = createUIServiceType(record, {
                   status: 'approved',
                   authorPubKey
@@ -462,7 +462,7 @@ export const createServiceTypesStore = (): E.Effect<
         pipe(
           serviceTypesService.suggestServiceType(serviceType),
           E.tap((record) => {
-            const authorPubKey = record.signed_action.hashed.content.author;
+            const authorPubKey = record.signed_action.hashed.content.header.author;
             const entity = createUIServiceType(record, { status: 'pending', authorPubKey });
             if (entity) {
               E.runSync(cache.set(encodeHashToBase64(record.signed_action.hashed.hash), entity));
@@ -540,7 +540,7 @@ export const createServiceTypesStore = (): E.Effect<
           E.map((records) => {
             const entities = records
               .map((record) => {
-                const authorPubKey = record.signed_action.hashed.content.author;
+                const authorPubKey = record.signed_action.hashed.content.header.author;
                 return createUIServiceType(record, { status: 'pending', authorPubKey });
               })
               .filter(Boolean) as UIServiceType[];
@@ -562,7 +562,7 @@ export const createServiceTypesStore = (): E.Effect<
           E.map((records) => {
             const entities = records
               .map((record) => {
-                const authorPubKey = record.signed_action.hashed.content.author;
+                const authorPubKey = record.signed_action.hashed.content.header.author;
                 return createUIServiceType(record, { status: 'approved', authorPubKey });
               })
               .filter(Boolean) as UIServiceType[];
@@ -584,7 +584,7 @@ export const createServiceTypesStore = (): E.Effect<
           E.map((records) => {
             const entities = records
               .map((record) => {
-                const authorPubKey = record.signed_action.hashed.content.author;
+                const authorPubKey = record.signed_action.hashed.content.header.author;
                 return createUIServiceType(record, { status: 'rejected', authorPubKey });
               })
               .filter(Boolean) as UIServiceType[];

@@ -129,7 +129,7 @@ All six domain coordinator zomes already emit a five-variant `Signal` enum from 
 
 PR 3.2 is deliberately observation-only: decode and log, change nothing. It proves the Rust-to-TypeScript contract against a running conductor before any store depends on it.
 
-**Version risk, and it is scheduled.** Issue #193 upgrades `@holochain/client` to `0.21.0`, P1-critical, and the signal payload field is renamed between 0.20 and 0.21. Decoding in one place makes that a one-file change. If the chat work wires signals ad hoc first, it becomes a sweep.
+**Version risk.** Issue #193's upgrade to `@holochain/client` `0.21.0` kept the decoded signal field as `payload`; 0.22.0 adds an `AppDirect` signal variant. Decoding in one place makes the next upgrade a one-file change. If the chat work wires signals ad hoc first, it becomes a sweep.
 
 **Design constraint, restated because it is easy to lose.** Signals reduce latency, they never replace fetching. Holochain signals are send-and-forget with no ordering guarantee and no delivery to an offline receiver. `holochain-open-dev/common` runs a 20 second poll alongside its signal subscriptions for exactly this reason. Cache expiry from Phase 2 remains the correctness mechanism.
 

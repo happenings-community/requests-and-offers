@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
+  import ExternalLink from '$lib/components/shared/ExternalLink.svelte';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -320,17 +321,15 @@
           />
         </header>
 
-        <!-- Service Types -->
+        <!-- Service Type -->
         <section class="mb-6">
-          <h3 class="h4 mb-3 font-semibold">Service Types</h3>
-          {#if request.service_type_hashes && request.service_type_hashes.length > 0}
+          <h3 class="h4 mb-3 font-semibold">Service Type</h3>
+          {#if request.service_type_hash}
             <div class="flex flex-wrap gap-2">
-              {#each request.service_type_hashes as serviceTypeHash}
-                <ServiceTypeTag serviceTypeActionHash={serviceTypeHash} showLink={true} />
-              {/each}
+              <ServiceTypeTag serviceTypeActionHash={request.service_type_hash} showLink={true} />
             </div>
           {:else}
-            <p class="text-surface-500">No service types specified.</p>
+            <p class="text-surface-500">No service type specified.</p>
           {/if}
         </section>
 
@@ -404,14 +403,7 @@
             <ul class="list-inside list-disc space-y-1">
               {#each request.links as link}
                 <li>
-                  <a
-                    href={link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="text-primary-500 hover:underline dark:text-primary-400"
-                  >
-                    {link}
-                  </a>
+                  <ExternalLink text={link} class="text-primary-500 hover:underline dark:text-primary-400" />
                 </li>
               {/each}
             </ul>

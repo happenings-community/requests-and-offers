@@ -212,4 +212,12 @@ async fn request_archive_and_delete() {
         .call(&bob.zome("requests"), "get_latest_request_record", req_hash)
         .await;
     assert!(after_delete.is_none(), "Deleted request should not be found");
+
+    // The delete leaves the request's archived link in place, so only the tombstone
+    // keeps it off the archived list. The lists read the tombstones in one batch
+    // (#234 with #390); this is the check that would fail without that rule.
+    let archived_after: Vec<Record> = conductors[1]
+        .call(&bob.zome("requests"), "get_archived_requests", ())
+        .await;
+    assert!(archived_after.is_empty(), "a deleted request is not in the archived list");
 }

@@ -206,4 +206,12 @@ async fn offer_archive_and_delete() {
         .call(&bob.zome("offers"), "get_latest_offer_record", offer_hash)
         .await;
     assert!(after_delete.is_none(), "Deleted offer should not be found");
+
+    // The delete leaves the offer's archived link in place, so only the tombstone
+    // keeps it off the archived list. The lists read the tombstones in one batch
+    // (#234 with #390); this is the check that would fail without that rule.
+    let archived_after: Vec<Record> = conductors[1]
+        .call(&bob.zome("offers"), "get_archived_offers", ())
+        .await;
+    assert!(archived_after.is_empty(), "a deleted offer is not in the archived list");
 }

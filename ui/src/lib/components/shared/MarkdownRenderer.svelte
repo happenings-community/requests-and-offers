@@ -14,7 +14,6 @@
 <div
   class="markdown-renderer prose prose-sm max-w-none text-[inherit] dark:prose-invert {className}"
 >
-  <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitised by DOMPurify above (#211) -->
   <!-- eslint-disable-next-line svelte/no-at-html-tags -- renderMarkdown sanitises with DOMPurify (#211, #300) -->
   {@html html}
 </div>

@@ -44,7 +44,7 @@
 
   const { accept, decline, complete, cancel, withdraw, review } = details;
 
-  /** The composable declines and hands back where the counter is written. */
+  /** Opens the counter page. Nothing is declined until the counter is sent there. */
   async function counter() {
     const href = await details.counter();
     if (href) await goto(href);

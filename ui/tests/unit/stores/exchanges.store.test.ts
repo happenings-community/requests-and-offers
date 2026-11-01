@@ -14,7 +14,7 @@ const record = (entry: object, actionHash: Uint8Array, atMs = 1_700_000_000_000)
     signed_action: {
       hashed: {
         hash: actionHash,
-        content: { timestamp: atMs * 1000, author: hash(9) }
+        content: { header: { timestamp: atMs * 1000, author: hash(9) } }
       }
     },
     entry: { Present: { entry: encode(entry) } }

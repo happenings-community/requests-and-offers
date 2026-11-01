@@ -68,10 +68,10 @@ export class OfferInput extends Schema.Class<OfferInput>('OfferInput')({
   links: Schema.Array(Schema.String),
 
   // Linking fields
-  service_type_hashes: Schema.Array(ActionHashSchema).pipe(
+  service_type_hash: ActionHashSchema.pipe(
     Schema.annotations({
-      title: 'Service Type Hashes',
-      description: 'Hashes of associated service types'
+      title: 'Service Type Hash',
+      description: 'The service type this offer names'
     })
   ),
   medium_of_exchange_hashes: Schema.Array(ActionHashSchema).pipe(
@@ -109,7 +109,7 @@ export class UIOffer extends Schema.Class<UIOffer>('UIOffer')({
   updated_at: Schema.optional(TimestampSchema),
 
   // Associated data
-  service_type_hashes: Schema.optional(Schema.Array(ActionHashSchema)),
+  service_type_hash: Schema.optional(ActionHashSchema),
   medium_of_exchange_hashes: Schema.optional(Schema.Array(ActionHashSchema))
 }) {}
 
@@ -117,7 +117,7 @@ export class UIOffer extends Schema.Class<UIOffer>('UIOffer')({
 export class CreateOfferInput extends Schema.Class<CreateOfferInput>('CreateOfferInput')({
   offer: OfferInDHT,
   organization: Schema.optional(ActionHashSchema),
-  service_type_hashes: Schema.Array(ActionHashSchema),
+  service_type_hash: ActionHashSchema,
   medium_of_exchange_hashes: Schema.Array(ActionHashSchema)
 }) {}
 
@@ -125,7 +125,7 @@ export class UpdateOfferInput extends Schema.Class<UpdateOfferInput>('UpdateOffe
   original_action_hash: ActionHashSchema,
   previous_action_hash: ActionHashSchema,
   updated_offer: OfferInDHT,
-  service_type_hashes: Schema.Array(ActionHashSchema),
+  service_type_hash: ActionHashSchema,
   medium_of_exchange_hashes: Schema.Array(ActionHashSchema)
 }) {}
 

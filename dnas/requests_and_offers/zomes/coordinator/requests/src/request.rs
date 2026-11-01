@@ -18,7 +18,9 @@ use crate::external_calls::{
 pub struct RequestInput {
   request: Request,
   organization: Option<ActionHash>,
-  service_type_hashes: Vec<ActionHash>,
+  /// A listing names one service. The plural lives on the agreement, as
+  /// several Commitments, not on the listing.
+  service_type_hash: ActionHash,
   medium_of_exchange_hashes: Vec<ActionHash>,
 }
 
@@ -93,14 +95,12 @@ pub fn create_request(input: RequestInput) -> ExternResult<Record> {
     )?;
   }
 
-  // Create bidirectional links to service types
-  for service_type_hash in input.service_type_hashes {
-    link_to_service_type(ServiceTypeLinkInput {
-      service_type_hash: OriginalActionHash(service_type_hash),
-      action_hash: OriginalActionHash(request_hash.clone()),
-      entity: "request".to_string(),
-    })?;
-  }
+  // Create the bidirectional link to this listing's service type
+  link_to_service_type(ServiceTypeLinkInput {
+    service_type_hash: OriginalActionHash(input.service_type_hash),
+    action_hash: OriginalActionHash(request_hash.clone()),
+    entity: "request".to_string(),
+  })?;
 
   // Create bidirectional links to mediums of exchange
   for medium_of_exchange_hash in input.medium_of_exchange_hashes {
@@ -121,6 +121,13 @@ pub fn get_request(action_hash: ActionHash) -> ExternResult<Option<Record>> {
 
 #[hdk_extern]
 pub fn get_latest_request_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+  let latest_action_hash = latest_request_action_hash(original_action_hash)?;
+  get(latest_action_hash, GetOptions::default())
+}
+
+/// The hash of the latest revision of a request: the newest `RequestUpdates` target, or the
+/// original hash when it was never updated.
+fn latest_request_action_hash(original_action_hash: ActionHash) -> ExternResult<ActionHash> {
   let link_type_filter = LinkTypes::RequestUpdates
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
@@ -131,15 +138,37 @@ pub fn get_latest_request_record(original_action_hash: ActionHash) -> ExternResu
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
-  let latest_action_hash = match latest_link {
+  Ok(match latest_link {
     Some(link) => link
       .target
       .clone()
       .into_action_hash()
       .ok_or(CommonError::ActionHashNotFound("request".to_string()))?,
-    None => original_action_hash.clone(),
-  };
-  get(latest_action_hash, GetOptions::default())
+    None => original_action_hash,
+  })
+}
+
+/// Resolve each link target to its latest revision, then fetch them all in one batched
+/// `get` (#186). A target whose update links cannot be read is skipped rather than failing
+/// the whole list (#233); targets that are not found are dropped, as before #184. A fetch
+/// error on any one record still fails the batch, which is also the pre-#184 contract.
+fn get_latest_request_records(links: Vec<Link>) -> ExternResult<Vec<Record>> {
+  let get_input: Vec<GetInput> = links
+    .into_iter()
+    .filter_map(|link| link.target.into_action_hash())
+    .filter_map(|original_action_hash| {
+      latest_request_action_hash(original_action_hash.clone())
+        .inspect_err(|err| warn!("Skipping request {original_action_hash} in a list: {err:?}"))
+        .ok()
+    })
+    .map(|latest_action_hash| GetInput::new(latest_action_hash.into(), GetOptions::default()))
+    .collect();
+  let records = HDK
+    .with(|hdk| hdk.borrow().get(get_input))?
+    .into_iter()
+    .flatten()
+    .collect();
+  Ok(records)
 }
 
 #[hdk_extern]
@@ -171,15 +200,7 @@ pub fn get_active_requests(_: ()) -> ExternResult<Vec<Record>> {
   )?;
   // Resolve the LATEST record per link target so edits are visible on list
   // surfaces (Bug 4 fix).
-  let mut records = Vec::new();
-  for link in links {
-    if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if let Some(record) = get_latest_request_record(target_hash)? {
-        records.push(record);
-      }
-    }
-  }
-  Ok(records)
+  get_latest_request_records(links)
 }
 
 #[hdk_extern]
@@ -193,15 +214,7 @@ pub fn get_archived_requests(_: ()) -> ExternResult<Vec<Record>> {
     LinkQuery::new(path_hash.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
-  let mut records = Vec::new();
-  for link in links {
-    if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if let Some(record) = get_latest_request_record(target_hash)? {
-        records.push(record);
-      }
-    }
-  }
-  Ok(records)
+  get_latest_request_records(links)
 }
 
 #[hdk_extern]
@@ -215,15 +228,7 @@ pub fn get_user_requests(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
     LinkQuery::new(user_hash.clone(), link_type_filter),
     GetStrategy::Local,
   )?;
-  let mut records = Vec::new();
-  for link in links {
-    if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if let Some(record) = get_latest_request_record(target_hash)? {
-        records.push(record);
-      }
-    }
-  }
-  Ok(records)
+  get_latest_request_records(links)
 }
 
 #[hdk_extern]
@@ -335,7 +340,7 @@ pub struct UpdateRequestInput {
   pub original_action_hash: OriginalActionHash,
   pub previous_action_hash: PreviousActionHash,
   pub updated_request: Request,
-  pub service_type_hashes: Vec<ActionHash>,
+  pub service_type_hash: ActionHash,
   pub medium_of_exchange_hashes: Vec<ActionHash>,
 }
 
@@ -419,7 +424,8 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
   update_service_type_links(UpdateServiceTypeLinksInput {
     action_hash: OriginalActionHash(updated_request_hash.clone()),
     entity: "request".to_string(),
-    new_service_type_hashes: input.service_type_hashes,
+    // The shared link machinery stays plural: users carry several skills.
+    new_service_type_hashes: vec![input.service_type_hash],
   })?;
 
   // Update medium of exchange links using the mediums_of_exchange zome

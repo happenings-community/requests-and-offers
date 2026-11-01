@@ -15,7 +15,7 @@ Skills contain verified patterns from this codebase. Load them BEFORE launching 
 
 ```bash
 # Environment
-nix develop                    # Required for zomes - enters Nix shell (Holochain 0.6)
+nix develop                    # Required for zomes - enters Nix shell (Holochain 0.7)
 bun install                    # Install dependencies
 
 # Dev servers
@@ -38,13 +38,13 @@ cd ui && bunx playwright test tests/e2e/specs/04-offers.spec.ts  # Single e2e sp
 cd ui && bun run lint && bun run format && bun run check
 ```
 
-**Holochain 0.6 migration notes**: HDK 0.6.0, HDI 0.7.0, `LinkQuery::new()` + `GetStrategy::Local`, `delete_link()` requires `GetOptions::default()`, DNA manifest uses `path` instead of `bundled`.
+**Holochain 0.7 notes**: HDK 0.7.0, HDI 0.8.0, holonix `main-0.7`. An `Action` is a header plus an `ActionData` enum: match `action.data` (`ActionData::Create`, `::Update`, ...) and read `action.author()`. In `validate`, `FlatOp::CreateEntry` / `CreateRecord` / `Update` / `Delete` / `Link(OpLink::..)` / `AgentActivity` replace the 0.6 `Store*` and `Register*` variants, and `EntryCreationAction` is `TypedAction<EntryCreationData>`. 0.7 changes every DNA hash and cannot read 0.6 databases. Still true from 0.6: `LinkQuery::new()` + `GetStrategy::Local`, `delete_link()` requires `GetOptions::default()`, DNA manifest uses `path`. On the client side, `@holochain/client` 0.21 mirrors the split: read `record.signed_action.hashed.content.header.author` / `.timestamp` and `content.data.type`, and `dumpNetworkStats()` nests connections under `transport_stats`.
 
 ## Continuous Integration
 
 Pull requests to `dev` and `main` run type check, the front-end unit suite, a lint report and a zome build that packs the hApp. Sweettest and e2e are not on that path: label a pull request `run:sweettest`, `run:e2e` or `run:heavy` to run them against it, or dispatch **Heavy tests (manual)** from the Actions tab against a branch or tag. Full detail: `documentation/guides/continuous-integration.md`.
 
-Three rules worth holding when touching the pipeline. Change any `package.json` and you must run `bun install` and commit `bun.lock` in the same commit, because CI installs with `--frozen-lockfile`. And `.github` is no longer blanket-ignored, but three paths in it still are, each commented in `.gitignore`. And lint any workflow change before committing: `actionlint`, or at least `bash -n` over each `run:` block. A comment inside a single-quoted `bash -c '...'` script is still code, and an apostrophe in it closes the quote, which has broken every Sweettest leg before now. `actionlint` reports one known false positive (SC2016 on the sampler's `trap`), so read its findings rather than its exit code.
+Three rules worth holding when touching the pipeline. Change any `package.json` and you must run `bun install` and commit `bun.lock` in the same commit, because CI installs with `--frozen-lockfile`. And `.github` is no longer blanket-ignored, but two paths in it still are (the issue and pull-request templates), each commented in `.gitignore`. And lint any workflow change before committing: `actionlint`, or at least `bash -n` over each `run:` block. A comment inside a single-quoted `bash -c '...'` script is still code, and an apostrophe in it closes the quote, which has broken every Sweettest leg before now. `actionlint` reports one known false positive (SC2016 on the sampler's `trap`), so read its findings rather than its exit code.
 
 ## Architecture Overview
 
@@ -159,7 +159,7 @@ All 8 domains follow the 7-layer pattern. Use **Service Types** as the reference
 - **Path aliases**: `$lib` → `src/lib`, `@` → `src` (configured in `ui/vitest.config.ts`)
 - **hREA service tests**: Need module mocks for `@valueflows/vf-graphql-holochain` and `@apollo/client/link/schema`
 - **Sweettest**: run tests the way CI does, one case per process (`cargo test ... --test <target> -- --exact <case>`). The `bun run test:sweettest*` scripts run one case at a time, which is fine for a quick check. A bare `cargo test` at default parallelism fails on setup timeouts that are not bugs, and a setup failure locally (app install, database timeout, conductor start) is environment, not a result: re-run that case alone before concluding. `cargo test` also does **not** repack the DNA, so run `bun run build:happ` after any zome change or you are testing the previous wasm.
-- **E2E suite**: one sandbox conductor + ONE shared agent identity per run; specs are an ordered journey (filename order) and each is standalone-runnable via the idempotent `ensure*` helpers. Selector gotchas (Skeleton tabs are `role="tab"`, three confirm-dialog mechanisms, original-vs-latest record surfaces, `ServiceTypeSelector` filter-first rule) are documented in `ui/tests/e2e/README.md` — read it before writing e2e tests
+- **E2E suite**: one sandbox conductor + ONE shared agent identity per run; specs are an ordered journey (filename order) and each is standalone-runnable via the idempotent `ensure*` helpers. Selector gotchas (Skeleton tabs are `role="tab"`, two confirm-dialog mechanisms, original-vs-latest record surfaces, `ServiceTypeSelector` filter-first rule) are documented in `ui/tests/e2e/README.md` — read it before writing e2e tests
 
 ## Critical Requirements
 
@@ -167,7 +167,8 @@ All 8 domains follow the 7-layer pattern. Use **Service Types** as the reference
 Nix is required for anything that compiles or packs Holochain artifacts: `bun build:zomes`,
 `bun build:happ`, `bun package`, and the sweettest suite. It is **not** required for the
 front-end unit suite, despite what this file said until 2026-09-14: `@valueflows/vf-graphql-holochain`
-is a plain npm dependency, and `cd ui && bun run test:unit` passes 556/556 outside the shell.
+is a prebuilt JavaScript package (vendored as a tarball under `vendor/` until npm serves 0.700, see
+`vendor/README.md`), and `cd ui && bun run test:unit` passes 646/646 outside the shell.
 CI relies on that, which is why the frontend job takes two minutes rather than ten.
 ```bash
 nix develop --command bun run build:happ   # needs Nix

@@ -28,6 +28,12 @@ export interface NetworkInfo {
   networkSeed: string;
   dnaHash: string;
   roleName: string;
+  /**
+   * The DNA's integrity zomes: which optional modules this network was created with.
+   * Optional because a DNA built before this field returns without it, and a missing list
+   * must read as not known, never as a module being absent.
+   */
+  integrityZomeNames?: string[];
 }
 
 /**
@@ -316,7 +322,7 @@ function createHolochainClientService(): HolochainClientService {
     }
 
     const stats = await client.dumpNetworkStats();
-    const reachable = stats.connections.length;
+    const reachable = stats.transport_stats.connections.length;
 
     // agentInfo is only on AppWebsocket, not the generic AppClient interface.
     // In Weave the frame shows network state itself, so unknown is acceptable.

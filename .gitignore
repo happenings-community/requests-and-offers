@@ -23,11 +23,10 @@
 wip.md
 
 # .github is NOT ignored. A blanket ignore here silently swallowed every
-# workflow added after 2025-07-13: impl-issue-status.yml has sat on disk
-# untracked ever since and has never run once on GitHub, which is the real
-# reason no Impl marker has ever moved an issue (#254).
-# Two files are still held back deliberately, each for its own reason:
-.github/workflows/impl-issue-status.yml
+# workflow added after 2025-07-13: impl-issue-status.yml sat on disk
+# untracked until #254 committed it, which is why no Impl marker had ever
+# moved an issue. The issue and pull-request templates are still held back:
+# both change contributor-facing behaviour and deserve their own review.
 .github/ISSUE_TEMPLATE/
 .github/pull_request_template.md
 

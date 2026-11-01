@@ -8,6 +8,7 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import OfferDetailsModal from '$lib/components/offers/OfferDetailsModal.svelte';
   import MediumOfExchangeTag from '$lib/components/mediums-of-exchange/MediumOfExchangeTag.svelte';
+  import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   // import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
   import { stripMarkdown } from '$lib/utils/markdown';
@@ -138,7 +139,7 @@
           <tr>
             <th class="w-1/6 min-w-32">Title</th>
             <th class="w-2/6 min-w-48">Description</th>
-            <th class="w-1/6 min-w-32">Service Types</th>
+            <th class="w-1/6 min-w-32">Service Type</th>
             <th class="w-1/6 min-w-32">Medium of Exchange</th>
             {#if showCreator}
               <th class="w-1/8 min-w-28">Creator</th>
@@ -163,16 +164,15 @@
                 </div>
               </td>
               <td class="max-w-32">
-                {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
+                {#if offer.service_type_hash}
                   <div class="flex flex-col gap-1">
-                    <span class="variant-soft-primary badge self-start text-xs">
-                      {offer.service_type_hashes.length} type{offer.service_type_hashes.length !== 1
-                        ? 's'
-                        : ''}
-                    </span>
+                    <ServiceTypeTag
+                      serviceTypeActionHash={offer.service_type_hash}
+                      showLink={false}
+                    />
                   </div>
                 {:else}
-                  <span class="text-xs text-surface-500">No service types</span>
+                  <span class="text-xs text-surface-500">No service type</span>
                 {/if}
               </td>
               <td class="max-w-32">
@@ -246,7 +246,7 @@
         <thead>
           <tr>
             <th class="w-2/7">Offer</th>
-            <th class="w-1/7">Service Types</th>
+            <th class="w-1/7">Service Type</th>
             <th class="w-1/7">Medium of Exchange</th>
             {#if showCreator && !showOrganization}
               <th class="w-1/7">Creator</th>
@@ -273,14 +273,13 @@
                 </div>
               </td>
               <td class="max-w-32">
-                {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
-                  <span class="variant-soft-primary badge text-xs">
-                    {offer.service_type_hashes.length} type{offer.service_type_hashes.length !== 1
-                      ? 's'
-                      : ''}
-                  </span>
+                {#if offer.service_type_hash}
+                  <ServiceTypeTag
+                    serviceTypeActionHash={offer.service_type_hash}
+                    showLink={false}
+                  />
                 {:else}
-                  <span class="text-xs text-surface-500">No service types</span>
+                  <span class="text-xs text-surface-500">No service type</span>
                 {/if}
               </td>
               <td class="max-w-32">
@@ -375,23 +374,21 @@
               {stripMarkdown(offer.description)}
             </p>
 
-            <!-- Service Types -->
-            {#if offer.service_type_hashes && offer.service_type_hashes.length > 0}
+            <!-- Service Type -->
+            {#if offer.service_type_hash}
               <div class="space-y-2">
-                <span class="text-xs font-medium text-surface-500">Service Types:</span>
+                <span class="text-xs font-medium text-surface-500">Service Type:</span>
                 <div class="flex flex-wrap gap-2">
-                  <span class="variant-soft-primary badge text-xs">
-                    {offer.service_type_hashes.length} service type{offer.service_type_hashes
-                      .length !== 1
-                      ? 's'
-                      : ''}
-                  </span>
+                  <ServiceTypeTag
+                    serviceTypeActionHash={offer.service_type_hash}
+                    showLink={false}
+                  />
                 </div>
               </div>
             {:else}
               <div class="space-y-2">
-                <span class="text-xs font-medium text-surface-500">Service Types:</span>
-                <span class="text-xs text-surface-500">No service types assigned</span>
+                <span class="text-xs font-medium text-surface-500">Service Type:</span>
+                <span class="text-xs text-surface-500">No service type assigned</span>
               </div>
             {/if}
 

@@ -119,9 +119,22 @@ async fn links_created_via_revision_hash_anchor_at_chain_root() {
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
+    // A listing names one service type (#256). A progenitor's service type
+    // lands approved.
+    let st_record: Record = conductors[0]
+        .call(
+            &alice.zome("service_types"),
+            "create_service_type",
+            sample_service_type("Canonicalisation"),
+        )
+        .await;
+    let st_hash = st_record.signed_action.hashed.hash.clone();
+
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
     // Bob creates a request holding the REVISION hash, exactly as a UI client
     // whose fetch returned the updated record would.
-    let mut request_input = sample_request("Canonicalisation test request");
+    let mut request_input = sample_request("Canonicalisation test request", st_hash);
     request_input.medium_of_exchange_hashes = vec![revision_hash.clone()];
     let request_record: Record = conductors[1]
         .call(&bob.zome("requests"), "create_request", request_input)

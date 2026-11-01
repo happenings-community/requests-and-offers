@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { safeHtml } from '$lib/utils/safe-html';
   import type { PromptModalMeta } from '$lib/types/ui';
   import { getModalStore } from '@skeletonlabs/skeleton';
 
@@ -86,7 +87,8 @@
 
 <article class="hcron-modal z-50 !bg-surface-800">
   <div class="static space-y-8">
-    <h2 class="h2 text-center">{@html message}</h2>
+    <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitised by safeHtml (#211) -->
+    <h2 class="h2 text-center">{@html safeHtml(message)}</h2>
     <form class="space-y-10" onsubmit={submitForm} bind:this={form}>
       {#each inputs as input}
         <label class="space-y-4">

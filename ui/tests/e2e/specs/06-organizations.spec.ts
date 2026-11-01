@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { AppWebsocket } from '@holochain/client';
-import { gotoApp, createTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
+import { gotoApp, createTestClient, closeTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
 
 // ============================================================================
 // 06 — ORGANIZATIONS
@@ -24,7 +24,7 @@ test.describe.serial('06 — organizations: creation, moderation, edit', () => {
   });
 
   test.afterAll(async () => {
-    await client.client.close();
+    await closeTestClient(client);
   });
 
   test('user creates an organization through the form', async ({ page }) => {

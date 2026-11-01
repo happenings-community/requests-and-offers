@@ -6,6 +6,7 @@ import {
   gotoApp,
   selectTimezone,
   createTestClient,
+  closeTestClient,
   callZome,
   ensureAcceptedUser,
   ensureServiceType,
@@ -58,7 +59,7 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
   });
 
   test.afterAll(async () => {
-    await client.client.close();
+    await closeTestClient(client);
   });
 
   test('form refuses to save with a link typed but not added', async ({ page }) => {
@@ -91,6 +92,27 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
     // The refusal has to reach the DHT: nothing by this title was written.
     const records = (await callZome(client, 'offers', 'get_active_offers', null)) as HolochainRecord[];
     expect(records.some((r) => decodeRecordEntry<{ title: string }>(r)?.title === title)).toBe(false);
+  });
+
+  test('the form holds one service type: a second pick replaces the first', async ({ page }) => {
+    // A listing names one service type (#256). Ticking a second must not leave
+    // two chips behind, because only one would be saved. Nothing is submitted.
+    await ensureServiceType(client, 'E2E Second Type');
+    await gotoApp(page, '/offers/create');
+
+    const search = page.getByPlaceholder('Search and select service types...');
+    await search.fill('E2E Service Type');
+    await page.locator('label:has-text("E2E Service Type") input[type="checkbox"]').first().check();
+    await expect(page.locator('.chip', { hasText: 'E2E Service Type' }).first()).toBeVisible({
+      timeout: 5_000
+    });
+
+    await search.fill('E2E Second Type');
+    await page.locator('label:has-text("E2E Second Type") input[type="checkbox"]').first().check();
+    await expect(page.locator('.chip', { hasText: 'E2E Second Type' }).first()).toBeVisible({
+      timeout: 5_000
+    });
+    await expect(page.locator('.chip', { hasText: 'E2E Service Type' })).toHaveCount(0);
   });
 
   test('user creates an offer through the form', async ({ page }) => {
@@ -129,8 +151,20 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
     await expect(page.locator('text=Created by the offers e2e journey.').first()).toBeVisible();
     // Use the heading role — a plain text match hits the hidden nav
     // dropdown's "Service Types" item first.
-    await expect(page.getByRole('heading', { name: 'Service Types' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Service Type', exact: true })).toBeVisible();
     await expect(page.locator('text=E2E Service Type').first()).toBeVisible();
+  });
+
+  test('the service type page lists the offer', async ({ page }) => {
+    // The page filters listings by the one hash each names. A filter that
+    // treats the hash as a list walks its bytes and never matches (#256).
+    const serviceTypeHash = encodeHashToBase64(await ensureServiceType(client, 'E2E Service Type'));
+    await gotoApp(page, `/service-types/${serviceTypeHash}`);
+
+    await expect(page.getByRole('heading', { name: 'E2E Service Type' }).first()).toBeVisible({
+      timeout: 15_000
+    });
+    await expect(page.locator(`text=${OFFER_TITLE}`).first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('user edits the offer through the form', async ({ page }) => {

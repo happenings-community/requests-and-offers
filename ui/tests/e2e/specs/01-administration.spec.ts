@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoApp, createTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
+import { gotoApp, createTestClient, closeTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
 import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
@@ -28,7 +28,7 @@ test.describe.serial('01 — administration: moderation and audit surfaces', () 
     // Safety net: whatever happened above, later spec files need an
     // accepted primary user.
     await ensureAcceptedUser(client);
-    await client.client.close();
+    await closeTestClient(client);
   });
 
   test('admin dashboard shows administration stats', async ({ page }) => {

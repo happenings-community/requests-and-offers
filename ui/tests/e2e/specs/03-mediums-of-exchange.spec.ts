@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   gotoApp,
   createTestClient,
+  closeTestClient,
   callZome,
   ensureAcceptedUser,
   ensureServiceType,
@@ -53,7 +54,7 @@ test.describe.serial('03 — mediums of exchange: lifecycle and suggestion', () 
   });
 
   test.afterAll(async () => {
-    await client.client.close();
+    await closeTestClient(client);
   });
 
   test('admin creates a medium of exchange through the form (lands pending)', async ({

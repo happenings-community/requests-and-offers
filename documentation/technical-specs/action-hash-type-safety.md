@@ -30,7 +30,7 @@ pub struct PreviousActionHash(pub ActionHash);
 ### Key properties
 
 - **`#[serde(transparent)]`**: Wire format is identical to a plain `ActionHash`. No migration needed for existing data.
-- **`From` trait implementations**: Both types implement `From<T> for ActionHash`, `From<T> for AnyDhtHash`, and `From<T> for AnyLinkableHash` for seamless HDK 0.6 interop.
+- **`From` trait implementations**: Both types implement `From<T> for ActionHash`, `From<T> for AnyDhtHash`, and `From<T> for AnyLinkableHash` for seamless HDK interop.
 - **Direct access**: Use `.0` to access the inner `ActionHash` when needed.
 - **Wrapping**: Use `OriginalActionHash(hash)` or `PreviousActionHash(hash)` to wrap a plain `ActionHash`.
 - **Conversion**: Use `.into()` when passing to HDK functions that expect `ActionHash`, `AnyDhtHash`, or `AnyLinkableHash`.

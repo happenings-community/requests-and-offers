@@ -2,16 +2,10 @@
   import { onMount } from 'svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { isHolochainConnected } from '$lib/utils/holochain-client.utils';
-  import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
   import { formatUserName } from '$lib/schemas/users.schemas';
 
   let error: string | null = $state(null);
   let isLoading = $state(true);
-
-  // Background admin status checking (replaces direct store access)
-  const backgroundAdminCheck = useBackgroundAdminCheck();
-  const agentIsAdministrator = $derived(backgroundAdminCheck.isAdmin);
-  const adminCheckReady = $derived(backgroundAdminCheck.isReady);
 
   // Reactive access to current user - will update when loaded in background
   const currentUser = $derived(usersStore.currentUser);
@@ -98,44 +92,6 @@
       </div>
     </div>
   {:else}
-    <!-- Admin Quick Access - Only show when admin status is verified -->
-    {#if agentIsAdministrator && adminCheckReady}
-      <!-- Mobile Admin Button -->
-      <div class="fixed bottom-4 right-4 z-30 lg:hidden">
-        <a
-          href="/admin"
-          class="flex h-14 w-14 items-center justify-center rounded-full bg-error-500 text-white shadow-lg transition-all hover:scale-110 hover:bg-error-600"
-          aria-label="Admin Zone"
-        >
-          <span class="text-2xl">⚙️</span>
-        </a>
-      </div>
-
-      <!-- Desktop Admin Panel -->
-      <div class="fixed left-4 top-24 z-30 hidden lg:block">
-        <div class="rounded-lg bg-error-500 p-3 text-white shadow-lg">
-          <a href="/admin" class="flex items-center gap-2 transition-opacity hover:opacity-80">
-            <span class="text-lg">⚙️</span>
-            <span class="font-medium">Admin Zone</span>
-          </a>
-          <div class="mt-1 text-xs opacity-75">
-            <kbd class="kbd bg-error-400 text-xs text-error-900">Alt</kbd> +
-            <kbd class="kbd bg-error-400 text-xs text-error-900">A</kbd>
-          </div>
-        </div>
-      </div>
-    {:else if backgroundAdminCheck.isChecking && !isLoading}
-      <!-- Loading state for admin verification - subtle indicator -->
-      <div class="fixed left-4 top-24 z-40 hidden lg:block">
-        <div class="rounded-lg bg-surface-400 p-2 text-white opacity-60 shadow-lg">
-          <div class="flex items-center gap-2">
-            <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-            <span class="text-xs">Verifying permissions...</span>
-          </div>
-        </div>
-      </div>
-    {/if}
-
     <!-- Welcome Section -->
     <div class="mb-12 text-center">
       <h1 class="h1 mb-4 text-primary-700">Welcome to Requests & Offers</h1>

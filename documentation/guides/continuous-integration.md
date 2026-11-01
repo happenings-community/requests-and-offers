@@ -10,7 +10,7 @@ Before September 2026 this repository had no CI beyond a documentation deploy, s
 
 | Job | Steps | Blocking | Typical time |
 |---|---|---|---|
-| **Frontend** | `sha256sum -c` on the vendored tarballs, `bun run check` (svelte-check), `bun run test:unit` (646 tests), `bun run lint` | types and tests yes, lint errors no | about a minute |
+| **Frontend** | `sha256sum -c` on the vendored tarballs, `bun run check` (svelte-check), `bun run test:unit` (646 tests), `bun test scripts/tests` (the release scripts), `bun run lint` | types and tests yes, lint errors no | about a minute |
 | **Zomes** | `bun run download-hrea`, then `bun run build:zomes` and `hc app pack` under Nix | yes | 2 to 3 minutes, faster with a warm cache |
 
 ### Why the zomes job packs and does not only compile
@@ -55,6 +55,10 @@ Actions, then **Heavy tests (manual)**, then **Run workflow**. Choose a `suite` 
 
 A `workflow_dispatch` workflow only appears in the Actions tab once its file is on the default branch, so a new one is invisible while its own pull request is open.
 
+### On a release tag
+
+`release.yml` calls **Heavy tests (manual)** through `workflow_call` with `suite: both` before it builds anything, so pushing a `v*` tag runs both suites and a red one stops the release. Dispatching **Release** by hand does the same unless `skip_tests` is ticked. See the [release checklist](../RELEASE_CHECKLIST.md).
+
 ### Sweettest and contention
 
 The sweettest job runs each test case in its own `cargo test` process and passes no thread count at all; see the leak note below for why. Nothing passes `--no-fail-fast` any more either: the per-case loop runs every case whatever the last one did, collects the names of those that failed, and exits non-zero at the end with the list. `fail-fast: false` on the matrix is separate and still live, and is what stops one red binary cancelling the others. These tests wait on real DHT gossip with a 15 second ceiling, so on a loaded machine they fail on the wait rather than on the code. During the v0.6.0-alpha.1 release the same suite went red under contention and green on a quiet machine at 57 passed, 0 failed.
@@ -80,6 +84,7 @@ If a sweettest failure says "Consistency not reached", suspect the machine befor
 ```bash
 cd ui && bun run check      # svelte-check, also generates SvelteKit types
 cd ui && bun run test:unit  # 646 unit tests, no Nix needed
+bun test scripts/tests      # release manifest and release note scripts
 cd ui && bun run lint       # expect the known backlog
 
 nix develop --command bun run build:happ   # what the zomes job does
@@ -99,4 +104,4 @@ nix develop --command bun run build:happ   # what the zomes job does
 ## What CI still does not cover
 
 - **No check is required to merge.** `dev` is protected against deletion and force push by ruleset `2344243` and by nothing else, so a red check does not block a merge. Making one required is a repository setting, not a workflow line. See [Contributing](contributing.md#branch-protection).
-- **Nothing checks the desktop packaging path.** The wrapper's bundled conductor and the hApp's Holochain version are paired only at release time, which is how [#260](https://github.com/happenings-community/requests-and-offers/issues/260) reached a release. [#261](https://github.com/happenings-community/requests-and-offers/issues/261) carries the check for the 0.7 upgrade.
+- **The desktop packaging path is checked only at release time.** `release.yml` refuses to publish when the wrapper's bundled conductor is on a different Holochain line from the hApp, the check that would have stopped [#260](https://github.com/happenings-community/requests-and-offers/issues/260). Nothing runs it on a pull request, and the installers themselves are only built by the wrapper after a release ([#261](https://github.com/happenings-community/requests-and-offers/issues/261)).

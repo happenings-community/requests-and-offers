@@ -94,11 +94,11 @@ pub struct CreateRequestInput {
 
 #### `get_active_requests() -> ExternResult<Vec<Record>>`
 
-Retrieves all active requests from the "requests.active" path.
+Retrieves all active requests from the "requests.active" path, the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails.
 
 #### `get_archived_requests() -> ExternResult<Vec<Record>>`
 
-Retrieves all archived requests from the "requests.archived" path.
+Retrieves all archived requests from the "requests.archived" path, the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails.
 
 #### `archive_request(request_hash: ActionHash) -> ExternResult<bool>`
 
@@ -129,11 +129,11 @@ Creates a new offer.
 
 #### `get_active_offers() -> ExternResult<Vec<Record>>`
 
-Retrieves all active offers from the "offers.active" path.
+Retrieves all active offers from the "offers.active" path, the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails.
 
 #### `get_archived_offers() -> ExternResult<Vec<Record>>`
 
-Retrieves all archived offers from the "offers.archived" path.
+Retrieves all archived offers from the "offers.archived" path, the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails.
 
 #### `archive_offer(offer_hash: ActionHash) -> ExternResult<bool>`
 
@@ -251,6 +251,43 @@ Lifts a suspension. Caller must be an administrator.
 #### `update_entity_status(input: UpdateEntityStatusInput) -> ExternResult<Record>`
 
 Updates the status (`Pending`, `Accepted`, `Rejected`, `SuspendedIndefinitely`, `SuspendedTemporarily`) of a user or organization. Caller must be an administrator.
+
+## Misc Zome
+
+**DNA**: `requests_and_offers`  
+**Zome**: `misc` (coordinator only; it owns no entries)
+
+### Functions
+
+#### `ping(_: ()) -> ExternResult<String>`
+
+Returns `"Pong"`. Used to check that the cell answers.
+
+#### `get_network_seed(_: ()) -> ExternResult<String>`
+
+Returns the network seed from the DNA's modifiers.
+
+#### `get_network_info(_: ()) -> ExternResult<NetworkInfo>`
+
+Returns what identifies this network, read from `dna_info()`.
+
+**Output**:
+
+```rust
+#[serde(rename_all = "camelCase")]
+pub struct NetworkInfo {
+    pub network_seed: String,
+    pub dna_hash: String,
+    pub role_name: String,
+    pub integrity_zome_names: Vec<String>,
+}
+```
+
+`integrity_zome_names` lists the DNA's integrity zomes, in `dna_info()` order. It is how the interface learns which optional modules a network has, for example whether `messaging_integrity` is present, without calling a module and reading its failure.
+
+**Why integrity zomes only**: `dna_info()` reports only integrity zomes. They define the data and are part of the DNA hash, so they are fixed for the life of a network and the same for every peer. Coordinator zomes are not part of the hash and can be updated on an installed app, so a list of them could go stale.
+
+**Authorization**: none required.
 
 ## Error Handling
 

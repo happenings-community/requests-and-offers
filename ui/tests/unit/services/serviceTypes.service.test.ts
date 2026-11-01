@@ -40,7 +40,8 @@ const createMockHolochainClientService = () => ({
     Promise.resolve({
       networkSeed: 'test-network-seed',
       dnaHash: 'test-dna-hash',
-      roleName: 'requests_and_offers'
+      roleName: 'requests_and_offers',
+      integrityZomeNames: []
     })
   ),
   getNetworkPeers: vi.fn(() => Promise.resolve(['peer1', 'peer2', 'peer3'])),

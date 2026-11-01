@@ -119,7 +119,7 @@
 <div class="card space-y-4 p-4">
   <header class="card-header">
     <h3 class="h3">Suggest a New Medium of Exchange</h3>
-    <p class="text-surface-600 dark:text-surface-400">
+    <p class="text-surface-600 dark:text-surface-300">
       Have an idea for a new currency or medium of exchange? Suggest it here. An administrator will
       review it.
     </p>
@@ -143,7 +143,7 @@
         {#if errors.code}
           <p class="mt-1 text-sm text-error-500">{errors.code}</p>
         {:else}
-          <p class="mt-1 text-sm text-surface-500">Short code for the currency (2-10 characters)</p>
+          <p class="mt-1 text-sm text-surface-500 dark:text-surface-300">Short code for the currency (2-10 characters)</p>
         {/if}
       </label>
 
@@ -163,7 +163,7 @@
         {#if errors.name}
           <p class="mt-1 text-sm text-error-500">{errors.name}</p>
         {:else}
-          <p class="mt-1 text-sm text-surface-500">Full name of the currency (3-100 characters)</p>
+          <p class="mt-1 text-sm text-surface-500 dark:text-surface-300">Full name of the currency (3-100 characters)</p>
         {/if}
       </label>
 
@@ -182,7 +182,7 @@
         {#if errors.description}
           <p class="mt-1 text-sm text-error-500">{errors.description}</p>
         {:else}
-          <p class="mt-1 text-sm text-surface-500">Optional description (max 500 characters)</p>
+          <p class="mt-1 text-sm text-surface-500 dark:text-surface-300">Optional description (max 500 characters)</p>
         {/if}
       </label>
 

@@ -6,7 +6,12 @@ export function initializeToast() {
   toastStore = getToastStore();
 }
 
-export function showToast(message: string, type: 'success' | 'error' = 'success', timeout = 5000) {
+export function showToast(
+  message: string,
+  type: 'success' | 'error' = 'success',
+  timeout = 5000,
+  action?: { label: string; response: () => void }
+) {
   if (!toastStore) {
     console.error(
       'Toast not initialized. Make sure to call initializeToast() in a root component.'
@@ -17,7 +22,8 @@ export function showToast(message: string, type: 'success' | 'error' = 'success'
   toastStore.trigger({
     message,
     background: type === 'success' ? 'variant-filled-success' : 'variant-filled-error',
-    timeout
+    timeout,
+    ...(action ? { action } : {})
   });
 }
 

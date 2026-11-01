@@ -273,6 +273,12 @@
                 {/if}
               </span>
             </h3>
+            <!-- Between the member and the administrators, so shown only on their own view (#331) -->
+            {#if isCurrentUser && user?.status?.status_type === 'pending' && user.status.reason}
+              <p><b>Information requested :</b> {user.status.reason}</p>
+            {:else if isCurrentUser && user?.status?.status_type === 'rejected' && user.status.reason}
+              <p><b>Reason :</b> {user.status.reason}</p>
+            {/if}
             {#if user?.status?.status_type && user.status.status_type.startsWith('suspended')}
               <p><b>Reason :</b> {user.status.reason}</p>
               {#if suspensionDate}

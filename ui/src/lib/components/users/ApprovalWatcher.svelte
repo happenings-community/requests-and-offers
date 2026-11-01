@@ -13,12 +13,14 @@
     onAccepted: () =>
       modalStore.trigger({
         type: 'component',
+        title: 'Your membership has been approved',
         component: { ref: ApprovalModal },
         response: () => window.location.reload()
       }),
     onInformationRequested: (request) =>
       modalStore.trigger({
         type: 'component',
+        title: 'An administrator has asked for more information',
         component: { ref: InformationRequestModal },
         meta: { request }
       })

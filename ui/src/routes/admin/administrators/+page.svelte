@@ -14,6 +14,7 @@
   const addAdministratorModalComponent: ModalComponent = { ref: AddAdministratorModal };
   const addAdministratorModal: ModalSettings = {
     type: 'component',
+    title: 'Add administrator',
     component: addAdministratorModalComponent
   };
 

@@ -138,10 +138,27 @@
     ]
   });
 
+  // Names each dialog for assistive technology (Skeleton's aria-label); a component modal does not show it.
+  function dialogTitle(id: string): string {
+    const noun = entityType === AdministrationEntity.Users ? 'user' : 'organization';
+    const titles: Record<string, string> = {
+      'accept-user': 'Accept user',
+      'accept-organization': 'Accept organization',
+      'reject-user': 'Reject user',
+      'reject-organization': 'Reject organization',
+      unsuspend: `Unsuspend ${noun}`,
+      'suspend-temporarily': `Suspend ${noun} temporarily`,
+      'suspend-indefinitely': `Suspend ${noun} indefinitely`,
+      'remove-administrator': 'Remove administrator'
+    };
+    return titles[id] ?? 'Confirm';
+  }
+
   const promptModalComponent: ModalComponent = { ref: PromptModal };
   const promptModal = (meta: PromptModalMeta): ModalSettings => {
     return {
       type: 'component',
+      title: dialogTitle(meta.id),
       component: promptModalComponent,
       meta,
       response: async (response) => {
@@ -162,6 +179,7 @@
   const confirmModal = (meta: ConfirmModalMeta): ModalSettings => {
     return {
       type: 'component',
+      title: dialogTitle(meta.id),
       component: confirmModalComponent,
       meta,
       response: async (r) => {
@@ -192,6 +210,7 @@
   function statusHistoryModal(history: Revision[]): ModalSettings {
     return {
       type: 'component',
+      title: `${entityType === AdministrationEntity.Users ? 'User' : 'Organization'} status history`,
       component: { ref: StatusHistoryModal },
       meta: {
         statusHistory: [...history], // Sanitize for Svelte 5 state proxies

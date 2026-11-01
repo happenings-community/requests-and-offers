@@ -51,8 +51,8 @@
       {/if}
     </label>
 
-    <label class="label block">
-      <span>Classification</span>
+    <fieldset class="label block">
+      <legend>Classification</legend>
       <div class="space-y-2">
         <label class="flex items-center space-x-2">
           <input
@@ -78,7 +78,7 @@
       {#if state.errors.technical}
         <p class="mt-1 text-sm text-error-500">{state.errors.technical}</p>
       {/if}
-    </label>
+    </fieldset>
 
     <!-- Submit buttons -->
     <div class="flex justify-around">

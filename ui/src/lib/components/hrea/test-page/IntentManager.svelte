@@ -280,8 +280,9 @@
 
     {#if loading || hreaStore.loading}
       <div class="flex items-center justify-center p-8">
-        <i class="fa-solid fa-spinner animate-spin text-2xl text-primary-500"></i>
-        <span class="ml-2">Loading intents...</span>
+        <i aria-hidden="true" class="fa-solid fa-spinner animate-spin text-2xl text-primary-500"
+        ></i>
+        <span role="status" class="ml-2">Loading intents...</span>
       </div>
     {:else if hreaStore.intents.length === 0}
       <div class="card p-8 text-center text-surface-500">

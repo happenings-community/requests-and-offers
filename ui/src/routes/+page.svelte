@@ -85,10 +85,11 @@
       <div class="text-center">
         <div class="mb-4">
           <div
+            aria-hidden="true"
             class="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-primary-500"
           ></div>
         </div>
-        <p class="text-lg text-gray-600">Loading dashboard...</p>
+        <p role="status" class="text-lg text-gray-600">Loading dashboard...</p>
       </div>
     </div>
   {:else}

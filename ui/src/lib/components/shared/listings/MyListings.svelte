@@ -263,14 +263,17 @@
     {#if requestsLoading}
       <div class="card p-8 text-center">
         <div class="mb-4">
-          <div class="mb-2 animate-pulse text-4xl">📝</div>
+          <div class="mb-2 animate-pulse text-4xl" aria-hidden="true">📝</div>
           <h4 class="h4 mb-2 font-semibold">Loading Requests</h4>
-          <p class="text-surface-600 dark:text-surface-400">
+          <p class="text-surface-600 dark:text-surface-400" role="status">
             Fetching your latest requests from the network...
           </p>
         </div>
         <div class="flex justify-center">
-          <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-primary-500"></div>
+          <div
+            aria-hidden="true"
+            class="h-8 w-8 animate-spin rounded-full border-b-2 border-primary-500"
+          ></div>
         </div>
       </div>
     {:else if requestsError}
@@ -340,14 +343,17 @@
     {#if offersLoading}
       <div class="card p-8 text-center">
         <div class="mb-4">
-          <div class="mb-2 animate-pulse text-4xl">🤝</div>
+          <div class="mb-2 animate-pulse text-4xl" aria-hidden="true">🤝</div>
           <h4 class="h4 mb-2 font-semibold">Loading Offers</h4>
-          <p class="text-surface-600 dark:text-surface-400">
+          <p class="text-surface-600 dark:text-surface-400" role="status">
             Fetching your latest offers from the network...
           </p>
         </div>
         <div class="flex justify-center">
-          <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-secondary-500"></div>
+          <div
+            aria-hidden="true"
+            class="h-8 w-8 animate-spin rounded-full border-b-2 border-secondary-500"
+          ></div>
         </div>
       </div>
     {:else if offersError}

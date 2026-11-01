@@ -37,11 +37,11 @@
       <table class="table table-hover w-full drop-shadow-lg">
         <thead>
           <tr>
-            <th class="whitespace-nowrap">Logo</th>
-            <th class="whitespace-nowrap">Name</th>
-            <th class="whitespace-nowrap">Description</th>
-            <th class="whitespace-nowrap">Role</th>
-            <th class="whitespace-nowrap">Actions</th>
+            <th scope="col" class="whitespace-nowrap">Logo</th>
+            <th scope="col" class="whitespace-nowrap">Name</th>
+            <th scope="col" class="whitespace-nowrap">Description</th>
+            <th scope="col" class="whitespace-nowrap">Role</th>
+            <th scope="col" class="whitespace-nowrap">Actions</th>
           </tr>
         </thead>
         <tbody>

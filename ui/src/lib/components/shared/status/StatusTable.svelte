@@ -57,11 +57,11 @@
       <table class="table table-hover w-full drop-shadow-lg">
         <thead class="!bg-surface-800 dark:!bg-surface-700">
           <tr>
-            <th class="whitespace-nowrap px-2">Timestamp</th>
-            <th class="whitespace-nowrap px-2">Name</th>
-            <th class="whitespace-nowrap px-2">Status</th>
-            <th class="whitespace-nowrap px-2">Reason</th>
-            <th class="whitespace-nowrap px-2">Duration</th>
+            <th scope="col" class="whitespace-nowrap px-2">Timestamp</th>
+            <th scope="col" class="whitespace-nowrap px-2">Name</th>
+            <th scope="col" class="whitespace-nowrap px-2">Status</th>
+            <th scope="col" class="whitespace-nowrap px-2">Reason</th>
+            <th scope="col" class="whitespace-nowrap px-2">Duration</th>
           </tr>
         </thead>
 

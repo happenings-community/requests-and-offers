@@ -40,7 +40,7 @@
     <p>{error}</p>
   </div>
 {:else if !user}
-  <p class="mb-4 text-center text-xl">Loading user profile...</p>
+  <p role="status" class="mb-4 text-center text-xl">Loading user profile...</p>
 {:else}
   <UserProfile
     {user}

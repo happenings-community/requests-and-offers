@@ -193,7 +193,13 @@
     }}
   >
     {#if showIcon}
-      <span class={iconClasses}>{profileInfo().icon}</span>
+      <!-- The text says the status when it is shown; otherwise the icon carries it. -->
+      <span
+        class={iconClasses}
+        aria-hidden={showText ? 'true' : undefined}
+        role={showText ? undefined : 'img'}
+        aria-label={showText ? undefined : profileInfo().text}>{profileInfo().icon}</span
+      >
     {/if}
 
     {#if showText}
@@ -225,7 +231,13 @@
       }}
     >
       {#if showIcon}
-        <span class={iconClasses}>{profileInfo().icon}</span>
+        <!-- The text says the status when it is shown; otherwise the icon carries it. -->
+        <span
+          class={iconClasses}
+          aria-hidden={showText ? 'true' : undefined}
+          role={showText ? undefined : 'img'}
+          aria-label={showText ? undefined : profileInfo().text}>{profileInfo().icon}</span
+        >
       {/if}
 
       {#if showText}

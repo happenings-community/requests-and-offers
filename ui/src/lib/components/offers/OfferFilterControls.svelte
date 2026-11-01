@@ -35,6 +35,7 @@
   <!-- Basic Search -->
   <div class="flex flex-col items-center gap-4">
     <input
+      aria-label="Search offers"
       type="search"
       bind:value={search.searchState.searchTerm}
       oninput={(e) => search.updateSearchTerm((e.target as HTMLInputElement).value)}

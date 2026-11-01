@@ -130,8 +130,8 @@
     {#if management.isLoading || management.storeLoading}
       <div class="flex h-64 items-center justify-center">
         <div class="flex items-center gap-4">
-          <span class="animate-spin text-2xl">⏳</span>
-          <p class="text-lg">Loading offers...</p>
+          <span aria-hidden="true" class="animate-spin text-2xl">⏳</span>
+          <p role="status" class="text-lg">Loading offers...</p>
         </div>
       </div>
     {:else if !management.hasInitialized}

@@ -83,8 +83,9 @@
               class="btn-icon btn-icon-sm ml-2 hover:variant-soft-primary"
               onclick={() => copyToClipboard(organization.email, 'Organization email')}
               title="Copy organization email"
+              aria-label="Copy organization email"
             >
-              📋
+              <span aria-hidden="true">📋</span>
             </button>
           </div>
         </div>
@@ -101,8 +102,9 @@
               class="btn-icon btn-icon-sm hover:variant-soft-primary"
               onclick={() => copyToClipboard(organization.urls[0], 'Website URL')}
               title="Copy website URL"
+              aria-label="Copy website URL"
             >
-              📋
+              <span aria-hidden="true">📋</span>
             </button>
           </div>
         </div>
@@ -143,8 +145,9 @@
               class="btn-icon btn-icon-sm hover:variant-soft-primary"
               onclick={() => copyToClipboard(user.email, 'Email')}
               title="Copy email address"
+              aria-label="Copy email address"
             >
-              📋
+              <span aria-hidden="true">📋</span>
             </button>
           </div>
         </div>
@@ -161,8 +164,9 @@
               class="btn-icon btn-icon-sm hover:variant-soft-primary"
               onclick={() => copyToClipboard(user.phone!, 'Phone number')}
               title="Copy phone number"
+              aria-label="Copy phone number"
             >
-              📋
+              <span aria-hidden="true">📋</span>
             </button>
           </div>
         </div>

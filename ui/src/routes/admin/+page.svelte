@@ -33,6 +33,7 @@
     if (page.url.pathname.startsWith('/admin')) {
       modalStore.trigger({
         type: 'component',
+        title: user.name || 'User details',
         component: modalComponent,
         meta: { user }
       });
@@ -47,6 +48,7 @@
     if (page.url.pathname.startsWith('/admin')) {
       modalStore.trigger({
         type: 'component',
+        title: org.name || 'Organization details',
         component: orgModalComponent,
         meta: { organization: org }
       });
@@ -274,7 +276,7 @@
     {#if dashboardState.isLoading}
       <div class="flex items-center justify-center space-x-2 text-center">
         <span class="loading loading-spinner"></span>
-        <span>Loading queue...</span>
+        <span role="status">Loading queue...</span>
       </div>
     {:else if dashboardState.error}
       <div class="alert variant-filled-error">

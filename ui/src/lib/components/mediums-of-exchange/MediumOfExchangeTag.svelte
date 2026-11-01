@@ -147,7 +147,7 @@
 </script>
 
 {#if isLoadingMedium}
-  <span class="variant-soft-surface chip animate-pulse"> Loading medium... </span>
+  <span role="status" class="variant-soft-surface chip animate-pulse"> Loading medium... </span>
 {:else if mediumError}
   <span class="variant-soft-error chip" title="Error loading medium of exchange">
     {mediumError}

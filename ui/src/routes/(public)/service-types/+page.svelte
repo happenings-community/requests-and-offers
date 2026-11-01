@@ -53,7 +53,7 @@
   {#if management.isLoading}
     <div class="flex items-center justify-center space-x-2 text-center">
       <span class="loading loading-spinner"></span>
-      <span>Loading available services...</span>
+      <span role="status">Loading available services...</span>
     </div>
 
     <!-- Error State -->

@@ -97,6 +97,7 @@
 
     const modalSettings: ModalSettings = {
       type: 'component',
+      title: 'Archive request',
       component: confirmModalComponent,
       meta: {
         message: 'Are you sure you want to archive this request?',
@@ -142,6 +143,7 @@
 
     const modalSettings: ModalSettings = {
       type: 'component',
+      title: 'Delete request',
       component: confirmModalComponent,
       meta: {
         message: 'Are you sure you want to delete this request? This action cannot be undone.',
@@ -214,6 +216,7 @@
   {#if showBulkSelection}
     <div class="absolute left-3 top-3">
       <input
+        aria-label="Select this request"
         type="checkbox"
         class="checkbox"
         checked={isSelected}
@@ -230,7 +233,7 @@
 
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-3 {showBulkSelection ? 'ml-8' : ''}">
-      <button class="flex" onclick={navigateToUserProfile}>
+      <button class="flex" onclick={navigateToUserProfile} aria-label="View the creator's profile">
         <Avatar src={creatorPictureUrl} width="w-10" rounded="rounded-full" />
       </button>
       <div>
@@ -245,7 +248,7 @@
         {#if request.organization}
           <p class="text-xs text-primary-500 dark:text-primary-400">
             {#if loadingOrganization}
-              <span class="font-medium">Loading organization...</span>
+              <span role="status" class="font-medium">Loading organization...</span>
             {:else if organization}
               <span class="font-medium">{organization.name}</span>
             {:else}

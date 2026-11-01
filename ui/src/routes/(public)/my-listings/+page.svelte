@@ -60,7 +60,7 @@
 
   {#if loading}
     <div class="card p-8 text-center">
-      <p>Loading your profile...</p>
+      <p role="status">Loading your profile...</p>
     </div>
   {:else if error}
     <div class="card p-8 text-center">

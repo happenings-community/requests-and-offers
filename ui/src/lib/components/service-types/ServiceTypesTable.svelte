@@ -88,7 +88,7 @@
 {#if isLoading}
   <div class="flex items-center justify-center space-x-2 p-8 text-center">
     <span class="loading loading-spinner"></span>
-    <span>Loading service types...</span>
+    <span role="status">Loading service types...</span>
   </div>
 
   <!-- Error State -->
@@ -132,7 +132,11 @@
         <table class="w-full">
           <thead>
             <tr>
-              <th class="bg-surface-100-800-token text-surface-900-50-token px-4 py-3 font-medium">
+              <th
+                scope="col"
+                aria-sort={sorting?.getAriaSort('name')}
+                class="bg-surface-100-800-token text-surface-900-50-token px-4 py-3 font-medium"
+              >
                 {#if sorting}
                   <button
                     class="flex items-center space-x-1 transition-colors hover:text-primary-600 {sorting.isSortedBy(
@@ -144,17 +148,22 @@
                     title="Sort by Name"
                   >
                     <span>Name</span>
-                    <span class="text-xs">{sorting.getSortIcon('name')}</span>
+                    <span class="text-xs" aria-hidden="true">{sorting.getSortIcon('name')}</span>
                   </button>
                 {:else}
                   Name
                 {/if}
               </th>
               <th
+                scope="col"
                 class="bg-surface-100-800-token text-surface-900-50-token hidden max-w-[120px] px-4 py-3 font-medium sm:table-cell md:max-w-none"
                 >Description</th
               >
-              <th class="px-4 py-3 font-medium">
+              <th
+                scope="col"
+                aria-sort={sorting?.getAriaSort('type')}
+                class="px-4 py-3 font-medium"
+              >
                 {#if sorting}
                   <button
                     class="flex items-center space-x-1 transition-colors hover:text-primary-500 {sorting.isSortedBy(
@@ -166,13 +175,15 @@
                     title="Sort by Type"
                   >
                     <span>Type</span>
-                    <span class="text-xs">{sorting.getSortIcon('type')}</span>
+                    <span class="text-xs" aria-hidden="true">{sorting.getSortIcon('type')}</span>
                   </button>
                 {:else}
                   Type
                 {/if}
               </th>
               <th
+                scope="col"
+                aria-sort={sorting?.getAriaSort('created_at')}
                 class="bg-surface-100-800-token text-surface-900-50-token hidden px-4 py-3 font-medium md:table-cell"
               >
                 {#if sorting}
@@ -186,13 +197,17 @@
                     title="Sort by Created Date"
                   >
                     <span>Created</span>
-                    <span class="text-xs">{sorting.getSortIcon('created_at')}</span>
+                    <span class="text-xs" aria-hidden="true"
+                      >{sorting.getSortIcon('created_at')}</span
+                    >
                   </button>
                 {:else}
                   Created
                 {/if}
               </th>
               <th
+                scope="col"
+                aria-sort={sorting?.getAriaSort('updated_at')}
                 class="bg-surface-100-800-token text-surface-900-50-token hidden px-4 py-3 font-medium md:table-cell"
               >
                 {#if sorting}
@@ -206,7 +221,9 @@
                     title="Sort by Updated Date"
                   >
                     <span>Updated</span>
-                    <span class="text-xs">{sorting.getSortIcon('updated_at')}</span>
+                    <span class="text-xs" aria-hidden="true"
+                      >{sorting.getSortIcon('updated_at')}</span
+                    >
                   </button>
                 {:else}
                   Updated
@@ -214,6 +231,7 @@
               </th>
               {#if showActions}
                 <th
+                  scope="col"
                   class="bg-surface-100-800-token text-surface-900-50-token px-4 py-3 text-center font-medium"
                   >Actions</th
                 >
@@ -279,7 +297,13 @@
                         onclick={() => handleView(serviceType)}
                         title="View service type"
                       >
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          aria-hidden="true"
+                          class="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path
                             stroke-linecap="round"
                             stroke-linejoin="round"
@@ -300,7 +324,13 @@
                         onclick={() => handleEdit(serviceType)}
                         title="Edit service type"
                       >
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          aria-hidden="true"
+                          class="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path
                             stroke-linecap="round"
                             stroke-linejoin="round"
@@ -315,7 +345,13 @@
                         onclick={() => handleDelete(serviceType)}
                         title="Delete service type"
                       >
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          aria-hidden="true"
+                          class="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path
                             stroke-linecap="round"
                             stroke-linejoin="round"

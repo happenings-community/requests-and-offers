@@ -193,6 +193,7 @@
   const statusHistoryModal = (statusHistory: Revision[]): ModalSettings => {
     return {
       type: 'component',
+      title: 'Status history',
       component: statusHistoryModalComponent,
       meta: {
         statusHistory: [...statusHistory] // Sanitize for Svelte 5 state proxies
@@ -227,7 +228,7 @@
       <p>{error}</p>
     </div>
   {:else if !user}
-    <p class="mb-4 text-center text-xl">Loading user profile...</p>
+    <p role="status" class="mb-4 text-center text-xl">Loading user profile...</p>
   {:else}
     <!-- Title row -->
     <div class="mb-6 flex w-full items-center justify-between">
@@ -406,7 +407,7 @@
 
               {#if isLoadingRequests}
                 <div class="flex items-center justify-center p-8">
-                  <p>Loading requests...</p>
+                  <p role="status">Loading requests...</p>
                 </div>
               {:else if userRequests.length === 0}
                 <div class="flex flex-col items-center justify-center p-8">
@@ -462,7 +463,7 @@
 
               {#if isLoadingOffers}
                 <div class="flex items-center justify-center p-8">
-                  <p>Loading offers...</p>
+                  <p role="status">Loading offers...</p>
                 </div>
               {:else if userOffers.length === 0}
                 <div class="flex flex-col items-center justify-center p-8">

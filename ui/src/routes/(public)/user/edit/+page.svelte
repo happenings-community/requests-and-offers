@@ -15,6 +15,7 @@
   const alertModalComponent: ModalComponent = { ref: AlertModal };
   const alertModal = (meta: unknown): ModalSettings => ({
     type: 'component',
+    title: 'Profile updated',
     component: alertModalComponent,
     meta
   });

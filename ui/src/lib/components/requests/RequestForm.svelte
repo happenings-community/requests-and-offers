@@ -579,6 +579,7 @@
         </label>
         {#if timePreferenceType === 'Other'}
           <input
+            aria-label="Other time preference"
             type="text"
             class="input mt-2"
             placeholder="Specify time preference..."
@@ -625,6 +626,7 @@
         </label>
         {#if contactPreferenceType === 'Other'}
           <input
+            aria-label="Other contact preference"
             type="text"
             class="input mt-2"
             placeholder="Specify contact preference..."
@@ -665,7 +667,7 @@
         {#if isLoadingPublishedOrganization}
           <div class="flex items-center gap-2">
             <span class="loading loading-spinner loading-sm"></span>
-            <span class="text-sm">Loading organizations...</span>
+            <span role="status" class="text-sm">Loading organizations...</span>
           </div>
         {:else}
           <p class="text-sm">
@@ -678,7 +680,7 @@
       {:else if isLoadingOrganizations}
         <div class="flex items-center gap-2">
           <span class="loading loading-spinner loading-sm"></span>
-          <span class="text-sm">Loading organizations...</span>
+          <span role="status" class="text-sm">Loading organizations...</span>
         </div>
       {:else if userCoordinatedOrganizations && userCoordinatedOrganizations.length > 0}
         <select class="select" bind:value={selectedOrganizationHash}>

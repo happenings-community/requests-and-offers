@@ -39,6 +39,7 @@
   <!-- Basic Search -->
   <div class="flex items-center gap-4">
     <input
+      aria-label="Search service types"
       type="search"
       bind:value={search.searchState.searchTerm}
       oninput={(e) => search.updateSearchTerm((e.target as HTMLInputElement).value)}
@@ -47,6 +48,7 @@
     />
 
     <select
+      aria-label="Filter by type"
       bind:value={search.searchState.technicalFilter}
       onchange={(e) =>
         search.updateTechnicalFilter(

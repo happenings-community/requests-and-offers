@@ -139,6 +139,7 @@
     // Create modal settings
     const modalSettings: ModalSettings = {
       type: 'component',
+      title: 'Delete request',
       component: confirmModalComponent,
       meta: {
         message: 'Are you sure you want to delete this request?',

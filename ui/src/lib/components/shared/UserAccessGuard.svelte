@@ -39,8 +39,8 @@
 {#if guard.isLoading}
   <div class="flex h-64 items-center justify-center">
     <div class="flex items-center gap-4">
-      <span class="animate-spin text-2xl">⏳</span>
-      <p class="text-lg">Checking access permissions...</p>
+      <span aria-hidden="true" class="animate-spin text-2xl">⏳</span>
+      <p class="text-lg" role="status">Checking access permissions...</p>
     </div>
   </div>
 {:else if guard.error}

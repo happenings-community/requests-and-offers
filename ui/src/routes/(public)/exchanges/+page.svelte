@@ -116,7 +116,7 @@
   {#if exchanges.error}
     <div class="alert variant-filled-error">{exchanges.error}</div>
   {:else if !exchanges.ready}
-    <p class="text-surface-500">Loading your exchanges...</p>
+    <p role="status" class="text-surface-500">Loading your exchanges...</p>
   {:else if exchanges.shown.length === 0}
     <div class="card space-y-3 p-6 text-center">
       <p class="text-surface-500">

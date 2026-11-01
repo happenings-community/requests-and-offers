@@ -49,6 +49,7 @@
   const modalStore = getModalStore();
   const alertModal = (meta: AlertModalMeta): ModalSettings => ({
     type: 'component',
+    title: 'Welcome',
     component: alertModalComponent,
     meta
   });

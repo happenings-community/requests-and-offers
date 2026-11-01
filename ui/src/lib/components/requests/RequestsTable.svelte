@@ -91,6 +91,7 @@
       // Use modal view for admin
       modalStore.trigger({
         type: 'component',
+        title: request.title || 'Request details',
         component: modalComponent,
         meta: { request }
       });
@@ -138,17 +139,17 @@
       <table class="table table-hover w-full drop-shadow-lg">
         <thead>
           <tr>
-            <th class="w-1/6 min-w-32">Title</th>
-            <th class="w-2/6 min-w-48">Description</th>
-            <th class="w-1/6 min-w-32">Service Type</th>
-            <th class="w-1/6 min-w-32">Medium of Exchange</th>
+            <th scope="col" class="w-1/6 min-w-32">Title</th>
+            <th scope="col" class="w-2/6 min-w-48">Description</th>
+            <th scope="col" class="w-1/6 min-w-32">Service Type</th>
+            <th scope="col" class="w-1/6 min-w-32">Medium of Exchange</th>
             {#if showCreator}
-              <th class="w-1/6 min-w-28">Creator</th>
+              <th scope="col" class="w-1/6 min-w-28">Creator</th>
             {/if}
             {#if showOrganization}
-              <th class="w-1/6 min-w-28">Organization</th>
+              <th scope="col" class="w-1/6 min-w-28">Organization</th>
             {/if}
-            <th class="w-20">Actions</th>
+            <th scope="col" class="w-20">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -246,17 +247,17 @@
       <table class="table table-hover w-full text-sm drop-shadow-lg">
         <thead>
           <tr>
-            <th class="w-2/6">Request</th>
-            <th class="w-1/6">Service Type</th>
-            <th class="w-1/6">Medium of Exchange</th>
+            <th scope="col" class="w-2/6">Request</th>
+            <th scope="col" class="w-1/6">Service Type</th>
+            <th scope="col" class="w-1/6">Medium of Exchange</th>
             {#if showCreator && !showOrganization}
-              <th class="w-1/6">Creator</th>
+              <th scope="col" class="w-1/6">Creator</th>
             {:else if showOrganization && !showCreator}
-              <th class="w-1/6">Organization</th>
+              <th scope="col" class="w-1/6">Organization</th>
             {:else if showCreator && showOrganization}
-              <th class="w-1/6">Creator/Org</th>
+              <th scope="col" class="w-1/6">Creator/Org</th>
             {/if}
-            <th class="w-1/6">Actions</th>
+            <th scope="col" class="w-1/6">Actions</th>
           </tr>
         </thead>
         <tbody>

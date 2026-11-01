@@ -37,6 +37,7 @@
       // Confirm archive
       const modalSettings: ModalSettings = {
         type: 'component',
+        title: `Archive ${listingType}`,
         component: confirmModalComponent,
         meta: {
           message: `Are you sure you want to archive this ${listingType}? It will no longer be visible to other users.`,
@@ -59,6 +60,7 @@
 
     const modalSettings: ModalSettings = {
       type: 'component',
+      title: `Delete ${listingType}`,
       component: confirmModalComponent,
       meta: {
         message: `Are you sure you want to permanently delete this ${listingType}? This action cannot be undone.`,

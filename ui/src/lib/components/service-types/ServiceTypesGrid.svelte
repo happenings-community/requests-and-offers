@@ -43,7 +43,7 @@
 {#if isLoading}
   <div class="flex items-center justify-center space-x-2 text-center">
     <span class="loading loading-spinner"></span>
-    <span>Loading service types...</span>
+    <span role="status">Loading service types...</span>
   </div>
 
   <!-- Error State -->

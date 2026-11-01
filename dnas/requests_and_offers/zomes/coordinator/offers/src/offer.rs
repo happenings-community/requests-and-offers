@@ -155,6 +155,13 @@ pub fn get_latest_offer_record(original_action_hash: ActionHash) -> ExternResult
       return Ok(None);
     }
   }
+  let latest_action_hash = latest_offer_action_hash(original_action_hash)?;
+  get(latest_action_hash, GetOptions::default())
+}
+
+/// The hash of the latest revision of an offer: the newest `OfferUpdates` target, or the
+/// original hash when it was never updated.
+fn latest_offer_action_hash(original_action_hash: ActionHash) -> ExternResult<ActionHash> {
   let link_type_filter = LinkTypes::OfferUpdates
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
@@ -165,15 +172,51 @@ pub fn get_latest_offer_record(original_action_hash: ActionHash) -> ExternResult
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
-  let latest_action_hash = match latest_link {
+  Ok(match latest_link {
     Some(link) => link
       .target
       .clone()
       .into_action_hash()
       .ok_or(CommonError::ActionHashNotFound("offer".to_string()))?,
-    None => original_action_hash.clone(),
-  };
-  get(latest_action_hash, GetOptions::default())
+    None => original_action_hash,
+  })
+}
+
+/// Resolve each link target to its latest revision, then fetch them all in one batched
+/// `get` (#186). A offer its creator has tombstoned is left out (#234): the tombstones on
+/// every original record are read in one batched `get_details`, since its update chain's
+/// links stay. A target whose update links cannot be read is skipped rather than failing
+/// the whole list (#233); targets that are not found are dropped, as before #184. A fetch
+/// error on either batch still fails the list, which is also the pre-#184 contract.
+fn get_latest_offer_records(links: Vec<Link>) -> ExternResult<Vec<Record>> {
+  let originals: Vec<ActionHash> = links
+    .into_iter()
+    .filter_map(|link| link.target.into_action_hash())
+    .collect();
+  let details_input: Vec<GetInput> = originals
+    .iter()
+    .map(|original| GetInput::new(resolve_chain_root(original.clone()).into(), GetOptions::default()))
+    .collect();
+  let details = HDK.with(|hdk| hdk.borrow().get_details(details_input))?;
+  let get_input: Vec<GetInput> = originals
+    .into_iter()
+    .zip(details)
+    .filter(|(_, details)| {
+      !matches!(details, Some(Details::Record(record)) if !record.deletes.is_empty())
+    })
+    .filter_map(|(original_action_hash, _)| {
+      latest_offer_action_hash(original_action_hash.clone())
+        .inspect_err(|err| warn!("Skipping offer {original_action_hash} in a list: {err:?}"))
+        .ok()
+    })
+    .map(|latest_action_hash| GetInput::new(latest_action_hash.into(), GetOptions::default()))
+    .collect();
+  let records = HDK
+    .with(|hdk| hdk.borrow().get(get_input))?
+    .into_iter()
+    .flatten()
+    .collect();
+  Ok(records)
 }
 
 #[hdk_extern]
@@ -207,19 +250,21 @@ pub fn get_active_offers(_: ()) -> ExternResult<Vec<Record>> {
   // Every surface links the offer's original record and never rewrites the
   // link (#234), so resolving the latest revision here is what shows edits, and
   // the status filter below is what leaves archived and removed offers out.
-  let mut records = Vec::new();
-  for link in links {
-    if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if let Some(record) = get_latest_offer_record(target_hash)? {
-        // Archived and removed offers keep their link; their status leaves them out.
-        let offer: Option<Offer> = record.entry().to_app_option().ok().flatten();
-        if offer.map(|l| l.status == ListingStatus::Active).unwrap_or(false) {
-          records.push(record);
-        }
-      }
-    }
-  }
-  Ok(records)
+  // Archived and removed offers keep their link; their status leaves them out.
+  Ok(
+    get_latest_offer_records(links)?
+      .into_iter()
+      .filter(|record| {
+        record
+          .entry()
+          .to_app_option::<Offer>()
+          .ok()
+          .flatten()
+          .map(|l| l.status == ListingStatus::Active)
+          .unwrap_or(false)
+      })
+      .collect(),
+  )
 }
 
 #[hdk_extern]
@@ -233,15 +278,7 @@ pub fn get_archived_offers(_: ()) -> ExternResult<Vec<Record>> {
     LinkQuery::new(path_hash.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
-  let mut records = Vec::new();
-  for link in links {
-    if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if let Some(record) = get_latest_offer_record(target_hash)? {
-        records.push(record);
-      }
-    }
-  }
-  Ok(records)
+  get_latest_offer_records(links)
 }
 
 #[hdk_extern]
@@ -255,15 +292,7 @@ pub fn get_user_offers(user_hash: ActionHash) -> ExternResult<Vec<Record>> {
     LinkQuery::new(user_hash.clone(), link_type_filter),
     GetStrategy::Local,
   )?;
-  let mut records = Vec::new();
-  for link in links {
-    if let Some(target_hash) = link.target.clone().into_action_hash() {
-      if let Some(record) = get_latest_offer_record(target_hash)? {
-        records.push(record);
-      }
-    }
-  }
-  Ok(records)
+  get_latest_offer_records(links)
 }
 
 #[hdk_extern]

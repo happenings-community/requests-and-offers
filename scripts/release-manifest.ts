@@ -81,6 +81,9 @@ export type ReleaseManifest = {
   desktop: {
     networkSeed: string;
     networkSeedSource: string;
+    /** The wrapper's bootstrap and relay: an edge node needs these too, or it is alone on the right seed. */
+    bootstrapUrl: string;
+    relayUrl: string;
     /** The conductor the wrapper bundles, checked against `holochainVersion` above. */
     holochainVersion: string;
     /** Predicted, per role. See the header: confirm against the `databases` folder names. */
@@ -147,6 +150,15 @@ export const parseWrapperSeed = (configSource: string): string => {
   const match = configSource.match(/^\s*networkSeed:\s*(['"])([^'"\n]+)\1/m);
   if (!match) {
     throw new Error("no `networkSeed: '...'` found in the wrapper's kangaroo.config.ts");
+  }
+  return match[2];
+};
+
+/** A top-level string key of the wrapper config (`bootstrapUrl`, `relayUrl`), by the same regex rule as the seed. */
+export const parseWrapperString = (configSource: string, key: string): string => {
+  const match = configSource.match(new RegExp(`^\\s*${key}:\\s*(['"])([^'"\\n]+)\\1`, 'm'));
+  if (!match) {
+    throw new Error(`no \`${key}: '...'\` found in the wrapper's kangaroo.config.ts`);
   }
   return match[2];
 };
@@ -247,6 +259,8 @@ export const buildManifest = (input: ManifestInputs): ReleaseManifest => {
     desktop: {
       networkSeed: desktopSeed,
       networkSeedSource: input.wrapperConfigSource,
+      bootstrapUrl: parseWrapperString(input.wrapperConfig, 'bootstrapUrl'),
+      relayUrl: parseWrapperString(input.wrapperConfig, 'relayUrl'),
       holochainVersion: wrapperHolochainVersion,
       installedDnaHashes: {
         requests_and_offers: installedHash(input.dnaPath, {

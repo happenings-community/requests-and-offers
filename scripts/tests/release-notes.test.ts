@@ -37,6 +37,8 @@ const manifest = {
   desktop: { networkSeed: 'alpha1-iroh-2026' },
 };
 
+const networkNotice = '**New network.** test notice';
+
 describe('sectionFor', () => {
   it('takes the section whole, stopping at the next version heading', () => {
     const section = sectionFor(changelog, '0.7.0');
@@ -83,7 +85,7 @@ describe('templateBody', () => {
 
 describe('renderNotes', () => {
   it('fills every placeholder in the real template', () => {
-    const notes = renderNotes({ template: realTemplate, changelog, version: '0.7.0', manifest });
+    const notes = renderNotes({ template: realTemplate, changelog, version: '0.7.0', manifest, networkNotice });
     expect(notes).not.toMatch(/\{[A-Z_]+\}/);
     expect(notes).toContain('## 🚀 The Second One');
     expect(notes).toContain('Body of the second one.');
@@ -93,26 +95,33 @@ describe('renderNotes', () => {
   });
 
   it('names the wrapper seed, not the hApp seed, for desktop apps and edge nodes', () => {
-    const notes = renderNotes({ template: realTemplate, changelog, version: '0.7.0', manifest });
+    const notes = renderNotes({ template: realTemplate, changelog, version: '0.7.0', manifest, networkNotice });
     const desktopLine = notes.split('\n').find((line) => line.includes('Network seed (desktop apps and edge nodes)'));
     expect(desktopLine).toContain('alpha1-iroh-2026');
     expect(desktopLine).not.toContain('requests_and_offers_alpha');
   });
 
   it('does not print the headline twice', () => {
-    const notes = renderNotes({ template: realTemplate, changelog, version: '0.7.0', manifest });
+    const notes = renderNotes({ template: realTemplate, changelog, version: '0.7.0', manifest, networkNotice });
     expect(notes.split('The Second One')).toHaveLength(2);
   });
 
   it('drops the compare link when there is no previous release', () => {
-    const notes = renderNotes({ template: realTemplate, changelog, version: '0.6.0', manifest });
+    const notes = renderNotes({ template: realTemplate, changelog, version: '0.6.0', manifest, networkNotice });
     expect(notes).not.toContain('/compare/');
     expect(notes).toContain('see CHANGELOG.md');
   });
 
+  it('carries the network notice into the edge node section', () => {
+    const notes = renderNotes({ template: realTemplate, changelog, version: '0.7.0', manifest, networkNotice });
+    const section = notes.slice(notes.indexOf('### Edge node operators'));
+    expect(section).toContain('**New network.** test notice');
+    expect(section).toContain('edge-node-config.json');
+  });
+
   it('aborts on a placeholder nothing fills', () => {
     const template = '<!-- template:begin -->\n{RELEASE_TITLE} and {NOT_A_THING}\n<!-- template:end -->';
-    expect(() => renderNotes({ template, changelog, version: '0.7.0', manifest })).toThrow(
+    expect(() => renderNotes({ template, changelog, version: '0.7.0', manifest, networkNotice })).toThrow(
       /unfilled placeholders.*\{NOT_A_THING\}/
     );
   });

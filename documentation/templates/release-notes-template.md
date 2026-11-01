@@ -2,7 +2,7 @@
 
 This file is read by `scripts/release-notes.ts`, which the release workflow runs after a `v*` tag is pushed. Only the text between the two markers is used; everything outside them is documentation for whoever edits the template.
 
-Placeholders are filled from two measured sources and nothing else: the `## [version]` section of `CHANGELOG.md`, and `release-manifest.json` produced by the same workflow run. A placeholder the generator cannot fill aborts the release rather than shipping a note with `{SOMETHING}` in it.
+Placeholders are filled from three measured sources and nothing else: the `## [version]` section of `CHANGELOG.md`, `release-manifest.json` produced by the same workflow run, and the previous release's own `release-manifest.json`. A placeholder the generator cannot fill aborts the release rather than shipping a note with `{SOMETHING}` in it.
 
 | Placeholder | Filled from |
 |---|---|
@@ -12,6 +12,7 @@ Placeholders are filled from two measured sources and nothing else: the `## [ver
 | `{PREV_VERSION}` | the previous `## [...]` heading in the CHANGELOG |
 | `{DESKTOP_NETWORK}` | `desktop.networkSeed` in the release manifest, read from the wrapper's `kangaroo.config.ts` (`networkSeed`), the seed desktop installs actually run |
 | `{HOLOCHAIN_VERSION}` | `holochainVersion` in the release manifest, read from `hc --version` |
+| `{NETWORK_NOTICE}` | `scripts/release-network.ts`: this release's `desktop.installedDnaHashes` against the previous release's manifest, new, same, or not compared when there is none |
 
 <!-- template:begin -->
 ## {RELEASE_TITLE}
@@ -39,7 +40,11 @@ brew install --cask happenings-community/requests-and-offers/requests-and-offers
 
 Installing by the full name trusts this cask, which Homebrew 6 and later require. If you installed from a DMG before, quit the app and add `--force`.
 
-**Edge node operators**: `requests_and_offers.happ` and `release-manifest.json` are attached to this release. Set `app.modifiers.networkSeed` in the node's config to the network seed below, the desktop testers' network. The manifest carries the version, that seed and the artefact digests this release was built with, and `edge-node/health-check.sh --manifest release-manifest.json` verifies a running node against it.
+### Edge node operators
+
+{NETWORK_NOTICE}
+
+`edge-node-config.json`, `requests_and_offers.happ` and `release-manifest.json` are attached to this release. `edge-node-config.json` is a Holo Edge Node config with the hApp's URL and digest, and the desktop testers' seed, bootstrap and relay already filled in: `install_happ edge-node-config.json` installs this release on the right network. The manifest carries the version, that seed and the artefact digests this release was built with, and `edge-node/health-check.sh --manifest release-manifest.json` verifies a running node against it.
 
 ### Technical Specifications
 

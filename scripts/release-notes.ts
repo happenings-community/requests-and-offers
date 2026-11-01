@@ -71,6 +71,8 @@ export type NotesInputs = {
     network: { requestsAndOffersSeed: string };
     desktop: { networkSeed: string };
   };
+  /** From release-network.ts: whether this release moves the edge nodes' network. */
+  networkNotice: string;
 };
 
 /**
@@ -87,7 +89,7 @@ export const templateBody = (file: string): string => {
   return file.slice(begin + '<!-- template:begin -->'.length, end).trim();
 };
 
-export const renderNotes = ({ template, changelog, version, manifest }: NotesInputs): string => {
+export const renderNotes = ({ template, changelog, version, manifest, networkNotice }: NotesInputs): string => {
   const section = sectionFor(changelog, version);
   const previous = previousVersion(changelog, version);
 
@@ -106,6 +108,7 @@ export const renderNotes = ({ template, changelog, version, manifest }: NotesInp
     // one seed the note names; the hApp's per-role defaults are for development.
     DESKTOP_NETWORK: manifest.desktop.networkSeed,
     HOLOCHAIN_VERSION: manifest.holochainVersion,
+    NETWORK_NOTICE: networkNotice,
   };
 
   let rendered = templateBody(template);
@@ -146,6 +149,7 @@ if (import.meta.main) {
     changelog: readFileSync(flag(argv, 'changelog', `${root}/CHANGELOG.md`), 'utf8'),
     version,
     manifest: JSON.parse(readFileSync(flag(argv, 'manifest'), 'utf8')),
+    networkNotice: (JSON.parse(readFileSync(flag(argv, 'network'), 'utf8')) as { notice: string }).notice,
   });
   const out = flag(argv, 'out', '');
   if (out) {

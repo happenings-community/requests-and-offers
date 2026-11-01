@@ -70,6 +70,7 @@ jobs:
       version: ${{ steps.describe.outputs.version }}
       prerelease: ${{ steps.describe.outputs.prerelease }}
       webhapp_sha256: ${{ steps.describe.outputs.webhapp_sha256 }}
+      title_suffix: ${{ steps.describe.outputs.title_suffix }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -147,11 +148,39 @@ jobs:
             --wrapper-config-source "happenings-community/requests-and-offers-kangaroo-electron@release:kangaroo.config.ts" \
             --out release-manifest.json
 
+      # Edge nodes back up the desktop network, and we keep no list of their
+      # operators, so the release itself must say when the network moves (#277,
+      # Sam, 23 Oct). The previous release is the CHANGELOG's previous heading,
+      # the same one the note's compare link uses. A previous release with no
+      # manifest (alpha.1 predates it) is compared as unknown, never as same.
+      - name: Compare the network and write the edge node config
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(jq -r .version release-manifest.json)
+          prev=$(grep -oP '^## \[\K[^\]]+' CHANGELOG.md | awk -v v="$version" 'found { print; exit } $0 == v { found = 1 }')
+          rm -f previous-manifest.json
+          if [ -n "$prev" ]; then
+            gh release download "v$prev" --repo "$GITHUB_REPOSITORY" \
+              --pattern release-manifest.json --output previous-manifest.json \
+              || echo "v$prev has no release-manifest.json; the network is not compared"
+          fi
+          bun scripts/release-network.ts \
+            --manifest release-manifest.json \
+            --previous-manifest previous-manifest.json \
+            --previous-tag "${prev:+v$prev}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --config-out edge-node-config.json \
+            --comparison-out release-network.json
+          cat release-network.json edge-node-config.json
+
       - name: Write the release notes
         run: |
           bun scripts/release-notes.ts \
             --version "$(jq -r .version release-manifest.json)" \
             --manifest release-manifest.json \
+            --network release-network.json \
             --out release-notes.md
           cat release-notes.md
 
@@ -161,6 +190,7 @@ jobs:
           version=$(jq -r .version release-manifest.json)
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "webhapp_sha256=$(jq -r .webhapp.sha256 release-manifest.json)" >> "$GITHUB_OUTPUT"
+          echo "title_suffix=$(jq -r .titleSuffix release-network.json)" >> "$GITHUB_OUTPUT"
           # SemVer says a hyphen introduces a prerelease identifier, and every
           # alpha this project has cut carries one. Nothing else decides this.
           case "$version" in
@@ -176,6 +206,8 @@ jobs:
             workdir/requests_and_offers.webhapp
             release-manifest.json
             release-notes.md
+            edge-node-config.json
+            release-network.json
           retention-days: 7
           if-no-files-found: error
 
@@ -197,6 +229,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           VERSION: ${{ needs.build.outputs.version }}
+          TITLE_SUFFIX: ${{ needs.build.outputs.title_suffix }}
           PRERELEASE: ${{ needs.build.outputs.prerelease == 'true' && '--prerelease' || '' }}
         run: |
           set -euo pipefail
@@ -206,18 +239,21 @@ jobs:
             gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
               workdir/requests_and_offers.happ \
               workdir/requests_and_offers.webhapp \
-              release-manifest.json
-            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file release-notes.md
+              release-manifest.json \
+              edge-node-config.json
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --title "v$VERSION$TITLE_SUFFIX" --notes-file release-notes.md
           else
             # PRERELEASE is unquoted on purpose: empty must vanish, not become "".
             gh release create "$TAG" \
               --repo "$GITHUB_REPOSITORY" \
-              --title "v$VERSION" \
+              --title "v$VERSION$TITLE_SUFFIX" \
               --notes-file release-notes.md \
               $PRERELEASE \
               workdir/requests_and_offers.happ \
               workdir/requests_and_offers.webhapp \
-              release-manifest.json
+              release-manifest.json \
+              edge-node-config.json
           fi
 
   desktop:

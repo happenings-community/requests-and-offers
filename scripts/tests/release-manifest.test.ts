@@ -6,6 +6,7 @@ import {
   checkHolochainPairing,
   parseHolochainVersion,
   parseWrapperHolochainVersion,
+  parseWrapperString,
   parseWrapperSeed,
   propertiesForRole,
   seedForRole,
@@ -142,7 +143,7 @@ describe('buildManifest', () => {
     dnaPath: '/tmp/requests_and_offers.dna',
     hreaDnaPath: '/tmp/hrea.dna',
     wrapperConfig:
-      "export default defineConfig({\n  networkSeed: 'alpha1-iroh-2026',\n  bins: {\n    holochainVersion: '0.6.1',\n  },\n});",
+      "export default defineConfig({\n  networkSeed: 'alpha1-iroh-2026',\n  bootstrapUrl: 'https://dev-test-bootstrap2.holochain.org/',\n  relayUrl: 'https://iroh-relay-hc.holochain.org/',\n  bins: {\n    holochainVersion: '0.6.1',\n  },\n});",
     wrapperConfigSource: 'happenings-community/requests-and-offers-kangaroo-electron@release:kangaroo.config.ts',
     // Stands in for the unpack, patch, pack, hash round trip, and records what
     // it was asked to hash so the test can see the wrapper's seed arrive.
@@ -180,6 +181,8 @@ describe('buildManifest', () => {
         networkSeed: 'alpha1-iroh-2026',
         networkSeedSource:
           'happenings-community/requests-and-offers-kangaroo-electron@release:kangaroo.config.ts',
+        bootstrapUrl: 'https://dev-test-bootstrap2.holochain.org/',
+        relayUrl: 'https://iroh-relay-hc.holochain.org/',
         holochainVersion: '0.6.1',
         installedDnaHashes: {
           requests_and_offers: 'installed(requests_and_offers.dna,alpha1-iroh-2026)',
@@ -220,6 +223,18 @@ describe('parseWrapperHolochainVersion', () => {
 
   it('refuses a config with no conductor version rather than skipping the check', () => {
     expect(() => parseWrapperHolochainVersion("  networkSeed: 'x',")).toThrow(/holochainVersion/);
+  });
+});
+
+describe('parseWrapperString', () => {
+  it("reads the wrapper's bootstrap and relay, which an edge node needs as much as the seed", () => {
+    const config = "  bootstrapUrl: 'https://b.example/',\n  relayUrl: \"https://r.example/\",";
+    expect(parseWrapperString(config, 'bootstrapUrl')).toBe('https://b.example/');
+    expect(parseWrapperString(config, 'relayUrl')).toBe('https://r.example/');
+  });
+
+  it('refuses a config that lacks the key rather than publish an empty URL', () => {
+    expect(() => parseWrapperString("  networkSeed: 'x',", 'relayUrl')).toThrow(/relayUrl/);
   });
 });
 

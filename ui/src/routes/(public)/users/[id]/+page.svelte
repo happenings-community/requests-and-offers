@@ -4,12 +4,24 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { decodeHashFromBase64 } from '@holochain/client';
   import UserProfile from '$lib/components/users/UserProfile.svelte';
+  import { contactAbout } from '$lib/components/shared/contact-about.svelte';
+  import { formatUserName } from '$lib/schemas/users.schemas';
   import { runEffect } from '$lib/utils/effect';
 
   const userHash = page.params.id ? decodeHashFromBase64(page.params.id) : null;
   const { currentUser } = $derived(usersStore);
 
   let user = $state<UIUser | null>(null);
+
+  // Whether this is the member's own profile. The footer's "Contact admin"
+  // names the profile only when it is someone else's.
+  const isMe = $derived(
+    !!(
+      user &&
+      currentUser?.original_action_hash &&
+      user.original_action_hash.toString() === currentUser.original_action_hash.toString()
+    )
+  );
   let error = $state<string | null>(null);
 
   async function fetchUserData() {
@@ -32,6 +44,11 @@
 
   $effect(() => {
     fetchUserData();
+  });
+
+  $effect(() => {
+    contactAbout.set(user && !isMe ? { type: 'profile', title: formatUserName(user.name) } : null);
+    return () => contactAbout.set(null);
   });
 </script>
 

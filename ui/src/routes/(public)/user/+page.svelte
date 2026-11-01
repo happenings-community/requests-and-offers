@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import usersStore from '$lib/stores/users.store.svelte';
   import NavButton from '$lib/components/shared/NavButton.svelte';
   import UserProfile from '$lib/components/users/UserProfile.svelte';
@@ -26,6 +27,10 @@
     fetchUserData();
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('My Profile')}</title>
+</svelte:head>
 
 <section class="flex flex-col items-center">
   {#if error}

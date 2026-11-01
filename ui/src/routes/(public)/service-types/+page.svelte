@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { onMount } from 'svelte';
   import ServiceTypesTable from '$lib/components/service-types/ServiceTypesTable.svelte';
   import ServiceTypeSearch from '$lib/components/service-types/ServiceTypeSearch.svelte';
@@ -28,6 +29,10 @@
     };
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Service Types')}</title>
+</svelte:head>
 
 <section class="container mx-auto space-y-6 p-4">
   <div class="flex items-center justify-between">
@@ -60,7 +65,7 @@
   {:else if management.error || management.storeError}
     <div class="alert variant-filled-error">
       <div class="alert-message">
-        <h3 class="h3">Error</h3>
+        <h2 class="h3">Error</h2>
         <p>{management.error || management.storeError}</p>
       </div>
       <div class="alert-actions">

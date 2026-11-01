@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { pageTitle } from '$lib/utils/document';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
@@ -74,7 +75,7 @@
 </script>
 
 <svelte:head>
-  <title>{listingTitle ? `Exchange: ${listingTitle}` : 'Exchange'}</title>
+  <title>{pageTitle(listingTitle ? `Exchange: ${listingTitle}` : 'Exchange')}</title>
 </svelte:head>
 
 {#snippet reviewCard(label: string, r: (ReviewInDHT & { created_at: number }) | undefined)}

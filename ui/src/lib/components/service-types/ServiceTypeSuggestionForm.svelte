@@ -22,7 +22,7 @@
 </script>
 
 <div class="card space-y-4 p-4">
-  <h3 class="h3">Suggest a New Service Type</h3>
+  <h1 class="h3">Suggest a New Service Type</h1>
   <p>Have an idea for a new service category? Suggest it here. An administrator will review it.</p>
   <form on:submit={handleSubmit} class="space-y-4">
     <label class="label block">

@@ -5,7 +5,7 @@
   const drawerStore = getDrawerStore();
 </script>
 
-<div class="h-10 space-y-5 p-2 md:p-5">
+<nav aria-label="Admin menu" class="h-10 space-y-5 p-2 md:p-5">
   <div class="flex items-center justify-center gap-4">
     <a href="/" onclick={() => drawerStore.close()}>
       <img src="/hAppeningsCIClogo.png" alt="" class="w-28" />
@@ -51,4 +51,4 @@
       User front-end
     </MenuLink>
   </div>
-</div>
+</nav>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
@@ -249,9 +250,7 @@
 </script>
 
 <svelte:head>
-  <title>
-    {offer ? `${offer.title} Offer` : 'Offer'} - Requests & Offers
-  </title>
+  <title>{pageTitle(offer?.title ?? 'Offer')}</title>
   <meta
     name="description"
     content={offer ? `Offer details for ${offer.title} - ${offer.description}` : 'Offer details'}
@@ -282,7 +281,7 @@
   {#if error}
     <div class="alert variant-filled-error">
       <div class="alert-message">
-        <h3 class="h3">Error</h3>
+        <h2 class="h3">Error</h2>
         <p>{error}</p>
       </div>
       <div class="alert-actions">
@@ -318,7 +317,7 @@
 
         <!-- Service Type -->
         <section class="mb-6">
-          <h3 class="h4 mb-3 font-semibold">Service Type</h3>
+          <h2 class="h4 mb-3 font-semibold">Service Type</h2>
           {#if offer.service_type_hash}
             <div class="flex flex-wrap gap-2">
               <ServiceTypeTag serviceTypeActionHash={offer.service_type_hash} showLink={true} />
@@ -330,7 +329,7 @@
 
         <!-- Medium of Exchange -->
         <section class="mb-6">
-          <h3 class="h4 mb-3 font-semibold">Medium of Exchange</h3>
+          <h2 class="h4 mb-3 font-semibold">Medium of Exchange</h2>
           {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
             <div class="flex flex-wrap gap-2">
               {#each offer.medium_of_exchange_hashes as mediumHash}
@@ -348,7 +347,7 @@
             <!-- Time Information -->
             {#if offer.time_zone || offer.time_preference}
               <div>
-                <h3 class="h4 mb-2 font-semibold">Time Information</h3>
+                <h2 class="h4 mb-2 font-semibold">Time Information</h2>
                 {#if offer.time_zone}
                   <p><strong>Time Zone:</strong> {offer.time_zone}</p>
                 {/if}
@@ -362,7 +361,7 @@
             <!-- Interaction Type -->
             {#if offer.interaction_type}
               <div>
-                <h3 class="h4 mb-2 font-semibold">Interaction Type</h3>
+                <h2 class="h4 mb-2 font-semibold">Interaction Type</h2>
                 <p>{offer.interaction_type === 'Virtual' ? 'Virtual' : 'In Person'}</p>
               </div>
             {/if}
@@ -372,7 +371,7 @@
         <!-- Links -->
         {#if offer.links && offer.links.length > 0}
           <section class="mt-6">
-            <h3 class="h4 mb-3 font-semibold">Related Links</h3>
+            <h2 class="h4 mb-3 font-semibold">Related Links</h2>
             <ul class="list-inside list-disc space-y-1">
               {#each offer.links as link}
                 <li>
@@ -389,7 +388,7 @@
         {#if offer.organization}
           <!-- Organization info -->
           <div>
-            <h3 class="h4 mb-4 font-semibold">Organization</h3>
+            <h2 class="h4 mb-4 font-semibold">Organization</h2>
             <div class="flex items-center gap-2">
               {#if organization}
                 <div class="flex items-center gap-3">
@@ -449,7 +448,7 @@
         {:else}
           <!-- Creator info (only show if not an organization offer) -->
           <div>
-            <h3 class="h4 mb-4 font-semibold">Creator</h3>
+            <h2 class="h4 mb-4 font-semibold">Creator</h2>
             <div class="flex items-center gap-2">
               {#if creator}
                 <a href={`/users/${encodeHashToBase64(creator.original_action_hash!)}`}>

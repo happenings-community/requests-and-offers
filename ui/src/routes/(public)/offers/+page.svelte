@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { goto } from '$app/navigation';
   import { useOffersManagement } from '$lib/composables';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
@@ -45,7 +46,7 @@
 </script>
 
 <svelte:head>
-  <title>Offers | Happening Community</title>
+  <title>{pageTitle('Offers')}</title>
 </svelte:head>
 
 <!-- SIMPLE WORKING VERSION -->
@@ -56,6 +57,7 @@
   description="Create a profile to make offers to the community."
 >
   <div class="container mx-auto p-4">
+    <h1 class="sr-only">Offers</h1>
     <!-- Tab Switcher -->
     <div class="mb-4 flex items-center justify-between">
       <div class="flex gap-2">

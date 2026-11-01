@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { goto } from '$app/navigation';
   import { useRequestsManagement } from '$lib/composables';
   import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
@@ -45,7 +46,7 @@
 </script>
 
 <svelte:head>
-  <title>Requests | Happening Community</title>
+  <title>{pageTitle('Requests')}</title>
 </svelte:head>
 
 <!-- SIMPLE WORKING VERSION -->
@@ -56,6 +57,7 @@
   description="Create a profile to make requests to the community."
 >
   <div class="container mx-auto p-4">
+    <h1 class="sr-only">Requests</h1>
     <!-- Tab Switcher -->
     <div class="mb-4 flex items-center justify-between">
       <div class="flex gap-2">

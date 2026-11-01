@@ -39,9 +39,9 @@ type SmokeRoute = {
 // surfaces below are reachable with the same identity.
 //
 // Every landmark below is the literal heading in that route's +page.svelte, not a
-// guess: '/users' renders its title as an <h2> styled .h1, and the offers and
-// requests tabs carry an emoji prefix ('📋 Active Offers'), which is why those two
-// match on text rather than on an accessible name.
+// guess. The offers and requests pages have a visually hidden h1 (#208) and their
+// tabs carry an emoji prefix ('📋 Active Offers'); those two match on the visible
+// tab text, which is what a sighted user sees first.
 const SMOKE_ROUTES: SmokeRoute[] = [
   { path: '/', heading: 'Welcome to Requests & Offers' },
   { path: '/service-types', heading: 'Available Service Types' },

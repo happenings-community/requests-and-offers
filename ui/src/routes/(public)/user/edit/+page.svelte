@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { getModalStore } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import NavButton from '$lib/components/shared/NavButton.svelte';
@@ -38,12 +39,16 @@
   }
 </script>
 
+<svelte:head>
+  <title>{pageTitle('Edit Profile')}</title>
+</svelte:head>
+
 <section class="flex w-1/2 flex-col gap-10">
   {#if !currentUser}
     <p class="mb-4 text-center text-xl">It looks like you don't have a profile yet !</p>
     <NavButton href="/user/create">Create Profile</NavButton>
   {:else}
-    <h2 class="h2">Edit User</h2>
+    <h1 class="h2">Edit User</h1>
     <UserForm mode="edit" user={currentUser} onSubmit={updateUser} />
   {/if}
 </section>

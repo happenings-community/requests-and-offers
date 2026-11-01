@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { onMount } from 'svelte';
   import { ConicGradient, type ConicStop, getToastStore } from '@skeletonlabs/skeleton';
   import { useOrganizationsManagement } from '$lib/composables';
@@ -61,6 +62,10 @@
   });
 </script>
 
+<svelte:head>
+  <title>{pageTitle('Organizations', 'Admin')}</title>
+</svelte:head>
+
 <section class="flex flex-col gap-10">
   <h1 class="h1 text-center">Organizations Management</h1>
 
@@ -94,7 +99,7 @@
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-8">
       {#each organizationCategories as { title, organizations, titleClass }}
         <div class="card p-4">
-          <h3 class="h4 mb-4 {titleClass}">{title}</h3>
+          <h2 class="h4 mb-4 {titleClass}">{title}</h2>
           <OrganizationsTable {organizations} />
         </div>
       {/each}

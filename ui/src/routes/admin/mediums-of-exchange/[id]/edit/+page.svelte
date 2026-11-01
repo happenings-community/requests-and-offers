@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
@@ -63,7 +64,7 @@
 </script>
 
 <svelte:head>
-  <title>Edit Medium of Exchange - Admin</title>
+  <title>{pageTitle('Edit Medium of Exchange', 'Admin')}</title>
 </svelte:head>
 
 <div class="container mx-auto p-6">
@@ -85,7 +86,7 @@
   {:else if error}
     <div class="alert variant-filled-error">
       <div class="alert-message">
-        <h3 class="h3">Error</h3>
+        <h2 class="h3">Error</h2>
         <p>{error}</p>
       </div>
       <div class="alert-actions">
@@ -102,7 +103,7 @@
   {:else}
     <div class="alert variant-filled-warning">
       <div class="alert-message">
-        <h3 class="h3">Not Found</h3>
+        <h2 class="h3">Not Found</h2>
         <p>The requested medium of exchange could not be found.</p>
       </div>
       <div class="alert-actions">

@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import AdminSideBar from '$lib/components/users/AdminSideBar.svelte';
   import NavBar from '$lib/components/shared/NavBar.svelte';
+  import SkipLink from '$lib/components/shared/SkipLink.svelte';
   import { isHolochainConnected } from '$lib/utils/holochain-client.utils';
   import {
     ConicGradient,
@@ -68,9 +69,11 @@
   });
 </script>
 
+<SkipLink />
 <div class="flex h-screen flex-col">
-  <!-- Header -->
-  <NavBar />
+  <header>
+    <NavBar />
+  </header>
 
   <!-- Content Container -->
   <div class="flex flex-1 overflow-hidden">
@@ -80,7 +83,11 @@
     </div>
 
     <!-- Main Content -->
-    <main class="w-full flex-1 overflow-y-auto bg-surface-800 px-5 py-10">
+    <main
+      id="main-content"
+      tabindex="-1"
+      class="w-full flex-1 overflow-y-auto bg-surface-800 px-5 py-10"
+    >
       {#if !isAppReady}
         <div class="flex h-full flex-col items-center justify-center space-y-4">
           <p class="text-surface-200">Initializing admin panel...</p>

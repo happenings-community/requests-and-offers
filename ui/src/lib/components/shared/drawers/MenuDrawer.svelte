@@ -1,5 +1,7 @@
-<script>
+<script lang="ts">
   import { getDrawerStore } from '@skeletonlabs/skeleton';
+  import { page } from '$app/state';
+  import { isCurrentPage } from '$lib/utils/document';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
 
@@ -10,9 +12,11 @@
   function closeDrawer() {
     drawerStore.close();
   }
+
+  const current = (href: string) => (isCurrentPage(href, page.url) ? 'page' : undefined);
 </script>
 
-<div class="flex h-full flex-col bg-primary-500 text-white">
+<nav aria-label="Menu" class="flex h-full flex-col bg-primary-500 text-white">
   <!-- Header -->
   <div class="flex items-center justify-between border-b border-primary-400 p-4">
     <a href="/" onclick={closeDrawer} class="flex items-center gap-3">
@@ -42,6 +46,7 @@
       <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Main Actions</h3>
       <a
         href="/requests"
+        aria-current={current('/requests')}
         onclick={closeDrawer}
         class="flex items-center gap-3 rounded-lg bg-secondary-600 p-3 transition-colors hover:bg-secondary-700"
       >
@@ -50,6 +55,7 @@
       </a>
       <a
         href="/offers"
+        aria-current={current('/offers')}
         onclick={closeDrawer}
         class="flex items-center gap-3 rounded-lg bg-warning-600 p-3 transition-colors hover:bg-warning-700"
       >
@@ -65,6 +71,7 @@
         {#if currentUser}
           <a
             href="/user"
+            aria-current={current('/user')}
             onclick={closeDrawer}
             class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
           >
@@ -74,6 +81,7 @@
         {:else}
           <a
             href="/user/create"
+            aria-current={current('/user/create')}
             onclick={closeDrawer}
             class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
           >
@@ -83,6 +91,7 @@
         {/if}
         <a
           href="/requests?filter=my"
+          aria-current={current('/requests?filter=my')}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
@@ -91,6 +100,7 @@
         </a>
         <a
           href="/offers?filter=my"
+          aria-current={current('/offers?filter=my')}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
@@ -99,6 +109,7 @@
         </a>
         <a
           href="/my-listings"
+          aria-current={current('/my-listings')}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
@@ -107,6 +118,7 @@
         </a>
         <a
           href="/exchanges"
+          aria-current={current('/exchanges')}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
@@ -122,6 +134,7 @@
       <div class="space-y-2">
         <a
           href="/users"
+          aria-current={current('/users')}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
@@ -130,6 +143,7 @@
         </a>
         <a
           href="/organizations"
+          aria-current={current('/organizations')}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
@@ -145,6 +159,7 @@
       <div class="space-y-2">
         <a
           href="/service-types"
+          aria-current={current('/service-types')}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
@@ -162,6 +177,7 @@
         </h3>
         <a
           href="/admin"
+          aria-current={current('/admin')}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg border border-secondary-400 p-3 transition-colors hover:bg-secondary-600"
         >
@@ -171,4 +187,4 @@
       </div>
     {/if}
   </div>
-</div>
+</nav>

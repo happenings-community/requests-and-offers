@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { goto } from '$app/navigation';
   import MediumOfExchangeForm from '$lib/components/mediums-of-exchange/MediumOfExchangeForm.svelte';
   import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
@@ -13,7 +14,7 @@
 </script>
 
 <svelte:head>
-  <title>Create Medium of Exchange - Admin</title>
+  <title>{pageTitle('Create Medium of Exchange', 'Admin')}</title>
 </svelte:head>
 
 <div class="container mx-auto p-6">

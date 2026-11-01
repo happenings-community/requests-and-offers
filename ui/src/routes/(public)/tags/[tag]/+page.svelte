@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
 
@@ -9,7 +10,7 @@
 </script>
 
 <svelte:head>
-  <title>Redirecting... - Requests and Offers</title>
+  <title>{pageTitle('Tags No Longer Supported')}</title>
 </svelte:head>
 
 <section class="container mx-auto p-4 text-center">

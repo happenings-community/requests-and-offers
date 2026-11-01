@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import StatusTable from '$lib/components/shared/status/StatusTable.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { storeEventBus } from '$lib/stores/storeEvents';
@@ -57,6 +58,10 @@
     }
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Status History', 'Admin')}</title>
+</svelte:head>
 
 <section class="space-y-10">
   <h1 class="h1 text-center">Status History</h1>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/document';
   import { page } from '$app/state';
   import type { UIUser } from '$lib/types/ui';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -34,6 +35,10 @@
     fetchUserData();
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle(user?.name ?? 'Profile')}</title>
+</svelte:head>
 
 {#if error}
   <div class="alert variant-filled-error">

@@ -145,9 +145,9 @@ When #90 lands, the mapping runs over existing agreements and new ones are writt
 
 ### Decided for alpha 2 (#250)
 
-- **No migration.** Alpha 2 changes the DNA hash and resets the network, so no exchange from alpha 1 crosses into it. Every exchange on the alpha 2 network is written to this record and mirrored into hREA as it is written (#255). There is nothing to move.
+- **No migration.** Alpha 2 changes the DNA hash and resets the network, so no exchange from alpha 1 crosses into it. Every exchange on the alpha 2 network is written to this record, and mirrored into hREA when it is accepted, best effort: the interface writes the mirror, and skips it while the two members have no hREA agents yet (#255). There is nothing to move.
 - **This record stays, and hREA is layered over it.** The `exchanges` zome is the validated, append-only record of who agreed what:
-  - who may answer a proposal, and only once;
+  - who may answer a proposal, and only once (#343);
   - how a counter chains to the proposal it answers (#343);
   - that nothing is updated.
 

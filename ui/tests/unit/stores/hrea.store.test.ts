@@ -122,6 +122,9 @@ describe('HreaStore', () => {
       createEconomicEvent: vi.fn().mockReturnValue(
         E.succeed({ id: 'event-123', revisionId: 'event-rev-123' })
       ),
+      getAgreements: vi.fn().mockReturnValue(E.succeed([])),
+      getCommitments: vi.fn().mockReturnValue(E.succeed([])),
+      getEconomicEvents: vi.fn().mockReturnValue(E.succeed([])),
       getUnits: vi.fn().mockReturnValue(E.succeed([])),
       createUnit: vi.fn((params) =>
         E.succeed({ id: `unit-${params.label}`, label: params.label, symbol: params.symbol })
@@ -575,4 +578,28 @@ describe('HreaStore', () => {
   // manual sync, existing entity detection, error handling, and retroactive mappings
   // have been temporarily removed due to mocking complexity. These can be re-added
   // once the proper Effect mocking patterns are established.
+  describe('loadAuditSnapshot (U14 admin dashboard)', () => {
+    it('reads every VF type from the hREA service, leaving store state alone', async () => {
+      const agreement = { id: 'agr-1', revisionId: 'r1', name: 'Offer: X', note: 'ref' };
+      const commitment = { id: 'c-1', action: 'work', provider: 'a', receiver: 'b' };
+      const event = { id: 'e-1', action: 'work', provider: 'a', receiver: 'b' };
+      const service = createMockService({
+        getAgents: vi.fn().mockReturnValue(E.succeed([testAgent])),
+        getAgreements: vi.fn().mockReturnValue(E.succeed([agreement])),
+        getCommitments: vi.fn().mockReturnValue(E.succeed([commitment])),
+        getEconomicEvents: vi.fn().mockReturnValue(E.succeed([event]))
+      });
+      const store = await createStoreWithService(service);
+      const snapshot = await runEffect(store.loadAuditSnapshot());
+      expect(snapshot.agents).toEqual([testAgent]);
+      expect(snapshot.agreements).toEqual([agreement]);
+      expect(snapshot.commitments).toEqual([commitment]);
+      expect(snapshot.events).toEqual([event]);
+      expect(snapshot.specs).toEqual([]);
+      expect(snapshot.proposals).toEqual([]);
+      expect(snapshot.intents).toEqual([]);
+      expect(service.getAgreements).toHaveBeenCalledTimes(1);
+      expect(store.agents).toEqual([]);
+    });
+  });
 });

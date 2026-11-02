@@ -263,3 +263,75 @@ describe('hREA agreement mirror after a reload (agreementMappings empty)', () =>
     expect(svc.updateCommitment).not.toHaveBeenCalled();
   });
 });
+
+// U15c: a cancellation after acceptance ends the mirrored Commitments; before
+// acceptance hREA holds nothing for the exchange, so nothing is written.
+describe('hREA mirror of a cancellation', () => {
+  const accepted = (): UIExchange =>
+    ({
+      ...exchange(),
+      status: 'Cancelled',
+      provider_done: undefined,
+      response: { agreement: hash(1), accepted: true, note: '', created_at: 1 }
+    }) as unknown as UIExchange;
+
+  it('marks the still-open Commitments finished, from their current revision in hREA', async () => {
+    const svc = service();
+    svc.getCommitments.mockReturnValue(
+      E.succeed([
+        {
+          id: 'c-prim',
+          revisionId: 'c-prim-rev2',
+          action: 'work',
+          provider: 'agent-p',
+          receiver: 'agent-r',
+          clauseOf: 'agr-1',
+          finished: false
+        },
+        {
+          id: 'c-recip',
+          revisionId: 'c-recip-rev2',
+          action: 'transfer',
+          provider: 'agent-r',
+          receiver: 'agent-p',
+          clauseOf: 'agr-1',
+          finished: true
+        },
+        {
+          id: 'c-other',
+          revisionId: 'x',
+          action: 'work',
+          provider: 'agent-p',
+          receiver: 'agent-r',
+          clauseOf: 'agr-other',
+          finished: false
+        }
+      ])
+    );
+    const store = await freshStore(svc);
+    await E.runPromise(store.getAllAgents());
+
+    const ended = await E.runPromise(store.mirrorCancellation(accepted()));
+
+    expect(ended).toBe(1);
+    expect(svc.updateCommitment).toHaveBeenCalledTimes(1);
+    expect(svc.updateCommitment).toHaveBeenCalledWith({
+      revisionId: 'c-prim-rev2',
+      finished: true
+    });
+  });
+
+  it('writes nothing for an exchange that was never accepted', async () => {
+    const svc = service();
+    const store = await freshStore(svc);
+    await E.runPromise(store.getAllAgents());
+
+    const ended = await E.runPromise(
+      store.mirrorCancellation({ ...accepted(), response: undefined } as unknown as UIExchange)
+    );
+
+    expect(ended).toBe(0);
+    expect(svc.getAgreements).not.toHaveBeenCalled();
+    expect(svc.updateCommitment).not.toHaveBeenCalled();
+  });
+});

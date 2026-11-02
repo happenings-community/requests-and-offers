@@ -182,8 +182,19 @@ async fn world() -> World {
     }
     await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
 
+    // A listing names one service type; a progenitor's lands approved.
+    let service_type: Record = conductors[0]
+        .call(
+            &alice.zome("service_types"),
+            "create_service_type",
+            sample_service_type("Web Design Review"),
+        )
+        .await;
+    let service_type = service_type.signed_action.hashed.hash.clone();
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
     let offer: Record = conductors[0]
-        .call(&alice.zome("offers"), "create_offer", sample_offer("Web design review"))
+        .call(&alice.zome("offers"), "create_offer", sample_offer("Web design review", service_type.clone()))
         .await;
     let offer = offer.signed_action.hashed.hash.clone();
     await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();

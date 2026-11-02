@@ -94,6 +94,8 @@ struct World {
     alice: SweetCell,
     bob: SweetCell,
     carol: SweetCell,
+    /// The approved service type every offer here names (a listing names one since #256).
+    service_type: ActionHash,
     offer: ActionHash,
     interest: ActionHash,
 }
@@ -189,8 +191,19 @@ async fn world() -> World {
     }
     await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
 
+    // A listing names one service type; a progenitor's lands approved.
+    let service_type: Record = conductors[0]
+        .call(
+            &alice.zome("service_types"),
+            "create_service_type",
+            sample_service_type("Web Design Review"),
+        )
+        .await;
+    let service_type = service_type.signed_action.hashed.hash.clone();
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
     let offer: Record = conductors[0]
-        .call(&alice.zome("offers"), "create_offer", sample_offer("Web design review"))
+        .call(&alice.zome("offers"), "create_offer", sample_offer("Web design review", service_type.clone()))
         .await;
     let offer = offer.signed_action.hashed.hash.clone();
     await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
@@ -201,7 +214,7 @@ async fn world() -> World {
     let interest = interest.signed_action.hashed.hash.clone();
     await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
 
-    World { conductors, alice, bob, carol, offer, interest }
+    World { conductors, alice, bob, carol, service_type, offer, interest }
 }
 
 /// A valid counter of `proposal`: the same terms with a new timeframe, naming
@@ -470,7 +483,7 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
     let w = world().await;
     let (p, proposal) = w.propose().await;
     let elsewhere: Record = w.conductors[2]
-        .call(&w.carol.zome("offers"), "create_offer", sample_offer("Something else"))
+        .call(&w.carol.zome("offers"), "create_offer", sample_offer("Something else", w.service_type.clone()))
         .await;
     let elsewhere = elsewhere.signed_action.hashed.hash.clone();
     let second_interest: Record = w.conductors[1]
@@ -582,7 +595,7 @@ async fn a_counter_names_a_real_proposal() {
 
     // Countering a proposal on another listing with this one's terms.
     let other_offer: Record = w.conductors[0]
-        .call(&w.alice.zome("offers"), "create_offer", sample_offer("Second offer"))
+        .call(&w.alice.zome("offers"), "create_offer", sample_offer("Second offer", w.service_type.clone()))
         .await;
     let other_offer = other_offer.signed_action.hashed.hash.clone();
     w.sync().await;

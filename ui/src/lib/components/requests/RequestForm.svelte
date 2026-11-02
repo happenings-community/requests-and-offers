@@ -15,7 +15,7 @@
   } from '$lib/types/holochain';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import { createMockedRequests } from '$lib/utils/mocks';
+  import { loadMocks } from '$lib/utils/load-mocks';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
@@ -236,6 +236,7 @@
         });
       }
 
+      const { createMockedRequests } = await loadMocks();
       const mockedRequest = (await createMockedRequests())[0];
       // Convert to RequestInput and use the selected service types
       const requestInput: RequestInput = {

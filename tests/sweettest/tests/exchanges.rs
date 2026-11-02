@@ -848,9 +848,15 @@ async fn one_live_interest_per_listing() {
         "the refusal names the rule: {refusal}"
     );
 
-    // Interest in a different listing is unaffected.
+    // Interest in a different listing is unaffected. That listing names its
+    // own service type (#256); a progenitor's lands approved.
+    let other_type: Record = conductors[0]
+        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Gardening"))
+        .await;
+    let other_type = other_type.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
     let other: Record = conductors[0]
-        .call(&alice.zome("offers"), "create_offer", sample_offer("Garden help"))
+        .call(&alice.zome("offers"), "create_offer", sample_offer("Garden help", other_type))
         .await;
     let other_hash = other.signed_action.hashed.hash.clone();
     await_consistency_s(15, [&alice, &bob]).await.unwrap();

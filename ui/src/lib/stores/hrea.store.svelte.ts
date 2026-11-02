@@ -2095,7 +2095,7 @@ export const createHreaStore = (): E.Effect<
             {
               agents: hreaService.getAgents(),
               specs: hreaService.getResourceSpecifications(),
-              proposals: hreaService.getProposals(),
+              proposals: hreaService.getProposalsWithIntents(),
               intents: hreaService.getIntents(),
               agreements: hreaService.getAgreements(),
               commitments: hreaService.getCommitments(),

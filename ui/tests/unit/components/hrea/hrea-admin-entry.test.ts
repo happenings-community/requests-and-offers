@@ -24,9 +24,23 @@ describe('admin hREA entry', () => {
     expect(existsSync(resolve(process.cwd(), 'src/routes/admin/hrea-test/+page.svelte'))).toBe(
       false
     );
-    expect(read('src/routes/admin/hrea-test/+page.ts')).toMatch(
-      /redirect\(308, '\/admin\/hrea\?tab=test'\)/
-    );
+    expect(read('src/routes/admin/hrea-test/+page.ts')).toMatch(/redirect\(308,/);
+  });
+
+  it('keeps the query string through the redirect, so connection parameters survive it', async () => {
+    const { load } = await import('../../../../src/routes/admin/hrea-test/+page');
+    const url = new URL('http://localhost/admin/hrea-test?hcPort=1234&hcToken=abc');
+    let location = '';
+    try {
+      (load as (e: { url: URL }) => unknown)({ url });
+    } catch (e) {
+      location = (e as { location: string }).location;
+    }
+    const target = new URL(location, 'http://localhost');
+    expect(target.pathname).toBe('/admin/hrea');
+    expect(target.searchParams.get('tab')).toBe('test');
+    expect(target.searchParams.get('hcPort')).toBe('1234');
+    expect(target.searchParams.get('hcToken')).toBe('abc');
   });
 
   it('is what the admin sidebar links to', () => {
@@ -41,5 +55,17 @@ describe('admin hREA entry', () => {
     expect(composable).toMatch(/hreaStore\.loadAuditSnapshot\(\)/);
     expect(dashboard).not.toMatch(/\$lib\/mock|appState/);
     expect(dashboard).toMatch(/KNOWN_MAPPING_GAPS/);
+  });
+
+  it('presents flow nodes as a list of items, never as buttons that do nothing', () => {
+    const dashboard = read('src/lib/components/hrea/HreaDashboard.svelte');
+    expect(dashboard).not.toMatch(/role="button"/);
+    expect(dashboard).toMatch(/class="hrea-stage"[^>]*role="list"/s);
+    expect(dashboard).toMatch(/role="listitem"/);
+  });
+
+  it('shows a ledger row caveat when the row carries one', () => {
+    const dashboard = read('src/lib/components/hrea/HreaDashboard.svelte');
+    expect(dashboard).toMatch(/\{#if r\.caveat\}/);
   });
 });

@@ -82,6 +82,7 @@ describe('HreaStore', () => {
         })
       ),
       getProposals: vi.fn().mockReturnValue(E.succeed([])),
+      getProposalsWithIntents: vi.fn().mockReturnValue(E.succeed([])),
       getProposalsByAgent: vi.fn().mockReturnValue(E.succeed([])),
       // Intent methods
       createIntent: vi.fn().mockReturnValue(
@@ -599,6 +600,7 @@ describe('HreaStore', () => {
       expect(snapshot.proposals).toEqual([]);
       expect(snapshot.intents).toEqual([]);
       expect(service.getAgreements).toHaveBeenCalledTimes(1);
+      expect(service.getProposalsWithIntents).toHaveBeenCalledTimes(1);
       expect(store.agents).toEqual([]);
     });
   });

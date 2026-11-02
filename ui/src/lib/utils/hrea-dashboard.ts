@@ -20,7 +20,8 @@ import { actionForKind, rnoAgreementRef } from '$lib/services/mappers/agreement-
 export type HreaSnapshot = {
   agents: Agent[];
   specs: ResourceSpecification[];
-  proposals: Proposal[];
+  /** intentIds: the intents each proposal publishes, read from hREA. */
+  proposals: Array<Proposal & { intentIds?: readonly string[] }>;
   intents: Intent[];
   agreements: Agreement[];
   commitments: Commitment[];
@@ -95,10 +96,20 @@ export type LedgerRow = {
   roCount: number;
   hreaCount: number;
   match: boolean;
+  /** What the R&O side of the row cannot see, when that can skew the comparison. */
+  caveat?: string;
 };
 
 const notePrefix = (prefix: string) => (x: { note?: string }) =>
   x.note?.startsWith(prefix) ?? false;
+
+/**
+ * R&O has no list-all read for exchanges, so they are gathered per listing that
+ * still exists. An exchange whose listing was deleted is not counted on the R&O
+ * side, and hREA can then read higher without the mirror being wrong.
+ */
+const DELETED_LISTINGS_CAVEAT =
+  'R&O side counts exchanges of existing listings only; one on a deleted listing is still in hREA but not counted here.';
 
 export function buildLedger(ro: RoInventory, s: HreaSnapshot): LedgerRow[] {
   const expected = expectedFromExchanges(ro.exchanges);
@@ -153,6 +164,7 @@ export function buildLedger(ro: RoInventory, s: HreaSnapshot): LedgerRow[] {
       ro: 'Accepted exchanges',
       hrea: 'Agreement',
       link: 'note = R&O agreement hash',
+      caveat: DELETED_LISTINGS_CAVEAT,
       roCount: expected.agreements,
       hreaCount: s.agreements.length
     }),
@@ -160,6 +172,7 @@ export function buildLedger(ro: RoInventory, s: HreaSnapshot): LedgerRow[] {
       ro: 'Commitments',
       hrea: 'Commitment',
       link: 'clauseOf Agreement, agreedIn R&O hash',
+      caveat: DELETED_LISTINGS_CAVEAT,
       roCount: expected.commitments,
       hreaCount: s.commitments.length
     }),
@@ -167,6 +180,7 @@ export function buildLedger(ro: RoInventory, s: HreaSnapshot): LedgerRow[] {
       ro: 'Completions',
       hrea: 'EconomicEvent',
       link: 'realizationOf Agreement (no Fulfillment)',
+      caveat: DELETED_LISTINGS_CAVEAT,
       roCount: expected.events,
       hreaCount: s.events.length
     })
@@ -213,14 +227,12 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
   const proposal = s.proposals.find((p) => p.name === proposalName);
   const specS = s.specs.find((x) => x.name === a.primary.resource_conforms_to);
   const specM = s.specs.find((x) => x.name === a.medium);
-  const parties = new Set([agentA?.id, agentB?.id].filter(Boolean));
-  const involves = (i: Intent) => parties.has(i.provider) || parties.has(i.receiver);
-  const intentP = specS
-    ? s.intents.find((i) => i.resourceSpecifiedBy === specS.id && involves(i))
-    : undefined;
-  const intentR = specM
-    ? s.intents.find((i) => i.resourceSpecifiedBy === specM.id && involves(i))
-    : undefined;
+  // Only the intents this listing's proposal publishes: the same member's
+  // intent on another listing of the same service must not stand in for it.
+  const published = new Set(proposal?.intentIds ?? []);
+  const ownIntents = s.intents.filter((i) => published.has(i.id));
+  const intentP = specS ? ownIntents.find((i) => i.resourceSpecifiedBy === specS.id) : undefined;
+  const intentR = specM ? ownIntents.find((i) => i.resourceSpecifiedBy === specM.id) : undefined;
   const agreement = s.agreements.find((g) => g.note === ref);
   const clauses = s.commitments.filter(
     (c) => c.agreedIn === ref || (agreement && c.clauseOf === agreement.id)
@@ -275,7 +287,7 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       state: stage(intentP, primaryMapped, true),
       fields: [
         ...idField(intentP),
-        ['matched by', 'conforms to the service spec, involves a party']
+        ['matched by', 'published by the proposal, conforms to the service spec']
       ]
     },
     {
@@ -284,7 +296,10 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       title: 'Intent · reciprocal',
       sub: a.medium,
       state: stage(intentR, recipMapped, true),
-      fields: [...idField(intentR), ['matched by', 'conforms to the medium spec, involves a party']]
+      fields: [
+        ...idField(intentR),
+        ['matched by', 'published by the proposal, conforms to the medium spec']
+      ]
     },
     {
       id: 'specS',

@@ -184,6 +184,29 @@ describe('HreaService dashboard reads', () => {
     });
   });
 
+  it('getProposalsWithIntents keeps the ids of the intents each proposal publishes', async () => {
+    mockQuery.mockResolvedValue({
+      data: {
+        proposals: {
+          edges: [
+            {
+              node: {
+                id: 'pr-1',
+                name: 'Offer: Bikes',
+                publishes: [{ id: 'in-1' }],
+                reciprocal: [{ id: 'in-2' }]
+              }
+            },
+            { node: { id: 'pr-2', name: 'Request: Soup' } }
+          ]
+        }
+      }
+    });
+    const [a, b] = await call((s) => s.getProposalsWithIntents());
+    expect(a).toMatchObject({ id: 'pr-1', name: 'Offer: Bikes', intentIds: ['in-1', 'in-2'] });
+    expect(b.intentIds).toEqual([]);
+  });
+
   it('returns [] when hREA has none, and propagates a real failure', async () => {
     mockQuery.mockResolvedValueOnce({ data: { agreements: { edges: [] } } });
     expect(await call((s) => s.getAgreements())).toEqual([]);

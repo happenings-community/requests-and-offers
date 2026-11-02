@@ -189,7 +189,10 @@
               <td>{r.ro}</td>
               <td class="hrea-map-arrow" aria-hidden="true">→</td>
               <td><span class="hrea-pill">{r.hrea}</span></td>
-              <td><code class="hrea-note">{r.link}</code></td>
+              <td>
+                <code class="hrea-note">{r.link}</code>
+                {#if r.caveat}<p class="hrea-caveat">{r.caveat}</p>{/if}
+              </td>
               <td>{r.roCount}</td>
               <td><strong>{r.hreaCount}</strong></td>
               <td>
@@ -211,8 +214,8 @@
       <div>
         <h2 class="h3">Economic-flow graph</h2>
         <p class="hrea-sub">
-          One exchange's ValueFlows structure, each node marked from what hREA holds. Hover or focus
-          a node to inspect it.
+          One exchange's ValueFlows structure, each node marked from what hREA holds. Hover a node
+          to inspect it; screen readers read each node's fields in the list.
           {#if missingCount}<strong class="text-error-500"
               >{missingCount} expected node{missingCount === 1 ? '' : 's'} missing from hREA.</strong
             >{/if}
@@ -240,7 +243,12 @@
       </p>
     {:else}
       <div class="hrea-stage-scroll">
-        <div class="hrea-stage" style="width:{CANVAS.w}px; height:{CANVAS.h}px">
+        <div
+          class="hrea-stage"
+          role="list"
+          aria-label="hREA records of this exchange"
+          style="width:{CANVAS.w}px; height:{CANVAS.h}px"
+        >
           <svg
             class="hrea-edges"
             viewBox="0 0 {CANVAS.w} {CANVAS.h}"
@@ -292,19 +300,20 @@
               class="hrea-node hrea-k--{n.kind} hrea-node--{n.state}"
               class:hrea-node--hover={hover === n.id}
               style="left:{pos.x}px; top:{pos.y}px; width:{pos.w}px; height:{pos.h}px"
-              role="button"
-              tabindex="0"
-              aria-label="{n.title}, {n.sub}: {STATE_LABEL[n.state]}"
+              role="listitem"
               onmouseenter={() => (hover = n.id)}
               onmouseleave={() => hover === n.id && (hover = null)}
-              onfocus={() => (hover = n.id)}
-              onblur={() => hover === n.id && (hover = null)}
             >
               <span class="hrea-node-kind">{n.kind}</span>
               <span class="hrea-node-title">{n.title}</span>
               <span class="hrea-node-sub">{n.sub}</span>
               {#if n.state !== 'present'}<span class="hrea-node-state">{STATE_LABEL[n.state]}</span
                 >{/if}
+              <!-- What the inspector shows on hover, read in the list by screen readers. -->
+              <span class="sr-only"
+                >{n.state === 'present' ? STATE_LABEL[n.state] : ''}{#each n.fields as [k, v] (k)}; {k}:
+                  {v}{/each}</span
+              >
             </div>
           {/each}
         </div>
@@ -460,6 +469,11 @@
   }
   .hrea-picker select {
     min-width: 280px;
+  }
+  .hrea-caveat {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    opacity: 0.8;
   }
   .hrea-stage-scroll {
     overflow-x: auto;

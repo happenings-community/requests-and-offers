@@ -74,7 +74,7 @@ const fullSnapshot = (ex: UIExchange): HreaSnapshot => ({
     { id: 'sp-s', name: 'Bike repair', note: 'ref:serviceType:abc' },
     { id: 'sp-m', name: 'CAD', note: 'ref:mediumOfExchange:def' }
   ],
-  proposals: [{ id: 'pr-1', name: 'Offer: Fix your bike' }],
+  proposals: [{ id: 'pr-1', name: 'Offer: Fix your bike', intentIds: ['in-1', 'in-2'] }],
   intents: [
     { id: 'in-1', action: 'work', provider: 'ag-p', resourceSpecifiedBy: 'sp-s' },
     { id: 'in-2', action: 'transfer', receiver: 'ag-p', resourceSpecifiedBy: 'sp-m' }
@@ -198,6 +198,17 @@ describe('buildLedger', () => {
     expect(mismatched).toEqual(['Accepted exchanges', 'Commitments', 'Completions']);
   });
 
+  it('says on the exchange rows that exchanges of deleted listings are not counted on the R&O side', () => {
+    const ex = exchange();
+    const rows = buildLedger(inventory([ex]), fullSnapshot(ex));
+    for (const r of rows.filter((x) =>
+      ['Accepted exchanges', 'Commitments', 'Completions'].includes(x.ro)
+    )) {
+      expect(r.caveat).toMatch(/deleted listing/);
+    }
+    expect(rows.find((r) => r.ro === 'Users')!.caveat).toBeUndefined();
+  });
+
   it('never derives an hREA count from R&O', () => {
     const ex = exchange();
     const rows = buildLedger(inventory([ex]), emptySnapshot());
@@ -261,6 +272,26 @@ describe('buildExchangeFlow', () => {
     expect(g.commitR).toBe('not-mapped');
     expect(g.specM).toBe('not-mapped');
     expect(g.eventR).toBe('not-mapped');
+  });
+
+  it('matches intents only among the ones the listing proposal publishes', () => {
+    const ex = exchange();
+    const snap = fullSnapshot(ex);
+    // The same provider's intent on another listing, same spec, listed first.
+    snap.intents = [
+      { id: 'in-other', action: 'work', provider: 'ag-p', resourceSpecifiedBy: 'sp-s' },
+      ...snap.intents
+    ];
+    const nodes = buildExchangeFlow(ex, ctx, snap);
+    const intentP = nodes.find((n) => n.id === 'intentP')!;
+    expect(intentP.fields).toContainEqual(['hREA id', 'in-1']);
+
+    const orphan = { ...snap, proposals: [{ id: 'pr-1', name: 'Offer: Fix your bike' }] };
+    const state = Object.fromEntries(
+      buildExchangeFlow(ex, ctx, orphan).map((n) => [n.id, n.state])
+    );
+    expect(state.intentP).toBe('missing');
+    expect(state.intentR).toBe('missing');
   });
 
   it('carries the hREA id of a found node in its inspector fields', () => {

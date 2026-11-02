@@ -10,6 +10,7 @@ import type {
   Agent,
   ResourceSpecification,
   Proposal,
+  ProposalWithIntents,
   Intent,
   GraphQLIntentResponse,
   GraphQLAgreementResponse,
@@ -273,6 +274,7 @@ export interface HreaService {
   readonly deleteProposal: (params: { revisionId: string }) => E.Effect<boolean, HreaError>;
   readonly getProposal: (id: string) => E.Effect<Proposal | null, HreaError>;
   readonly getProposals: () => E.Effect<Proposal[], HreaError>;
+  readonly getProposalsWithIntents: () => E.Effect<ProposalWithIntents[], HreaError>;
   readonly getProposalsByAgent: (agentId: string) => E.Effect<Proposal[], HreaError>;
   readonly getUnits: () => E.Effect<
     Array<{ id: string; label: string; symbol: string }>,
@@ -1031,6 +1033,17 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
       const getAgreements = (): E.Effect<Agreement[], HreaError> =>
         listQuery(GET_AGREEMENTS_QUERY, 'agreements', normalizeAgreementResponse, HREA_CONTEXTS.GET_AGREEMENTS);
 
+      const getProposalsWithIntents = (): E.Effect<ProposalWithIntents[], HreaError> =>
+        listQuery(
+          GET_PROPOSALS_QUERY,
+          'proposals',
+          (raw: GraphQLProposalResponse) => ({
+            ...normalizeProposalResponse(raw),
+            intentIds: [...(raw.publishes ?? []), ...(raw.reciprocal ?? [])].map((i) => i.id)
+          }),
+          HREA_CONTEXTS.GET_PROPOSALS
+        );
+
       const getCommitments = (): E.Effect<Commitment[], HreaError> =>
         listQuery(GET_COMMITMENTS_QUERY, 'commitments', normalizeCommitmentResponse, HREA_CONTEXTS.GET_COMMITMENTS);
 
@@ -1249,6 +1262,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         getProposal,
         getProposals,
         getAgreements,
+        getProposalsWithIntents,
         getCommitments,
         getEconomicEvents,
         getProposalsByAgent,

@@ -162,6 +162,8 @@ export type HreaStore = {
   readonly createProposalFromOffer: (offer: UIOffer) => E.Effect<Proposal | null, HreaError>;
   readonly createAgreementFromExchange: (exchange: UIExchange) => E.Effect<HreaAgreementRefs | null, HreaError>;
   readonly recordCompletionEvent: (exchange: UIExchange) => E.Effect<EconomicEvent | null, HreaError>;
+  /** Marks an accepted exchange's still-open Commitments finished when it is cancelled; returns how many. */
+  readonly mirrorCancellation: (exchange: UIExchange) => E.Effect<number, HreaError>;
   /** Every VF type read straight from hREA, for the admin audit. Does not touch store state. */
   readonly loadAuditSnapshot: () => E.Effect<HreaSnapshot, HreaError>;
   readonly deleteProposalForRequest: (requestHash: string) => E.Effect<boolean, HreaError>;
@@ -349,6 +351,7 @@ const createEventHandlers = (
   createProposalFromOffer: (offer: UIOffer) => E.Effect<Proposal | null, HreaError>,
   createAgreementFromExchange: (exchange: UIExchange) => E.Effect<HreaAgreementRefs | null, HreaError>,
   recordCompletionEvent: (exchange: UIExchange) => E.Effect<EconomicEvent | null, HreaError>,
+  mirrorCancellation: (exchange: UIExchange) => E.Effect<number, HreaError>,
   deleteProposalForRequest: (requestHash: string) => E.Effect<boolean, HreaError>,
   deleteProposalForOffer: (offerHash: string) => E.Effect<boolean, HreaError>,
   handleRequestUpdatedFn: (request: UIRequest) => E.Effect<Proposal | null, HreaError>,
@@ -519,6 +522,12 @@ const createEventHandlers = (
     );
   };
 
+  const handleExchangeCancelled = (exchange: UIExchange) => {
+    pipe(mirrorCancellation(exchange), E.runPromise).catch((err) =>
+      console.error('hREA Store: Failed to mirror cancellation:', err)
+    );
+  };
+
   const handleOfferCreated = (offer: UIOffer) => {
     console.log('hREA Store: Offer created, auto-creating proposal:', offer.title);
     pipe(createProposalFromOffer(offer), E.runPromise).catch((err) =>
@@ -571,7 +580,8 @@ const createEventHandlers = (
     handleRequestUpdated,
     handleOfferUpdated,
     handleExchangeAccepted,
-    handleExchangeCompleted
+    handleExchangeCompleted,
+    handleExchangeCancelled
   };
 };
 
@@ -595,7 +605,8 @@ const createEventSubscriptions = (
   handleRequestUpdated: (request: UIRequest) => void,
   handleOfferUpdated: (offer: UIOffer) => void,
   handleExchangeAccepted: (exchange: UIExchange) => void,
-  handleExchangeCompleted: (exchange: UIExchange) => void
+  handleExchangeCompleted: (exchange: UIExchange) => void,
+  handleExchangeCancelled: (exchange: UIExchange) => void
 ) => {
   const unsubscribeFunctions: Array<() => void> = [];
 
@@ -605,6 +616,9 @@ const createEventSubscriptions = (
   });
   const unsubscribeExchangeCompleted = storeEventBus.on('exchange:completed', (payload) => {
     handleExchangeCompleted(payload.exchange);
+  });
+  const unsubscribeExchangeCancelled = storeEventBus.on('exchange:cancelled', (payload) => {
+    handleExchangeCancelled(payload.exchange);
   });
 
   const unsubscribeUserAccepted = storeEventBus.on('user:accepted', (payload) => {
@@ -713,7 +727,8 @@ const createEventSubscriptions = (
     unsubscribeRequestUpdated,
     unsubscribeOfferUpdated,
     unsubscribeExchangeAccepted,
-    unsubscribeExchangeCompleted
+    unsubscribeExchangeCompleted,
+    unsubscribeExchangeCancelled
   );
 
   return {
@@ -2139,6 +2154,42 @@ export const createHreaStore = (): E.Effect<
       );
     };
 
+    /**
+     * A cancellation ends the hREA Commitments of an accepted exchange, so they
+     * no longer read as open: each one not yet finished is marked finished
+     * (VF: finished regardless of whether it was fulfilled; the absence of a
+     * fulfilling event is what tells a cancelled one from a delivered one).
+     * Revisions are read fresh from hREA, since the cached ones go stale once
+     * a completion finishes its side. Before acceptance hREA holds nothing for
+     * the exchange (decline and withdrawal never reach it), so nothing is written.
+     */
+    const mirrorCancellation = (exchange: UIExchange): E.Effect<number, HreaError> => {
+      if (exchange.response?.accepted !== true) return E.succeed(0);
+      const parties = resolveParties(exchange);
+      if (!parties) return E.succeed(0);
+      return pipe(
+        findAgreementRefs(rnoAgreementRef(exchange), parties),
+        E.flatMap((refs) =>
+          !refs
+            ? E.succeed(0)
+            : pipe(
+                hreaService.getCommitments(),
+                E.flatMap((commitments) => {
+                  const open = commitments.filter(
+                    (c) => c.clauseOf === refs.agreementId && !c.finished && c.revisionId
+                  );
+                  return pipe(
+                    E.forEach(open, (c) =>
+                      hreaService.updateCommitment({ revisionId: c.revisionId!, finished: true })
+                    ),
+                    E.map(() => open.length)
+                  );
+                })
+              )
+        )
+      );
+    };
+
     const loadAuditSnapshot = (): E.Effect<HreaSnapshot, HreaError> =>
       withInitialization(
         () =>
@@ -2586,7 +2637,8 @@ export const createHreaStore = (): E.Effect<
       handleRequestUpdated,
       handleOfferUpdated,
       handleExchangeAccepted,
-      handleExchangeCompleted
+      handleExchangeCompleted,
+      handleExchangeCancelled
     } = createEventHandlers(
       createPersonFromUser,
       createOrganizationFromOrg,
@@ -2598,6 +2650,7 @@ export const createHreaStore = (): E.Effect<
       createProposalFromOffer,
       createAgreementFromExchange,
       recordCompletionEvent,
+      mirrorCancellation,
       deleteProposalForRequest,
       deleteProposalForOffer,
       handleRequestUpdatedEffect,
@@ -2622,7 +2675,8 @@ export const createHreaStore = (): E.Effect<
       handleRequestUpdated,
       handleOfferUpdated,
       handleExchangeAccepted,
-      handleExchangeCompleted
+      handleExchangeCompleted,
+      handleExchangeCancelled
     );
 
     const dispose = () => {
@@ -2705,6 +2759,7 @@ export const createHreaStore = (): E.Effect<
       createProposalFromOffer,
       createAgreementFromExchange,
       recordCompletionEvent,
+      mirrorCancellation,
       loadAuditSnapshot,
       deleteProposalForRequest,
       deleteProposalForOffer,

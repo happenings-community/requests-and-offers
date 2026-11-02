@@ -5,6 +5,7 @@ import type { Record as HcRecord } from '@holochain/client';
 import { createExchangesStore, type ExchangesStore } from '$lib/stores/exchanges.store.svelte';
 import { ExchangesServiceTag, type ExchangesService } from '$lib/services/zomes/exchanges.service';
 import { ExchangeError } from '$lib/errors/exchanges.errors';
+import { storeEventBus } from '$lib/stores/storeEvents';
 import type { AgreementInDHT, ExchangeReadModel, InterestInDHT } from '$lib/types/holochain';
 
 const hash = (n: number) => new Uint8Array([n, n, n, n]);
@@ -137,5 +138,15 @@ describe('exchanges store', () => {
   it('passes the review fields through to the zome', async () => {
     await E.runPromise(store.review(hash(10), { rating: 4, on_time: true, as_agreed: false, comment: 'fine' }));
     expect(service.reviewAgreement).toHaveBeenCalledWith(hash(10), { rating: 4, on_time: true, as_agreed: false, comment: 'fine' });
+  });
+
+  it('announces a cancellation, so the hREA mirror can end its commitments', async () => {
+    const heard = vi.fn();
+    const off = storeEventBus.on('exchange:cancelled', heard);
+    await E.runPromise(store.cancel(hash(10), 'changed my mind'));
+    off();
+    expect(service.cancelAgreement).toHaveBeenCalledWith(hash(10), 'changed my mind');
+    expect(heard).toHaveBeenCalledTimes(1);
+    expect(heard.mock.calls[0][0].exchange).toBeDefined();
   });
 });

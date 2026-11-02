@@ -324,6 +324,11 @@ pub fn create_interest(input: CreateInterestInput) -> ExternResult<Record> {
   if listing_record.action().author() == &my_pubkey()? {
     return Err(CommonError::InvalidData("a member cannot register interest in their own listing".to_string()).into());
   }
+  // Validation refuses a second live interest too (#354); asking our own chain
+  // first gives the member a plain answer instead of a validation failure.
+  if have_live_interest(&listing)? {
+    return Err(CommonError::InvalidData("you have already shown interest in this listing".to_string()).into());
+  }
   let hash = create_entry(&EntryTypes::Interest(Interest {
     listing: listing.clone(),
     listing_type: input.listing_type,
@@ -332,6 +337,33 @@ pub fn create_interest(input: CreateInterestInput) -> ExternResult<Record> {
   create_link(listing, hash.clone(), LinkTypes::ListingInterests, ())?;
   create_link(me, hash.clone(), LinkTypes::UserInterests, ())?;
   record_at(hash, "interest")
+}
+
+/// Whether my own chain holds an interest in `listing` that I have not withdrawn.
+fn have_live_interest(listing: &ActionHash) -> ExternResult<bool> {
+  let interests = query(
+    ChainQueryFilter::new()
+      .entry_type(UnitEntryTypes::Interest.try_into()?)
+      .include_entries(true),
+  )?;
+  let withdrawn: Vec<ActionHash> = query(ChainQueryFilter::new().action_type(ActionType::Delete))?
+    .iter()
+    .filter_map(|record| match &record.action().data {
+      ActionData::Delete(delete) => Some(delete.deletes_address.clone()),
+      _ => None,
+    })
+    .collect();
+  for record in interests {
+    if withdrawn.contains(record.action_address()) {
+      continue;
+    }
+    if let Ok(Some(interest)) = record.entry().to_app_option::<Interest>() {
+      if interest.listing == *listing {
+        return Ok(true);
+      }
+    }
+  }
+  Ok(false)
 }
 
 #[hdk_extern]

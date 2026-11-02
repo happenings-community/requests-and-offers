@@ -46,19 +46,22 @@ pub fn get_original_record(
 pub fn find_original_action_hash(action_hash: ActionHash) -> ExternResult<OriginalActionHash> {
   let mut current_hash = action_hash.clone();
 
-  // Traverse backwards through the update chain
+  // Traverse backwards through the update chain. Only the actions are needed, and
+  // `must_get_action` returns an action whether or not it has been tombstoned,
+  // where `get` returns nothing for a tombstoned record. With `get`, a walk from a
+  // later revision of a deleted listing stopped short of its Create, so callers
+  // fell back to the revision, which carries no tombstone (#234).
   loop {
-    let record = get(current_hash.clone(), GetOptions::default())?
-      .ok_or(CommonError::RecordNotFound("entity".to_string()))?;
+    let action = must_get_action(current_hash.clone())?;
 
-    match &record.action().data {
+    match action.hashed.content.data {
       ActionData::Create(_) => {
         // This is the original creation action
         return Ok(OriginalActionHash(current_hash));
       }
       ActionData::Update(update_action) => {
         // This is an update, continue traversing backwards
-        current_hash = update_action.original_action_address.clone();
+        current_hash = update_action.original_action_address;
       }
       _ => {
         // Unexpected action type

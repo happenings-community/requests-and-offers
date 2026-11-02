@@ -20,6 +20,7 @@
   import ContactDisplay from '$lib/components/shared/listings/ContactDisplay.svelte';
   import type { UIRequest, UIUser, UIOrganization, ConfirmModalMeta } from '$lib/types/ui';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
+  import { timeframeLabel } from '$lib/utils/counter-proposal';
   import { runEffect } from '$lib/utils/effect';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
@@ -295,23 +296,12 @@
 
       <!-- New Fields: Date Range, Time, and Preferences -->
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <!-- Date Range -->
-        {#if request?.date_range}
+        <!-- Timeframe -->
+        {#if request?.timeframe}
           <div>
-            <h3 class="h4 font-semibold">Date Range</h3>
-            <p>
-              {#if request.date_range.start && request.date_range.end}
-                {formatDate(new Date(request.date_range.start))} to {formatDate(
-                  new Date(request.date_range.end)
-                )}
-              {:else if request.date_range.start}
-                Starting {formatDate(new Date(request.date_range.start))}
-              {:else if request.date_range.end}
-                Until {formatDate(new Date(request.date_range.end))}
-              {:else}
-                No date range specified
-              {/if}
-            </p>
+            <!-- DRAFT copy -->
+            <h3 class="h4 font-semibold">Timeframe</h3>
+            <p>{timeframeLabel(request.timeframe)}</p>
           </div>
         {/if}
 

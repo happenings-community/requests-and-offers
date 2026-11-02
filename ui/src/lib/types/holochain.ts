@@ -91,17 +91,31 @@ export enum ListingStatus {
   Deleted = 'Deleted'
 }
 
-export type DateRange = {
-  start: number | null;
-  end: number | null;
+/** How soon: the four presets the propose and counter pages offer (#370). */
+export type TimeframePreset = 'WithinAFewDays' | 'WithinTwoWeeks' | 'WithinAMonth' | 'Flexible';
+
+/**
+ * When a listing is needed or offered, or an agreement delivered: a preset, or a
+ * window of dates whose `end` is its due date. Dates are Holochain timestamps,
+ * in microseconds since the epoch.
+ */
+export type Timeframe =
+  | { Preset: TimeframePreset }
+  | { Dates: { start: number | null; end: number } };
+
+/** A figure with its unit, shared by listings and both sides of an agreement. */
+export type Quantity = {
+  value: number;
+  unit: string;
 };
 
 export type RequestInDHT = {
   title: string;
   description: string;
   contact_preference: ContactPreference;
-  date_range?: DateRange;
+  timeframe?: Timeframe;
   time_estimate_hours?: number;
+  amount?: Quantity;
   time_preference: TimePreference;
   time_zone?: string;
   interaction_type: InteractionType;
@@ -112,6 +126,9 @@ export type RequestInDHT = {
 export type OfferInDHT = {
   title: string;
   description: string;
+  timeframe?: Timeframe;
+  time_estimate_hours?: number;
+  amount?: Quantity;
   time_preference: TimePreference;
   time_zone?: string;
   interaction_type: InteractionType;
@@ -179,7 +196,7 @@ export type AgreementInDHT = {
   reciprocal: ExchangeTerm;
   medium: string;
   terms: string;
-  delivery_timeframe: string;
+  delivery_timeframe: Timeframe;
   /** Set on a counter-proposal: the proposal it answers and the decline that closed it (#333). */
   counters: Countering | null;
 };
@@ -241,7 +258,7 @@ export type CounterAgreementInput = {
   agreement: ActionHash;
   primary_quantity: { value: number; unit: string } | null;
   reciprocal_quantity: { value: number; unit: string } | null;
-  delivery_timeframe: string;
+  delivery_timeframe: Timeframe;
 };
 
 export type CreateAgreementInput = {
@@ -252,7 +269,7 @@ export type CreateAgreementInput = {
   reciprocal: ExchangeTerm;
   medium: string;
   terms: string;
-  delivery_timeframe: string;
+  delivery_timeframe: Timeframe;
 };
 
 export type ReviewInput = {

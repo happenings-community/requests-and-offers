@@ -74,8 +74,9 @@ pub struct Request {
     pub title: String,
     pub description: String,
     pub contact_preference: String,
-    pub date_range: Option<DateRange>,
+    pub timeframe: Option<Timeframe>,
     pub time_estimate_hours: Option<f64>,
+    pub amount: Option<Quantity>,
     pub time_preference: String,
     pub time_zone: Option<String>,
     pub interaction_type: String,
@@ -84,11 +85,27 @@ pub struct Request {
 }
 holochain_serialized_bytes::holochain_serial!(Request);
 
-/// Mirror of `DateRange` from `requests_integrity`.
+/// Mirror of `TimeframePreset` from `utils` (#370).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct DateRange {
-    pub start: Option<i64>,
-    pub end: Option<i64>,
+pub enum TimeframePreset {
+    WithinAFewDays,
+    WithinTwoWeeks,
+    WithinAMonth,
+    Flexible,
+}
+
+/// Mirror of `Timeframe` from `utils`: timestamps are microseconds.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum Timeframe {
+    Preset(TimeframePreset),
+    Dates { start: Option<i64>, end: i64 },
+}
+
+/// Mirror of `Quantity` from `utils`, shared by listings and agreements.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Quantity {
+    pub value: f64,
+    pub unit: String,
 }
 
 // ── Offer mirrors ─────────────────────────────────────────────
@@ -98,6 +115,9 @@ pub struct DateRange {
 pub struct Offer {
     pub title: String,
     pub description: String,
+    pub timeframe: Option<Timeframe>,
+    pub time_estimate_hours: Option<f64>,
+    pub amount: Option<Quantity>,
     pub time_preference: String,
     pub time_zone: Option<String>,
     pub interaction_type: String,

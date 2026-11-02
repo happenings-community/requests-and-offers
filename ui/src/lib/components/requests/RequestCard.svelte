@@ -15,6 +15,7 @@
   import ServiceTypeTag from '$lib/components/service-types/ServiceTypeTag.svelte';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
+  import { timeframeLabel } from '$lib/utils/counter-proposal';
   import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
   import { queueAndReverseModal } from '$lib/utils';
@@ -253,18 +254,10 @@
             {/if}
           </p>
         {/if}
-        {#if request.date_range?.start || request.date_range?.end}
+        {#if request.timeframe}
           <p class="text-xs text-secondary-700 dark:text-secondary-400">
             <span class="font-medium">
-              {#if request.date_range.start && request.date_range.end}
-                Timeframe: {new Date(request.date_range.start).toLocaleDateString()} - {new Date(
-                  request.date_range.end
-                ).toLocaleDateString()}
-              {:else if request.date_range.start}
-                Starting: {new Date(request.date_range.start).toLocaleDateString()}
-              {:else if request.date_range.end}
-                Until: {new Date(request.date_range.end).toLocaleDateString()}
-              {/if}
+              Timeframe: {timeframeLabel(request.timeframe)}
             </span>
           </p>
         {:else if request.time_preference}

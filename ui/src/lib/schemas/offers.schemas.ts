@@ -5,7 +5,8 @@ import {
   AgentPubKeySchema,
   TimestampSchema
 } from './holochain.schemas';
-import { TimePreferenceSchema, InteractionTypeSchema } from './common.schemas';
+import { TimePreferenceSchema, InteractionTypeSchema, TimeframeSchema } from './common.schemas';
+import { ExchangeQuantity } from './exchanges.schemas';
 
 /**
  * Offer schemas using Effect class-based approach
@@ -29,6 +30,9 @@ export class OfferInDHT extends Schema.Class<OfferInDHT>('OfferInDHT')({
       description: 'Detailed description of what is being offered'
     })
   ),
+  timeframe: Schema.optional(TimeframeSchema),
+  time_estimate_hours: Schema.optional(Schema.Number.pipe(Schema.finite(), Schema.nonNegative())),
+  amount: Schema.optional(ExchangeQuantity),
   time_preference: TimePreferenceSchema.pipe(
     Schema.annotations({
       title: 'Time Preference',
@@ -62,6 +66,9 @@ export class OfferInput extends Schema.Class<OfferInput>('OfferInput')({
   // Core offer fields
   title: Schema.String.pipe(Schema.minLength(5), Schema.maxLength(200)),
   description: Schema.String.pipe(Schema.minLength(20), Schema.maxLength(2000)),
+  timeframe: Schema.optional(TimeframeSchema),
+  time_estimate_hours: Schema.optional(Schema.Number.pipe(Schema.finite(), Schema.nonNegative())),
+  amount: Schema.optional(ExchangeQuantity),
   time_preference: TimePreferenceSchema,
   time_zone: Schema.optional(Schema.String),
   interaction_type: InteractionTypeSchema,
@@ -95,6 +102,9 @@ export class UIOffer extends Schema.Class<UIOffer>('UIOffer')({
   // Core offer fields
   title: Schema.String.pipe(Schema.minLength(5), Schema.maxLength(200)),
   description: Schema.String.pipe(Schema.minLength(20), Schema.maxLength(2000)),
+  timeframe: Schema.optional(TimeframeSchema),
+  time_estimate_hours: Schema.optional(Schema.Number.pipe(Schema.finite(), Schema.nonNegative())),
+  amount: Schema.optional(ExchangeQuantity),
   time_preference: TimePreferenceSchema,
   time_zone: Schema.optional(Schema.String),
   interaction_type: InteractionTypeSchema,

@@ -84,6 +84,9 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
           offer: {
             title: offer.title,
             description: offer.description,
+            timeframe: offer.timeframe,
+            time_estimate_hours: offer.time_estimate_hours,
+            amount: offer.amount,
             time_preference: offer.time_preference,
             time_zone: offer.time_zone,
             interaction_type: offer.interaction_type,
@@ -115,6 +118,9 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
           updated_offer: {
             title: updatedOffer.title,
             description: updatedOffer.description,
+            timeframe: updatedOffer.timeframe,
+            time_estimate_hours: updatedOffer.time_estimate_hours,
+            amount: updatedOffer.amount,
             time_preference: updatedOffer.time_preference,
             time_zone: updatedOffer.time_zone,
             interaction_type: updatedOffer.interaction_type,

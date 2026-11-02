@@ -13,12 +13,11 @@
   import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { termLabel, type ExchangeRole } from '$lib/utils/exchange-ui';
-  import type { ExchangeTerm, ListingType } from '$lib/types/holochain';
+  import { TIMEFRAME_PRESETS } from '$lib/utils/counter-proposal';
+  import type { ExchangeTerm, ListingType, TimeframePreset } from '$lib/types/holochain';
   import type { UIOffer, UIRequest, UIUser } from '$lib/types/ui';
 
   const toastStore = getToastStore();
-
-  const TIMEFRAMES = ['Within a few days', 'Within 2 weeks', 'Within a month', 'Flexible'];
 
   type Medium = { name: string; currency: boolean };
 
@@ -50,7 +49,7 @@
   let returnService = $state('');
   let amount = $state<number | undefined>(undefined);
   let terms = $state('');
-  let timeframe = $state('Within 2 weeks');
+  let timeframe = $state<TimeframePreset>('WithinTwoWeeks');
 
   const me = $derived(usersStore.currentUser?.original_action_hash);
   const iAmAuthor = $derived(
@@ -172,7 +171,7 @@
           reciprocal,
           medium,
           terms: terms.trim(),
-          delivery_timeframe: timeframe
+          delivery_timeframe: { Preset: timeframe }
         })
       );
       toastStore.trigger({ message: 'Proposal sent', background: 'variant-filled-success' });
@@ -324,7 +323,7 @@
       <label class="label">
         <span>Delivery timeframe</span>
         <select class="select" bind:value={timeframe}>
-          {#each TIMEFRAMES as t (t)}<option value={t}>{t}</option>{/each}
+          {#each TIMEFRAME_PRESETS as t (t.preset)}<option value={t.preset}>{t.label}</option>{/each}
         </select>
       </label>
     </div>

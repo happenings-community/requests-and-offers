@@ -36,9 +36,18 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
 /// `must_get_valid_record` trusts the record authority's verdict. A rule run
 /// on the entry op alone is never seen by the authority that answers for
 /// the record.
-fn validate_entry(app_entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
-  match app_entry {
-    EntryTypes::Offer(offer) => validate_offer(offer),
+/// The rules an offer entry is held to, given the action that writes it: its
+/// timestamp, and for an update the version it replaces. The entry op and the
+/// record op both come here, so they give the same verdict (#348), timeframes
+/// included.
+fn validate_entry(
+  app_entry: EntryTypes,
+  at: Timestamp,
+  replaces: Option<&ActionHash>,
+) -> ExternResult<ValidateCallbackResult> {
+  match (app_entry, replaces) {
+    (EntryTypes::Offer(offer), None) => validate_offer_create(offer, at),
+    (EntryTypes::Offer(offer), Some(original)) => validate_offer_update(offer, original, at),
   }
 }
 
@@ -60,14 +69,20 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
-        return validate_entry(app_entry);
+      OpEntry::CreateEntry { app_entry, action } => {
+        return validate_entry(app_entry, action.timestamp(), None);
+      }
+      OpEntry::UpdateEntry { app_entry, action } => {
+        return validate_entry(app_entry, action.timestamp(), Some(&action.original_action_address));
       }
       _ => (),
     },
     FlatOp::CreateRecord(store_record) => match store_record {
-      OpRecord::CreateEntry { app_entry, .. } | OpRecord::UpdateEntry { app_entry, .. } => {
-        return validate_entry(app_entry);
+      OpRecord::CreateEntry { app_entry, action } => {
+        return validate_entry(app_entry, action.timestamp(), None);
+      }
+      OpRecord::UpdateEntry { app_entry, action } => {
+        return validate_entry(app_entry, action.timestamp(), Some(&action.original_action_address));
       }
       OpRecord::DeleteEntry { action } => {
         let original_record = must_get_valid_record(action.deletes_address.clone())?;
@@ -130,8 +145,8 @@ mod record_op_tests {
   //! and `must_get_valid_record` asks the record authority. So every rule the
   //! entry op runs must give the same verdict on the record op.
   use hdi::prelude::*;
-  use utils::validation_harness::{create_ops, set_zome_types, update_ops};
-  use utils::{InteractionType, TimePreference};
+  use utils::validation_harness::{create_ops, set_zome_types, update_ops, when};
+  use utils::{Timeframe, InteractionType, TimePreference};
 
   use crate::{validate, EntryTypes, LinkTypes, ListingStatus, Offer};
 
@@ -139,6 +154,28 @@ mod record_op_tests {
     Offer {
       title: String::new(),
       description: "Help with a garden".to_string(),
+      timeframe: None,
+      time_estimate_hours: None,
+      amount: None,
+      time_preference: TimePreference::NoPreference,
+      time_zone: None,
+      interaction_type: InteractionType::InPerson,
+      links: vec![],
+      status: ListingStatus::Active,
+    }
+    .try_into()
+    .unwrap()
+  }
+  fn offer_whose_timeframe_has_ended() -> SerializedBytes {
+    Offer {
+      title: "A titled offer".to_string(),
+      description: "Help with a garden".to_string(),
+      timeframe: Some(Timeframe::Dates {
+        start: None,
+        end: Timestamp::from_micros(when().as_micros() - 86_400_000_000),
+      }),
+      time_estimate_hours: None,
+      amount: None,
       time_preference: TimePreference::NoPreference,
       time_zone: None,
       interaction_type: InteractionType::InPerson,
@@ -173,6 +210,18 @@ mod record_op_tests {
     assert_eq!(
       entry,
       ValidateCallbackResult::Invalid("Offer title cannot be empty".into())
+    );
+    assert_eq!(record, entry);
+  }
+
+  #[test]
+  fn a_timeframe_that_has_already_ended_is_refused_on_the_record_op_too() {
+    // The rule reads the writing action's timestamp, which both ops carry, so
+    // a forged offer can't read as valid through must_get_valid_record (#348).
+    let (entry, record) = verdicts(create_ops(0, offer_whose_timeframe_has_ended()));
+    assert_eq!(
+      entry,
+      ValidateCallbackResult::Invalid("a timeframe must end after the moment it is written".into())
     );
     assert_eq!(record, entry);
   }

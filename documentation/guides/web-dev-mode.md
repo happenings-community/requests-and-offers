@@ -45,6 +45,11 @@ Found on the first two-member run (#419):
 - **Reload after approval.** When the administrator accepts a member, that member's tab keeps the cached "pending" status until it reloads its own URL.
 - **An offer before a Service Exchange proposal.** When the listing's medium is Service Exchange, the member who proposes must already have an offer of their own, or Send proposal stays disabled.
 
+## What this does not cover
+
+- **The desktop path.** The Kangaroo/Electron app and `bun start` (hc-spin) inject the connection through their launcher and sign zome calls with the host's signer; here a plain browser gets signing credentials through `hcAdminPort` instead. Window handling and storage also differ. A change that touches connection, signing, windows or storage is exercised only by `bun start` or the desktop build, so check it there before a release.
+- **More than one machine.** The conductor uses the in-process `mem` transport and a bootstrap server on `127.0.0.1`, so every member lives on this machine. Two developers each run their own stack; they do not join one another's.
+
 ## Notes
 
 - The launcher (`scripts/start-web.mts`) runs under Node, not Bun: `@holochain/client`'s `AdminWebsocket` handshake fails under Bun with "Expected 101" and succeeds under Node. Its pure parts are in `scripts/web-dev.mts`, tested by `bun test scripts/tests`.

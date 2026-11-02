@@ -29,7 +29,9 @@
   import { deriveConnectionStatus } from '$lib/utils/network-status';
   import { runEffect } from '$lib/utils/effect';
   import { getCounterpartRoute } from '$lib/services/navigation.utils';
+  import { isAdminShortcut } from '$lib/utils/admin-shortcut';
   import { initializeToast } from '@/lib/utils/toast';
+  import ApprovalWatcher from '$lib/components/users/ApprovalWatcher.svelte';
   import { Effect as E, pipe, Schedule, Duration } from 'effect';
 
   type Props = {
@@ -325,8 +327,8 @@
   );
 
   async function handleKeyboardEvent(event: KeyboardEvent) {
-    // Alt+A - Toggle admin panel (for existing admins)
-    if (agentIsAdministrator && event.altKey && event.code === 'KeyA') {
+    // Alt+A - Toggle admin panel (for existing admins), never while typing (#206)
+    if (agentIsAdministrator && isAdminShortcut(event)) {
       event.preventDefault();
       await runEffect(handleAdminNavigation);
     }
@@ -563,6 +565,9 @@
 
   <!-- Modal Container -->
   <Modal />
+
+  <!-- Shows the approval modal when a pending member is accepted (#329) -->
+  <ApprovalWatcher />
 
   <!-- Drawer Container -->
   <Drawer>

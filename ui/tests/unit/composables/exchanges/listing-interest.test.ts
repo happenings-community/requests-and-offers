@@ -70,7 +70,13 @@ describe('useListingInterest reads (#344)', () => {
     await make(true).load();
     expect(showToast).not.toHaveBeenCalled();
     await make(false).load();
-    expect(showToast).toHaveBeenCalledWith('read failed', 'error');
+    // #336 gives error toasts a longer life and a "Copy details" action.
+    expect(showToast).toHaveBeenCalledWith(
+      'read failed',
+      'error',
+      expect.any(Number),
+      expect.objectContaining({ label: 'Copy details' })
+    );
   });
 
   it('clears the failure once a retry succeeds', async () => {

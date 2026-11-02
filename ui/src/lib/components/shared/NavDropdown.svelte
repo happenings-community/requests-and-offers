@@ -25,9 +25,11 @@
     avatar?: string;
     /** What a badge's number counts, for screen readers: "3 waiting on you". */
     badgeLabel?: string;
+    /** aria-keyshortcuts for the trigger, e.g. the Admin menu's Alt+A (#356). */
+    keyshortcuts?: string;
   };
 
-  let { title, items, alignRight = false, avatar, badgeLabel = 'waiting on you' }: Props = $props();
+  let { title, items, alignRight = false, avatar, badgeLabel = 'waiting on you', keyshortcuts }: Props = $props();
 
   const total = $derived(items.reduce((n, item) => n + (item.badge ?? 0), 0));
   const shown = (n: number) => (n > 9 ? '9+' : String(n));
@@ -102,6 +104,7 @@
     aria-expanded={open}
     aria-haspopup="menu"
     aria-controls={id}
+    aria-keyshortcuts={keyshortcuts}
     onclick={onTriggerClick}
     onkeydown={onTriggerKey}
     aria-label={total > 0 ? `${title} menu, ${total} ${badgeLabel}` : `${title} menu`}

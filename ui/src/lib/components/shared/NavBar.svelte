@@ -16,6 +16,7 @@
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
   import { turnOf } from '$lib/utils/exchange-ui';
   import { runEffect } from '$lib/utils/effect';
+  import { ADMIN_SHORTCUT_ARIA } from '$lib/utils/admin-shortcut';
   import { onMount, untrack } from 'svelte';
   import {
     getConnectionStatusContext,
@@ -235,6 +236,7 @@
         <NavDropdown
           title="Admin"
           items={adminItems}
+          keyshortcuts={ADMIN_SHORTCUT_ARIA}
           badgeLabel="waiting to be accepted"
           alignRight={true}
         />

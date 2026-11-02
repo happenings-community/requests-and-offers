@@ -28,7 +28,7 @@
       return {
         status: 'loading',
         text: 'Loading...',
-        color: 'text-surface-400',
+        color: 'text-surface-600',
         bgColor: 'bg-surface-100',
         icon: '⏳',
         action: null

@@ -164,7 +164,7 @@
       <ConicGradient stops={conicStops} spin />
     </div>
   {:else if filteredUsers.length === 0}
-    <p class="text-center text-surface-400">No users available to add as members</p>
+    <p class="text-center text-surface-200">No users available to add as members</p>
   {:else}
     <section class="space-y-4">
       {#each filteredUsers as user (user.original_action_hash)}
@@ -183,7 +183,7 @@
             />
             <div class="flex-1">
               <h4 class="font-bold"><UserName user={user} /></h4>
-              <p class="text-sm text-surface-400">{user.email}</p>
+              <p class="text-sm text-surface-200">{user.email}</p>
             </div>
           </div>
         </button>

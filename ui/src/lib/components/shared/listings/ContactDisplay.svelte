@@ -68,7 +68,7 @@
               class="h-full w-full object-cover"
             />
           {:else}
-            <div class="flex h-full w-full items-center justify-center bg-secondary-500 text-white">
+            <div class="variant-filled-secondary flex h-full w-full items-center justify-center">
               <span class="text-sm font-semibold">{organization.name.charAt(0).toUpperCase()}</span>
             </div>
           {/if}

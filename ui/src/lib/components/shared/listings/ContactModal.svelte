@@ -74,9 +74,9 @@
   <header class="mb-6 space-y-4 text-center">
     <h4 class="h4 font-semibold text-white">🤝 Interested in this {listingType}?</h4>
     {#if listingTitle}
-      <p class="italic text-surface-300">"{listingTitle}"</p>
+      <p class="italic text-surface-200">"{listingTitle}"</p>
     {/if}
-    <p class="text-sm text-surface-400">Get in touch directly with the contact information below</p>
+    <p class="text-sm text-surface-200">Get in touch directly with the contact information below</p>
   </header>
 
   {#if organization}
@@ -87,7 +87,7 @@
           <Avatar src={organizationLogoUrl!} initials={organization.name.charAt(0).toUpperCase()} />
           <div class="flex-1">
             <h5 class="h5 font-medium text-white">{organization.name}</h5>
-            <p class="text-sm text-surface-300">Organization</p>
+            <p class="text-sm text-surface-200">Organization</p>
           </div>
         </div>
       </div>
@@ -98,7 +98,7 @@
           <div class="flex min-w-0 flex-1 items-center gap-3">
             <span class="text-xl">📧</span>
             <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-surface-300">Email</p>
+              <p class="text-sm font-medium text-surface-200">Email</p>
               <a href={mailto(organization.email)} class="break-all font-mono text-sm text-white underline decoration-dotted underline-offset-2 hover:text-primary-300">{organization.email}</a>
             </div>
           </div>
@@ -118,7 +118,7 @@
             <div class="flex min-w-0 flex-1 items-center gap-3">
               <span class="text-xl">🌐</span>
               <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-surface-300">Website</p>
+                <p class="text-sm font-medium text-surface-200">Website</p>
                 <ExternalLink text={organization.urls[0]} class="break-all text-sm text-secondary-400 transition-colors hover:text-secondary-300" />
               </div>
             </div>
@@ -141,7 +141,7 @@
           <div class="flex-1">
             <h5 class="h5 font-medium text-white"><UserName user={user} /></h5>
             {#if user.nickname}
-              <p class="text-sm text-surface-300">Nickname/Handle: {user.nickname}</p>
+              <p class="text-sm text-surface-200">Nickname/Handle: {user.nickname}</p>
             {/if}
           </div>
         </div>
@@ -154,7 +154,7 @@
             <div class="flex min-w-0 flex-1 items-center gap-3">
               <span class="text-xl">📧</span>
               <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-surface-300">Email</p>
+                <p class="text-sm font-medium text-surface-200">Email</p>
                 <a href={mailto(user.email)} class="break-all font-mono text-sm text-white underline decoration-dotted underline-offset-2 hover:text-primary-300">{user.email}</a>
               </div>
             </div>
@@ -175,7 +175,7 @@
             <div class="flex min-w-0 flex-1 items-center gap-3">
               <span class="text-xl">📞</span>
               <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-surface-300">Phone</p>
+                <p class="text-sm font-medium text-surface-200">Phone</p>
                 <a href={tel(user.phone)} class="break-all font-mono text-sm text-white underline decoration-dotted underline-offset-2 hover:text-primary-300">{user.phone}</a>
               </div>
             </div>
@@ -195,7 +195,7 @@
           <div class="flex items-center gap-3">
             <span class="text-xl">🌍</span>
             <div>
-              <p class="text-sm font-medium text-surface-300">Time Zone</p>
+              <p class="text-sm font-medium text-surface-200">Time Zone</p>
               <p class="text-sm text-white">{user.time_zone}</p>
             </div>
           </div>
@@ -210,7 +210,7 @@
         <span class="text-xl">💬</span>
         <div>
           <p class="font-medium text-white">Preferred Contact Method:</p>
-          <p class="mt-1 text-sm text-surface-300">
+          <p class="mt-1 text-sm text-surface-200">
             {#if organization}
               📧 Email
             {:else if user?.phone && user?.email}
@@ -229,6 +229,6 @@
   {/if}
 
   <footer class="mt-6 text-center">
-    <p class="text-sm text-surface-400">✨ Please contact directly using the information above</p>
+    <p class="text-sm text-surface-200">✨ Please contact directly using the information above</p>
   </footer>
 </article>

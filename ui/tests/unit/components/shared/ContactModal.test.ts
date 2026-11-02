@@ -29,6 +29,28 @@ describe('ContactModal copy (#368)', () => {
     );
   });
 
+  it('keeps the proposal clause for an interest, the default context', () => {
+    expect(modal).toMatch(/context = 'interest'/);
+    expect(markup).toMatch(
+      /\{#if context === 'interest'\}\s*Feel free to send \{contactName\} a quick introduction by email, then submit a proposal on the next screen\./
+    );
+  });
+
+  it('drops the proposal clause in the exchange context, where no proposal screen follows', () => {
+    const exchangeBranch = markup.slice(
+      markup.indexOf('{:else}', markup.indexOf("{#if context === 'interest'}"))
+    );
+    expect(exchangeBranch).toMatch(
+      /^\{:else\}\s*Feel free to send \{contactName\} a message by email\.\s*\{\/if\}/
+    );
+    const page = read('src/routes/(public)/exchanges/[id]/+page.svelte');
+    expect(page).toMatch(/ref: ContactModal,\s*props: \{[^}]*context: 'exchange'/s);
+  });
+
+  it('never leaves a gap when the contact has no name', () => {
+    expect(modal).toMatch(/\|\| 'them'\)/);
+  });
+
   it('drops the guide line at the bottom', () => {
     expect(markup).not.toContain('Please contact directly using the information above');
   });

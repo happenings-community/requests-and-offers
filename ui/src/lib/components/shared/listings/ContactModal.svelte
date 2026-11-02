@@ -11,6 +11,8 @@
     organization: UIOrganization | null;
     listingType?: 'request' | 'offer';
     listingTitle?: string;
+    /** interest: before a proposal (listing pages). exchange: the exchange already exists. */
+    context?: 'interest' | 'exchange';
   };
 
   // Props
@@ -18,7 +20,8 @@
     user = null,
     organization = null,
     listingType = 'request',
-    listingTitle = ''
+    listingTitle = '',
+    context = 'interest'
   }: Props = $props();
 
   // mailto and tel links. The subject names the listing so the recipient
@@ -35,7 +38,7 @@
   const modalStore = getModalStore();
 
   // Who the introduction goes to: the organization when the listing has one, else the user.
-  const contactName = $derived(organization?.name || (user ? formatUserName(user.name) : ''));
+  const contactName = $derived(organization?.name || (user ? formatUserName(user.name) : '') || 'them');
 
   // Computed values
   const userPictureUrl = $derived(user ? getUserPictureUrl(user) : null);
@@ -89,7 +92,11 @@
       <p class="italic text-surface-300">"{listingTitle}"</p>
     {/if}
     <p class="text-sm text-surface-400">
-      Feel free to send {contactName} a quick introduction by email, then submit a proposal on the next screen.
+      {#if context === 'interest'}
+        Feel free to send {contactName} a quick introduction by email, then submit a proposal on the next screen.
+      {:else}
+        Feel free to send {contactName} a message by email.
+      {/if}
     </p>
   </header>
 

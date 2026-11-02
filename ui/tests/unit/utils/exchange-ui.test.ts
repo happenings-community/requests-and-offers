@@ -26,6 +26,7 @@ import {
   roleOf,
   statusLabel,
   tabOf,
+  inTab,
   termLabel,
   turnOf,
   wroteIt
@@ -77,6 +78,7 @@ const agreement = (over: Partial<AgreementInDHT> = {}): AgreementInDHT => ({
   medium: 'CAD',
   terms: 'Within the month',
   delivery_timeframe: '2 weeks',
+  counters: null,
   ...over
 });
 
@@ -234,25 +236,29 @@ describe('exchange-ui', () => {
     });
   });
 
-  describe('tabOf', () => {
-    it('groups each status as EXCHANGE_TABS declares', () => {
+  describe('tabOf and inTab', () => {
+    it('places each live status as EXCHANGE_TABS declares', () => {
       expect(tabOf(exchange({ status: 'Proposed' }))).toBe('proposals');
-      expect(tabOf(exchange({ status: 'Declined', response: declined }))).toBe('proposals');
       expect(tabOf(exchange({ status: 'Agreed', response: accepted }))).toBe('active');
       expect(tabOf(exchange({ status: 'OneSideDone', response: accepted }))).toBe('active');
       expect(tabOf(exchange({ status: 'Complete', response: accepted }))).toBe('completed');
       expect(tabOf(exchange({ status: 'Reviewed', response: accepted }))).toBe('completed');
     });
 
-    it('puts a withdrawal back with proposals, but a cancellation after acceptance stays active', () => {
-      expect(tabOf(exchange({ status: 'Cancelled' }))).toBe('proposals');
-      expect(tabOf(exchange({ status: 'Cancelled', response: accepted }))).toBe('active');
+    it('gives an ended exchange no live tab: declined, withdrawn or cancelled', () => {
+      expect(tabOf(exchange({ status: 'Declined', response: declined }))).toBeNull();
+      expect(tabOf(exchange({ status: 'Cancelled' }))).toBeNull();
+      expect(tabOf(exchange({ status: 'Cancelled', response: accepted }))).toBeNull();
     });
 
-    it('lands every status in exactly one tab', () => {
+    it('puts every status under All, and live ones in exactly one live tab as well', () => {
       for (const status of ALL_STATUSES) {
         const e = exchange({ status, response: accepted });
-        expect(Object.keys(EXCHANGE_TABS), status).toContain(tabOf(e));
+        expect(inTab(e, 'all'), status).toBe(true);
+        const live = (Object.keys(EXCHANGE_TABS) as (keyof typeof EXCHANGE_TABS)[]).filter((t) =>
+          inTab(e, t)
+        );
+        expect(live.length, status).toBe(tabOf(e) ? 1 : 0);
       }
     });
   });

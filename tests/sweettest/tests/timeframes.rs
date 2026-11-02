@@ -28,8 +28,9 @@ fn refused<T: std::fmt::Debug>(result: Result<T, String>, reason: &str, what: &s
     }
 }
 
-/// Alice (progenitor, admin) accepted; Bob accepted. Returns (conductors, alice, bob).
-async fn two_members() -> (SweetConductorBatch, SweetCell, SweetCell) {
+/// Alice (progenitor, admin) accepted; Bob accepted; one approved service type,
+/// which every listing names (#256). Returns (conductors, alice, bob, service type).
+async fn two_members() -> (SweetConductorBatch, SweetCell, SweetCell, ActionHash) {
     let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
     conductors[0]
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
@@ -46,19 +47,30 @@ async fn two_members() -> (SweetConductorBatch, SweetCell, SweetCell) {
         accept_entity(&conductors[0], &alice, ENTITY_USERS, user).await;
     }
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
-    (conductors, alice, bob)
+    // A progenitor's service type lands approved.
+    let service_type: Record = conductors[0]
+        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Gardening"))
+        .await;
+    let service_type = service_type.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    (conductors, alice, bob, service_type)
 }
 
 fn request_entry(record: &Record) -> Request {
     record.entry().to_app_option().unwrap().expect("request entry")
 }
 
-fn update_request_input(original: &ActionHash, previous: &ActionHash, updated: &RequestData) -> serde_json::Value {
+fn update_request_input(
+    original: &ActionHash,
+    previous: &ActionHash,
+    updated: &RequestData,
+    service_type: &ActionHash,
+) -> serde_json::Value {
     serde_json::json!({
         "original_action_hash": original,
         "previous_action_hash": previous,
         "updated_request": updated,
-        "service_type_hashes": [],
+        "service_type_hash": service_type,
         "medium_of_exchange_hashes": []
     })
 }
@@ -67,7 +79,7 @@ fn update_request_input(original: &ActionHash, previous: &ActionHash, updated: &
 /// reads each back as written.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_request_carries_a_preset_or_a_window() {
-    let (conductors, alice, bob) = two_members().await;
+    let (conductors, alice, bob, st) = two_members().await;
     let timeframes = [
         Timeframe::Preset(TimeframePreset::WithinAFewDays),
         Timeframe::Preset(TimeframePreset::WithinTwoWeeks),
@@ -77,7 +89,7 @@ async fn a_request_carries_a_preset_or_a_window() {
         window(Some(2), 10),
     ];
     for timeframe in timeframes {
-        let mut input = sample_request("Help with gardening");
+        let mut input = sample_request("Help with gardening", st.clone());
         input.request.timeframe = Some(timeframe.clone());
         input.request.amount = Some(Quantity { value: 3.0, unit: "Time bank hours".to_string() });
         let record: Record = conductors[0]
@@ -97,8 +109,8 @@ async fn a_request_carries_a_preset_or_a_window() {
 /// An offer with hours, an amount and a preset, read by a second conductor.
 #[tokio::test(flavor = "multi_thread")]
 async fn an_offer_carries_hours_an_amount_and_a_timeframe() {
-    let (conductors, alice, bob) = two_members().await;
-    let mut input = sample_offer("Web design review");
+    let (conductors, alice, bob, st) = two_members().await;
+    let mut input = sample_offer("Web design review", st.clone());
     input.offer.timeframe = Some(Timeframe::Preset(TimeframePreset::WithinAMonth));
     input.offer.time_estimate_hours = Some(2.0);
     input.offer.amount = Some(Quantity { value: 20.0, unit: "GBP".to_string() });
@@ -116,7 +128,7 @@ async fn an_offer_carries_hours_an_amount_and_a_timeframe() {
     assert_eq!(offer.amount, Some(Quantity { value: 20.0, unit: "GBP".to_string() }));
 
     // Zero hours is a figure.
-    let mut zero = sample_offer("Free advice");
+    let mut zero = sample_offer("Free advice", st.clone());
     zero.offer.time_estimate_hours = Some(0.0);
     let _: Record = conductors[0].call(&alice.zome("offers"), "create_offer", zero).await;
 }
@@ -124,21 +136,21 @@ async fn an_offer_carries_hours_an_amount_and_a_timeframe() {
 /// Every window the rules refuse, with its reason, on a request and an offer.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_window_in_the_past_a_year_out_or_inside_out_is_refused() {
-    let (conductors, alice, _bob) = two_members().await;
+    let (conductors, alice, _bob, st) = two_members().await;
     let attacks = [
         ("a past end", window(None, -1), "must end after the moment it is written"),
         ("an end more than a year out", window(None, 366), "must end within 365 days"),
         ("a start after the end", window(Some(11), 10), "must not start after it ends"),
     ];
     for (what, timeframe, reason) in attacks {
-        let mut request = sample_request("Help with gardening");
+        let mut request = sample_request("Help with gardening", st.clone());
         request.request.timeframe = Some(timeframe.clone());
         let result = conductors[0]
             .call_fallible::<_, Record>(&alice.zome("requests"), "create_request", request)
             .await
             .map_err(|e| format!("{e:?}"));
         refused(result, reason, &format!("a request with {what}"));
-        let mut offer = sample_offer("Web design review");
+        let mut offer = sample_offer("Web design review", st.clone());
         offer.offer.timeframe = Some(timeframe);
         let result = conductors[0]
             .call_fallible::<_, Record>(&alice.zome("offers"), "create_offer", offer)
@@ -151,7 +163,7 @@ async fn a_window_in_the_past_a_year_out_or_inside_out_is_refused() {
 /// Hours and amounts that are not figures, on a request and an offer.
 #[tokio::test(flavor = "multi_thread")]
 async fn hours_and_amounts_must_be_figures() {
-    let (conductors, alice, _bob) = two_members().await;
+    let (conductors, alice, _bob, st) = two_members().await;
     let q = |value: f64, unit: &str| Some(Quantity { value, unit: unit.to_string() });
     let attacks: Vec<(&str, Option<f64>, Option<Quantity>, &str)> = vec![
         ("NaN hours", Some(f64::NAN), None, "hours must be a finite number"),
@@ -164,7 +176,7 @@ async fn hours_and_amounts_must_be_figures() {
         ("an amount without a unit", Some(1.0), q(5.0, ""), "with a unit"),
     ];
     for (what, hours, amount, reason) in attacks {
-        let mut request = sample_request("Help with gardening");
+        let mut request = sample_request("Help with gardening", st.clone());
         request.request.time_estimate_hours = hours;
         request.request.amount = amount.clone();
         let result = conductors[0]
@@ -172,7 +184,7 @@ async fn hours_and_amounts_must_be_figures() {
             .await
             .map_err(|e| format!("{e:?}"));
         refused(result, reason, &format!("a request with {what}"));
-        let mut offer = sample_offer("Web design review");
+        let mut offer = sample_offer("Web design review", st.clone());
         offer.offer.time_estimate_hours = hours;
         offer.offer.amount = amount;
         let result = conductors[0]
@@ -187,7 +199,7 @@ async fn hours_and_amounts_must_be_figures() {
 /// organisation; a web address and a bare one are accepted on each.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_link_must_be_a_web_address() {
-    let (conductors, alice, _bob) = two_members().await;
+    let (conductors, alice, _bob, st) = two_members().await;
     let attacks = [
         ("a javascript: link", "javascript:alert(1)", "must be a web address"),
         ("a data: link", "data:text/html,<script>alert(1)</script>", "must be a web address"),
@@ -195,14 +207,14 @@ async fn a_link_must_be_a_web_address() {
     ];
     for (what, link, reason) in attacks {
         let links = vec!["https://example.org".to_string(), link.to_string()];
-        let mut request = sample_request("Help with gardening");
+        let mut request = sample_request("Help with gardening", st.clone());
         request.request.links = links.clone();
         let result = conductors[0]
             .call_fallible::<_, Record>(&alice.zome("requests"), "create_request", request)
             .await
             .map_err(|e| format!("{e:?}"));
         refused(result, reason, &format!("a request with {what}"));
-        let mut offer = sample_offer("Web design review");
+        let mut offer = sample_offer("Web design review", st.clone());
         offer.offer.links = links.clone();
         let result = conductors[0]
             .call_fallible::<_, Record>(&alice.zome("offers"), "create_offer", offer)
@@ -219,10 +231,10 @@ async fn a_link_must_be_a_web_address() {
     }
 
     let good = vec!["https://example.org/about".to_string(), "example.org".to_string()];
-    let mut request = sample_request("Help with gardening");
+    let mut request = sample_request("Help with gardening", st.clone());
     request.request.links = good.clone();
     let _: Record = conductors[0].call(&alice.zome("requests"), "create_request", request).await;
-    let mut offer = sample_offer("Web design review");
+    let mut offer = sample_offer("Web design review", st.clone());
     offer.offer.links = good.clone();
     let _: Record = conductors[0].call(&alice.zome("offers"), "create_offer", offer).await;
     let mut organization = sample_organization("Gardeners");
@@ -236,11 +248,11 @@ async fn a_link_must_be_a_web_address() {
 /// listing is archived; a window changed to one in the past is refused.
 #[tokio::test(flavor = "multi_thread")]
 async fn an_expired_window_is_kept_on_archive_but_not_set_anew() {
-    let (conductors, alice, bob) = two_members().await;
+    let (conductors, alice, bob, st) = two_members().await;
     // A window that ends one second from now: valid when written, expired by
     // the time the update below is made.
     let short = Timeframe::Dates { start: None, end: now_micros() + 1_000_000 };
-    let mut input = sample_request("Help with gardening");
+    let mut input = sample_request("Help with gardening", st.clone());
     input.request.timeframe = Some(short.clone());
     let record: Record = conductors[0]
         .call(&alice.zome("requests"), "create_request", input.clone())
@@ -253,7 +265,7 @@ async fn an_expired_window_is_kept_on_archive_but_not_set_anew() {
     // Archiving with the window unchanged is accepted.
     let archived = RequestData { status: "Archived".to_string(), ..input.request.clone() };
     let archived_record: Record = conductors[0]
-        .call(&alice.zome("requests"), "update_request", update_request_input(&hash, &hash, &archived))
+        .call(&alice.zome("requests"), "update_request", update_request_input(&hash, &hash, &archived, &st))
         .await;
     assert_eq!(request_entry(&archived_record).timeframe, Some(short));
     let archived_hash = archived_record.signed_action.hashed.hash.clone();
@@ -264,7 +276,7 @@ async fn an_expired_window_is_kept_on_archive_but_not_set_anew() {
         .call_fallible::<_, Record>(
             &alice.zome("requests"),
             "update_request",
-            update_request_input(&hash, &archived_hash, &moved),
+            update_request_input(&hash, &archived_hash, &moved, &st),
         )
         .await
         .map_err(|e| format!("{e:?}"));
@@ -273,6 +285,6 @@ async fn an_expired_window_is_kept_on_archive_but_not_set_anew() {
     // Changing it to a valid window is accepted.
     let renewed = RequestData { timeframe: Some(window(None, 7)), ..input.request.clone() };
     let _: Record = conductors[0]
-        .call(&alice.zome("requests"), "update_request", update_request_input(&hash, &archived_hash, &renewed))
+        .call(&alice.zome("requests"), "update_request", update_request_input(&hash, &archived_hash, &renewed, &st))
         .await;
 }

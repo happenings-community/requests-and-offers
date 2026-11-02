@@ -3,8 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { state, hash, showToast } = vi.hoisted(() => ({
   state: {
     calls: [] as string[],
-    failCreate: false,
-    failDecline: false,
+    sent: null as unknown,
+    failCounter: false,
     status: 'Proposed' as string,
     counterparty: 3
   },
@@ -18,11 +18,7 @@ type Token = { kind: string; input?: unknown };
 vi.mock('$lib/stores/exchanges.store.svelte', () => ({
   default: {
     getExchange: (): Token => ({ kind: 'exchange' }),
-    createAgreement: (input: unknown): Token => ({ kind: 'create', input }),
-    respond: (_h: unknown, accepted: boolean, note: string): Token => ({
-      kind: 'respond',
-      input: { accepted, note }
-    })
+    counter: (input: unknown): Token => ({ kind: 'counter', input })
   }
 }));
 vi.mock('$lib/stores/users.store.svelte', () => ({
@@ -76,17 +72,13 @@ vi.mock('$lib/utils/effect', () => ({
         return { title: 'A listing' };
       case 'user':
         return { name: 'Agent 2' };
-      case 'create':
+      case 'counter':
         // The app hands the input to a zome call, which clones it. A Svelte state
         // proxy cannot be cloned, which is how the first walk-through failed.
-        structuredClone(token.input);
-        state.calls.push('create');
-        if (state.failCreate) throw new Error('create refused');
+        state.sent = structuredClone(token.input);
+        state.calls.push('counter');
+        if (state.failCounter) throw new Error('counter refused');
         return { agreement_hash: hash(11) };
-      case 'respond':
-        state.calls.push('decline');
-        if (state.failDecline) throw new Error('decline refused');
-        return {};
       default:
         return null;
     }
@@ -98,11 +90,11 @@ import {
   useCounterProposal
 } from '$lib/composables/domain/exchanges/useCounterProposal.svelte';
 
-describe('useCounterProposal (#332)', () => {
+describe('useCounterProposal (#332, #333)', () => {
   beforeEach(() => {
     state.calls = [];
-    state.failCreate = false;
-    state.failDecline = false;
+    state.sent = null;
+    state.failCounter = false;
     state.status = 'Proposed';
     state.counterparty = 3;
     showToast.mockClear();
@@ -123,29 +115,30 @@ describe('useCounterProposal (#332)', () => {
     expect(counter.problem).not.toBeNull();
   });
 
-  it('creates the counter before declining the original', async () => {
+  it('sends one counter call naming the proposal, with only what changed', async () => {
     const counter = await loaded();
     counter.timeframe = 'Flexible';
     const created = await counter.send();
-    expect(state.calls).toEqual(['create', 'decline']);
+    expect(state.calls).toEqual(['counter']);
+    const sent = state.sent as { agreement: Uint8Array } & Record<string, unknown>;
+    // Compared by bytes: a cloned Uint8Array comes back from another realm.
+    expect(Array.from(sent.agreement)).toEqual(Array.from(hash(10)));
+    expect({ ...sent, agreement: undefined }).toEqual({
+      agreement: undefined,
+      primary_quantity: { value: 3, unit: 'hours' },
+      reciprocal_quantity: null,
+      delivery_timeframe: 'Flexible'
+    });
     expect(created).toEqual(hash(11));
     expect(showToast).toHaveBeenCalledWith('Counter-proposal sent', 'success');
   });
 
-  it('leaves the original open when the counter cannot be created', async () => {
-    state.failCreate = true;
+  it('reports a refused counter and goes nowhere', async () => {
+    state.failCounter = true;
     const counter = await loaded();
     counter.primary = 5;
     expect(await counter.send()).toBeNull();
-    expect(state.calls).toEqual(['create']);
-  });
-
-  it('still goes to the counter, and says so, when only the decline fails', async () => {
-    state.failDecline = true;
-    const counter = await loaded();
-    counter.primary = 0;
-    expect(await counter.send()).toEqual(hash(11));
-    expect(showToast.mock.calls[0][0]).toContain('original is still open');
+    expect(showToast.mock.calls[0][0]).toContain('counter refused');
   });
 
   it('sends nothing while nothing has changed', async () => {

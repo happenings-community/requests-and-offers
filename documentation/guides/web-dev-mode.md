@@ -13,10 +13,10 @@ It builds the hApp, then prints one URL per member:
 ```
 [web] ready: 2 member(s), network seed web-dev-1793660000000
 [web]   member A  http://localhost:8880/?hcPort=…&hcToken=…&hcAdminPort=…
-[web]   member B  http://localhost:8880/?hcPort=…&hcToken=…&hcAdminPort=…
+[web]   member B  http://127.0.0.1:8880/?hcPort=…&hcToken=…&hcAdminPort=…
 ```
 
-Open each URL in its own browser profile or private window, so each member's storage and dev tools stay apart. Ctrl-C stops everything and deletes the sandbox.
+Member A is on `localhost` and member B on `127.0.0.1`: two origins to the browser, so their storage stays apart even in one profile. A third member or more shares `localhost`; open it in its own browser profile or private window. Ctrl-C stops everything and deletes the sandbox.
 
 ## What it starts
 
@@ -37,6 +37,13 @@ The URL carries what `HolochainClientService` reads (`ui/src/lib/services/Holoch
 | `BOOTSTRAP_PORT` | a free port | the local bootstrap server |
 
 Two stacks can run side by side as long as their `UI_PORT` differ.
+
+## Walking an exchange between two members
+
+Found on the first two-member run (#419):
+
+- **Reload after approval.** When the administrator accepts a member, that member's tab keeps the cached "pending" status until it reloads its own URL.
+- **An offer before a Service Exchange proposal.** When the listing's medium is Service Exchange, the member who proposes must already have an offer of their own, or Send proposal stays disabled.
 
 ## Notes
 

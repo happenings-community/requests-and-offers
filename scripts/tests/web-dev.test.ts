@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import {
   appIdFor,
+  hostFor,
   encodeToken,
   memberUrl,
   parseWebDevConfig,
@@ -48,13 +49,28 @@ describe('appIdFor', () => {
 describe('memberUrl', () => {
   it('carries the three parameters HolochainClientService reads, the token URL-encoded', () => {
     const url = new URL(
-      memberUrl({ uiPort: 8880, appPort: 41234, token: 'ab+/c==', adminPort: 56100 })
+      memberUrl({ host: 'localhost', uiPort: 8880, appPort: 41234, token: 'ab+/c==', adminPort: 56100 })
     );
     expect(url.origin).toBe('http://localhost:8880');
     expect(url.pathname).toBe('/');
     expect(url.searchParams.get('hcPort')).toBe('41234');
     expect(url.searchParams.get('hcToken')).toBe('ab+/c==');
     expect(url.searchParams.get('hcAdminPort')).toBe('56100');
+  });
+});
+
+describe('hostFor', () => {
+  it('puts the first two members on different origins, so their browser storage stays apart', () => {
+    expect(hostFor(0)).toBe('localhost');
+    expect(hostFor(1)).toBe('127.0.0.1');
+    expect(hostFor(2)).toBe('localhost');
+  });
+
+  it('is the host of each member URL', () => {
+    const url = new URL(
+      memberUrl({ host: hostFor(1), uiPort: 8880, appPort: 1, token: 't', adminPort: 2 })
+    );
+    expect(url.origin).toBe('http://127.0.0.1:8880');
   });
 });
 

@@ -18,6 +18,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   appIdFor,
+  hostFor,
   encodeToken,
   memberUrl,
   parseWebDevConfig,
@@ -156,7 +157,9 @@ async function main() {
       expiry_seconds: TOKEN_LIFETIME_S,
       single_use: false
     });
-    urls.push(memberUrl({ uiPort: config.uiPort, appPort, token: encodeToken(token), adminPort }));
+    urls.push(
+      memberUrl({ host: hostFor(i), uiPort: config.uiPort, appPort, token: encodeToken(token), adminPort })
+    );
     log(`installed ${installed_app_id}`);
   }
   await admin.client.close();
@@ -181,7 +184,7 @@ async function main() {
   console.log('');
   log(`ready: ${config.agents} member(s), network seed ${networkSeed}`);
   urls.forEach((url, i) => log(`  member ${String.fromCharCode(65 + i)}  ${url}`));
-  log('open each URL in its own browser profile or window; Ctrl-C stops everything.');
+  log('members A and B are on different origins; any further member needs its own browser profile. Ctrl-C stops everything.');
 }
 
 main().catch(async (error) => {

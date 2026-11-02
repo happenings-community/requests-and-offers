@@ -47,8 +47,18 @@ export function appIdFor(index: number): string {
   return `${BASE_APP_ID}_${String.fromCharCode('a'.charCodeAt(0) + index)}`;
 }
 
+/**
+ * localhost and 127.0.0.1 are two origins for the browser, so the first two
+ * members keep separate storage even in one browser profile. Members past the
+ * second share localhost and need a profile of their own.
+ */
+export function hostFor(index: number): string {
+  return index === 1 ? '127.0.0.1' : 'localhost';
+}
+
 /** The URL HolochainClientService connects from (hcPort, hcToken, hcAdminPort). */
 export function memberUrl(p: {
+  host: string;
   uiPort: number;
   appPort: number;
   token: string;
@@ -59,7 +69,7 @@ export function memberUrl(p: {
     hcToken: p.token,
     hcAdminPort: String(p.adminPort)
   });
-  return `http://localhost:${p.uiPort}/?${params.toString()}`;
+  return `http://${p.host}:${p.uiPort}/?${params.toString()}`;
 }
 
 /** An app token as HolochainClientService decodes it: base64 of the bytes. */

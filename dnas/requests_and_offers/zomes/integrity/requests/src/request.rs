@@ -75,36 +75,3 @@ pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult
 
   Ok(ValidateCallbackResult::Valid)
 }
-
-/// Validates an update to a request
-pub fn validate_update_request(
-  _action: Update,
-  request: Request,
-  _original_action: TypedAction<EntryCreationData>,
-  _original_request: Request,
-) -> ExternResult<ValidateCallbackResult> {
-  validate_request(request)
-}
-
-/// Validates a request link creation
-pub fn validate_create_link_request_updates(
-  _action: TypedAction<CreateLinkData>,
-  _base_address: AnyLinkableHash,
-  _target_address: AnyLinkableHash,
-  _tag: LinkTag,
-) -> ExternResult<ValidateCallbackResult> {
-  // Add specific link creation validation logic if needed
-  Ok(ValidateCallbackResult::Valid)
-}
-
-/// Validates a request link deletion
-pub fn validate_delete_link_request_updates(
-  _action: TypedAction<DeleteLinkData>,
-  _original_action: TypedAction<CreateLinkData>,
-  _base: AnyLinkableHash,
-  _target: AnyLinkableHash,
-  _tag: LinkTag,
-) -> ExternResult<ValidateCallbackResult> {
-  // Add specific link deletion validation logic if needed
-  Ok(ValidateCallbackResult::Valid)
-}

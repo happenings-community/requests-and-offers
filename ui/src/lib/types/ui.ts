@@ -38,6 +38,10 @@ export type UIUser = UserInDHT & {
   status?: UIStatus;
   status_history?: Revision[];
   organizations?: ActionHash[];
+  /** Set by createUIUser from the record's timestamp, in milliseconds. */
+  created_at?: number;
+  /** When the profile's latest revision was written, in milliseconds (#331). */
+  updated_at?: number;
   role?: OrganizationRole;
   // Test mode peer fields
   is_test_peer?: boolean;

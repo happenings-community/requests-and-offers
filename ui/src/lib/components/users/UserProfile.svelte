@@ -194,6 +194,12 @@
             {[user.email, user.phone].filter(Boolean).join(' · ')}
           </p>
         {/if}
+        <!-- Between the member and the administrators, so shown only on their own view (#331) -->
+        {#if isCurrentUser && user.status?.status_type === 'pending' && user.status.reason}
+          <p class="text-sm"><strong>Information requested:</strong> {user.status.reason}</p>
+        {:else if isCurrentUser && user.status?.status_type === 'rejected' && user.status.reason}
+          <p class="text-sm"><strong>Reason:</strong> {user.status.reason}</p>
+        {/if}
         {#if status?.label === 'Suspended' && user.status?.reason}
           <p class="text-sm"><strong>Reason:</strong> {user.status.reason}</p>
         {/if}

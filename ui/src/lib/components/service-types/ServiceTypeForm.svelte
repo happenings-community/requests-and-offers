@@ -2,7 +2,7 @@
   // InputChip import removed as tags functionality has been removed
   import { useServiceTypeFormManagement } from '$lib/composables';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
-  import { createMockedServiceTypes } from '$lib/utils/mocks';
+  import { loadMocks } from '$lib/utils/load-mocks';
   import type { UIServiceType } from '$lib/types/ui';
 
   type Props = {
@@ -50,6 +50,7 @@
    */
   async function handleMockSubmit(event: Event) {
     event.preventDefault();
+    const { createMockedServiceTypes } = await loadMocks();
     const mockedServiceType = (await createMockedServiceTypes(1))[0];
 
     // Update form state with mocked data
@@ -77,7 +78,7 @@
           Edit Service Type
         {/if}
       </h2>
-      <p class="text-surface-600 dark:text-surface-400">
+      <p class="text-surface-600 dark:text-surface-300">
         {#if mode === 'suggest'}
           Your suggestion will be reviewed by an administrator.
         {:else}
@@ -105,7 +106,7 @@
         <label class="label">
           <span class="flex items-center justify-between">
             <span>Description <span class="text-error-500">*</span></span>
-            <span class="text-sm text-surface-500"
+            <span class="text-sm text-surface-500 dark:text-surface-300"
               >({formState.description.length}/500 characters)</span
             >
           </span>
@@ -127,7 +128,7 @@
           <input type="checkbox" class="checkbox" bind:checked={formState.technical} />
           <span class="label-text">
             <span>Technical Service</span>
-            <span class="block text-sm text-surface-500">
+            <span class="block text-sm text-surface-500 dark:text-surface-300">
               Check if this service requires technical skills or knowledge
             </span>
           </span>

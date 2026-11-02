@@ -79,7 +79,13 @@ async fn basic_medium_of_exchange_suggestion_and_approval_workflow() {
     let approved: Vec<Record> = conductors[0]
         .call(&alice.zome("mediums_of_exchange"), "get_approved_mediums_of_exchange", ())
         .await;
-    assert!(!approved.is_empty(), "Should have an approved MoE");
+    assert_eq!(approved.len(), 1, "Should have one approved MoE");
+    // The status link targets the suggestion, and approval writes an update that
+    // stamps the hREA resource spec id, so only the latest-revision resolve
+    // returns the stamped record here.
+    let approved_moe: MediumOfExchange =
+        approved[0].entry().to_app_option().unwrap().expect("entry");
+    assert_eq!(approved_moe.resource_spec_hrea_id, Some("hrea_resource_spec_USD".to_string()));
 
     let pending_after: Vec<Record> = conductors[0]
         .call(&alice.zome("mediums_of_exchange"), "get_pending_mediums_of_exchange", ())

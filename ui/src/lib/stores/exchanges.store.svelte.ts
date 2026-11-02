@@ -13,6 +13,7 @@ import type { LoadingStateSetter } from '$lib/types/store-helpers';
 import type {
   AgreementInDHT,
   CancellationInDHT,
+  CounterAgreementInput,
   CreateAgreementInput,
   ExchangeReadModel,
   InterestInDHT,
@@ -44,6 +45,8 @@ export type ExchangesStore = {
   withdrawInterest: (interest: ActionHash) => E.Effect<void, ExchangeError>;
   createAgreement: (input: CreateAgreementInput) => E.Effect<UIExchange, ExchangeError>;
   respond: (agreement: ActionHash, accepted: boolean, note: string) => E.Effect<UIExchange, ExchangeError>;
+  /** Sends a counter-proposal and declines the original in one commit; returns the counter (#333). */
+  counter: (input: CounterAgreementInput) => E.Effect<UIExchange, ExchangeError>;
   complete: (agreement: ActionHash) => E.Effect<UIExchange, ExchangeError>;
   review: (agreement: ActionHash, review: ReviewInput) => E.Effect<UIExchange, ExchangeError>;
   cancel: (agreement: ActionHash, note: string) => E.Effect<UIExchange, ExchangeError>;
@@ -78,7 +81,8 @@ const toUIExchange = (model: ExchangeReadModel): UIExchange => ({
   receiver_done: model.receiver_completion ? timed(model.receiver_completion) : undefined,
   provider_review: entryWithTime<ReviewInDHT>(model.provider_review),
   receiver_review: entryWithTime<ReviewInDHT>(model.receiver_review),
-  cancellation: entryWithTime<CancellationInDHT>(model.cancellation)
+  cancellation: entryWithTime<CancellationInDHT>(model.cancellation),
+  countered_by: model.countered_by ?? undefined
 });
 
 // ============================================================================
@@ -164,6 +168,16 @@ export const createExchangesStore = (): E.Effect<ExchangesStore, never, Exchange
         )
       );
 
+    /** The original is re-read too, so the list shows it declined and pointing forward. */
+    const counter = (input: CounterAgreementInput) =>
+      tracked(
+        pipe(
+          service.counterAgreement(input),
+          E.flatMap((record) => refetch(hashOf(record))),
+          E.tap(() => refetch(input.agreement))
+        )
+      );
+
     const afterWrite = (agreement: ActionHash, write: E.Effect<Record, ExchangeError>) =>
       tracked(pipe(write, E.flatMap(() => refetch(agreement))));
 
@@ -209,6 +223,7 @@ export const createExchangesStore = (): E.Effect<ExchangesStore, never, Exchange
       withdrawInterest,
       createAgreement,
       respond,
+      counter,
       complete,
       review,
       cancel

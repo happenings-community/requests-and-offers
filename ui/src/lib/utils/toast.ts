@@ -1,9 +1,42 @@
-import { getToastStore, type ToastStore } from '@skeletonlabs/skeleton';
+import { getToastStore, type ToastSettings, type ToastStore } from '@skeletonlabs/skeleton';
+import { escapeHtml } from '$lib/utils/safe-html';
 
 let toastStore: ToastStore;
 
+/**
+ * Skeleton's Toast renders a toast's message and action label as HTML
+ * (`{@html t.message}` in Toast.svelte), and messages often carry text from the
+ * network: a zome error, a member's name, a listing's title. So every toast is
+ * escaped on its way in. No toast in the app uses markup on purpose.
+ */
+export function escapeToast(settings: ToastSettings): ToastSettings {
+  return {
+    ...settings,
+    message: escapeHtml(settings.message),
+    ...(settings.action
+      ? { action: { ...settings.action, label: escapeHtml(settings.action.label) } }
+      : {})
+  };
+}
+
+const ESCAPED = Symbol('toast-escaped');
+
+/**
+ * Makes `trigger` escape what it is given. Every component's `getToastStore()`
+ * returns this same store from context, so doing it once here covers the calls
+ * that use the store directly as well as `showToast`. Safe to call twice.
+ */
+export function escapeToasts(store: ToastStore): ToastStore {
+  const marked = store as ToastStore & { [ESCAPED]?: true };
+  if (marked[ESCAPED]) return store;
+  const trigger = store.trigger.bind(store);
+  store.trigger = (settings: ToastSettings) => trigger(escapeToast(settings));
+  marked[ESCAPED] = true;
+  return store;
+}
+
 export function initializeToast() {
-  toastStore = getToastStore();
+  toastStore = escapeToasts(getToastStore());
 }
 
 export function showToast(

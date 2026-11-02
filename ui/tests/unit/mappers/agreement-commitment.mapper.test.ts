@@ -4,7 +4,8 @@ import {
   actionForKind,
   mapAgreementToHrea,
   mapCompletionToEvent,
-  rnoAgreementRef
+  rnoAgreementRef,
+  agreementRefsFromHrea
 } from '$lib/services/mappers/agreement-commitment.mapper';
 import type { UIExchange } from '$lib/types/ui';
 
@@ -119,5 +120,55 @@ describe('mapCompletionToEvent', () => {
       1
     );
     expect(r).toBeNull();
+  });
+});
+
+// U15a: agreementMappings lives in memory, so after a reload the store rebuilds
+// an R&O agreement's hREA ids from hREA's own records.
+describe('agreementRefsFromHrea', () => {
+  const ref = rnoAgreementRef(exchange());
+  const agreements = [
+    { id: 'agr-other', revisionId: 'r0', note: 'someone-else' },
+    { id: 'agr-1', revisionId: 'r1', note: ref }
+  ];
+  const commitment = (id: string, provider: string, receiver: string, clauseOf?: string) => ({
+    id,
+    revisionId: `${id}-rev`,
+    action: 'work',
+    provider,
+    receiver,
+    clauseOf
+  });
+
+  it('finds the agreement by its note and tells the two commitments apart by provider', () => {
+    const commitments = [
+      commitment('c-elsewhere', 'agent-p', 'agent-r', 'agr-other'),
+      commitment('c-recip', 'agent-r', 'agent-p', 'agr-1'),
+      commitment('c-prim', 'agent-p', 'agent-r', 'agr-1')
+    ];
+    expect(agreementRefsFromHrea(ref, parties, agreements, commitments)).toEqual({
+      agreementId: 'agr-1',
+      primaryCommitmentId: 'c-prim',
+      primaryRevisionId: 'c-prim-rev',
+      reciprocalCommitmentId: 'c-recip',
+      reciprocalRevisionId: 'c-recip-rev'
+    });
+  });
+
+  it('leaves the reciprocal out for a gift, which has one commitment', () => {
+    const refs = agreementRefsFromHrea(ref, parties, agreements, [
+      commitment('c-prim', 'agent-p', 'agent-r', 'agr-1')
+    ]);
+    expect(refs?.reciprocalCommitmentId).toBeUndefined();
+    expect(refs?.primaryCommitmentId).toBe('c-prim');
+  });
+
+  it('returns null when hREA holds no agreement for this R&O hash, or no primary commitment', () => {
+    expect(agreementRefsFromHrea('unknown', parties, agreements, [])).toBeNull();
+    expect(
+      agreementRefsFromHrea(ref, parties, agreements, [
+        commitment('c-recip', 'agent-r', 'agent-p', 'agr-1')
+      ])
+    ).toBeNull();
   });
 });

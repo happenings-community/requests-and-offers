@@ -1998,6 +1998,14 @@ export const createHreaStore = (): E.Effect<
      * The hREA ids an R&O agreement was mirrored as: the in-memory mapping
      * first, then hREA's own Agreement and Commitments, so a reload loses
      * nothing. What hREA returns is cached in the mapping.
+     *
+     * The cached revision ids are those at mirror time: once updateCommitment
+     * marks a Commitment finished, its revision moves on and the cached one is
+     * stale. Harmless while each side finishes its Commitment once; a second
+     * update would need the fresh revision read back first.
+     *
+     * A failed hREA read fails the lookup: on acceptance that fails the mirror
+     * rather than risk a duplicate Agreement in an append-only ledger.
      */
     const findAgreementRefs = (
       ref: string,

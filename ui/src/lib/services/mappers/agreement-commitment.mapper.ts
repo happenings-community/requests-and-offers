@@ -182,7 +182,9 @@ export function mapCompletionToEvent(
   parties: ResolvedParties,
   specs: ResolvedSpecs,
   hreaAgreementId: string | undefined,
-  at: number
+  at: number,
+  /** The Commitment of this side, which the event fulfills. */
+  commitmentId?: string
 ): EconomicEventInput | null {
   const a = exchange.agreement;
   const term = side === 'provider' ? a.primary : a.reciprocal;
@@ -200,6 +202,7 @@ export function mapCompletionToEvent(
     // No hasPointInTime: timestamp fields have bounced at three hREA zomes
     // today; completion time lives in the R&O DHT, reachable via agreedIn.
     agreedIn: rnoAgreementRef(exchange),
-    realizationOf: hreaAgreementId
+    realizationOf: hreaAgreementId,
+    fulfills: commitmentId ? [commitmentId] : undefined
   };
 }

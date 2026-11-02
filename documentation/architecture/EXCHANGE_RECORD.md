@@ -137,7 +137,7 @@ The companion design's table, with this record's entries beside it. Each row is 
 | Agreement | Agreement, plus a Commitment per term |
 | Response, accepted | the Commitments become binding |
 | Completion, per party | EconomicEvent, one per party |
-| both Completions | Fulfillment links, Event to Commitment |
+| each Completion | its EconomicEvent fulfills that side's Commitment (`fulfills` on the event, hREA's form of a Fulfillment) and realizes the Agreement (`realizationOf`) |
 | Review | custom review zome, as the companion design has it |
 | primary and reciprocal terms | Intent pair on the Proposal |
 

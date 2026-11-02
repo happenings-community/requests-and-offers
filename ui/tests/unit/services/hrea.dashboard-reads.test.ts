@@ -168,7 +168,8 @@ describe('HreaService dashboard reads', () => {
                 provider: { id: 'a-2' },
                 receiver: { id: 'a-1' },
                 agreedIn: 'uhCkk',
-                realizationOf: { id: 'agr-1' }
+                realizationOf: { id: 'agr-1' },
+                fulfills: [{ id: 'c-2' }]
               }
             }
           ]
@@ -180,7 +181,8 @@ describe('HreaService dashboard reads', () => {
       id: 'e-1',
       action: 'transfer',
       realizationOf: 'agr-1',
-      agreedIn: 'uhCkk'
+      agreedIn: 'uhCkk',
+      fulfills: ['c-2']
     });
   });
 

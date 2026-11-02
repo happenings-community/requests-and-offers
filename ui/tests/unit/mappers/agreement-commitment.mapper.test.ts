@@ -96,6 +96,13 @@ describe('mapCompletionToEvent', () => {
     expect(r!.action).toBe('transfer');
   });
 
+  it('fulfills the Commitment of its side, and names none when the Commitment is unknown', () => {
+    const p = mapCompletionToEvent(exchange(), 'provider', parties, specs, 'hrea-agr', 1, 'c-prim');
+    expect(p!.fulfills).toEqual(['c-prim']);
+    const unknown = mapCompletionToEvent(exchange(), 'provider', parties, specs, undefined, 1);
+    expect(unknown!.fulfills).toBeUndefined();
+  });
+
   it('carries a structured measure only for registered unit labels', () => {
     const known = mapCompletionToEvent(exchange(), 'provider', parties, specs, 'hrea-agr', 1);
     expect(known!.resourceQuantity).toEqual({ hasNumericalValue: 2, hasUnit: 'unit-hours-id' });

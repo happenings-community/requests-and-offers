@@ -95,7 +95,9 @@
   // The Admin menu (#359), with who is waiting to be accepted. Read from the
   // store's lists, which the admin pages fill too; refreshed while the member
   // is an administrator, once a minute, so a new application shows without a
-  // visit to the dashboard.
+  // visit to the dashboard. The refresh is the background kind: no loading
+  // flag, and its answer is dropped if the administrator wrote a status while
+  // it was on its way, so a tick never undoes a suspend on screen (#340).
   const adminItems = $derived(
     adminMenuItems(adminWaiting(administrationStore.allUsers, administrationStore.allOrganizations))
   );
@@ -103,8 +105,7 @@
   $effect(() => {
     if (!agentIsAdministrator) return;
     const refresh = () => {
-      runEffect(administrationStore.fetchAllUsers()).catch(() => {});
-      runEffect(administrationStore.fetchAllOrganizations()).catch(() => {});
+      runEffect(administrationStore.refreshLists()).catch(() => {});
     };
     // The fetches write the lists this component reads; untrack keeps that
     // write from re-running the effect that started it.
@@ -125,7 +126,7 @@
       label: 'Organizations',
       icon: '🏢',
       description: 'Explore organizations and teams'
-    },
+    }
   ];
 
   const resourceItems = [
@@ -182,7 +183,9 @@
   <div class="flex items-center">
     <a href="/" class="flex items-center gap-3 transition-opacity hover:opacity-80">
       <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="h-12 w-12" />
-      <span class="hidden whitespace-nowrap text-lg font-bold text-white sm:block">Requests & Offers</span>
+      <span class="hidden whitespace-nowrap text-lg font-bold text-white sm:block"
+        >Requests & Offers</span
+      >
     </a>
   </div>
 

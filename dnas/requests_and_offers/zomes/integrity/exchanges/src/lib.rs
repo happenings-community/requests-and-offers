@@ -55,6 +55,19 @@ pub struct Interest {
   pub user: ActionHash,
 }
 
+/// Which proposal a counter-proposal answers, and the decline that closed it.
+///
+/// Both hashes are carried so validation can check the pair from the records
+/// themselves: it reads only what an entry names, never links, so the decline
+/// has to be named to be checked.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct Countering {
+  /// The agreement being countered.
+  pub agreement: ActionHash,
+  /// The countering member's decline of that agreement.
+  pub decline: ActionHash,
+}
+
 /// What two parties agreed off-app, written up by either of them. The
 /// listing, the interest it settles, the two parties as user hashes, and the
 /// terms. The medium is the frame the reciprocal term is read through and is
@@ -73,6 +86,10 @@ pub struct Agreement {
   pub medium: String,
   pub terms: String,
   pub delivery_timeframe: String,
+  /// Set on a counter-proposal: the proposal it answers and the decline that
+  /// closed it. `None` on a first proposal. Rounds of one negotiation form a
+  /// chain through this field (#333).
+  pub counters: Option<Countering>,
 }
 
 /// The other party accepting or declining an agreement.
@@ -142,6 +159,9 @@ pub enum LinkTypes {
   AgreementReviews,
   /// Agreement Create -> Cancellation.
   AgreementCancellations,
+  /// Agreement Create -> the counter-proposal that answers it, so a chain of
+  /// rounds can be read forwards as well as back.
+  AgreementCounters,
 }
 
 #[hdk_extern]
@@ -245,7 +265,8 @@ fn validate_interest(author: &AgentPubKey, interest: &Interest) -> ExternResult<
 /// An agreement points at an interest on the same listing. Its author is the
 /// listing's author or the interest's author, and the counterparty is the
 /// other. Provider and receiver are those two, assigned by listing type.
-fn validate_agreement(author: &AgentPubKey, agreement: &Agreement) -> ExternResult<ValidateCallbackResult> {
+fn validate_agreement(action: &TypedAction<CreateData>, agreement: &Agreement) -> ExternResult<ValidateCallbackResult> {
+  let author = action.author();
   let listing = match create_record(&agreement.listing, "listing")? {
     Ok(r) => r,
     Err(reason) => return invalid(&reason),
@@ -317,20 +338,180 @@ fn validate_agreement(author: &AgentPubKey, agreement: &Agreement) -> ExternResu
   if agreement.medium.trim().is_empty() {
     return invalid("agreement names no medium of exchange");
   }
-  Ok(ValidateCallbackResult::Valid)
+  match &agreement.counters {
+    None => Ok(ValidateCallbackResult::Valid),
+    Some(countering) => validate_counter(action, agreement, countering),
+  }
 }
 
-/// A response is written by the agreement's counterparty.
-fn validate_response(author: &AgentPubKey, response: &Response) -> ExternResult<ValidateCallbackResult> {
+/// A counter-proposal answers one proposal (#332, #333).
+///
+/// - It is written by the member that proposal was sent to.
+/// - It carries that member's decline of the proposal, so a counter never
+///   exists beside an open original.
+/// - It is written immediately after that decline on the author's chain. A
+///   chain is linear, so a decline is followed by one action only: one decline
+///   can back one counter, and a negotiation cannot be forked into two.
+/// - Everything except the two quantities and the timeframe is the same as the
+///   proposal it answers, and at least one of those three differs. Anything
+///   else needs a new listing.
+fn validate_counter(
+  action: &TypedAction<CreateData>,
+  counter: &Agreement,
+  countering: &Countering,
+) -> ExternResult<ValidateCallbackResult> {
+  let author = action.author();
+  let (_, countered) = match agreement_at(&countering.agreement)? {
+    Ok(pair) => pair,
+    Err(reason) => return invalid(&reason),
+  };
+  match agent_for_user(&countered.counterparty)? {
+    Ok(agent) if agent == *author => {}
+    Ok(_) => return invalid("only the member a proposal was sent to may counter it"),
+    Err(reason) => return invalid(&reason),
+  }
+  if action.prev_action() != Some(&countering.decline) {
+    return invalid("a counter is written immediately after its decline");
+  }
+
+  let decline_record = match create_record(&countering.decline, "decline")? {
+    Ok(r) => r,
+    Err(reason) => return invalid(&reason),
+  };
+  let decline = match entry_of::<Response>(&decline_record, "decline")? {
+    Ok(r) => r,
+    Err(reason) => return invalid(&reason),
+  };
+  if decline.agreement != countering.agreement {
+    return invalid("a counter's decline must be of the proposal it counters");
+  }
+  if decline.accepted {
+    return invalid("a counter's decline must decline the proposal");
+  }
+  if author_of(&decline_record) != *author {
+    return invalid("a counter's decline must be written by the counter's author");
+  }
+
+  match counter_terms_problem(counter, &countered) {
+    Some(reason) => invalid(reason),
+    None => Ok(ValidateCallbackResult::Valid),
+  }
+}
+
+/// What is wrong with a counter's terms against the proposal it answers, if
+/// anything. Pure, so it is unit-tested without a conductor.
+pub fn counter_terms_problem(counter: &Agreement, countered: &Agreement) -> Option<&'static str> {
+  if counter.listing != countered.listing
+    || counter.listing_type != countered.listing_type
+    || counter.interest != countered.interest
+    || counter.provider != countered.provider
+    || counter.receiver != countered.receiver
+  {
+    return Some("a counter keeps the listing, the interest and the parties of the proposal it answers");
+  }
+  if counter.medium != countered.medium || counter.terms != countered.terms {
+    return Some("a counter keeps the medium of exchange and the terms text");
+  }
+  if !same_except_quantity(&counter.primary, &countered.primary)
+    || !same_except_quantity(&counter.reciprocal, &countered.reciprocal)
+  {
+    return Some("a counter keeps both services; only the quantities may change");
+  }
+  if counter.primary.quantity == countered.primary.quantity
+    && counter.reciprocal.quantity == countered.reciprocal.quantity
+    && counter.delivery_timeframe.trim() == countered.delivery_timeframe.trim()
+  {
+    return Some("a counter changes a quantity or the timeframe");
+  }
+  None
+}
+
+fn same_except_quantity(a: &ExchangeTerm, b: &ExchangeTerm) -> bool {
+  a.direction == b.direction
+    && a.resource_conforms_to == b.resource_conforms_to
+    && a.resource_kind == b.resource_kind
+}
+
+/// A response is written by the agreement's counterparty, once.
+///
+/// "Once" is checked on the author's own chain: every action they wrote before
+/// this response is read, and an earlier response to the same agreement makes
+/// this one invalid. An agent's chain is ordered and
+/// can be read deterministically, unlike the network as a whole, so this is a
+/// rule validation can enforce, not just the coordinator. Hiding the earlier
+/// response by forking the chain is caught by Holochain itself.
+fn validate_response(action: &TypedAction<CreateData>, response: &Response) -> ExternResult<ValidateCallbackResult> {
+  let author = action.author();
   let (_, agreement) = match agreement_at(&response.agreement)? {
     Ok(pair) => pair,
     Err(reason) => return invalid(&reason),
   };
   match agent_for_user(&agreement.counterparty)? {
-    Ok(agent) if agent == *author => Ok(ValidateCallbackResult::Valid),
-    Ok(_) => invalid("only the counterparty responds to an agreement"),
-    Err(reason) => invalid(&reason),
+    Ok(agent) if agent == *author => {}
+    Ok(_) => return invalid("only the counterparty responds to an agreement"),
+    Err(reason) => return invalid(&reason),
   }
+  // The responder wrote either the listing or the interest; that record is on
+  // their chain before any response to an agreement naming it can be.
+  let own_record = match create_record(&agreement.listing, "listing")? {
+    Ok(listing) if author_of(&listing) == *author => agreement.listing.clone(),
+    Ok(_) => agreement.interest.clone(),
+    Err(reason) => return invalid(&reason),
+  };
+  if responded_before(action, &response.agreement, own_record)? {
+    return invalid("this member has already responded to this proposal");
+  }
+  Ok(ValidateCallbackResult::Valid)
+}
+
+/// Whether the author already responded to `agreement` earlier on their chain.
+///
+/// Reads from the action before this one back to `own_record`, the responder's
+/// own listing or interest: a response to this agreement cannot sit before it,
+/// because the agreement names that record's hash. The bound is a position on
+/// the chain, not a time, so a backdated timestamp cannot slip under it.
+/// Starting from the previous action keeps the read to actions already on the
+/// chain, never ones still being written in the same call. Only response
+/// entries are fetched; every other action is skipped by its type.
+fn responded_before(
+  action: &TypedAction<CreateData>,
+  agreement: &ActionHash,
+  own_record: ActionHash,
+) -> ExternResult<bool> {
+  let response_type = AppEntryDef::try_from(UnitEntryTypes::Response)?;
+  // Only the genesis DNA action has no predecessor; a create always does.
+  let Some(previous) = action.prev_action().cloned() else {
+    return Err(wasm_error!(WasmErrorInner::Guest(
+      "a create has a previous action".to_string()
+    )));
+  };
+  let activity = must_get_agent_activity(
+    action.author().clone(),
+    ChainFilter::until_hash(previous, own_record).include_cached_entries(),
+  )?;
+  for item in activity {
+    let ActionData::Create(create) = &item.action.hashed.content.data else {
+      continue;
+    };
+    let EntryType::App(def) = &create.entry_type else {
+      continue;
+    };
+    if def.zome_index != response_type.zome_index || def.entry_index != response_type.entry_index {
+      continue;
+    }
+    let entry = match item.cached_entry {
+      Some(entry) => entry,
+      None => must_get_entry(create.entry_hash.clone())?.content,
+    };
+    if let Some(EntryTypes::Response(earlier)) =
+      EntryTypes::deserialize_from_type(def.zome_index, def.entry_index, &entry)?
+    {
+      if earlier.agreement == *agreement {
+        return Ok(true);
+      }
+    }
+  }
+  Ok(false)
 }
 
 /// Completions, reviews and cancellations are written by a party.
@@ -393,10 +574,34 @@ fn target_is<T: TryFrom<SerializedBytes, Error = SerializedBytesError>>(
   Ok(entry_of::<T>(&record, what)?.map(|_| ()))
 }
 
+/// The target of an `AgreementCounters` link is a counter whose `counters`
+/// names the link's base, and the link is written by that counter's author.
+fn counter_of(
+  base: &AnyLinkableHash,
+  target: &AnyLinkableHash,
+  link_author: &AgentPubKey,
+) -> ExternResult<Result<(), String>> {
+  let (Some(base), Some(target)) = (base.clone().into_action_hash(), target.clone().into_action_hash()) else {
+    return Ok(Err("counter link ends are not action hashes".to_string()));
+  };
+  let (counter_record, counter) = match agreement_at(&target)? {
+    Ok(pair) => pair,
+    Err(reason) => return Ok(Err(reason)),
+  };
+  if author_of(&counter_record) != *link_author {
+    return Ok(Err("only the counter's author links a proposal to its counter".to_string()));
+  }
+  match counter.counters {
+    Some(c) if c.agreement == base => Ok(Ok(())),
+    _ => Ok(Err("a counter link points at the counter-proposal that answers its base".to_string())),
+  }
+}
+
 fn validate_link(
   link_type: LinkTypes,
   base: &AnyLinkableHash,
   target: &AnyLinkableHash,
+  author: &AgentPubKey,
 ) -> ExternResult<ValidateCallbackResult> {
   let base_check = match link_type {
     LinkTypes::ListingInterests | LinkTypes::ListingAgreements => base_is_create(base, "listing")?,
@@ -413,6 +618,7 @@ fn validate_link(
     LinkTypes::AgreementCompletions => target_is::<Completion>(target, "completion")?,
     LinkTypes::AgreementReviews => target_is::<Review>(target, "review")?,
     LinkTypes::AgreementCancellations => target_is::<Cancellation>(target, "cancellation")?,
+    LinkTypes::AgreementCounters => counter_of(base, target, author)?,
   };
   if let Err(reason) = target_check {
     return invalid(&reason);
@@ -424,6 +630,19 @@ fn validate_link(
 // Routing. Every op reaches a rule; nothing falls through as valid by default
 // except ops this zome has no opinion on.
 // ---------------------------------------------------------------------------
+
+/// Every rule for a new exchange entry, run for both ops of a create.
+fn validate_create(action: &TypedAction<CreateData>, entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
+  let author = action.author();
+  match entry {
+    EntryTypes::Interest(i) => validate_interest(author, &i),
+    EntryTypes::Agreement(a) => validate_agreement(action, &a),
+    EntryTypes::Response(r) => validate_response(action, &r),
+    EntryTypes::Completion(c) => validate_party_entry(author, &c.agreement, "completion"),
+    EntryTypes::Review(r) => validate_review(author, &r),
+    EntryTypes::Cancellation(c) => validate_party_entry(author, &c.agreement, "cancellation"),
+  }
+}
 
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
@@ -442,21 +661,18 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, action } => {
-        let author = action.author();
-        match app_entry {
-          EntryTypes::Interest(i) => validate_interest(author, &i),
-          EntryTypes::Agreement(a) => validate_agreement(author, &a),
-          EntryTypes::Response(r) => validate_response(author, &r),
-          EntryTypes::Completion(c) => validate_party_entry(author, &c.agreement, "completion"),
-          EntryTypes::Review(r) => validate_review(author, &r),
-          EntryTypes::Cancellation(c) => validate_party_entry(author, &c.agreement, "cancellation"),
-        }
-      }
+      OpEntry::CreateEntry { app_entry, action } => validate_create(&action, app_entry),
       OpEntry::UpdateEntry { .. } => invalid("exchange records are append-only; nothing is updated"),
       _ => Ok(ValidateCallbackResult::Valid),
     },
     FlatOp::CreateRecord(store_record) => match store_record {
+      // The same rules again for the record op. Holochain sends the entry op
+      // and the record op of a create to different authorities (by entry hash
+      // and by action hash), and `must_get_valid_record` trusts the record
+      // authority's verdict. Checking only the entry op would let a conductor
+      // that skips its own validation get a forged record accepted by half the
+      // network.
+      OpRecord::CreateEntry { app_entry, action } => validate_create(&action, app_entry),
       // An interest may be withdrawn by its author; nothing else is deleted.
       OpRecord::DeleteEntry { action } => {
         let original = must_get_valid_record(action.deletes_address.clone())?;
@@ -474,10 +690,143 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       OpRecord::UpdateEntry { .. } => invalid("exchange records are append-only; nothing is updated"),
       _ => Ok(ValidateCallbackResult::Valid),
     },
-    FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
-      validate_link(link_type, &action.base_address, &action.target_address)
-    }
+    FlatOp::Link(OpLink::CreateLink { link_type, action }) => validate_link(
+      link_type,
+      &action.base_address,
+      &action.target_address,
+      action.author(),
+    ),
     FlatOp::Link(OpLink::DeleteLink { .. }) => invalid("exchange links are never deleted"),
     _ => Ok(ValidateCallbackResult::Valid),
+  }
+}
+
+#[cfg(test)]
+mod counter_tests {
+  use super::*;
+
+  fn hash(n: u8) -> ActionHash {
+    ActionHash::from_raw_36(vec![n; 36])
+  }
+
+  fn proposal() -> Agreement {
+    Agreement {
+      listing: hash(1),
+      listing_type: ListingType::Request,
+      interest: hash(2),
+      counterparty: hash(3),
+      provider: hash(4),
+      receiver: hash(3),
+      primary: ExchangeTerm {
+        direction: Direction::Provide,
+        resource_conforms_to: "Gardening".into(),
+        resource_kind: ResourceKind::Service,
+        quantity: Some(Quantity { value: 3.0, unit: "hours".into() }),
+      },
+      reciprocal: ExchangeTerm {
+        direction: Direction::Receive,
+        resource_conforms_to: "Time bank hours".into(),
+        resource_kind: ResourceKind::Currency,
+        quantity: Some(Quantity { value: 3.0, unit: "Time bank hours".into() }),
+      },
+      medium: "Time bank hours".into(),
+      terms: "".into(),
+      delivery_timeframe: "Within 2 weeks".into(),
+      counters: None,
+    }
+  }
+
+  #[test]
+  fn a_changed_quantity_or_timeframe_is_a_counter() {
+    let mut c = proposal();
+    c.primary.quantity = Some(Quantity { value: 5.0, unit: "hours".into() });
+    assert_eq!(counter_terms_problem(&c, &proposal()), None);
+    let mut c = proposal();
+    c.reciprocal.quantity = None;
+    assert_eq!(counter_terms_problem(&c, &proposal()), None);
+    let mut c = proposal();
+    c.delivery_timeframe = "Flexible".into();
+    assert_eq!(counter_terms_problem(&c, &proposal()), None);
+  }
+
+  #[test]
+  fn an_unchanged_copy_is_not_a_counter() {
+    assert!(counter_terms_problem(&proposal(), &proposal()).unwrap().contains("changes a quantity"));
+  }
+
+  #[test]
+  fn the_listing_interest_and_parties_are_kept() {
+    for change in [
+      |a: &mut Agreement| a.listing = hash(9),
+      |a: &mut Agreement| a.interest = hash(9),
+      |a: &mut Agreement| a.provider = hash(9),
+      |a: &mut Agreement| a.receiver = hash(9),
+      |a: &mut Agreement| a.listing_type = ListingType::Offer,
+    ] {
+      let mut c = proposal();
+      c.delivery_timeframe = "Flexible".into();
+      change(&mut c);
+      assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("listing, the interest"));
+    }
+  }
+
+  #[test]
+  fn the_medium_and_terms_text_are_kept() {
+    let mut c = proposal();
+    c.delivery_timeframe = "Flexible".into();
+    c.medium = "Pounds".into();
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("medium"));
+    let mut c = proposal();
+    c.delivery_timeframe = "Flexible".into();
+    c.terms = "New words".into();
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("medium"));
+  }
+
+  #[test]
+  fn both_directions_are_kept() {
+    let mut c = proposal();
+    c.delivery_timeframe = "Flexible".into();
+    c.primary.direction = Direction::Receive;
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("both services"));
+    let mut c = proposal();
+    c.delivery_timeframe = "Flexible".into();
+    c.reciprocal.direction = Direction::Provide;
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("both services"));
+  }
+
+  #[test]
+  fn a_quantity_added_where_there_was_none_is_a_change() {
+    let mut original = proposal();
+    original.primary.quantity = None;
+    let mut c = original.clone();
+    c.primary.quantity = Some(Quantity { value: 1.0, unit: "hours".into() });
+    assert_eq!(counter_terms_problem(&c, &original), None);
+  }
+
+  #[test]
+  fn the_counterparty_may_differ_since_the_roles_swap() {
+    let mut c = proposal();
+    c.delivery_timeframe = "Flexible".into();
+    c.counterparty = hash(4);
+    assert_eq!(counter_terms_problem(&c, &proposal()), None);
+  }
+
+  #[test]
+  fn whitespace_in_the_timeframe_is_not_a_change() {
+    let mut c = proposal();
+    c.delivery_timeframe = "  Within 2 weeks ".into();
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("changes a quantity"));
+  }
+
+  #[test]
+  fn both_services_are_kept() {
+    let mut c = proposal();
+    c.delivery_timeframe = "Flexible".into();
+    c.primary.resource_conforms_to = "Plumbing".into();
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("both services"));
+    let mut c = proposal();
+    c.delivery_timeframe = "Flexible".into();
+    c.reciprocal.resource_kind = ResourceKind::Gift;
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("both services"));
   }
 }

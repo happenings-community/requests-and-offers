@@ -4,21 +4,26 @@ import usersStore from '$lib/stores/users.store.svelte';
 import offersStore from '$lib/stores/offers.store.svelte';
 import requestsStore from '$lib/stores/requests.store.svelte';
 import { runEffect } from '$lib/utils/effect';
+import { getUserPictureUrl } from '$lib/utils';
 import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
 import {
   awaitingMe,
   counterpartyOf,
+  inTab,
   roleOf,
-  tabOf,
   turnOf,
   type ExchangeTab
 } from '$lib/utils/exchange-ui';
+import { chainsOf, type ExchangeChain } from '$lib/utils/exchange-chains';
 import type { UIExchange } from '$lib/types/ui';
 
 /**
  * My Exchanges: the list, its tabs, its filters and the names behind the hashes.
  *
  * The page renders what this returns and owns no fetching of its own.
+ *
+ * Everything here works on negotiations (#333): a proposal and its counters
+ * are one negotiation, placed, counted and filtered by its latest proposal.
  */
 
 export type ExchangeSide = 'all' | 'provider' | 'receiver';
@@ -26,7 +31,12 @@ export type ExchangeOrigin = 'all' | 'Offer' | 'Request';
 export type ExchangeTurnFilter = 'all' | 'you' | 'them';
 export type ExchangeOrder = 'latest' | 'oldest';
 
-export const EXCHANGE_TAB_ORDER: readonly ExchangeTab[] = ['proposals', 'active', 'completed'];
+export const EXCHANGE_TAB_ORDER: readonly ExchangeTab[] = [
+  'proposals',
+  'active',
+  'completed',
+  'all'
+];
 
 /**
  * When the exchange last moved: the newest of the agreement and every entry
@@ -52,8 +62,7 @@ export function tabToOpen(
   fallback: ExchangeTab
 ): ExchangeTab {
   return (
-    EXCHANGE_TAB_ORDER.find((t) => list.some((e) => tabOf(e) === t && awaitingMe(e, me))) ??
-    fallback
+    EXCHANGE_TAB_ORDER.find((t) => list.some((e) => inTab(e, t) && awaitingMe(e, me))) ?? fallback
   );
 }
 
@@ -70,7 +79,7 @@ export function applyExchangeFilters(
   }
 ): UIExchange[] {
   return list
-    .filter((e) => tabOf(e) === filters.tab)
+    .filter((e) => inTab(e, filters.tab))
     .filter((e) => filters.side === 'all' || roleOf(e, me) === filters.side)
     .filter((e) => filters.origin === 'all' || e.agreement.listing_type === filters.origin)
     .filter((e) => filters.turn === 'all' || turnOf(e, me) === filters.turn)
@@ -92,19 +101,32 @@ export function useExchangesManagement(options: UseExchangesManagementOptions = 
   let order = $state<ExchangeOrder>('latest');
 
   const names = $state<Record<string, string>>({});
+  const pictures = $state<Record<string, string>>({});
   const titles = $state<Record<string, string>>({});
   let ready = $state(false);
   let error = $state<string | null>(null);
 
   const me = $derived(usersStore.currentUser?.original_action_hash);
-  const exchanges = $derived(exchangesStore.exchanges);
-  const shown = $derived(applyExchangeFilters(exchanges, me, { tab, side, origin, turn, order }));
+  const chains = $derived(chainsOf(exchangesStore.exchanges));
+  /** One per negotiation: its latest proposal. */
+  const latest = $derived(chains.map((c) => c.latest));
+  const shown = $derived(applyExchangeFilters(latest, me, { tab, side, origin, turn, order }));
+  /** The negotiations behind `shown`, in the same order. */
+  const shownChains = $derived.by(() => {
+    const byLatest = new Map(chains.map((c) => [encodeHashToBase64(c.latest.agreement_hash), c]));
+    return shown
+      .map((e) => byLatest.get(encodeHashToBase64(e.agreement_hash)))
+      .filter((c): c is ExchangeChain => !!c);
+  });
 
-  const countIn = (t: ExchangeTab) => exchanges.filter((e) => tabOf(e) === t).length;
+  const countIn = (t: ExchangeTab) => latest.filter((e) => inTab(e, t)).length;
   const myTurnIn = (t: ExchangeTab) =>
-    exchanges.filter((e) => tabOf(e) === t && awaitingMe(e, me)).length;
+    latest.filter((e) => inTab(e, t) && awaitingMe(e, me)).length;
 
   const nameOf = (exchange: UIExchange) => names[encodeHashToBase64(counterpartyOf(exchange, me))];
+  /** The other person's profile picture, or the default avatar. */
+  const pictureOf = (exchange: UIExchange) =>
+    pictures[encodeHashToBase64(counterpartyOf(exchange, me))] ?? '/default_avatar.webp';
   const titleOf = (exchange: UIExchange) => titles[encodeHashToBase64(exchange.agreement.listing)];
 
   /**
@@ -118,6 +140,7 @@ export function useExchangesManagement(options: UseExchangesManagementOptions = 
       if (!(other in names)) {
         const user = await runEffect(usersStore.getUserByActionHash(counterpartyOf(exchange, me)));
         names[other] = user?.name ?? 'A member';
+        if (user) pictures[other] = getUserPictureUrl(user);
       }
       const listing = encodeHashToBase64(exchange.agreement.listing);
       if (!(listing in titles)) {
@@ -134,7 +157,11 @@ export function useExchangesManagement(options: UseExchangesManagementOptions = 
     try {
       await runEffect(useConnectionGuard());
       const list = await runEffect(exchangesStore.loadMyExchanges());
-      tab = tabToOpen(list, me, tab);
+      tab = tabToOpen(
+        chainsOf(list).map((c) => c.latest),
+        me,
+        tab
+      );
       ready = true;
       await resolveLabels(list);
     } catch (e) {
@@ -179,6 +206,9 @@ export function useExchangesManagement(options: UseExchangesManagementOptions = 
     get shown() {
       return shown;
     },
+    get shownChains() {
+      return shownChains;
+    },
     get ready() {
       return ready;
     },
@@ -191,6 +221,7 @@ export function useExchangesManagement(options: UseExchangesManagementOptions = 
     countIn,
     myTurnIn,
     nameOf,
+    pictureOf,
     titleOf,
     lastActivity,
     initialize

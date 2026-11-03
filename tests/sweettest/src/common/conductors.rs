@@ -275,3 +275,67 @@ pub async fn setup_two_agents_with_alice_as_progenitor() -> (
 
     (conductors, cell_alice, cell_bob)
 }
+
+/// Path to the test-only `exchanges_probe` zome, built by `bun run build:zomes`
+/// with the other zomes but never packed into the DNA.
+pub const EXCHANGES_PROBE_WASM_PATH: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../target/wasm32-unknown-unknown/release/exchanges_probe.wasm"
+);
+
+/// The DNA with the test-only `exchanges_probe` coordinator added.
+///
+/// A coordinator zome is not part of the DNA hash, so the integrity zomes and
+/// their validation are exactly the shipped ones; the probe only adds a way to
+/// hand them raw writes.
+pub async fn with_exchanges_probe(mut dna: DnaFile) -> DnaFile {
+    let bytes = std::fs::read(EXCHANGES_PROBE_WASM_PATH).unwrap_or_else(|e| {
+        panic!(
+            "Failed to read the exchanges probe zome at {EXCHANGES_PROBE_WASM_PATH}: {e}\n\
+             Did you run `bun run build:happ`?"
+        )
+    });
+    let wasm = DnaWasm::from(bytes);
+    let wasm_hash = DnaWasmHashed::from_content(wasm.clone()).await.into_hash();
+    let def = CoordinatorZomeDef::from(ZomeDef::Wasm(WasmZomeDef {
+        wasm_hash,
+        dependencies: vec!["exchanges_integrity".into()],
+    }));
+    dna.update_coordinators(vec![("exchanges_probe".into(), def)], vec![wasm])
+        .await
+        .expect("Failed to add the exchanges probe zome");
+    dna
+}
+
+/// `n` conductors with Alice (the first) as progenitor, optionally with the
+/// test-only exchanges probe zome. Returns `(conductors, cells)`, Alice first.
+pub async fn setup_agents_with_alice_as_progenitor(
+    n: usize,
+    probe: bool,
+) -> (SweetConductorBatch, Vec<SweetCell>) {
+    let mut conductors =
+        SweetConductorBatch::from_config_rendezvous(n, SweetConductorConfig::standard()).await;
+    let alice_key = SweetAgents::one(conductors[0].keystore()).await;
+    let mut dna = build_dna(alice_key.to_string()).await;
+    if probe {
+        dna = with_exchanges_probe(dna).await;
+    }
+
+    let mut cells = Vec::with_capacity(n);
+    let alice_app = conductors[0]
+        .setup_app_for_agent("requests_and_offers", alice_key, &[dna.clone()])
+        .await
+        .expect("Failed to install app for Alice");
+    let (alice,) = alice_app.into_tuple();
+    cells.push(alice);
+    for i in 1..n {
+        let app = conductors[i]
+            .setup_app("requests_and_offers", &[dna.clone()])
+            .await
+            .expect("Failed to install app");
+        let (cell,) = app.into_tuple();
+        cells.push(cell);
+    }
+    conductors.exchange_peer_info().await;
+    (conductors, cells)
+}

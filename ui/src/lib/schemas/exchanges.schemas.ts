@@ -133,6 +133,16 @@ export class CreateAgreementInputSchema extends Schema.Class<CreateAgreementInpu
   delivery_timeframe: Schema.String
 }) {}
 
+/** The payload of `counter_agreement` (#333). */
+export class CounterAgreementInputSchema extends Schema.Class<CounterAgreementInputSchema>(
+  'CounterAgreementInput'
+)({
+  agreement: ActionHashSchema,
+  primary_quantity: Schema.NullOr(ExchangeQuantity),
+  reciprocal_quantity: Schema.NullOr(ExchangeQuantity),
+  delivery_timeframe: Schema.String
+}) {}
+
 /** The payload of `respond_to_agreement`. */
 export class RespondToAgreementInputSchema extends Schema.Class<RespondToAgreementInputSchema>(
   'RespondToAgreementInput'
@@ -177,6 +187,7 @@ export class CreateInterestInputSchema extends Schema.Class<CreateInterestInputS
 // ============================================================================
 
 export const decodeCreateAgreementInput = Schema.decodeUnknownEither(CreateAgreementInputSchema);
+export const decodeCounterAgreementInput = Schema.decodeUnknownEither(CounterAgreementInputSchema);
 export const decodeRespondToAgreementInput = Schema.decodeUnknownEither(
   RespondToAgreementInputSchema
 );

@@ -180,6 +180,14 @@ export type AgreementInDHT = {
   medium: string;
   terms: string;
   delivery_timeframe: string;
+  /** Set on a counter-proposal: the proposal it answers and the decline that closed it (#333). */
+  counters: Countering | null;
+};
+
+/** Which proposal a counter answers, and the decline that closed it. */
+export type Countering = {
+  agreement: ActionHash;
+  decline: ActionHash;
 };
 
 export type ResponseInDHT = {
@@ -224,6 +232,16 @@ export type ExchangeReadModel = {
   receiver_review: import('@holochain/client').Record | null;
   cancellation: import('@holochain/client').Record | null;
   status: ExchangeStatus;
+  /** The counter-proposal that answers this one, if any (#333). */
+  countered_by: ActionHash | null;
+};
+
+/** The payload of `counter_agreement`: the proposal and the three things a counter may change. */
+export type CounterAgreementInput = {
+  agreement: ActionHash;
+  primary_quantity: { value: number; unit: string } | null;
+  reciprocal_quantity: { value: number; unit: string } | null;
+  delivery_timeframe: string;
 };
 
 export type CreateAgreementInput = {

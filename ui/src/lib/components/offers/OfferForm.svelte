@@ -425,7 +425,7 @@
     />
     {#if mode === 'edit'}
       <p class="text-sm text-surface-600 dark:text-surface-400">
-        A offer's mediums of exchange can't be changed. For different ones, publish a new offer.
+        An offer's mediums of exchange can't be changed. For different ones, publish a new offer.
       </p>
     {/if}
   </div>

@@ -373,12 +373,6 @@ export const KNOWN_MAPPING_GAPS: { title: string; detail: string; where: string 
     where: 'mapCompletionToEvent, services/mappers/agreement-commitment.mapper.ts'
   },
   {
-    title: 'Agreement mapping lives in memory',
-    detail:
-      'agreementMappings (R&O agreement hash to hREA ids) is held in the store only. After a reload a completion cannot find its Agreement, so its event carries no realizationOf and its Commitment is not marked finished.',
-    where: 'agreementMappings, stores/hrea.store.svelte.ts'
-  },
-  {
     title: 'Cancel, decline and review are not mirrored',
     detail:
       'A cancelled or declined exchange leaves its hREA Agreement and Commitments as they were, and a review writes nothing to hREA.',

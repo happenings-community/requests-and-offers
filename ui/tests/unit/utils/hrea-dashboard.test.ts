@@ -304,14 +304,18 @@ describe('buildExchangeFlow', () => {
 });
 
 describe('KNOWN_MAPPING_GAPS', () => {
-  it('names the three gaps the audit must not hide', () => {
+  it('names the gaps the audit must not hide', () => {
     const text = KNOWN_MAPPING_GAPS.map((g) => `${g.title} ${g.detail}`).join(' ');
     expect(text).toMatch(/Fulfillment/);
     expect(text).toMatch(/realizationOf/);
-    expect(text).toMatch(/agreementMappings/);
-    expect(text).toMatch(/reload/);
     expect(text).toMatch(/[Cc]ancel/);
     expect(text).toMatch(/[Dd]ecline/);
     expect(text).toMatch(/[Rr]eview/);
+  });
+
+  it('no longer lists the agreement mapping lost on reload, which the store now rebuilds from hREA', () => {
+    const text = KNOWN_MAPPING_GAPS.map((g) => `${g.title} ${g.detail}`).join(' ');
+    expect(text).not.toMatch(/agreementMappings/);
+    expect(KNOWN_MAPPING_GAPS).toHaveLength(2);
   });
 });

@@ -20,6 +20,46 @@ export type ResolvedSpecs = {
   reciprocalSpecId?: string;
 };
 
+/** The hREA ids an accepted R&O agreement was mirrored as. */
+export type HreaAgreementRefs = {
+  agreementId: string;
+  primaryCommitmentId: string;
+  primaryRevisionId?: string;
+  reciprocalCommitmentId?: string;
+  reciprocalRevisionId?: string;
+};
+
+type AgreementRecord = { id: string; note?: string | null };
+type CommitmentRecord = { id: string; revisionId?: string; provider: string; clauseOf?: string };
+
+/**
+ * Rebuilds an R&O agreement's hREA ids from hREA's own records, for when the
+ * in-memory mapping is gone (a reload). The Agreement is the one whose note is
+ * the R&O hash; its Commitments are its clauses, the primary one provided by
+ * the provider and the reciprocal one by the receiver (mapAgreementToHrea).
+ * Null when hREA holds no such Agreement, or no primary Commitment for it.
+ */
+export function agreementRefsFromHrea(
+  ref: string,
+  parties: ResolvedParties,
+  agreements: ReadonlyArray<AgreementRecord>,
+  commitments: ReadonlyArray<CommitmentRecord>
+): HreaAgreementRefs | null {
+  const agreement = agreements.find((a) => a.note === ref);
+  if (!agreement) return null;
+  const clauses = commitments.filter((c) => c.clauseOf === agreement.id);
+  const primary = clauses.find((c) => c.provider === parties.providerAgentId);
+  if (!primary) return null;
+  const reciprocal = clauses.find((c) => c.provider === parties.receiverAgentId);
+  return {
+    agreementId: agreement.id,
+    primaryCommitmentId: primary.id,
+    primaryRevisionId: primary.revisionId,
+    reciprocalCommitmentId: reciprocal?.id,
+    reciprocalRevisionId: reciprocal?.revisionId
+  };
+}
+
 export type MappedAgreement = {
   agreement: AgreementInput;
   primary: CommitmentInput;

@@ -9,6 +9,8 @@ import { storeEventBus } from '$lib/stores/storeEvents';
 import usersStore from '$lib/stores/users.store.svelte';
 import type { UIExchange } from '$lib/types/ui';
 import {
+  agreementRefsFromHrea,
+  type HreaAgreementRefs,
   mapAgreementToHrea,
   mapCompletionToEvent,
   rnoAgreementRef,
@@ -39,13 +41,7 @@ import {
   createProposalFromOffer as mapOfferToProposal,
   validateOfferMappingRequirements
 } from '$lib/services/mappers/offer-proposal.mapper';
-export type HreaAgreementRefs = {
-  agreementId: string;
-  primaryCommitmentId: string;
-  primaryRevisionId?: string;
-  reciprocalCommitmentId?: string;
-  reciprocalRevisionId?: string;
-};
+export type { HreaAgreementRefs };
 
 // ============================================================================
 // CONSTANTS
@@ -1992,7 +1988,38 @@ export const createHreaStore = (): E.Effect<
       reciprocalSpecId: specIdByName(exchange.agreement.medium)
     });
 
-    /** One hREA Agreement and two Commitments for an accepted R&O agreement. Idempotent per R&O hash. */
+    /**
+     * The hREA ids an R&O agreement was mirrored as: the in-memory mapping
+     * first, then hREA's own Agreement and Commitments, so a reload loses
+     * nothing. What hREA returns is cached in the mapping.
+     *
+     * The cached revision ids are those at mirror time: once updateCommitment
+     * marks a Commitment finished, its revision moves on and the cached one is
+     * stale. Harmless while each side finishes its Commitment once; a second
+     * update would need the fresh revision read back first.
+     *
+     * A failed hREA read fails the lookup: on acceptance that fails the mirror
+     * rather than risk a duplicate Agreement in an append-only ledger.
+     */
+    const findAgreementRefs = (
+      ref: string,
+      parties: ResolvedParties
+    ): E.Effect<HreaAgreementRefs | null, HreaError> => {
+      const known = state.agreementMappings.get(ref);
+      if (known) return E.succeed(known);
+      return pipe(
+        E.all([hreaService.getAgreements(), hreaService.getCommitments()], {
+          concurrency: 'unbounded'
+        }),
+        E.map(([agreements, commitments]) => {
+          const refs = agreementRefsFromHrea(ref, parties, agreements, commitments);
+          if (refs) state.agreementMappings.set(ref, refs);
+          return refs;
+        })
+      );
+    };
+
+    /** One hREA Agreement and two Commitments for an accepted R&O agreement. Idempotent per R&O hash, across reloads. */
     const createAgreementFromExchange = (exchange: UIExchange): E.Effect<HreaAgreementRefs | null, HreaError> => {
       const ref = rnoAgreementRef(exchange);
       const existing = state.agreementMappings.get(ref);
@@ -2022,6 +2049,16 @@ export const createHreaStore = (): E.Effect<
       if (!mapped) return E.succeed(null);
 
       return pipe(
+        findAgreementRefs(ref, parties),
+        E.flatMap((found) => (found ? E.succeed(found) : createMirror(ref, mapped)))
+      );
+    };
+
+    const createMirror = (
+      ref: string,
+      mapped: NonNullable<ReturnType<typeof mapAgreementToHrea>>
+    ): E.Effect<HreaAgreementRefs, HreaError> =>
+      pipe(
         hreaService.createAgreement(mapped.agreement),
         E.flatMap((agreement) =>
           pipe(
@@ -2055,7 +2092,6 @@ export const createHreaStore = (): E.Effect<
           return refs;
         })
       );
-    };
 
     /** The completing party's EconomicEvent, and its Commitment marked finished. */
     const recordCompletionEvent = (exchange: UIExchange): E.Effect<EconomicEvent | null, HreaError> => {
@@ -2064,21 +2100,27 @@ export const createHreaStore = (): E.Effect<
       const side = me === exchange.agreement.provider.toString() ? 'provider' : 'receiver';
       const parties = resolveParties(exchange);
       if (!parties) return E.succeed(null);
-      const refs = state.agreementMappings.get(rnoAgreementRef(exchange));
       const done = side === 'provider' ? exchange.provider_done : exchange.receiver_done;
       const at = done?.created_at ?? Math.floor(Date.now() / 1000);
-      const input = mapCompletionToEvent(exchange, side, parties, resolveSpecs(exchange), refs?.agreementId, at);
-      if (!input) return E.succeed(null);
 
-      const revisionId = side === 'provider' ? refs?.primaryRevisionId : refs?.reciprocalRevisionId;
       return pipe(
-        hreaService.createEconomicEvent(input),
-        E.tap((event) => E.sync(() => console.log('hREA Store: recorded completion event', event.id))),
-        E.tap(() =>
-          revisionId
-            ? pipe(hreaService.updateCommitment({ revisionId, finished: true }), E.ignore)
-            : E.void
-        )
+        // A failed lookup still records the event, only without its Agreement.
+        findAgreementRefs(rnoAgreementRef(exchange), parties),
+        E.orElseSucceed(() => null),
+        E.flatMap((refs) => {
+          const input = mapCompletionToEvent(exchange, side, parties, resolveSpecs(exchange), refs?.agreementId, at);
+          if (!input) return E.succeed(null);
+          const revisionId = side === 'provider' ? refs?.primaryRevisionId : refs?.reciprocalRevisionId;
+          return pipe(
+            hreaService.createEconomicEvent(input),
+            E.tap((event) => E.sync(() => console.log('hREA Store: recorded completion event', event.id))),
+            E.tap(() =>
+              revisionId
+                ? pipe(hreaService.updateCommitment({ revisionId, finished: true }), E.ignore)
+                : E.void
+            )
+          );
+        })
       );
     };
 

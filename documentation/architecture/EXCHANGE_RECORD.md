@@ -154,6 +154,7 @@ When #90 lands, the mapping runs over existing agreements and new ones are writt
   - that nothing is updated.
 
   hREA's zomes do not enforce R&O's rules, and under the module contract (#249) the core has to work with hREA absent. So hREA describes this record in Valueflows terms, and does not replace it. This retires an earlier note on #250 (11 September), which spoke of retiring the interim record once hREA carried the lifecycle.
+- **An agreement's mirror is found again after a reload.** The store's map from an R&O agreement hash to its hREA Agreement and Commitments is held in memory, so on a miss it reads hREA itself: the Agreement whose note is the R&O hash, and its Commitments by `clauseOf`, the primary one provided by the provider (`agreementRefsFromHrea`). A completion after a reload therefore still names its Agreement (`realizationOf`) and marks its Commitment finished, and an acceptance mirrored before a reload is not mirrored twice.
 - **Still open, and not a migration:** writing the hREA mirror later for a record whose mirror write failed (reconcile-at-boot, named in #255). It has a known hazard. The mapping tables are held in memory only, so reconciling before the note-derived mappings load would mint duplicate proposals into an append-only ledger. It stays its own piece of work.
 
 ## 10. Screens

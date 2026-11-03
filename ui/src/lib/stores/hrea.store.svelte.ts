@@ -16,7 +16,8 @@ import {
   rnoAgreementRef,
   type ResolvedParties,
   type ResolvedSpecs,
-  setUnitRegistry
+  setUnitRegistry,
+  unitRegistryFrom
 } from '$lib/services/mappers/agreement-commitment.mapper';
 import { HreaError } from '$lib/errors';
 import { proposalIntentLinks } from '$lib/services/mappers/proposal-links';
@@ -1439,11 +1440,9 @@ export const createHreaStore = (): E.Effect<
               (seed) => hreaService.createUnit(seed)
             ),
             E.map((created) => {
-              const registry: Record<string, string> = {};
-              for (const unit of [...existing, ...created]) {
-                // Dedupe on read: first id per label wins.
-                if (!registry[unit.label]) registry[unit.label] = unit.id;
-              }
+              // A label seeded by two members at once is held twice; every
+              // member picks the same Unit for it (#441).
+              const registry = unitRegistryFrom([...existing, ...created]);
               setUnitRegistry(registry);
               console.log(
                 `hREA Store: unit registry ready - ${Object.keys(registry).length} labels`
@@ -1452,6 +1451,37 @@ export const createHreaStore = (): E.Effect<
           )
         )
       );
+
+    /**
+     * Rebuilds the registry from the Units visible now. The startup registry is
+     * built before gossip, from this member's own seeds; re-reading before a
+     * write that names a Unit lets every member converge on the same one (#441).
+     * A failed or empty read keeps the registry as it was.
+     */
+    const refreshUnitRegistry = (): E.Effect<void> =>
+      pipe(
+        hreaService.getUnits(),
+        E.tap((units) =>
+          E.sync(() => {
+            if (units.length > 0) setUnitRegistry(unitRegistryFrom(units));
+          })
+        ),
+        E.asVoid,
+        E.catchAll((error) =>
+          E.sync(() =>
+            console.warn('hREA Store: unit registry refresh failed, keeping the last one', error)
+          )
+        )
+      );
+
+    /** Runs a write that may name a Unit after the registry has caught up with the network. */
+    const withFreshUnits =
+      <A>(write: (exchange: UIExchange) => E.Effect<A, HreaError>) =>
+      (exchange: UIExchange): E.Effect<A, HreaError> =>
+        pipe(
+          refreshUnitRegistry(),
+          E.flatMap(() => write(exchange))
+        );
 
     const createRetroactiveMappings = (
       users: UIUser[],
@@ -2552,8 +2582,8 @@ export const createHreaStore = (): E.Effect<
       deleteResourceSpecificationForMediumOfExchange,
       createProposalFromRequest,
       createProposalFromOffer,
-      createAgreementFromExchange,
-      recordCompletionEvent,
+      withFreshUnits(createAgreementFromExchange),
+      withFreshUnits(recordCompletionEvent),
       deleteProposalForRequest,
       deleteProposalForOffer,
       handleRequestUpdatedEffect,
@@ -2659,8 +2689,8 @@ export const createHreaStore = (): E.Effect<
       createRetroactiveMediumOfExchangeResourceSpecMappings,
       createProposalFromRequest,
       createProposalFromOffer,
-      createAgreementFromExchange,
-      recordCompletionEvent,
+      createAgreementFromExchange: withFreshUnits(createAgreementFromExchange),
+      recordCompletionEvent: withFreshUnits(recordCompletionEvent),
       deleteProposalForRequest,
       deleteProposalForOffer,
       createRetroactiveProposalMappings,

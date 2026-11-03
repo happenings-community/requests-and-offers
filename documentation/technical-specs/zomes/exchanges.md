@@ -35,7 +35,10 @@ pub struct Agreement {
   pub medium: String,
   pub terms: String,
   pub delivery_timeframe: String,
+  pub counters: Option<Countering>, // set on a counter-proposal (#333)
 }
+
+pub struct Countering { pub agreement: ActionHash, pub decline: ActionHash } // the proposal answered, and its decline
 
 pub struct Response { pub agreement: ActionHash, pub accepted: bool, pub note: String }
 pub struct Completion { pub agreement: ActionHash }
@@ -52,8 +55,8 @@ Validation may read only what the entry names, through `must_get_valid_record`; 
 | Entry | Who may write it | What must hold |
 |---|---|---|
 | `Interest` | the member the `user` hash resolves to | the listing is a Create; the interest names its own author's user |
-| `Agreement` | either party | provider, receiver and counterparty agree with the listing type and its parties; primary is `Provide` + `Service`; reciprocal is `Receive`; both terms pass the kind rule; `medium` is not blank |
-| `Response` | the agreement's `counterparty` only | the agreement is a Create |
+| `Agreement` | either party | provider, receiver and counterparty agree with the listing type and its parties; primary is `Provide` + `Service`; reciprocal is `Receive`; both terms pass the kind rule; `medium` is not blank; when `counters` is set, the author is the countered proposal's counterparty, the previous action is their declining Response to it, and only quantities and the timeframe differ |
+| `Response` | the agreement's `counterparty` only | the agreement is a Create; the author has not already answered it (read on their own chain) |
 | `Completion` | either party | the agreement is a Create |
 | `Review` | either party | `rating` is 0 to 5 (a `u8`, so negatives cannot be expressed) |
 | `Cancellation` | either party | the agreement is a Create |
@@ -74,6 +77,7 @@ Validation may read only what the entry names, through `must_get_valid_record`; 
 | `AgreementCompletions` | agreement Create | `Completion` | one per party |
 | `AgreementReviews` | agreement Create | `Review` | one per party |
 | `AgreementCancellations` | agreement Create | `Cancellation` | the cancellation, if any |
+| `AgreementCounters` | agreement Create | counter `Agreement` | the next round; written by the counter's author |
 
 ## 3. Coordinator Zome (`exchanges_coordinator`)
 
@@ -103,10 +107,11 @@ A cancellation written before any response reads as *withdrawn* rather than *can
 | `get_my_interests` | `()` | `Vec<Record>` | |
 | `create_agreement` | `CreateAgreementInput` | `Record` | parties derived here and re-derived in validation |
 | `respond_to_agreement` | `RespondInput` | `Record` | the counterparty accepts or declines |
+| `counter_agreement` | `CounterAgreementInput` | `Record` | declines the proposal and writes the counter in one call; counterparty only, while unanswered and not cancelled |
 | `complete_agreement` | `ActionHash` | `Record` | one completion per party |
 | `review_agreement` | `ReviewInput` | `Record` | |
 | `cancel_agreement` | `CancelInput` | `Record` | |
-| `get_exchange` | `ActionHash` | `Exchange` | the read model: agreement, children, derived status |
+| `get_exchange` | `ActionHash` | `Exchange` | the read model: agreement, children, derived status, and `countered_by` when a counter answers it |
 | `get_my_exchanges` | `()` | `Vec<Exchange>` | both roles, through `UserAgreements` |
 | `get_exchanges_for_listing` | `ActionHash` | `Vec<Exchange>` | |
 

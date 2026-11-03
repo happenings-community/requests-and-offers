@@ -71,6 +71,7 @@ Party names, locations and avatars are read from profiles at display time. The e
 | AgreementCompletions | Agreement | Completion |
 | AgreementReviews | Agreement | Review |
 | AgreementCancellations | Agreement | Cancellation |
+| AgreementCounters | Agreement | the counter Agreement that answers it (#333) |
 
 A dashboard is `UserAgreements` from the viewer's own hash. A listing's interested members are `ListingInterests` from the listing. Everything about one exchange is the agreement and its four child link types.
 
@@ -110,7 +111,7 @@ stateDiagram-v2
     Reviewed --> [*]
 ```
 
-Every arrow is one append-only entry; no state is stored. Withdrawn and Cancelled are the same `Cancellation` entry, told apart by whether a `Response` exists. Counter is a `Response` declined followed by a new `Agreement` on the same `Interest`. Whose turn it is falls out of the same reading: the counterparty at Proposed, whoever has not marked their part done at Agreed and at OneSideDone, whoever has not reviewed at Complete.
+Every arrow is one append-only entry; no state is stored. Withdrawn and Cancelled are the same `Cancellation` entry, told apart by whether a `Response` exists. A counter is a declining `Response` followed, as the very next action on the same chain, by a new `Agreement` whose `counters` names the proposal it answers and that decline; an `AgreementCounters` link from the answered proposal lets the rounds be read forwards (#333). Whose turn it is falls out of the same reading: the counterparty at Proposed, whoever has not marked their part done at Agreed and at OneSideDone, whoever has not reviewed at Complete.
 
 ## 7. Integrity rules
 
@@ -120,6 +121,7 @@ Routed in the integrity zome's `validate`, every op, from the first commit, per 
 - A Response's author is the Agreement's counterparty.
 - A Completion, Review or Cancellation's author is the Agreement's provider or receiver.
 - One Response per Agreement. One Completion and one Review per party per Agreement.
+- A counter (an Agreement with `counters` set) is written by the countered proposal's counterparty, as the next action after their declining Response to it. It keeps the listing, the interest, the parties, the medium, the terms text and both services, and changes only a quantity or the timeframe. An `AgreementCounters` link is written by the counter's author, from the proposal the counter names (#333).
 - Every listing, interest and agreement hash an entry refers to is a Create, and every link base is a Create.
 
 A wrong write fails validation on every peer and never lands. The coordinator guards below are the same rules applied earlier, for a better error; the integrity rules are what make them true.

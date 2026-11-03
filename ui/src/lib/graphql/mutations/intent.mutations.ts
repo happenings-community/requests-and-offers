@@ -36,28 +36,6 @@ export const CREATE_INTENT_MUTATION = gql`
   }
 `;
 
-// GraphQL mutation for linking an Intent to a Proposal (publishedIn relationship)
-export const PROPOSE_INTENT_MUTATION = gql`
-  mutation ProposeIntent($publishedIn: ID!, $publishes: ID!, $reciprocal: Boolean) {
-    proposeIntent(publishedIn: $publishedIn, publishes: $publishes, reciprocal: $reciprocal) {
-      proposedIntent {
-        id
-        reciprocal
-        publishedIn {
-          id
-          name
-        }
-        publishes {
-          id
-          action {
-            id
-          }
-        }
-      }
-    }
-  }
-`;
-
 // GraphQL mutation for updating an Intent in hREA
 export const UPDATE_INTENT_MUTATION = gql`
   mutation UpdateIntent($intent: IntentUpdateParams!) {

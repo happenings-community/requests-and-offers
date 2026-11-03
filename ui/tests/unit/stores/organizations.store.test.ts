@@ -29,8 +29,8 @@ import { OrganizationsServiceTag } from '$lib/services/zomes/organizations.servi
  * The store's createUIEntityFromRecord uses msgpack decode, so entries must be encoded.
  */
 const createMockRecord = (
-  org: OrganizationInDHT & { original_action_hash?: any },
-  actionHash: any
+  org: OrganizationInDHT & { original_action_hash?: unknown },
+  actionHash: Uint8Array
 ): HcRecord => {
   // Only encode the DHT fields (not UI-only fields like original_action_hash, status, etc.)
   const dhtEntry: OrganizationInDHT = {
@@ -54,7 +54,7 @@ const createMockRecord = (
         entry: encode(dhtEntry)
       }
     }
-  } as any;
+  } as unknown as HcRecord;
 };
 
 // Mock the holochain client service
@@ -140,7 +140,7 @@ describe('OrganizationsStore', () => {
       const mockRecord = createMockRecord(testOrganizations.main, actionHash);
 
       vi.mocked(mockOrganizationService.getAcceptedOrganizationsLinks).mockReturnValue(
-        E.succeed(mockLinks as any)
+        E.succeed(mockLinks as never)
       );
 
       vi.mocked(mockOrganizationService.getLatestOrganizationRecord).mockReturnValue(
@@ -212,14 +212,14 @@ describe('OrganizationsStore', () => {
       };
 
       vi.mocked(mockOrganizationService.getLatestOrganizationRecord).mockReturnValue(
-        E.succeed(updateRecord as any)
+        E.succeed(updateRecord as never)
       );
 
       // Members are anchored to originalHash — only return them when called with originalHash
       vi.mocked(mockOrganizationService.getOrganizationMembersLinks).mockImplementation(
         (hash) =>
           new Uint8Array(hash).every((b, i) => b === originalHash[i])
-            ? E.succeed([{ target: memberHash }] as any)
+            ? E.succeed([{ target: memberHash }] as never)
             : E.succeed([])
       );
 
@@ -231,7 +231,7 @@ describe('OrganizationsStore', () => {
       );
 
       // Call with the UPDATE hash (simulating a URL with the update hash)
-      const result = await E.runPromise(store.getLatestOrganization(updateHash as any));
+      const result = await E.runPromise(store.getLatestOrganization(updateHash as never));
 
       expect(result).not.toBeNull();
       // original_action_hash must be the CREATION hash, not the update hash
@@ -286,7 +286,7 @@ describe('OrganizationsStore', () => {
             entry: newOrg
           }
         }
-      } as any;
+      } as unknown as HcRecord;
 
       vi.mocked(mockOrganizationService.createOrganization).mockReturnValue(E.succeed(mockRecord));
 

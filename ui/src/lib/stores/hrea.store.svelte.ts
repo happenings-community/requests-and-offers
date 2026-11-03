@@ -30,6 +30,7 @@ import {
 } from '$lib/utils/store-helpers';
 import type { Agent, ResourceSpecification, Proposal, EconomicEvent, Intent, Agreement, Commitment } from '$lib/types/hrea';
 import type { ApolloClient, NormalizedCacheObject } from '@apollo/client/core';
+import type { HreaSnapshot } from '$lib/utils/hrea-dashboard';
 import type { UIUser, UIOrganization, UIServiceType, UIRequest, UIOffer } from '$lib/types/ui';
 import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
 import { formatUserName } from '$lib/schemas/users.schemas';
@@ -163,6 +164,8 @@ export type HreaStore = {
   readonly createProposalFromOffer: (offer: UIOffer) => E.Effect<Proposal | null, HreaError>;
   readonly createAgreementFromExchange: (exchange: UIExchange) => E.Effect<HreaAgreementRefs | null, HreaError>;
   readonly recordCompletionEvent: (exchange: UIExchange) => E.Effect<EconomicEvent | null, HreaError>;
+  /** Every VF type read straight from hREA, for the admin audit. Does not touch store state. */
+  readonly loadAuditSnapshot: () => E.Effect<HreaSnapshot, HreaError>;
   readonly deleteProposalForRequest: (requestHash: string) => E.Effect<boolean, HreaError>;
   readonly deleteProposalForOffer: (offerHash: string) => E.Effect<boolean, HreaError>;
   readonly createRetroactiveProposalMappings: (
@@ -2160,6 +2163,25 @@ export const createHreaStore = (): E.Effect<
       );
     };
 
+    const loadAuditSnapshot = (): E.Effect<HreaSnapshot, HreaError> =>
+      withInitialization(
+        () =>
+          E.all(
+            {
+              agents: hreaService.getAgents(),
+              specs: hreaService.getResourceSpecifications(),
+              proposals: hreaService.getProposalsWithIntents(),
+              intents: hreaService.getIntents(),
+              agreements: hreaService.getAgreements(),
+              commitments: hreaService.getCommitments(),
+              events: hreaService.getEconomicEvents()
+            },
+            { concurrency: 'unbounded' }
+          ),
+        state.apolloClient,
+        initialize
+      );
+
     const createProposalFromOffer = (offer: UIOffer): E.Effect<Proposal | null, HreaError> => {
       const offerHash = offer.original_action_hash?.toString();
 
@@ -2700,6 +2722,7 @@ export const createHreaStore = (): E.Effect<
       createProposalFromOffer,
       createAgreementFromExchange: withFreshUnits(createAgreementFromExchange),
       recordCompletionEvent: withFreshUnits(recordCompletionEvent),
+      loadAuditSnapshot,
       deleteProposalForRequest,
       deleteProposalForOffer,
       createRetroactiveProposalMappings,

@@ -386,7 +386,8 @@ ui/src/
         ├── mediums-of-exchange/ # Admin payment method management
         │   ├── create/      # Create payment method
         │   └── [id]/edit/   # Edit payment method
-        └── hrea-test/       # hREA integration testing
+        ├── hrea/            # hREA · ValueFlows: audit dashboard + test managers tab
+        └── hrea-test/       # Redirects (308) to /admin/hrea?tab=test
 ```
 
 ### **Route Architecture & Navigation**
@@ -438,7 +439,7 @@ The application implements a **dual-interface routing system** with clear separa
 - **Moderation** (`/admin/service-types/moderate/`): Review and approve user suggestions
 - **Status History** (`/admin/{domain}/status-history/`): Track entity status changes
 - **Administrator Management** (`/admin/administrators/`): Role assignment and permissions
-- **Testing Interface** (`/admin/hrea-test/`): hREA integration validation
+- **hREA · ValueFlows** (`/admin/hrea/`): read-only dashboard that reads every VF type from hREA, puts R&O counts beside hREA's in a mapping ledger, draws one exchange's flow and lists the known mapping gaps (`HreaDashboard.svelte`, `useHreaDashboard`, `utils/hrea-dashboard.ts`, `graphql/queries/agreement.queries.ts`); its second tab holds the entity test managers. The old `/admin/hrea-test/` redirects to that tab.
 
 ### **State Management Pattern**
 

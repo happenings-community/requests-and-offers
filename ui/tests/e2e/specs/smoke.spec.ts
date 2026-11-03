@@ -50,7 +50,9 @@ const SMOKE_ROUTES: SmokeRoute[] = [
   { path: '/organizations', heading: 'Organizations' },
   { path: '/users', heading: 'Users' },
   { path: '/admin', heading: 'Admin Dashboard' },
-  { path: '/admin/hrea-test', heading: 'hREA Test Interface' }
+  { path: '/admin/hrea', heading: 'hREA · ValueFlows' },
+  // The old address redirects to the test managers tab of the same page.
+  { path: '/admin/hrea-test', heading: 'hREA · ValueFlows' }
 ];
 
 /** Sentinel for the poll below: the route rendered what it should. */

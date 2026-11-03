@@ -48,17 +48,37 @@ Two stacks can run side by side as long as their `UI_PORT` differ.
 
 ## The inspector
 
-The inspector shows what the conductor holds, member by member:
+The inspector is a graph of what the conductor holds. Every `bun start:web` serves it and prints its URL beside the member URLs, and so does every `bun start` (below). Three panes:
 
-- each member's app id, agent key and status;
-- each of its cells (`requests_and_offers` and `hrea`) by DNA hash;
-- per cell, the source chain: its length, the ops it has published, and its latest actions with their type, entry type and time;
-- per cell, the DHT state from `dumpFullState`: ops integrated against those still in validation or integration limbo, and the integrated ops by kind, plus the peers the cell knows;
-- for the whole conductor, the transport and its connections from `dumpNetworkStats`.
+- **Network** (left, top): each member's cells as nodes, purple for R&O and blue for hREA, with an edge where a cell holds another member's cell in its peer store. The header gives the transport's open connections, from `dumpNetworkStats`: members in one conductor reach each other without one, so `0 open connections` is normal on `bun start:web`. Click a cell to select that DNA and that member's source chain.
+- **Entry graph** (centre): one node per record of the selected DNA, coloured by entry type, labelled by type and a readable field (`title`, `name`, `nickname`, `note`...). Edges are hash-valued fields (solid, labelled: `clause_of`, `fulfills`, `publishes`...) and links (dashed, named by link type). An update joins its original as a revision (`vN`, a thick border); a deleted record or link is greyed. A type with more than six records shows as one counted node (`ServiceType ×13`) until clicked open; its chip's ⊟ groups it again.
+- **Source chain** (left, bottom) and **detail** (right): the selected member's actions, newest first, each selecting the record it made; the selected record's decoded entry, action header, hash with a copy button, author, revisions and validation state (integrated, validation limbo, integration limbo).
 
-It refreshes every five seconds, or on its Refresh button. It is read-only: it lists and dumps, and never grants, installs or changes anything.
+Working it:
 
-It is a dev-only surface. The launcher serves it from Node on `127.0.0.1` (`scripts/inspector.html` and `scripts/inspector.mts`), reading through the admin connection it already holds. Nothing of it is in the UI build or the desktop package.
+| Do | Gets |
+| --- | --- |
+| Click a type chip | that type off the graph, the layout recomputed without it |
+| Hide unlinked | the records nothing links to or from, gone |
+| Search a hash or text | matches highlighted, the view fitted to them; Enter selects the first |
+| Double-click a record | it and its neighbours, the rest dimmed, a breadcrumb back |
+| ← → | the next or previous neighbour of the record you started from |
+| Enter, Backspace | focus the selected record; one step back |
+| Esc, F, Z | clear focus and selection; fit the graph; zoom to the selection |
+
+It refreshes every three seconds (Live), keeping the layout and selection; a new record fades in beside what it points at. It is read-only: it lists and dumps through the admin API, and never grants, installs or changes anything.
+
+It is a dev-only surface, on `127.0.0.1`. `scripts/inspector-server.mts` serves `scripts/inspector.html`, the pinned Cytoscape from `node_modules` (so it works offline), and the view logic in `scripts/inspector-view.mts`, its types stripped by Node. Nothing of it is in the UI build or the desktop package.
+
+### With `bun start`
+
+`bun start` runs one hc-spin conductor per member. Its `network` script picks one free admin port per member (`scripts/free-ports.mts`), hands them to hc-spin with `--force-admin-ports`, and runs `scripts/inspector-serve.mts` beside it, which reads every conductor and prints:
+
+```text
+[inspector] http://localhost:<port>/  (conductors on admin ports <a>, <b>)
+```
+
+Members show as `requests_and_offers#1`, `#2`..., since hc-spin installs the same app id in each conductor. `INSPECTOR_PORT` fixes the page's port; `WEB_OPEN=0` stops it opening in the browser. The inspector starts before the conductors and connects to each one on the page's first request after it is up.
 
 It replaces `hc playground`, which `bun start` used to launch and the flake used to pin. That playground could not show this conductor's data:
 
@@ -82,6 +102,6 @@ Found on the first two-member run (#419):
 
 ## Notes
 
-- The launcher (`scripts/start-web.mts`) runs under Node, not Bun: `@holochain/client`'s `AdminWebsocket` handshake fails under Bun with "Expected 101" and succeeds under Node. Its pure parts are in `scripts/web-dev.mts` and `scripts/inspector.mts`, tested by `bun test scripts/tests`. The inspector's tests read a capture from a real 0.7 conductor (`scripts/tests/fixtures/inspector-dump.json`).
+- The launcher (`scripts/start-web.mts`) runs under Node, not Bun: `@holochain/client`'s `AdminWebsocket` handshake fails under Bun with "Expected 101" and succeeds under Node. Its pure parts are in `scripts/web-dev.mts`, `scripts/inspector.mts`, `scripts/inspector-graph.mts` and `scripts/inspector-view.mts`, tested by `bun test scripts/tests`. The inspector's tests read captures from a real 0.7 conductor (`scripts/tests/fixtures/`), one of them taken after a completed exchange.
 - Data does not survive a restart: every run is a new sandbox and a new network seed. That is the point for development; use `bun start` or the desktop app to keep data.
 - Set `WEB_VERBOSE=1` to see the conductor's log.

@@ -19,7 +19,7 @@ nix develop                    # Required for zomes - enters Nix shell (Holochai
 bun install                    # Install dependencies
 
 # Dev servers
-bun start                      # Development mode (2 agents)
+bun start                      # Development mode (2 agents), plus the conductor inspector page (INSPECTOR_PORT, WEB_OPEN=0)
 AGENTS=3 bun start             # Custom number of agents
 bun start:tauri                # Desktop app with Tauri
 bun start:web                  # Browser tabs, one URL per member, Vite HMR, plus a conductor inspector page (AGENTS=n, WEB_OPEN=0); see documentation/guides/web-dev-mode.md

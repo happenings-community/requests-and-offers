@@ -1,9 +1,8 @@
 /**
  * Names for the entry and link types the inspector shows. An action only
  * carries `{ zome_index, entry_index }` or `{ zome_index, link_type }`, and no
- * admin call returns the names, so they come from source: R&O's own integrity
- * zomes, read from this repository, and hREA's from the release R&O pins
- * (`happ-0.5.0-beta.1`, scripts/download-hrea.ts).
+ * admin call returns the names, so the app's adapter supplies them
+ * (scripts/inspector-adapter.mts); a zome it does not know shows by index.
  */
 
 /** Variant names of `pub enum <name> { ... }` in a Rust source, in declaration order. */
@@ -18,51 +17,15 @@ export function enumVariants(source: string, name: 'EntryTypes' | 'LinkTypes'): 
     .filter((v): v is string => Boolean(v));
 }
 
-/** hREA happ-0.5.0-beta.1, dnas/hrea/zomes/integrity/hrea/src/lib.rs. */
-export const HREA_ENTRY_TYPES = [
-  'Agent', 'Agreement', 'ProcessSpecification', 'Plan', 'Process', 'Unit', 'ResourceSpecification',
-  'RecipeProcess', 'RecipeExchange', 'Proposal', 'RecipeFlow', 'Commitment', 'Intent',
-  'EconomicResource', 'EconomicEvent', 'Claim', 'SpatialThing', 'AgreementBundle'
-];
-
-export const HREA_LINK_TYPES = [
-  'ReaAgentUpdates', 'AllAgents', 'ReaAgreementUpdates', 'AllAgreements', 'ReaProcessSpecificationUpdates',
-  'AllProcessSpecifications', 'ReaPlanUpdates', 'AllPlans', 'ReaProcessSpecificationToReaProcesses',
-  'ReaPlanToReaProcesses', 'ReaProcessUpdates', 'AllProcesses', 'ReaUnitUpdates', 'AllUnits',
-  'ReaResourceSpecificationUpdates', 'AllResourceSpecifications', 'ReaRecipeProcessUpdates', 'AllRecipeProcesses',
-  'ReaRecipeExchangeUpdates', 'AllRecipeExchanges', 'ReaProposalUpdates', 'AllProposals',
-  'ReaRecipeExchangeToReaRecipeFlows', 'ReaRecipeExchangeToReaRecipeFlowsReciprocal',
-  'ReaRecipeProcessToReaRecipeFlowInputs', 'ReaRecipeProcessToReaRecipeFlowOutputs', 'ReaRecipeFlowUpdates',
-  'ReaProcessToInputs', 'ReaProcessToOutputs', 'ProviderToReaCommitments', 'ReceiverToReaCommitments',
-  'ReaAgreementToReaCommitments', 'ReaPlanToReaCommitments', 'ReaPlanToIndependentDemands', 'ReaCommitmentUpdates',
-  'ReaProcessToReaIntentInputs', 'ReaProcessToReaIntentOutputs', 'ProviderToReaIntents', 'ReceiverToReaIntents',
-  'ReaIntentUpdates', 'ReaEconomicResourceToReaEconomicResources', 'ReaEconomicResourceUpdates',
-  'AllEconomicResources', 'ReaProcessToReaEconomicEventInputs', 'ReaProcessToReaEconomicEventOutputs',
-  'ProviderToReaEconomicEvents', 'ReceiverToReaEconomicEvents', 'ReaAgreementToReaEconomicEvents',
-  'ReaEconomicEventToReaEconomicEvents', 'ReaEconomicEventUpdates', 'AllEconomicEvents',
-  'ReaEconomicResourceToReaEconomicEvents', 'CommitmentToFulfillingEconomicEvents', 'IntentToSatisfyingCommitments',
-  'IntentToSatisfyingEconomicEvents', 'ReaClaimUpdates', 'AllClaims', 'ReaSpatialThingUpdates', 'AllSpatialThings',
-  'ReaAgreementBundleUpdates', 'AllAgreementBundles', 'AllCommitments', 'AllIntents', 'AllRecipeFlows',
-  'ClaimToSettlingEvents'
-];
-
 /** Per zome index: its entry and link type names. */
 export type ZomeTypes = Array<{ zome: string; entries: string[]; links: string[] }>;
 
-/**
- * The types of a DNA's integrity zomes, in zome-index order. `readSource`
- * returns a zome's lib.rs, or null when it is not in this repository.
- */
-export function zomeTypes(integrityZomes: string[], readSource: (zome: string) => string | null): ZomeTypes {
-  return integrityZomes.map((zome) => {
-    if (zome === 'hrea_integrity') return { zome, entries: HREA_ENTRY_TYPES, links: HREA_LINK_TYPES };
-    const source = readSource(zome);
-    return {
-      zome,
-      entries: source ? enumVariants(source, 'EntryTypes') : [],
-      links: source ? enumVariants(source, 'LinkTypes') : []
-    };
-  });
+/** A zome's entry and link type names, in declaration order, or null when unknown. */
+export type ZomeNames = (zome: string) => { entries: string[]; links: string[] } | null;
+
+/** The types of a DNA's integrity zomes, in zome-index order. */
+export function zomeTypes(integrityZomes: string[], names: ZomeNames): ZomeTypes {
+  return integrityZomes.map((zome) => ({ zome, ...(names(zome) ?? { entries: [], links: [] }) }));
 }
 
 export function entryTypeName(types: ZomeTypes, zomeIndex: number, entryIndex: number): string {

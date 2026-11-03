@@ -12,6 +12,7 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 import { urlsToOpen } from './inspector.mts';
 import { serveInspector } from './inspector-server.mts';
+import { roAdapter } from './inspector-adapter.mts';
 import { openCommand, parsePortList } from './web-dev.mts';
 
 const freePort = () =>
@@ -30,7 +31,7 @@ if (adminPorts.length === 0) {
   process.exit(1);
 }
 const port = Number(process.env.INSPECTOR_PORT) || (await freePort());
-serveInspector(adminPorts, port);
+serveInspector(adminPorts, port, roAdapter);
 const url = `http://localhost:${port}/`;
 console.log(`[inspector] ${url}  (conductors on admin ports ${adminPorts.join(', ')})`);
 const opener = openCommand(process.platform);

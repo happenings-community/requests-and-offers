@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { roleGraph, type CellDump } from '../inspector-graph.mts';
 import { zomeTypes } from '../inspector-types.mts';
+import { roAdapter } from '../inspector-adapter.mts';
 import { collapseTypes, focusSet, groupId, neighbourOrder, visibleGraph } from '../inspector-view.mts';
 
 // The same real two-member capture the graph model is tested on.
@@ -12,7 +13,7 @@ const fixture = JSON.parse(
 ) as { apps: Array<{ installed_app_id: string; agent_pub_key: Uint8Array }>; cells: Record<string, CellDump> };
 const cellsOf = (role: string) =>
   fixture.apps.map((a) => ({ agentKey: a.agent_pub_key, dump: fixture.cells[`${a.installed_app_id}/${role}`] }));
-const hrea = roleGraph('hrea', cellsOf('hrea'), zomeTypes(['hrea_integrity'], () => null));
+const hrea = roleGraph('hrea', cellsOf('hrea'), zomeTypes(['hrea_integrity'], roAdapter.zomeNames));
 const count = (t: string) => hrea.nodes.filter((n) => n.entryType === t).length;
 
 describe('collapsing a large type into one counted node', () => {

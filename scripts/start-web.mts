@@ -33,6 +33,7 @@ import {
 } from './web-dev.mts';
 import { urlsToOpen } from './inspector.mts';
 import { serveInspector } from './inspector-server.mts';
+import { roAdapter } from './inspector-adapter.mts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HAPP = join(ROOT, 'workdir', 'requests_and_offers.happ');
@@ -192,7 +193,7 @@ async function main() {
   if (!up) throw new Error(`Vite did not answer on :${config.uiPort} within 90s`);
 
   const inspectorPort = config.inspectorPort ?? (await freePort());
-  inspector = serveInspector([adminWs], inspectorPort);
+  inspector = serveInspector([adminWs], inspectorPort, roAdapter);
   const inspectorUrl = `http://localhost:${inspectorPort}/`;
 
   console.log('');

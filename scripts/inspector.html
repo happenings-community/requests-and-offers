@@ -3,9 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>R&amp;O Conductor Inspector</title>
+    <title>Conductor Inspector</title>
     <style>
-      /* R&O colours, from ui/src/happening_theme.ts. */
+      /* Default palette; an adapter may colour each role (GET /api/config). */
       :root {
         --bg: #f3f4f8; --panel: #ffffff; --ink: #1c2033; --muted: #556080; --line: #d9dce8;
         --accent: #4720b7; --accent-soft: #e3def4; --gold: #b8960f; --sky: #0b7fb3;
@@ -92,7 +92,7 @@
   </head>
   <body>
     <header>
-      <h1>R&amp;O conductor inspector</h1>
+      <h1 id="title">Conductor inspector</h1>
       <span class="meta" id="taken">connecting…</span>
       <span class="meta" id="transport"></span>
       <span class="spacer"></span>
@@ -154,6 +154,9 @@
       // Grouping, filters, focus and neighbour order: tested in scripts/tests/inspector-view.test.ts.
       import * as V from '/inspector-view.js';
       const $ = (id) => document.getElementById(id);
+      // The app's adapter: title, role labels and colours, the role to open on (scripts/inspector-adapter.mts).
+      const config = await fetch('/api/config').then((r) => (r.ok ? r.json() : null)).catch(() => null) ?? { title: 'Conductor inspector', roles: {} };
+      document.title = config.title; document.getElementById('title').textContent = config.title;
       const GROUP_ABOVE = 6;
       const PALETTE = ['#4720b7', '#0ea5e9', '#d4a90f', '#65a30d', '#ff8800', '#d21919', '#7c8dc4', '#c026d3', '#14b8a6', '#a16207', '#6366f1', '#f43f5e', '#0f766e', '#9333ea'];
       const state = {
@@ -180,7 +183,9 @@
       };
 
       // ---- Network view -------------------------------------------------
-      const roleColour = (role) => (role === 'hrea' ? css('--sky') : css('--accent'));
+      const ROLE_FALLBACK = ['--accent', '--sky', '--gold', '--ok'];
+      const roleColour = (role) => config.roles[role]?.colour ?? css(ROLE_FALLBACK[Math.max(0, Object.keys(state.data?.roles ?? {}).sort().indexOf(role)) % ROLE_FALLBACK.length]);
+      const roleName = (role) => config.roles[role]?.label ?? role;
       const netStyle = () => [
         { selector: 'node', style: { 'background-color': (n) => roleColour(n.data('role')), label: 'data(label)', color: css('--ink'), 'font-size': 10, 'text-valign': 'bottom', 'text-margin-y': 4, width: 22, height: 22, 'text-wrap': 'wrap', 'text-background-color': css('--panel'), 'text-background-opacity': 0.9, 'text-background-padding': 2 } },
         { selector: 'node:selected', style: { 'border-width': 3, 'border-color': css('--gold') } },
@@ -194,7 +199,7 @@
         const ids = network.nodes.map((n) => n.id).join(',') + '|' + network.edges.map((e) => e.id).join(',');
         if (net.scratch('ids') !== ids) {
           net.elements().remove();
-          net.add(network.nodes.map((n) => ({ data: { id: n.id, role: n.role, label: `${memberOf(n.agentKey) ?? n.appId} · ${n.role === 'hrea' ? 'hREA' : 'R&O'}` } })));
+          net.add(network.nodes.map((n) => ({ data: { id: n.id, role: n.role, label: `${memberOf(n.agentKey) ?? n.appId} · ${roleName(n.role)}` } })));
           net.add(network.edges.map((e) => ({ data: { id: e.id, source: e.source, target: e.target } })));
           net.layout({ name: 'circle', padding: 24, sort: (a, b) => (a.data('role') + a.id()).localeCompare(b.data('role') + b.id()) }).run();
           net.scratch('ids', ids);
@@ -536,7 +541,7 @@
         const agent = state.chainAgent || state.author || state.data?.summary.members[0]?.agentKey;
         const list = $('chain');
         if (!g || !agent || !g.chains[agent]) { $('chainwho').textContent = 'select a cell or an author'; list.innerHTML = ''; return; }
-        $('chainwho').textContent = `${who(agent)} · ${state.role === 'hrea' ? 'hREA' : 'R&O'} · ${g.chains[agent].length} actions`;
+        $('chainwho').textContent = `${who(agent)} · ${roleName(state.role)} · ${g.chains[agent].length} actions`;
         const sel = state.selected;
         list.innerHTML = g.chains[agent].map((a) => {
           const key = `${state.role}|${a.hash}`;
@@ -581,8 +586,8 @@
 
       function renderControls() {
         const roles = Object.keys(state.data.roles).sort();
-        if (!state.role || !roles.includes(state.role)) state.role = roles.includes('requests_and_offers') ? 'requests_and_offers' : roles[0];
-        $('role').innerHTML = roles.map((r) => `<option value="${r}">${r === 'hrea' ? 'hREA' : r === 'requests_and_offers' ? 'Requests & Offers' : esc(r)}</option>`).join('');
+        if (!state.role || !roles.includes(state.role)) state.role = roles.includes(config.defaultRole) ? config.defaultRole : roles[0];
+        $('role').innerHTML = roles.map((r) => `<option value="${esc(r)}">${esc(roleName(r))}</option>`).join('');
         $('role').value = state.role;
         $('author').innerHTML = '<option value="">All authors</option>' + state.data.summary.members.map((m, i) => `<option value="${esc(m.agentKey)}">member ${letter(i)} (${esc(m.appId)})</option>`).join('');
         $('author').value = state.author;

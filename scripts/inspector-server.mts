@@ -8,7 +8,7 @@
  * under Bun ("Expected 101").
  */
 import { AdminWebsocket } from '@holochain/client';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { createServer as createHttpServer, type Server, type ServerResponse } from 'node:http';
 import * as nodeModule from 'node:module';
 import { dirname, join } from 'node:path';
@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { inspectorView, type InspectorCapture } from './inspector.mts';
 import { networkGraph, roleGraph, type CellDump } from './inspector-graph.mts';
 import { zomeTypes, type ZomeTypes } from './inspector-types.mts';
+import { configOf, genericAdapter, type InspectorAdapter } from './inspector-adapter.mts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CYTOSCAPE = join(ROOT, 'node_modules', 'cytoscape', 'dist', 'cytoscape.min.js');
@@ -71,25 +72,20 @@ async function capture(admins: AdminWebsocket[]): Promise<InspectorCapture> {
   return { apps, cells, network: mergeNetworks(networks), takenAt: Date.now() };
 }
 
-/** A zome's lib.rs from this repository, for its entry and link type names. */
-function readZomeSource(zome: string): string | null {
-  const file = join(ROOT, 'dnas', 'requests_and_offers', 'zomes', 'integrity', zome.replace(/_integrity$/, ''), 'src', 'lib.rs');
-  return existsSync(file) ? readFileSync(file, 'utf8') : null;
-}
-
 /** Per role, its integrity zomes' type names, read once: the DNAs do not change while the stack runs. */
 const typesByRole = new Map<string, ZomeTypes>();
-async function typesFor(admin: AdminWebsocket, role: string, cellId: unknown): Promise<ZomeTypes> {
+async function typesFor(admin: AdminWebsocket, role: string, cellId: unknown, adapter: InspectorAdapter): Promise<ZomeTypes> {
   const known = typesByRole.get(role);
   if (known) return known;
+  // The zome names and their order come from the conductor; only their type names come from the adapter.
   const def = (await admin.getDnaDefinition(cellId as never)) as unknown as { integrity_zomes: Array<[string, unknown]> };
-  const types = zomeTypes(def.integrity_zomes.map(([name]) => name), readZomeSource);
+  const types = zomeTypes(def.integrity_zomes.map(([name]) => name), adapter.zomeNames);
   typesByRole.set(role, types);
   return types;
 }
 
 /** The graph page's data: the network of cells, then one record graph per DNA. */
-async function graphState(admins: AdminWebsocket[]) {
+async function graphState(admins: AdminWebsocket[], adapter: InspectorAdapter) {
   const c = await capture(admins);
   const cells = c.apps.flatMap((app) =>
     Object.entries(app.cell_info).flatMap(([role, infos]) =>
@@ -107,7 +103,7 @@ async function graphState(admins: AdminWebsocket[]) {
   const roles: Record<string, ReturnType<typeof roleGraph>> = {};
   for (const role of [...new Set(cells.map((x) => x.role))]) {
     const ofRole = cells.filter((x) => x.role === role);
-    roles[role] = roleGraph(role, ofRole, await typesFor(admins[0], role, ofRole[0].cellId));
+    roles[role] = roleGraph(role, ofRole, await typesFor(admins[0], role, ofRole[0].cellId, adapter));
   }
   return { summary: inspectorView(c), network: networkGraph(cells), roles };
 }
@@ -118,7 +114,7 @@ async function graphState(admins: AdminWebsocket[]) {
  * A conductor given by port is connected on the first request that needs it,
  * and again after it drops, so the server can start before the conductors do.
  */
-export function serveInspector(sources: ConductorSource[], port: number): Server {
+export function serveInspector(sources: ConductorSource[], port: number, adapter: InspectorAdapter = genericAdapter): Server {
   const open = new Map<number, AdminWebsocket>();
   const admins = () =>
     Promise.all(
@@ -146,9 +142,10 @@ export function serveInspector(sources: ConductorSource[], port: number): Server
     if (req.url === '/' || req.url === '/index.html') return send(res, 'text/html; charset=utf-8', page());
     if (req.url === '/vendor/cytoscape.min.js') return send(res, 'text/javascript', readFileSync(CYTOSCAPE));
     if (req.url === '/inspector-view.js') return send(res, 'text/javascript', viewModule());
+    if (req.url === '/api/config') return send(res, 'application/json', JSON.stringify(configOf(adapter)));
     if (req.url === '/api/graph') {
       admins()
-        .then(graphState)
+        .then((admins) => graphState(admins, adapter))
         .then((g) => send(res, 'application/json', JSON.stringify(g)))
         .catch((e) => res.writeHead(502).end(e instanceof Error ? e.message : String(e)));
       return;

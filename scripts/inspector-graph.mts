@@ -7,7 +7,7 @@
  * - One node per record that a Create made: an app entry, or an agent key.
  *   Updates join their original as a chain of revisions; a Delete greys it out.
  * - Edges come from links (CreateLink, named by link type; a DeleteLink greys
- *   the edge) and from hash-valued entry fields, such as an hREA Commitment's
+ *   the edge) and from hash-valued entry fields, such as a ValueFlows Commitment's
  *   `clause_of` or an EconomicEvent's `fulfills`.
  */
 import { decode } from '@msgpack/msgpack';
@@ -117,7 +117,7 @@ export function labelOf(entry: unknown): string {
   return '';
 }
 
-/** Every hash inside a decoded entry, with the field path that holds it. `id` is skipped: hREA's points at itself. */
+/** Every hash inside a decoded entry, with the field path that holds it. `id` is skipped: a record that keeps its own hash there points at itself. */
 export function hashFields(entry: unknown, path = ''): Array<{ field: string; hash: Bytes }> {
   if (isHash(entry)) return path && path !== 'id' ? [{ field: path, hash: entry }] : [];
   if (Array.isArray(entry)) return entry.flatMap((v) => hashFields(v, path));

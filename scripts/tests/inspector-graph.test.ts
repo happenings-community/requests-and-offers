@@ -11,7 +11,8 @@ import {
   validationIndex,
   type CellDump
 } from '../inspector-graph.mts';
-import { enumVariants, zomeTypes, HREA_ENTRY_TYPES } from '../inspector-types.mts';
+import { enumVariants, zomeTypes } from '../inspector-types.mts';
+import { HREA_ENTRY_TYPES, roAdapter } from '../inspector-adapter.mts';
 
 // Two members on a real 0.7 conductor after tonight's run: one completed
 // exchange and four exchanges that member B cancelled. See the fixture's note.
@@ -23,18 +24,11 @@ const fixture = JSON.parse(
   cells: Record<string, CellDump>;
 };
 
-const ROOT = join(import.meta.dir, '..', '..');
 const roZomes = [
   'administration_integrity', 'offers_integrity', 'requests_integrity', 'service_types_integrity',
   'users_organizations_integrity', 'mediums_of_exchange_integrity', 'exchanges_integrity'
 ];
-const readZome = (zome: string) => {
-  try {
-    return readFileSync(join(ROOT, 'dnas/requests_and_offers/zomes/integrity', zome.replace(/_integrity$/, ''), 'src/lib.rs'), 'utf8');
-  } catch {
-    return null;
-  }
-};
+const readZome = roAdapter.zomeNames;
 const cellsOf = (role: string) =>
   fixture.apps.map((a) => ({ agentKey: a.agent_pub_key, dump: fixture.cells[`${a.installed_app_id}/${role}`] }));
 

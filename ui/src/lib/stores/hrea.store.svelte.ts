@@ -2105,7 +2105,16 @@ export const createHreaStore = (): E.Effect<
         findAgreementRefs(rnoAgreementRef(exchange), parties),
         E.orElseSucceed(() => null),
         E.flatMap((refs) => {
-          const input = mapCompletionToEvent(exchange, side, parties, resolveSpecs(exchange), refs?.agreementId, at);
+          const commitmentId = side === 'provider' ? refs?.primaryCommitmentId : refs?.reciprocalCommitmentId;
+          const input = mapCompletionToEvent(
+            exchange,
+            side,
+            parties,
+            resolveSpecs(exchange),
+            refs?.agreementId,
+            at,
+            commitmentId
+          );
           if (!input) return E.succeed(null);
           const revisionId = side === 'provider' ? refs?.primaryRevisionId : refs?.reciprocalRevisionId;
           return pipe(

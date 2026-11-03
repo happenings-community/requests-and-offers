@@ -121,6 +121,8 @@ describe('HreaStore', () => {
       createEconomicEvent: vi.fn().mockReturnValue(
         E.succeed({ id: 'event-123', revisionId: 'event-rev-123' })
       ),
+      getAgreements: vi.fn().mockReturnValue(E.succeed([])),
+      getCommitments: vi.fn().mockReturnValue(E.succeed([])),
       getUnits: vi.fn().mockReturnValue(E.succeed([])),
       createUnit: vi.fn((params) =>
         E.succeed({ id: `unit-${params.label}`, label: params.label, symbol: params.symbol })

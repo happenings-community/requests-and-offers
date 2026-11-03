@@ -55,7 +55,7 @@ Validation may read only what the entry names, through `must_get_valid_record`; 
 | Entry | Who may write it | What must hold |
 |---|---|---|
 | `Interest` | the member the `user` hash resolves to | the listing is a Create; the interest names its own author's user |
-| `Agreement` | either party | provider, receiver and counterparty agree with the listing type and its parties; primary is `Provide` + `Service`; reciprocal is `Receive`; both terms pass the kind rule; `medium` is not blank; when `counters` is set, the author is the countered proposal's counterparty, the previous action is their declining Response to it, and only quantities and the timeframe differ |
+| `Agreement` | either party | provider, receiver and counterparty agree with the listing type and its parties; primary is `Provide` + `Service`; reciprocal is `Receive`; both terms pass the kind rule; `medium` is not blank; when `counters` is set, the author is the countered proposal's counterparty, the previous action is their declining Response to it, and only quantities and the timeframe differ, each quantity present on both sides keeping its unit |
 | `Response` | the agreement's `counterparty` only | the agreement is a Create; the author has not already answered it (read on their own chain) |
 | `Completion` | either party | the agreement is a Create |
 | `Review` | either party | `rating` is 0 to 5 (a `u8`, so negatives cannot be expressed) |

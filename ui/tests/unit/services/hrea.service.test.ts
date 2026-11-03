@@ -1,4 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { encode } from '@msgpack/msgpack';
 import { Effect as E, Layer, pipe } from 'effect';
 import type { AppWebsocket } from '@holochain/client';
 import {
@@ -723,46 +724,45 @@ describe('HreaService', () => {
   // depends on `finished` reads each commitment's latest revision by id.
   describe('getLatestCommitments', () => {
     const listed = {
-      id: 'c-1',
-      revisionId: 'c-1',
+      id: 'uhCkkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      revisionId: 'uhCkkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
       action: 'work',
       provider: 'p',
       receiver: 'r',
       finished: false
     };
-    const rawLatest = {
-      id: 'c-1',
-      revisionId: 'c-1-rev2',
-      action: { id: 'work' },
-      provider: { id: 'p' },
-      receiver: { id: 'r' },
-      finished: true,
-      clauseOf: { id: 'agr-1' }
+    const latestHash = new Uint8Array([132, 41, 36, ...new Array(36).fill(7)]);
+    const record = {
+      signed_action: { hashed: { hash: latestHash } },
+      entry: { Present: { entry_type: 'App', entry: encode({ finished: true, note: 'x' }) } }
     };
 
-    it('replaces each listed commitment with its latest revision', async () => {
-      mockQuery.mockResolvedValue({ data: { commitment: rawLatest } });
+    it('reads each commitment from get_latest_rea_commitment on the hrea role', async () => {
+      mockHolochainClient.callZome.mockResolvedValue(record);
       const result = await call((s) => s.getLatestCommitments([listed]));
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.objectContaining({ variables: { id: 'c-1' }, fetchPolicy: 'no-cache' })
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'hrea',
+        'get_latest_rea_commitment',
+        expect.any(Uint8Array),
+        undefined,
+        'hrea'
       );
       expect(result[0].finished).toBe(true);
-      expect(result[0].revisionId).toBe('c-1-rev2');
+      expect(result[0].revisionId).not.toBe(listed.revisionId);
     });
 
-    it('keeps the listed commitment when the single read returns nothing', async () => {
-      mockQuery.mockResolvedValue({ data: { commitment: null } });
+    it('keeps the listed commitment when the zome returns nothing', async () => {
+      mockHolochainClient.callZome.mockResolvedValue(null);
       const result = await call((s) => s.getLatestCommitments([listed]));
       expect(result).toEqual([listed]);
     });
 
-    it('reads every commitment, one query each', async () => {
-      mockQuery.mockReset();
-      mockQuery.mockResolvedValue({ data: { commitment: rawLatest } });
+    it('reads every commitment, one call each', async () => {
+      mockHolochainClient.callZome.mockResolvedValue(record);
       await call((s) =>
-        s.getLatestCommitments([listed, { ...listed, id: 'c-2' }, { ...listed, id: 'c-3' }])
+        s.getLatestCommitments([listed, { ...listed }, { ...listed }])
       );
-      expect(mockQuery).toHaveBeenCalledTimes(3);
+      expect(mockHolochainClient.callZome).toHaveBeenCalledTimes(3);
     });
   });
 

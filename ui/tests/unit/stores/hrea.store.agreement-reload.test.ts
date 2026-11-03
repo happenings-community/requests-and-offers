@@ -137,6 +137,8 @@ describe('hREA agreement mirror after a reload (agreementMappings empty)', () =>
 
     expect(svc.createEconomicEvent).toHaveBeenCalledTimes(1);
     expect(svc.createEconomicEvent.mock.calls[0][0].realizationOf).toBe('agr-1');
+    // U15b: the event also fulfills the provider's Commitment.
+    expect(svc.createEconomicEvent.mock.calls[0][0].fulfills).toEqual(['c-prim']);
     expect(event).not.toBeNull();
     expect(svc.updateCommitment).toHaveBeenCalledWith({ revisionId: 'c-prim-rev', finished: true });
     expect(store.agreementMappings.get(ref)?.agreementId).toBe('agr-1');
@@ -189,6 +191,7 @@ describe('hREA agreement mirror after a reload (agreementMappings empty)', () =>
     expect(event).not.toBeNull();
     expect(svc.createEconomicEvent).toHaveBeenCalledTimes(1);
     expect(svc.createEconomicEvent.mock.calls[0][0].realizationOf).toBeUndefined();
+    expect(svc.createEconomicEvent.mock.calls[0][0].fulfills).toBeUndefined();
     expect(svc.updateCommitment).not.toHaveBeenCalled();
     expect(store.agreementMappings.has(ref)).toBe(false);
   });
@@ -208,6 +211,7 @@ describe('hREA agreement mirror after a reload (agreementMappings empty)', () =>
     await E.runPromise(store.recordCompletionEvent(ex));
 
     expect(svc.createEconomicEvent.mock.calls[0][0].realizationOf).toBe('agr-1');
+    expect(svc.createEconomicEvent.mock.calls[0][0].fulfills).toEqual(['c-recip']);
     expect(svc.updateCommitment).toHaveBeenCalledWith({
       revisionId: 'c-recip-rev',
       finished: true
@@ -225,5 +229,37 @@ describe('hREA agreement mirror after a reload (agreementMappings empty)', () =>
 
     expect(svc.getAgreements).toHaveBeenCalledTimes(1);
     expect(svc.getCommitments).toHaveBeenCalledTimes(1);
+  });
+
+  it("a completion whose side's Commitment is not in hREA fulfills nothing", async () => {
+    mocks.currentUser = { original_action_hash: RECEIVER };
+    const svc = service();
+    // hREA holds the Agreement and its primary Commitment, but no reciprocal one.
+    svc.getCommitments.mockReturnValue(
+      E.succeed([
+        {
+          id: 'c-prim',
+          revisionId: 'c-prim-rev',
+          action: 'work',
+          provider: 'agent-p',
+          receiver: 'agent-r',
+          clauseOf: 'agr-1'
+        }
+      ])
+    );
+    const store = await freshStore(svc);
+    await E.runPromise(store.getAllAgents());
+    await E.runPromise(store.getAllResourceSpecifications());
+    const ex = {
+      ...exchange(),
+      provider_done: null,
+      receiver_done: { created_at: 1_700_000_200 }
+    } as unknown as UIExchange;
+
+    await E.runPromise(store.recordCompletionEvent(ex));
+
+    expect(svc.createEconomicEvent.mock.calls[0][0].realizationOf).toBe('agr-1');
+    expect(svc.createEconomicEvent.mock.calls[0][0].fulfills).toBeUndefined();
+    expect(svc.updateCommitment).not.toHaveBeenCalled();
   });
 });

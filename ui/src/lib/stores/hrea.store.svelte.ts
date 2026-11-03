@@ -1456,6 +1456,37 @@ export const createHreaStore = (): E.Effect<
         )
       );
 
+    /**
+     * Rebuilds the registry from the Units visible now. The startup registry is
+     * built before gossip, from this member's own seeds; re-reading before a
+     * write that names a Unit lets every member converge on the same one (#441).
+     * A failed or empty read keeps the registry as it was.
+     */
+    const refreshUnitRegistry = (): E.Effect<void> =>
+      pipe(
+        hreaService.getUnits(),
+        E.tap((units) =>
+          E.sync(() => {
+            if (units.length > 0) setUnitRegistry(unitRegistryFrom(units));
+          })
+        ),
+        E.asVoid,
+        E.catchAll((error) =>
+          E.sync(() =>
+            console.warn('hREA Store: unit registry refresh failed, keeping the last one', error)
+          )
+        )
+      );
+
+    /** Runs a write that may name a Unit after the registry has caught up with the network. */
+    const withFreshUnits =
+      <A>(write: (exchange: UIExchange) => E.Effect<A, HreaError>) =>
+      (exchange: UIExchange): E.Effect<A, HreaError> =>
+        pipe(
+          refreshUnitRegistry(),
+          E.flatMap(() => write(exchange))
+        );
+
     const createRetroactiveMappings = (
       users: UIUser[],
       organizations: UIOrganization[]
@@ -2509,8 +2540,8 @@ export const createHreaStore = (): E.Effect<
       deleteResourceSpecificationForMediumOfExchange,
       createProposalFromRequest,
       createProposalFromOffer,
-      createAgreementFromExchange,
-      recordCompletionEvent,
+      withFreshUnits(createAgreementFromExchange),
+      withFreshUnits(recordCompletionEvent),
       deleteProposalForRequest,
       deleteProposalForOffer,
       handleRequestUpdatedEffect,
@@ -2616,8 +2647,8 @@ export const createHreaStore = (): E.Effect<
       createRetroactiveMediumOfExchangeResourceSpecMappings,
       createProposalFromRequest,
       createProposalFromOffer,
-      createAgreementFromExchange,
-      recordCompletionEvent,
+      createAgreementFromExchange: withFreshUnits(createAgreementFromExchange),
+      recordCompletionEvent: withFreshUnits(recordCompletionEvent),
       deleteProposalForRequest,
       deleteProposalForOffer,
       createRetroactiveProposalMappings,

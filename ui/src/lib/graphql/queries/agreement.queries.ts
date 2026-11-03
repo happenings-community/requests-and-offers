@@ -57,3 +57,39 @@ export const GET_COMMITMENTS_QUERY = gql`
     }
   }
 `;
+
+// One commitment's latest revision, through get_latest_rea_commitment. The list
+// above returns the original revision after an update (see getLatestCommitments).
+export const GET_COMMITMENT_QUERY = gql`
+  query GetCommitment($id: ID!) {
+    commitment(id: $id) {
+      id
+      revisionId
+      action {
+        id
+      }
+      provider {
+        id
+      }
+      receiver {
+        id
+      }
+      resourceConformsTo {
+        id
+      }
+      resourceQuantity {
+        hasNumericalValue
+        hasUnit {
+          id
+        }
+      }
+      due
+      finished
+      note
+      agreedIn
+      clauseOf {
+        id
+      }
+    }
+  }
+`;

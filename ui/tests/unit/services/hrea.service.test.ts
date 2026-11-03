@@ -715,6 +715,54 @@ describe('HreaService', () => {
     });
   });
 
+  // hREA's list read returns a commitment's original revision after an update
+  // (update_rea_commitment leaves all_commitments on the Create), so whatever
+  // depends on `finished` reads each commitment's latest revision by id.
+  describe('getLatestCommitments', () => {
+    const listed = {
+      id: 'c-1',
+      revisionId: 'c-1',
+      action: 'work',
+      provider: 'p',
+      receiver: 'r',
+      finished: false
+    };
+    const rawLatest = {
+      id: 'c-1',
+      revisionId: 'c-1-rev2',
+      action: { id: 'work' },
+      provider: { id: 'p' },
+      receiver: { id: 'r' },
+      finished: true,
+      clauseOf: { id: 'agr-1' }
+    };
+
+    it('replaces each listed commitment with its latest revision', async () => {
+      mockQuery.mockResolvedValue({ data: { commitment: rawLatest } });
+      const result = await call((s) => s.getLatestCommitments([listed]));
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ variables: { id: 'c-1' }, fetchPolicy: 'no-cache' })
+      );
+      expect(result[0].finished).toBe(true);
+      expect(result[0].revisionId).toBe('c-1-rev2');
+    });
+
+    it('keeps the listed commitment when the single read returns nothing', async () => {
+      mockQuery.mockResolvedValue({ data: { commitment: null } });
+      const result = await call((s) => s.getLatestCommitments([listed]));
+      expect(result).toEqual([listed]);
+    });
+
+    it('reads every commitment, one query each', async () => {
+      mockQuery.mockReset();
+      mockQuery.mockResolvedValue({ data: { commitment: rawLatest } });
+      await call((s) =>
+        s.getLatestCommitments([listed, { ...listed, id: 'c-2' }, { ...listed, id: 'c-3' }])
+      );
+      expect(mockQuery).toHaveBeenCalledTimes(3);
+    });
+  });
+
   describe('getIntent', () => {
     it('returns a normalized intent when found', async () => {
       mockQuery.mockResolvedValue({ data: { intent: mockIntentRaw } });

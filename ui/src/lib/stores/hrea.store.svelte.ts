@@ -2165,10 +2165,13 @@ export const createHreaStore = (): E.Effect<
             ? E.succeed(0)
             : pipe(
                 hreaService.getCommitments(),
+                // The list holds the original revisions: read this agreement's
+                // commitments at their latest, so `finished` and the revision
+                // to update from are current (see getLatestCommitments).
+                E.map((all) => all.filter((c) => c.clauseOf === refs.agreementId)),
+                E.flatMap(hreaService.getLatestCommitments),
                 E.flatMap((commitments) => {
-                  const open = commitments.filter(
-                    (c) => c.clauseOf === refs.agreementId && !c.finished && c.revisionId
-                  );
+                  const open = commitments.filter((c) => !c.finished && c.revisionId);
                   return pipe(
                     E.forEach(open, (c) =>
                       hreaService.updateCommitment({ revisionId: c.revisionId!, finished: true })

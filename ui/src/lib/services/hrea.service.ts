@@ -172,7 +172,11 @@ import {
   UPDATE_COMMITMENT_MUTATION,
   CREATE_ECONOMIC_EVENT_MUTATION
 } from '$lib/graphql/mutations/agreement.mutations';
-import { GET_AGREEMENTS_QUERY, GET_COMMITMENTS_QUERY } from '$lib/graphql/queries/agreement.queries';
+import {
+  GET_AGREEMENTS_QUERY,
+  GET_COMMITMENTS_QUERY,
+  GET_COMMITMENT_QUERY
+} from '$lib/graphql/queries/agreement.queries';
 import {
   GET_INTENT_QUERY,
   GET_INTENTS_QUERY,
@@ -288,6 +292,7 @@ export interface HreaService {
   // Agreement, Commitment and EconomicEvent operations
   readonly createAgreement: (params: AgreementInput) => E.Effect<Agreement, HreaError>;
   readonly createCommitment: (params: CommitmentInput) => E.Effect<Commitment, HreaError>;
+  readonly getLatestCommitments: (commitments: readonly Commitment[]) => E.Effect<Commitment[], HreaError>;
   readonly updateCommitment: (params: { revisionId: string; finished: boolean }) => E.Effect<Commitment, HreaError>;
   readonly createEconomicEvent: (params: EconomicEventInput) => E.Effect<EconomicEvent, HreaError>;
   readonly getAgreements: () => E.Effect<Agreement[], HreaError>;
@@ -1045,6 +1050,38 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
       const getCommitments = (): E.Effect<Commitment[], HreaError> =>
         listQuery(GET_COMMITMENTS_QUERY, 'commitments', normalizeCommitmentResponse, HREA_CONTEXTS.GET_COMMITMENTS);
 
+      // Workaround for hREA happ-0.5.0-beta.1: update_rea_commitment does not move
+      // its all_commitments link, so getCommitments returns each commitment's
+      // original revision after an update (a cancelled one still reads
+      // finished: false). Read the latest revision by id, in parallel. Remove once
+      // hREA's update moves the link (issue drafted for h-REA/hREA, 2026-11-02).
+      const getLatestCommitments = (
+        commitments: readonly Commitment[]
+      ): E.Effect<Commitment[], HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.forEach(
+              commitments,
+              (listed) =>
+                E.tryPromise({
+                  try: async () => {
+                    const result = await client.query({
+                      query: GET_COMMITMENT_QUERY,
+                      variables: { id: listed.id },
+                      fetchPolicy: 'no-cache'
+                    });
+                    const raw = result.data?.commitment;
+                    return raw ? normalizeCommitmentResponse(raw) : listed;
+                  },
+                  catch: (error) => error
+                }),
+              { concurrency: 8 }
+            )
+          ),
+          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_COMMITMENTS))
+        );
+
       const createIntent = (params: {
         action: string;
         provider?: string;
@@ -1226,6 +1263,7 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         getProposals,
         getAgreements,
         getCommitments,
+        getLatestCommitments,
         getProposalsByAgent,
         getUnits,
         createUnit,

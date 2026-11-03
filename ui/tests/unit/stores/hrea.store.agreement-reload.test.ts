@@ -102,6 +102,10 @@ const service = () => {
         }
       ])
     ),
+    // Identity by default: each test says what the latest revisions hold.
+    getLatestCommitments: vi.fn((cs: Array<{ id: string }>) =>
+      E.succeed(cs as Array<{ id: string; revisionId?: string; finished?: boolean }>)
+    ),
     createAgreement: vi.fn().mockReturnValue(E.succeed({ id: 'agr-NEW', revisionId: 'x' })),
     createCommitment: vi.fn().mockReturnValue(E.succeed({ id: 'c-NEW', revisionId: 'x' })),
     createEconomicEvent: vi.fn((input) => E.succeed({ id: 'ev-1', ...input })),
@@ -317,6 +321,36 @@ describe('hREA mirror of a cancellation', () => {
     expect(svc.updateCommitment).toHaveBeenCalledTimes(1);
     expect(svc.updateCommitment).toHaveBeenCalledWith({
       revisionId: 'c-prim-rev2',
+      finished: true
+    });
+  });
+
+  // hREA's list returns the original revision after an update, so the list says
+  // open while the commitment was already closed: the latest revision decides.
+  it('reads the latest revision, so a commitment the list still shows open is not closed again', async () => {
+    const svc = service();
+    svc.getLatestCommitments.mockImplementation((cs: Array<{ id: string }>) =>
+      E.succeed(
+        cs.map((c) =>
+          c.id === 'c-prim'
+            ? { ...c, revisionId: 'c-prim-rev2', finished: true }
+            : { ...c, revisionId: `${c.id}-rev2` }
+        )
+      )
+    );
+    const store = await freshStore(svc);
+    await E.runPromise(store.getAllAgents());
+
+    const ended = await E.runPromise(store.mirrorCancellation(accepted()));
+
+    expect(svc.getLatestCommitments).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'c-prim' }),
+      expect.objectContaining({ id: 'c-recip' })
+    ]);
+    expect(ended).toBe(1);
+    expect(svc.updateCommitment).toHaveBeenCalledTimes(1);
+    expect(svc.updateCommitment).toHaveBeenCalledWith({
+      revisionId: 'c-recip-rev2',
       finished: true
     });
   });

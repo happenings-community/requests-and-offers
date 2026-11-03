@@ -94,11 +94,11 @@ pub struct CreateRequestInput {
 
 #### `get_active_requests() -> ExternResult<Vec<Record>>`
 
-Retrieves all active requests from the "requests.active" path.
+Retrieves all active requests from the "requests.active" path, the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails.
 
 #### `get_archived_requests() -> ExternResult<Vec<Record>>`
 
-Retrieves all archived requests from the "requests.archived" path.
+Retrieves all archived requests from the "requests.archived" path, the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails.
 
 #### `archive_request(request_hash: ActionHash) -> ExternResult<bool>`
 
@@ -129,11 +129,11 @@ Creates a new offer.
 
 #### `get_active_offers() -> ExternResult<Vec<Record>>`
 
-Retrieves all active offers from the "offers.active" path.
+Retrieves all active offers from the "offers.active" path, the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails.
 
 #### `get_archived_offers() -> ExternResult<Vec<Record>>`
 
-Retrieves all archived offers from the "offers.archived" path.
+Retrieves all archived offers from the "offers.archived" path, the latest revision of each one, fetched in one batched read. An item whose latest revision cannot be resolved is left out and logged; the call fails only if the batched read itself fails.
 
 #### `archive_offer(offer_hash: ActionHash) -> ExternResult<bool>`
 

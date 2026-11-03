@@ -30,29 +30,39 @@ export function exchangeStatusVariant(status: ExchangeStatus): string {
   }
 }
 
+/**
+ * The live tabs. A declined, withdrawn or cancelled exchange has ended and
+ * belongs to none of them: it shows under All, with everything else.
+ */
 export const EXCHANGE_TABS = {
-  proposals: ['Proposed', 'Declined'],
-  active: ['Agreed', 'OneSideDone', 'Cancelled'],
+  proposals: ['Proposed'],
+  active: ['Agreed', 'OneSideDone'],
   completed: ['Complete', 'Reviewed']
 } as const satisfies Record<string, readonly ExchangeStatus[]>;
 
-export type ExchangeTab = keyof typeof EXCHANGE_TABS;
+export type LiveTab = keyof typeof EXCHANGE_TABS;
+export type ExchangeTab = LiveTab | 'all';
 
-/** A proposal withdrawn before anyone answered it belongs with proposals, not active. */
-export function tabOf(exchange: UIExchange): ExchangeTab {
-  if (exchange.status === 'Cancelled' && !exchange.response) return 'proposals';
+/** The live tab an exchange sits in, or null once it has ended. */
+export function tabOf(exchange: UIExchange): LiveTab | null {
   for (const [tab, states] of Object.entries(EXCHANGE_TABS)) {
-    if ((states as readonly ExchangeStatus[]).includes(exchange.status)) return tab as ExchangeTab;
+    if ((states as readonly ExchangeStatus[]).includes(exchange.status)) return tab as LiveTab;
   }
-  return 'active';
+  return null;
+}
+
+export function inTab(exchange: UIExchange, tab: ExchangeTab): boolean {
+  return tab === 'all' || tabOf(exchange) === tab;
 }
 
 export function termLabel(term: ExchangeTerm): string {
   if (term.resource_kind === 'Tbd') return 'To be discussed';
   if (term.resource_kind === 'Gift') return 'Gift, nothing owed';
   if (!term.quantity) return term.resource_conforms_to;
-  if (term.resource_kind === 'Currency') return `${term.quantity.value} ${term.resource_conforms_to}`;
-  const unit = term.quantity.value === 1 ? term.quantity.unit.replace(/s$/, '') : term.quantity.unit;
+  if (term.resource_kind === 'Currency')
+    return `${term.quantity.value} ${term.resource_conforms_to}`;
+  const unit =
+    term.quantity.value === 1 ? term.quantity.unit.replace(/s$/, '') : term.quantity.unit;
   return `${term.quantity.value} ${unit} of ${term.resource_conforms_to}`;
 }
 
@@ -61,13 +71,19 @@ export type ExchangeRole = 'provider' | 'receiver';
 const same = (a: Uint8Array | undefined, b: Uint8Array | undefined) =>
   !!a && !!b && a.toString() === b.toString();
 
-export function roleOf(exchange: UIExchange, myUserHash: ActionHash | undefined): ExchangeRole | null {
+export function roleOf(
+  exchange: UIExchange,
+  myUserHash: ActionHash | undefined
+): ExchangeRole | null {
   if (same(exchange.agreement.provider, myUserHash)) return 'provider';
   if (same(exchange.agreement.receiver, myUserHash)) return 'receiver';
   return null;
 }
 
-export function counterpartyOf(exchange: UIExchange, myUserHash: ActionHash | undefined): ActionHash {
+export function counterpartyOf(
+  exchange: UIExchange,
+  myUserHash: ActionHash | undefined
+): ActionHash {
   return same(exchange.agreement.provider, myUserHash)
     ? exchange.agreement.receiver
     : exchange.agreement.provider;
@@ -79,11 +95,19 @@ export function wroteIt(exchange: UIExchange, myUserHash: ActionHash | undefined
 }
 
 export function doneBy(exchange: UIExchange, role: ExchangeRole | null): boolean {
-  return role === 'provider' ? !!exchange.provider_done : role === 'receiver' ? !!exchange.receiver_done : false;
+  return role === 'provider'
+    ? !!exchange.provider_done
+    : role === 'receiver'
+      ? !!exchange.receiver_done
+      : false;
 }
 
 export function reviewedBy(exchange: UIExchange, role: ExchangeRole | null): boolean {
-  return role === 'provider' ? !!exchange.provider_review : role === 'receiver' ? !!exchange.receiver_review : false;
+  return role === 'provider'
+    ? !!exchange.provider_review
+    : role === 'receiver'
+      ? !!exchange.receiver_review
+      : false;
 }
 
 export function otherRole(role: ExchangeRole | null): ExchangeRole | null {
@@ -141,5 +165,9 @@ export function actionLabel(exchange: UIExchange, role: ExchangeRole | null): st
 }
 
 export function formatWhen(ms: number): string {
-  return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(ms).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  });
 }

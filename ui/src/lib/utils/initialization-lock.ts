@@ -4,7 +4,7 @@
  */
 
 class InitializationLock {
-  private locks = new Map<string, Promise<any>>();
+  private locks = new Map<string, Promise<unknown>>();
 
   /**
    * Acquire a lock for a specific domain and execute the initialization function

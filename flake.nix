@@ -4,9 +4,6 @@
   inputs = {
     holonix.url = "github:holochain/holonix?ref=main-0.7";
 
-    # Pin older holonix that includes hc-playground (not available in main-0.6 or main-0.7)
-    holonix-playground.url = "github:holochain/holonix/2fec8bf3772bf0df6f37734da3e063b9aa285aca";
-
     nixpkgs.follows = "holonix/nixpkgs";
     flake-parts.follows = "holonix/flake-parts";
   };
@@ -31,7 +28,6 @@
           # from source during native Sweettest builds.
           openssl
         ]) ++ [
-          inputs'.holonix-playground.packages.hc-playground
           inputs'.holonix.packages.bootstrap-srv
         ];
 

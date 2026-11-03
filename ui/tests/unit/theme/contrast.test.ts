@@ -111,4 +111,11 @@ describe('the admin shell (forced dark mode, #205)', () => {
     const dim = /dark:text-(surface-(400|500|600)|primary-(400|500))(?![\w-])/;
     expect(lines().filter(({ line }) => dim.test(line)).map(({ at }) => at)).toEqual([]);
   });
+
+  it('uses no Skeleton token pair whose dark shade is too dim', () => {
+    // `text-surface-500-400-token` is surface-500 in light mode and surface-400
+    // in dark mode, which the two checks above do not see.
+    const dimPair = /text-(surface-\d{2,3}-(400|500|600)|primary-\d{2,3}-(400|500))-token/;
+    expect(lines().filter(({ line }) => dimPair.test(line)).map(({ at }) => at)).toEqual([]);
+  });
 });

@@ -5,7 +5,7 @@ import { MediumOfExchangeInDHTSchema } from '$lib/schemas/mediums-of-exchange.sc
 import { MediumOfExchangeStoreError } from '$lib/stores/mediums_of_exchange.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
-import type { Record as HolochainRecord, ActionHash } from '@holochain/client';
+import type { Record as HolochainRecord } from '@holochain/client';
 
 // Use the original type directly - previous_action_hash is now required in the base type
 type UIMediumOfExchange = UIMediumOfExchangeOriginal;

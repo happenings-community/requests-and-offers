@@ -1,4 +1,3 @@
-import { Data } from 'effect';
 
 // TODO: Migrate to Effect-TS Data.TaggedError pattern in the future
 // For now, using legacy Error class for backward compatibility

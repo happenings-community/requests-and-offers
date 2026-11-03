@@ -145,6 +145,7 @@ git push origin v0.2.3
 - [ ] **Change Documentation**: Update CHANGELOG.md with new version details
 - [ ] **Breaking Changes**: Compare the DNA hash with the previous release's; a new hash means a network reset, announced to testers before the release (alpha 2: `documentation/releases/v0.6.0-alpha.2-network-reset.md`)
 - [ ] **Feature Scope**: Confirm all intended features are complete and tested
+- [ ] **Release Day**: Not a Friday, and nobody works the weekend to rescue it (see [Production Checks](#-production-checks-blocking))
 
 ### ✅ **Code Quality Checks**
 - [ ] **Tests Passing**: Run full test suite (`bun test` in main repo)
@@ -247,6 +248,15 @@ git log --oneline main..release | wc -l
 # Return to main repository
 cd ../..
 ```
+
+## 🛑 Production Checks (BLOCKING)
+
+Agreed at the 27 October 2026 dev meeting for alpha 2 and every release after it. A tag publishes the release straight away (as a prerelease when the version has a hyphen, never as a draft), so whatever must be proven before publishing has to be proven before the tag.
+
+- [ ] **Never on a Friday.** Tag Monday to Thursday, early enough in the day that the releaser can watch the first installs. Nobody works the weekend to rescue a release.
+- [ ] **Run the built app before publishing.** Dispatch **Release** from the Actions tab with the tag string (the dry run described under Automated Release). It publishes nothing and uploads a `release-artefacts` run artefact holding the `.happ`, the `.webhapp` and `release-manifest.json`. Download it, put the `.webhapp` into the wrapper's `pouch/`, build the wrapper for your platform (its `scripts/fetch-webhapp.js` refuses a `pouch/` webhapp while `kangaroo.config.ts` names a `webhapp.url`, which the `release` branch does, so build from a checkout without that field), and launch it with a scratch profile on the desktop seed (`desktop.networkSeed` in that manifest). Build Acceptance A's checks apply: `Conductor ready`, then `Happ installed`, then the UI. Only then push the tag.
+- [ ] **Check the release on two peers before announcing.** Build Acceptance E runs on the published installers before anything is announced: no Discord post, no release discussion, no edge-node upgrade notice until two installs on two networks see each other and agree on the DNA hashes.
+- [ ] **Decide whether this network has a progenitor.** The desktop wrapper installs the hApp with the properties `workdir/happ.yaml` carries and does not set the key itself ([progenitor.md](progenitor.md)). With `progenitor_pubkey: ~` a desktop network runs in development mode: the first profile created on the new network becomes admin, whoever creates it. To run it in production mode, write the network creator's key into `happ.yaml` before the build, which changes the DNA hash. Either way, state which mode the release runs in its notes.
 
 ## 🚀 Release Execution
 

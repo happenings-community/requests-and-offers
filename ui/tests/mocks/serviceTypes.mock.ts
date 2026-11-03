@@ -11,7 +11,6 @@ import {
 } from '$lib/schemas/service-types.schemas';
 import { ActionHashSchema } from '$lib/schemas/holochain.schemas';
 import {
-  createMockRecord,
   createActionHash,
   createMockServiceTypeRecord
 } from '../unit/test-helpers';
@@ -36,16 +35,6 @@ const keyToActionHash = (key: string): ActionHash => {
 function stringToActionHash(hashString: Schema.Schema.Type<typeof ActionHashSchema>): ActionHash {
   // Convert base64 string back to Uint8Array
   return new Uint8Array(Buffer.from(hashString as unknown as string, 'base64'));
-}
-
-/**
- * Convert HoloHash (Uint8Array) to branded string ActionHash for schema compatibility
- */
-function actionHashToString(hash: ActionHash): Schema.Schema.Type<typeof ActionHashSchema> {
-  // Convert Uint8Array to base64 string and return as branded string
-  return Buffer.from(hash).toString('base64') as unknown as Schema.Schema.Type<
-    typeof ActionHashSchema
-  >;
 }
 
 /**
@@ -205,7 +194,7 @@ export const createMockServiceTypesServiceLayer = (): Layer.Layer<ServiceTypesSe
 
     getRejectedServiceTypes: () => E.succeed([]),
 
-    getServiceTypeStatus: (serviceTypeHash: ActionHash) => E.succeed('approved')
+    getServiceTypeStatus: () => E.succeed('approved')
   };
 
   return Layer.succeed(ServiceTypesServiceTag, mockService);

@@ -10,6 +10,7 @@
 import { AdminWebsocket } from '@holochain/client';
 import { existsSync, readFileSync } from 'node:fs';
 import { createServer as createHttpServer, type Server, type ServerResponse } from 'node:http';
+import * as nodeModule from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inspectorView, type InspectorCapture } from './inspector.mts';
@@ -131,6 +132,12 @@ export function serveInspector(sources: ConductorSource[], port: number): Server
         return ws;
       })
     );
+  // The page's pure view logic, written in TypeScript and unit-tested as it is,
+  // served with its types stripped by Node itself (node:module, Node 22.13+).
+  const viewModule = () =>
+    (nodeModule as unknown as { stripTypeScriptTypes: (src: string) => string }).stripTypeScriptTypes(
+      readFileSync(join(ROOT, 'scripts', 'inspector-view.mts'), 'utf8')
+    );
   // Read on every request, so an edit to the page shows on reload without restarting the conductor.
   const page = () => readFileSync(join(ROOT, 'scripts', 'inspector.html'));
   const send = (res: ServerResponse, type: string, body: string | Buffer) =>
@@ -138,6 +145,7 @@ export function serveInspector(sources: ConductorSource[], port: number): Server
   const server = createHttpServer((req, res) => {
     if (req.url === '/' || req.url === '/index.html') return send(res, 'text/html; charset=utf-8', page());
     if (req.url === '/vendor/cytoscape.min.js') return send(res, 'text/javascript', readFileSync(CYTOSCAPE));
+    if (req.url === '/inspector-view.js') return send(res, 'text/javascript', viewModule());
     if (req.url === '/api/graph') {
       admins()
         .then(graphState)

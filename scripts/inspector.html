@@ -56,7 +56,17 @@
       .chip { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); cursor: pointer; user-select: none; }
       .chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
       .chip.off { opacity: .4; text-decoration: line-through; }
-      #graph { flex: 1; min-height: 0; position: relative; }
+      #graph { flex: 1; min-height: 0; position: relative; outline: none; }
+      #crumbs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 4px 12px; border-bottom: 1px solid var(--line); font-size: 12px; min-height: 26px; color: var(--muted); }
+      #crumbs:empty { display: none; }
+      #crumbs button { padding: 0 6px; border: 0; background: none; color: var(--accent); text-decoration: underline; }
+      #crumbs button[aria-current] { color: var(--ink); text-decoration: none; font-weight: 600; }
+      #legend { position: absolute; left: 8px; bottom: 8px; z-index: 2; max-width: 300px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: 11.5px; }
+      #legend summary { cursor: pointer; color: var(--muted); }
+      #legend ul { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 3px; }
+      #legend li { display: flex; gap: 6px; align-items: center; color: var(--ink); }
+      #legend li.keys { color: var(--muted); display: block; margin-top: 2px; }
+      .chip b { font-weight: 600; color: var(--accent); margin-left: 2px; }
       #empty { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: var(--muted); pointer-events: none; text-align: center; padding: 24px; }
       #detail { flex: 1; overflow: auto; padding: 4px 12px 16px; }
       #detail .none { color: var(--muted); padding-top: 8px; }
@@ -101,11 +111,33 @@
           <label>Author <select id="author"></select></label>
           <input type="search" id="search" placeholder="Search a hash or text" />
           <button id="labels" title="Show every edge label">Edge labels</button>
+          <button id="group" class="on" title="Show each type of more than 6 records as one counted node; click it to open it">Group large types</button>
+          <button id="unlinked" title="Hide the records nothing links to or from">Hide unlinked</button>
+          <span class="spacer"></span>
+          <button id="fit" title="Fit the graph to the view (F)">Fit</button>
+          <button id="zoomsel" title="Zoom to the selected record (Z)">Zoom to selection</button>
           <button id="relayout">Re-layout</button>
           <span class="meta" id="counts"></span>
         </div>
-        <div id="types"></div>
-        <div id="graph"><div id="empty"></div></div>
+        <div id="types" title="Colours by entry type. Click a type to take it off the graph."></div>
+        <nav id="crumbs" aria-label="Focus"></nav>
+        <div id="graph">
+          <div id="empty"></div>
+          <details id="legend">
+            <summary>Legend · keys</summary>
+            <ul>
+              <li><svg width="16" height="16"><rect x="2" y="2" width="12" height="12" rx="3" fill="currentColor" opacity=".6"/></svg>record, coloured by type</li>
+              <li><svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="var(--accent)" stroke="var(--gold)" stroke-width="2"/></svg>agent</li>
+              <li><svg width="16" height="16"><rect x="1" y="1" width="14" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="2 1"/></svg>group of one type: click to open</li>
+              <li><svg width="16" height="16"><rect x="2" y="2" width="12" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="3"/></svg>updated (vN revisions)</li>
+              <li><svg width="16" height="16"><rect x="2" y="2" width="12" height="12" rx="3" fill="var(--ghost)" stroke="var(--err)" stroke-dasharray="3 2" stroke-width="2"/></svg>deleted</li>
+              <li><svg width="28" height="10"><line x1="1" y1="5" x2="27" y2="5" stroke="var(--muted)" stroke-width="2"/></svg>entry field (clause_of, fulfills…)</li>
+              <li><svg width="28" height="10"><line x1="1" y1="5" x2="27" y2="5" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>link</li>
+              <li><svg width="28" height="10"><line x1="1" y1="5" x2="27" y2="5" stroke="var(--ghost)" stroke-width="1.5"/></svg>deleted link</li>
+              <li class="keys">Double-click: focus a record and its neighbours · ← → step through them · Enter: focus · Backspace: back · Esc: clear · F: fit · Z: zoom</li>
+            </ul>
+          </details>
+        </div>
       </section>
       <section>
         <h2>Detail</h2>
@@ -113,13 +145,15 @@
       </section>
     </main>
     <script src="/vendor/cytoscape.min.js"></script>
-    <script>
-      'use strict';
+    <script type="module">
+      // Grouping, filters, focus and neighbour order: tested in scripts/tests/inspector-view.test.ts.
+      import * as V from '/inspector-view.js';
       const $ = (id) => document.getElementById(id);
+      const GROUP_ABOVE = 6;
       const PALETTE = ['#4720b7', '#0ea5e9', '#d4a90f', '#65a30d', '#ff8800', '#d21919', '#7c8dc4', '#c026d3', '#14b8a6', '#a16207', '#6366f1', '#f43f5e', '#0f766e', '#9333ea'];
       const state = {
         data: null, role: null, author: '', search: '', hiddenTypes: new Set(), edgeLabels: false,
-        selected: null, selectedCell: null, chainAgent: null, positions: new Map(), seenNodes: new Set(), seenActions: new Set(), signature: ''
+        selected: null, selectedCell: null, chainAgent: null, expanded: new Set(), grouping: true, hideUnlinked: false, focus: [], anchor: null, positions: new Map(), seenNodes: new Set(), seenActions: new Set(), signature: ''
       };
       const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
       const short = (h) => (h ? `${h.slice(0, 8)}…${h.slice(-5)}` : '');
@@ -186,6 +220,7 @@
       const graphStyle = () => [
         { selector: 'node', style: { 'background-color': (n) => colourOf(n.data('entryType')), label: 'data(label)', color: css('--ink'), 'font-size': 10, 'text-valign': 'bottom', 'text-margin-y': 3, 'text-wrap': 'ellipsis', 'text-max-width': 110, 'min-zoomed-font-size': 7, width: 18, height: 18, shape: 'round-rectangle', 'border-width': 0, 'transition-property': 'opacity', 'transition-duration': '0.6s' } },
         { selector: 'node[kind = "agent"]', style: { shape: 'ellipse', width: 24, height: 24, 'background-color': css('--accent'), 'border-width': 2, 'border-color': css('--gold') } },
+        { selector: 'node[kind = "group"]', style: { width: 34, height: 34, 'border-width': 3, 'border-style': 'dashed', 'border-color': css('--ink'), 'font-weight': 600, 'font-size': 11 } },
         { selector: 'node[revs > 1]', style: { 'border-width': 3, 'border-style': 'double', 'border-color': css('--ink') } },
         { selector: 'node[?deleted]', style: { 'background-color': css('--ghost'), opacity: 0.55, 'border-style': 'dashed', 'border-width': 2, 'border-color': css('--err') } },
         { selector: 'node.new', style: { opacity: 0 } },
@@ -197,45 +232,61 @@
         { selector: 'edge[?deleted]', style: { 'line-color': css('--ghost'), 'target-arrow-color': css('--ghost'), opacity: 0.5 } },
         { selector: 'edge:selected', style: { 'line-color': css('--gold'), 'target-arrow-color': css('--gold'), width: 3, label: 'data(label)' } },
         { selector: '.faded', style: { opacity: 0.12 } },
+        { selector: '.outfocus', style: { opacity: 0.08, events: 'no' } },
         { selector: '.match', style: { 'overlay-color': css('--sky'), 'overlay-opacity': 0.3, 'overlay-padding': 5 } },
         { selector: '.hidden', style: { display: 'none' } }
       ];
       const cy = cytoscape({ container: $('graph'), style: graphStyle(), wheelSensitivity: 0.3, minZoom: 0.1, maxZoom: 3 });
-      cy.on('tap', 'node, edge', (e) => select(e.target.id()));
+      cy.on('tap', 'node, edge', (e) => {
+        if (e.target.isNode() && e.target.data('kind') === 'group') { state.expanded.add(e.target.data('entryType')); renderGraph('relayout'); return; }
+        select(e.target.id());
+      });
+      cy.on('dbltap', 'node', (e) => { if (e.target.data('kind') !== 'group') pushFocus(e.target.id()); });
       cy.on('tap', (e) => { if (e.target === cy) select(null); });
       cy.on('dragfree', 'node', (e) => state.positions.set(`${state.role}|${e.target.id()}`, { ...e.target.position() }));
 
       const roleGraph = () => state.data?.roles[state.role];
+      // What is on screen: hidden types and unlinked records taken out, then large types grouped.
+      function viewGraph() {
+        const g = roleGraph();
+        if (!g) return { nodes: [], edges: [] };
+        const v = V.visibleGraph(g, { hiddenTypes: state.hiddenTypes, hideUnlinked: state.hideUnlinked });
+        return state.grouping ? V.collapseTypes(v, { threshold: GROUP_ABOVE, expanded: state.expanded }) : v;
+      }
       const nodeLabel = (n) => {
+        if (n.kind === 'group') return n.label;
         if (n.kind === 'agent') return memberOf(n.id) ?? n.label;
         const base = n.label ? `${n.entryType}: ${n.label}` : n.entryType;
         return n.revisions.length > 1 ? `${base} (v${n.revisions.length})` : base;
       };
-      const nodeData = (n) => ({ id: n.id, kind: n.kind, entryType: n.entryType, label: nodeLabel(n), revs: n.revisions.length, deleted: n.deleted, author: n.author });
+      const nodeData = (n) => ({ id: n.id, kind: n.kind, entryType: n.entryType, label: nodeLabel(n), revs: n.revisions?.length ?? 0, deleted: !!n.deleted, author: n.author ?? '', count: n.count ?? 0 });
+      const edgeData = (e) => ({ ...e, label: e.count > 1 ? `${e.label} ×${e.count}` : e.label });
 
-      function renderGraph(fresh) {
+      function renderGraph(mode) {
         const g = roleGraph();
         if (!g) return;
+        const fresh = mode === true || mode === 'fresh';
         typeColour.clear();
         [...new Set(g.nodes.filter((n) => n.kind === 'entry').map((n) => n.entryType))].sort().forEach((t, i) => typeColour.set(t, PALETTE[i % PALETTE.length]));
-        if (fresh) { cy.elements().remove(); state.seenNodes = new Set(); }
-        const wanted = new Set([...g.nodes.map((n) => n.id), ...g.edges.map((e) => e.id)]);
+        const v = viewGraph();
+        if (fresh) { cy.elements().remove(); state.seenNodes = new Set(); state.focus = []; }
+        const wanted = new Set([...v.nodes.map((n) => n.id), ...v.edges.map((e) => e.id)]);
         cy.elements().filter((el) => !wanted.has(el.id())).remove();
         const added = [];
-        for (const n of g.nodes) {
+        for (const n of v.nodes) {
           const el = cy.$id(n.id);
           if (el.nonempty()) { el.data(nodeData(n)); continue; }
           const saved = state.positions.get(`${state.role}|${n.id}`);
-          added.push(cy.add({ group: 'nodes', data: nodeData(n), position: saved ?? { x: 0, y: 0 }, classes: fresh || state.seenNodes.has(n.id) ? '' : 'new' }));
+          added.push(cy.add({ group: 'nodes', data: nodeData(n), position: saved ?? { x: 0, y: 0 }, classes: fresh || mode === 'relayout' || state.seenNodes.has(n.id) ? '' : 'new' }));
         }
-        for (const e of g.edges) {
+        for (const e of v.edges) {
           const el = cy.$id(e.id);
-          if (el.nonempty()) { el.data({ ...e }); continue; }
-          cy.add({ group: 'edges', data: { ...e } });
+          if (el.nonempty()) { el.data(edgeData(e)); continue; }
+          cy.add({ group: 'edges', data: edgeData(e) });
         }
         cy.style(graphStyle());
         const unplaced = added.filter((n) => !state.positions.has(`${state.role}|${n.id()}`));
-        if (fresh && unplaced.length) layout(cy.elements());
+        if (fresh || mode === 'relayout') layout(cy.elements());
         else if (unplaced.length) {
           // New records join beside what they point at, then fade in; the rest stays put.
           for (const n of unplaced) {
@@ -246,9 +297,8 @@
           }
           setTimeout(() => cy.$('.new').removeClass('new'), 30);
         }
-        if (fresh) fit();
-        g.nodes.forEach((n) => state.seenNodes.add(n.id));
-        renderTypes(); applyFilters();
+        v.nodes.forEach((n) => state.seenNodes.add(n.id));
+        renderTypes(); renderCrumbs(); applyFilters();
         if (state.selected && cy.$id(state.selected).nonempty()) cy.$id(state.selected).select();
         renderDetail();
       }
@@ -265,49 +315,108 @@
         const g = roleGraph();
         const counts = {};
         for (const n of g.nodes) counts[n.entryType] = (counts[n.entryType] ?? 0) + 1;
-        $('types').innerHTML = Object.keys(counts).sort().map((t) =>
-          `<span class="chip${state.hiddenTypes.has(t) ? ' off' : ''}" data-type="${esc(t)}" title="Show or hide ${esc(t)}"><i style="background:${t === 'Agent' && !typeColour.has(t) ? css('--accent') : colourOf(t)}"></i>${esc(t)} ${counts[t]}</span>`
-        ).join('');
+        $('types').innerHTML = Object.keys(counts).sort().map((t) => {
+          const regroup = state.grouping && state.expanded.has(t) && counts[t] > GROUP_ABOVE ? `<b data-regroup="${esc(t)}" title="Group ${esc(t)} again">⊟</b>` : '';
+          return `<span class="chip${state.hiddenTypes.has(t) ? ' off' : ''}" data-type="${esc(t)}" title="Take ${esc(t)} off the graph, or put it back"><i style="background:${t === 'Agent' && !typeColour.has(t) ? css('--accent') : colourOf(t)}"></i>${esc(t)} ${counts[t]}${regroup}</span>`;
+        }).join('');
       }
       $('types').onclick = (e) => {
+        const regroup = e.target.closest('[data-regroup]');
+        if (regroup) { state.expanded.delete(regroup.dataset.regroup); renderGraph('relayout'); return; }
         const chip = e.target.closest('.chip');
         if (!chip) return;
         const t = chip.dataset.type;
         state.hiddenTypes.has(t) ? state.hiddenTypes.delete(t) : state.hiddenTypes.add(t);
-        renderTypes(); applyFilters();
+        renderGraph('relayout');
       };
 
       function nodeText(n) {
-        return [n.id, n.entryType, n.label, ...n.revisions.map((r) => r.hash), JSON.stringify(n.entry ?? '')].join(' ').toLowerCase();
+        if (!n) return '';
+        return [n.id, n.entryType, n.label, ...(n.revisions ?? []).map((r) => r.hash), JSON.stringify(n.entry ?? '')].join(' ').toLowerCase();
       }
 
       function applyFilters() {
         const g = roleGraph();
         if (!g) return;
         const q = state.search.trim().toLowerCase();
+        const byId = new Map(g.nodes.map((n) => [n.id, n]));
+        const v = { edges: cy.edges().map((e) => ({ source: e.source().id(), target: e.target().id() })) };
+        const focus = state.focus.length ? V.focusSet(v.edges, state.focus[state.focus.length - 1], 1) : null;
         cy.batch(() => {
-          cy.elements().removeClass('hidden faded match');
-          for (const n of g.nodes) {
-            const el = cy.$id(n.id);
-            const typeHidden = state.hiddenTypes.has(n.entryType);
-            const authorOut = state.author && n.kind === 'entry' && n.author !== state.author && !n.revisions.some((r) => r.author === state.author);
-            if (typeHidden) el.addClass('hidden');
-            else if (authorOut) el.addClass('faded');
-            if (q && !typeHidden) el.addClass(nodeText(n).includes(q) ? 'match' : 'faded');
-          }
-          cy.edges().forEach((e) => { if (e.source().hasClass('faded') || e.target().hasClass('faded')) e.addClass('faded'); });
+          cy.elements().removeClass('faded match outfocus');
+          cy.nodes().forEach((el) => {
+            const n = byId.get(el.id());
+            if (focus && !focus.has(el.id())) { el.addClass('outfocus'); return; }
+            const authorOut = state.author && n && n.kind === 'entry' && n.author !== state.author && !n.revisions.some((r) => r.author === state.author);
+            if (authorOut) el.addClass('faded');
+            if (q) el.addClass((n ? nodeText(n) : el.data('label').toLowerCase()).includes(q) ? 'match' : 'faded');
+          });
+          cy.edges().forEach((e) => {
+            if (e.source().hasClass('outfocus') || e.target().hasClass('outfocus')) e.addClass('outfocus');
+            else if (e.source().hasClass('faded') || e.target().hasClass('faded')) e.addClass('faded');
+          });
           cy.edges().toggleClass('labelled', state.edgeLabels);
           if (state.selected) cy.$id(state.selected).removeClass('faded');
         });
-        const visible = cy.nodes().not('.hidden');
-        $('counts').textContent = `${g.nodes.filter((n) => n.kind === 'entry').length} records · ${g.edges.length} edges` + (q ? ` · ${cy.$('.match').length} match` : '');
-        $('empty').style.display = visible.length ? 'none' : 'flex';
-        $('empty').textContent = g.nodes.length ? 'Every type is hidden.' : 'No records in this DNA yet. Create a profile in a member tab and they appear here.';
+        const shown = cy.nodes().filter((n) => n.data('kind') !== 'group').length;
+        const grouped = cy.nodes('[kind = "group"]').reduce((a, n) => a + (n.data('count') ?? 0), 0);
+        $('counts').textContent = `${shown + grouped} of ${g.nodes.length} records${grouped ? ` (${grouped} in groups)` : ''} · ${cy.edges().length} edges` + (q ? ` · ${cy.$('.match').length} match` : '');
+        $('empty').style.display = cy.nodes().length ? 'none' : 'flex';
+        $('empty').textContent = g.nodes.length ? 'Every type is off the graph: click a type above to bring it back.' : 'No records in this DNA yet. Create a profile in a member tab and they appear here.';
       }
 
+      // ---- Focus and keyboard -------------------------------------------
+      function pushFocus(id) {
+        if (state.focus[state.focus.length - 1] !== id) state.focus.push(id);
+        state.anchor = id;
+        select(id);
+        renderCrumbs();
+        const set = V.focusSet(cy.edges().map((e) => ({ source: e.source().id(), target: e.target().id() })), id, 1);
+        const eles = cy.nodes().filter((n) => set.has(n.id()));
+        cy.fit(eles, 80);
+        if (cy.zoom() > 1.2) { cy.zoom(1.2); cy.center(eles); }
+      }
+      function popFocus(to) {
+        state.focus = to === undefined ? state.focus.slice(0, -1) : state.focus.slice(0, to);
+        renderCrumbs(); applyFilters();
+        if (!state.focus.length) fit();
+      }
+      function renderCrumbs() {
+        const g = roleGraph();
+        if (!state.focus.length || !g) { $('crumbs').innerHTML = ''; return; }
+        const label = (id) => { const n = g.nodes.find((x) => x.id === id); return n ? nodeLabel(n) : short(id); };
+        $('crumbs').innerHTML = '<button data-crumb="0">All records</button>' + state.focus.map((id, i) =>
+          ` › <button data-crumb="${i + 1}"${i === state.focus.length - 1 ? ' aria-current="true"' : ''}>${esc(label(id))}</button>`).join('');
+      }
+      $('crumbs').onclick = (e) => { const b = e.target.closest('[data-crumb]'); if (b) popFocus(Number(b.dataset.crumb)); };
+      function step(dir) {
+        const from = state.anchor || state.selected;
+        if (!from || cy.$id(from).empty()) return;
+        const g = roleGraph();
+        const label = (id) => nodeLabel(g.nodes.find((x) => x.id === id) ?? { kind: 'group', label: cy.$id(id).data('label') ?? id });
+        const order = V.neighbourOrder(cy.edges().map((e) => ({ source: e.source().id(), target: e.target().id() })), from, label);
+        if (!order.length) return;
+        const i = order.indexOf(state.selected);
+        const next = order[(i + dir + order.length) % order.length];
+        select(next, { centre: true, keepAnchor: true });
+      }
+      function zoomToSelection() { const el = state.selected && cy.$id(state.selected); if (el && el.nonempty()) cy.animate({ center: { eles: el }, zoom: Math.max(cy.zoom(), 1.4) }, { duration: 300 }); }
+      document.addEventListener('keydown', (e) => {
+        if ((e.target instanceof Element && e.target.closest('input, select, textarea, button, summary')) || e.ctrlKey || e.metaKey || e.altKey) return;
+        const keys = {
+          ArrowRight: () => step(1), ArrowDown: () => step(1), ArrowLeft: () => step(-1), ArrowUp: () => step(-1),
+          Enter: () => state.selected && cy.$id(state.selected).isNode?.() && pushFocus(state.selected),
+          Backspace: () => state.focus.length && popFocus(),
+          Escape: () => { state.focus = []; state.anchor = null; select(null); renderCrumbs(); fit(); },
+          f: fit, F: fit, z: zoomToSelection, Z: zoomToSelection
+        };
+        if (keys[e.key]) { e.preventDefault(); keys[e.key](); }
+      });
+
       // ---- Selection and detail -----------------------------------------
-      function select(id, { centre = false } = {}) {
+      function select(id, { centre = false, keepAnchor = false } = {}) {
         state.selected = id;
+        if (!keepAnchor) state.anchor = id;
         cy.$(':selected').unselect();
         if (id) {
           const el = cy.$id(id);
@@ -346,6 +455,8 @@
             <dt>State</dt><dd>${edge.deleted ? '<span class="badge deleted">deleted</span>' : 'live'}</dd></dl>`;
           return;
         }
+        const group = !node && !edge && cy.$id(state.selected).data('kind') === 'group';
+        if (group) { box.innerHTML = `<h3>${esc(cy.$id(state.selected).data('entryType'))}</h3><p>${esc(cy.$id(state.selected).data('label'))}: click it to show each record.</p>`; return; }
         if (!node) { box.innerHTML = '<p class="none">That record is no longer in the capture.</p>'; return; }
         const last = node.revisions[node.revisions.length - 1];
         const out = g.edges.filter((e) => e.source === node.id);
@@ -392,7 +503,7 @@
 
       // ---- Controls -----------------------------------------------------
       $('role').onchange = (e) => {
-        state.role = e.target.value; state.selected = null;
+        state.role = e.target.value; state.selected = null; state.expanded.clear(); state.focus = [];
         const cell = state.data.network.nodes.find((n) => n.role === state.role && n.agentKey === (state.chainAgent || state.author));
         state.selectedCell = cell?.id ?? null; net.$(':selected').unselect(); if (cell) net.$id(cell.id).select();
         renderGraph(true); renderChain();
@@ -404,9 +515,17 @@
         state.selectedCell = cell?.id ?? null; net.$(':selected').unselect(); if (cell) net.$id(cell.id).select();
         applyFilters(); renderChain();
       };
-      $('search').oninput = (e) => { state.search = e.target.value; applyFilters(); };
+      $('search').oninput = (e) => {
+        state.search = e.target.value; applyFilters();
+        const hits = cy.$('.match');
+        if (hits.nonempty()) cy.animate({ fit: { eles: hits, padding: 80 }, zoom: undefined }, { duration: 250 });
+      };
       $('search').onkeydown = (e) => { if (e.key === 'Enter') { const m = cy.$('.match').first(); if (m.nonempty()) select(m.id(), { centre: true }); } };
       $('labels').onclick = (e) => { state.edgeLabels = !state.edgeLabels; e.target.classList.toggle('on', state.edgeLabels); applyFilters(); };
+      $('group').onclick = (e) => { state.grouping = !state.grouping; state.expanded.clear(); e.target.classList.toggle('on', state.grouping); renderGraph('relayout'); };
+      $('unlinked').onclick = (e) => { state.hideUnlinked = !state.hideUnlinked; e.target.classList.toggle('on', state.hideUnlinked); renderGraph('relayout'); };
+      $('fit').onclick = fit;
+      $('zoomsel').onclick = zoomToSelection;
       $('relayout').onclick = () => { for (const k of [...state.positions.keys()]) if (k.startsWith(`${state.role}|`)) state.positions.delete(k); layout(cy.elements()); };
 
       function renderControls() {
@@ -445,6 +564,11 @@
           busy = false;
         }
       }
+      // The legend remembers whether it was open.
+      try { if (localStorage.getItem('inspector-legend') === 'open') $('legend').open = true; } catch {}
+      $('legend').addEventListener('toggle', () => { try { localStorage.setItem('inspector-legend', $('legend').open ? 'open' : 'closed'); } catch {} });
+      // For checking the page from the browser console.
+      window.__inspector = { state, cy, net, select, selectCell, pushFocus, roleGraph, viewGraph };
       load(true);
       setInterval(() => { if (live && document.visibilityState === 'visible') load(false); }, 3000);
     </script>

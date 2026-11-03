@@ -145,20 +145,22 @@ This will:
 1. Clean the Holochain sandbox
 2. Build the hApp
 3. Start the UI server
-4. Launch the Holochain environment
+4. Launch the Holochain environment (one hc-spin conductor per member, on free admin ports)
+5. Serve the conductor inspector and open it in your browser
 
-To see each member's source chain and DHT state, use `bun start:web`, which also serves an inspector page (`documentation/guides/web-dev-mode.md`). `bun start` no longer starts `hc playground`: its only build reads Holochain 0.5, not 0.7.
+To see each member's source chain and DHT state, open the inspector page: `bun start` and `bun start:web` both serve it and print its URL. `INSPECTOR_PORT` fixes its port and `WEB_OPEN=0` stops it opening (`documentation/guides/web-dev-mode.md#the-inspector`). It replaces `hc playground`, whose only build reads Holochain 0.5, not 0.7.
 
 #### Verify Development Environment
 
 After running `bun start`, you should see:
 
 1. **Terminal Output**: Multiple URLs displayed:
-   - UI servers for each agent (e.g., `http://localhost:5173`, `http://localhost:5174`)
+   - The UI server, on `UI_PORT` (`http://localhost:8880` by default)
+   - The inspector: `[inspector] http://localhost:<port>/  (conductors on admin ports <a>, <b>)`
    - Bootstrap server URL
    - Signal server URL
 
-2. **Browser Windows**: Automatically opened browser windows for each agent
+2. **Windows**: one hc-spin window per agent, and the inspector in your browser (unless `WEB_OPEN=0`). `bun start:web` opens browser tabs instead, one per member
 
 3. **Successful Connection**: Each UI should show the main interface without connection errors
 

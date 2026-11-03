@@ -665,7 +665,7 @@ Each major section includes search functionality:
 
 ### 6.0 Network Creation & Joining (Kangaroo)
 
-The following UX is implemented in the Kangaroo (Electron) host app, not in the Svelte UI. It runs before the hApp is installed.
+The following UX is specified for the Kangaroo (Electron) host app, not the Svelte UI, and is not implemented yet (#95). It would run before the hApp is installed. Today the wrapper installs the hApp with the properties `workdir/happ.yaml` carries and does not set `progenitor_pubkey`, so a desktop network keeps `~` and the first profile created on it becomes admin (see [progenitor.md](../progenitor.md)).
 
 **References:** #5 (progenitor backend), #45 (integrity validation), #95 (full UX spec)
 
@@ -711,7 +711,7 @@ The progenitor's pubkey is now cryptographically bound to the network. No one el
 
 | Network | How loaded | Progenitor |
 |---|---|---|
-| Holochain pilot | Pre-bundled DNA hash in Kangaroo build | Designated pilot operator |
+| Holochain pilot | Pre-bundled DNA hash in Kangaroo build (planned) | Designated pilot operator (planned) |
 | Test network | Tryorama DNA modifiers (dynamic pubkey) | Alice (test keypair) |
 
 ---

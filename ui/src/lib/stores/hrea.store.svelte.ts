@@ -2174,10 +2174,13 @@ export const createHreaStore = (): E.Effect<
             ? E.succeed(0)
             : pipe(
                 hreaService.getCommitments(),
+                // The list holds the original revisions: read this agreement's
+                // commitments at their latest, so `finished` and the revision
+                // to update from are current (see getLatestCommitments).
+                E.map((all) => all.filter((c) => c.clauseOf === refs.agreementId)),
+                E.flatMap(hreaService.getLatestCommitments),
                 E.flatMap((commitments) => {
-                  const open = commitments.filter(
-                    (c) => c.clauseOf === refs.agreementId && !c.finished && c.revisionId
-                  );
+                  const open = commitments.filter((c) => !c.finished && c.revisionId);
                   return pipe(
                     E.forEach(open, (c) =>
                       hreaService.updateCommitment({ revisionId: c.revisionId!, finished: true })
@@ -2200,7 +2203,11 @@ export const createHreaStore = (): E.Effect<
               proposals: hreaService.getProposalsWithIntents(),
               intents: hreaService.getIntents(),
               agreements: hreaService.getAgreements(),
-              commitments: hreaService.getCommitments(),
+              // Latest revisions: the list returns originals after an update.
+              commitments: pipe(
+                hreaService.getCommitments(),
+                E.flatMap(hreaService.getLatestCommitments)
+              ),
               events: hreaService.getEconomicEvents()
             },
             { concurrency: 'unbounded' }

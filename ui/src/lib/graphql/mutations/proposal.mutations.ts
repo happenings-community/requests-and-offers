@@ -13,6 +13,12 @@ export const CREATE_PROPOSAL_MUTATION = gql`
         hasBeginning
         hasEnd
         unitBased
+        publishes {
+          id
+        }
+        reciprocal {
+          id
+        }
       }
     }
   }

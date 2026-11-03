@@ -237,7 +237,6 @@ export const HREA_CONTEXTS = {
   DELETE_INTENT: `Failed to ${BASE_CONTEXTS.DELETE} hREA intent`,
   GET_INTENTS: `Failed to ${BASE_CONTEXTS.LIST} hREA intents`,
   GET_INTENTS_BY_PROPOSAL: 'Failed to get hREA intents by proposal',
-  PROPOSE_INTENT: 'Failed to link intent to proposal',
   MAP_TO_HREA: 'Failed to map to hREA format',
   MAP_FROM_HREA: 'Failed to map from hREA format',
   SYNC_WITH_HREA: 'Failed to sync with hREA'

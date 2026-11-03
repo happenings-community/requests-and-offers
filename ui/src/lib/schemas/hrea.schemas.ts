@@ -82,5 +82,6 @@ export const EconomicEventSchema = Schema.Struct({
   note: Schema.optional(Schema.String),
   agreedIn: Schema.optional(Schema.String),
   realizationOf: Schema.optional(Schema.String),
+  fulfills: Schema.optional(Schema.Array(Schema.String)),
   revisionId: Schema.optional(Schema.String)
 });

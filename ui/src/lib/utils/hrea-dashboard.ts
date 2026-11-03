@@ -28,7 +28,7 @@ export type HreaSnapshot = {
   events: EconomicEvent[];
 };
 
-/** Fulfillment is null: R&O does not mirror it (see KNOWN_MAPPING_GAPS). */
+/** Fulfillments are not entities here: hREA stores them as each event's fulfills links. */
 export type VfCounts = {
   agents: number;
   specs: number;
@@ -37,7 +37,7 @@ export type VfCounts = {
   agreements: number;
   commitments: number;
   events: number;
-  fulfillments: null;
+  fulfillments: number;
 };
 
 export function countVfTypes(s: HreaSnapshot): VfCounts {
@@ -49,7 +49,7 @@ export function countVfTypes(s: HreaSnapshot): VfCounts {
     agreements: s.agreements.length,
     commitments: s.commitments.length,
     events: s.events.length,
-    fulfillments: null
+    fulfillments: s.events.reduce((n, e) => n + (e.fulfills?.length ?? 0), 0)
   };
 }
 
@@ -179,7 +179,7 @@ export function buildLedger(ro: RoInventory, s: HreaSnapshot): LedgerRow[] {
     row({
       ro: 'Completions',
       hrea: 'EconomicEvent',
-      link: 'realizationOf Agreement (no Fulfillment)',
+      link: 'realizationOf Agreement, fulfills its Commitment',
       caveat: DELETED_LISTINGS_CAVEAT,
       roCount: expected.events,
       hreaCount: s.events.length
@@ -351,7 +351,11 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       title: 'EconomicEvent',
       sub: 'service delivered',
       state: stage(eventP, primaryMapped, accepted && !!ex.provider_done),
-      fields: [...idField(eventP), ['linked by', 'realizationOf Agreement, no Fulfillment']]
+      fields: [
+        ...idField(eventP),
+        ['fulfills', eventP?.fulfills?.join(', ') || '—'],
+        ['linked by', 'realizationOf Agreement, fulfills its Commitment']
+      ]
     },
     {
       id: 'eventR',
@@ -359,19 +363,17 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       title: 'EconomicEvent',
       sub: 'reciprocal delivered',
       state: stage(eventR, recipMapped, accepted && !!ex.receiver_done),
-      fields: [...idField(eventR), ['linked by', 'realizationOf Agreement, no Fulfillment']]
+      fields: [
+        ...idField(eventR),
+        ['fulfills', eventR?.fulfills?.join(', ') || '—'],
+        ['linked by', 'realizationOf Agreement, fulfills its Commitment']
+      ]
     }
   ];
 }
 
 /** Known gaps in the R&O to hREA mapping, shown on the dashboard rather than hidden. Fixing them is U15. */
 export const KNOWN_MAPPING_GAPS: { title: string; detail: string; where: string }[] = [
-  {
-    title: 'No Fulfillment',
-    detail:
-      'An EconomicEvent links to the Agreement through realizationOf, never to the Commitment it satisfies through a Fulfillment, so hREA cannot tell which promise a delivery kept.',
-    where: 'mapCompletionToEvent, services/mappers/agreement-commitment.mapper.ts'
-  },
   {
     title: 'Cancel, decline and review are not mirrored',
     detail:

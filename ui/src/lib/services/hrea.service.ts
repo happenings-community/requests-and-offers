@@ -78,7 +78,8 @@ export function normalizeEconomicEventResponse(raw: GraphQLEconomicEventResponse
     hasPointInTime: raw.hasPointInTime ?? undefined,
     note: raw.note ?? undefined,
     agreedIn: raw.agreedIn ?? undefined,
-    realizationOf: raw.realizationOf?.id
+    realizationOf: raw.realizationOf?.id,
+    fulfills: raw.fulfills?.map((c) => c.id)
   };
 }
 
@@ -209,6 +210,8 @@ export type EconomicEventInput = {
   note?: string;
   agreedIn?: string;
   realizationOf?: string;
+  /** The Commitments this event fulfills (VF Fulfillment, stored on the event). */
+  fulfills?: string[];
 };
 
 const AgentSchema = S.Struct({

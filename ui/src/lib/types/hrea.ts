@@ -86,4 +86,5 @@ export interface GraphQLEconomicEventResponse {
   note?: string | null;
   agreedIn?: string | null;
   realizationOf?: Ref;
+  fulfills?: { id: string }[] | null;
 }

@@ -68,4 +68,10 @@ describe('admin hREA entry', () => {
     const dashboard = read('src/lib/components/hrea/HreaDashboard.svelte');
     expect(dashboard).toMatch(/\{#if r\.caveat\}/);
   });
+
+  it('draws the event to its Commitment as a fulfills link, no longer as not mirrored', () => {
+    const dashboard = read('src/lib/components/hrea/HreaDashboard.svelte');
+    expect(dashboard).not.toMatch(/not mirrored/);
+    expect(dashboard).toMatch(/label: 'fulfills'/);
+  });
 });

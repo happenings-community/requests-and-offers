@@ -136,6 +136,8 @@ describe('hREA agreement mirror after a reload (agreementMappings empty)', () =>
 
     expect(svc.createEconomicEvent).toHaveBeenCalledTimes(1);
     expect(svc.createEconomicEvent.mock.calls[0][0].realizationOf).toBe('agr-1');
+    // U15b: the event also fulfills the provider's Commitment.
+    expect(svc.createEconomicEvent.mock.calls[0][0].fulfills).toEqual(['c-prim']);
     expect(event).not.toBeNull();
     expect(svc.updateCommitment).toHaveBeenCalledWith({ revisionId: 'c-prim-rev', finished: true });
     expect(store.agreementMappings.get(ref)?.agreementId).toBe('agr-1');

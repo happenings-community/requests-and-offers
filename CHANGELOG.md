@@ -11,13 +11,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty network: profiles, organisations, requests, offers and exchanges from alpha 1 do not carry over. Alpha data stays disposable until the breaking-version migration lands (#144). Notice to testers: `documentation/releases/v0.6.0-alpha.2-network-reset.md` (#195).
 
+### Platform
+
+- **Holochain**: The hApp moves to Holochain 0.7 and hREA `happ-0.5.0-beta.1` (`a2c5fd40`, #295, closes #192)
+- **hREA**: The GraphQL adapter `0.700.0-rc.0` is vendored as a release tarball until npm serves it (`3282e649`, #317, closes #316), and `hrea.dna` is pinned by sha256 so a pin bump reaches existing clones (`e15b0e2a`, #290, closes #223)
+
 ### Features
 
-- **Requests and Offers**: A listing names exactly one service type, and needs an approved service type before it can be published. Several services in one exchange belong on the agreement, as separate commitments. Not yet enforced in validation; tracked in #257 (#256)
+- **hREA**: Listings, exchanges and their completion are mirrored into hREA end to end (`30a7b7b6`, #255); the exchange record stays as it is for alpha 2, with no migration (`a83fda1b`, #402, closes #250)
+- **Requests and Offers**: A listing names exactly one service type, and needs an approved service type before it can be published. Several services in one exchange belong on the agreement, as separate commitments. Not yet enforced in validation; tracked in #257 (`4992fb30`, #256)
+- **Exchanges**: Either party may mark their part done first (`de9f2410`, #259)
+- **Exchanges**: A counter-proposal changes only quantities and timeframe (`d81bc7d3`, #341, closes #332)
+- **Exchanges**: A counter records the proposal it answers and the decline that closed it, as the next action on its author's chain, enforced by validation; an `AgreementCounters` link lets the rounds be read forwards (`dea6bf01`, #343, part of #333)
+- **Exchanges**: My Exchanges shows a negotiation as one card, with Group by and an All card (`89ca159a`, #345, closes #333)
+- **Exchanges**: An open exchange page shows the other member's moves without a reload (`b9dceea9`, #340, closes #334)
+- **Administration**: Applications are decided after reading them, with reasons, information requests and an admin contact (`a485d5a4`, #339, closes #331)
+- **Messaging**: A cross-agent nudge substrate, one ActionHash per signal (`af5429c0`, #213, closes #253)
+- **Network**: `get_network_info` names the DNA's integrity zomes (`219978e3`, #320)
+- **Exchanges**: The interest dialog says "Get in touch", invites an introduction before a proposal, and closes with × (`d481f448`, #419, closes #368)
+- **hREA**: Each completion's EconomicEvent fulfills its side's Commitment, so hREA records which promise a delivery kept (`04692616`, #439)
+- **Development**: `bun start:web` runs the app in browser tabs, one URL per member, with Vite's hot reload (`1047000b`, #423); a reload on any route keeps the member's connection (`baf1d05c`, #430); `bun start` and `bun start:web` also open a graph inspector of every member's conductor (`583dac09`, #434)
+
+### Security
+
+- **Validation**: Creates and updates are validated on the record op in six integrity zomes (`ce8a3e8a`, #348, closes #347)
+- **UI**: HTML in pop-up messages is sanitised (`e7bfd653`, #355, closes #211), and every toast is escaped before Skeleton renders it as HTML (`81875c28`, #418)
+- **UI**: A typed link opens only when it is a web address (`9ce13eac`, #382), inside rendered markdown too (`551f157f`, #312)
+- **Build**: Faker and the mock data stay out of the production build (`cae758a7`, #365, part of #363)
+
+### Bug Fixes
+
+- **Exchanges**: Every write that carries a payload is decoded (`499927c0`, #273)
+- **Exchanges**: Interest actions are hidden from members who are not accepted (`4474f97e`, #336, closes #330)
+- **Exchanges**: A counter keeps each quantity's unit; only the amount may change, enforced by validation (`279f9a64`, #422)
+- **hREA**: A mirrored proposal publishes its intents; the link step had silently failed since the adapter has no `proposeIntent` (`42848be5`, #431)
+- **hREA**: Every member picks the same seed Unit, so the Commitments two members write name one hours Unit (`e3c95711`, #443, closes #441)
+- **hREA**: After a reload, a completion finds its agreement's mirror again and an acceptance is not mirrored twice (`f40f1b4d`, #437)
+- **Exchanges**: The propose page names the other member, not the listing's author, when the author proposes to an interested member (`260887fa`, #436, closes #435)
+- **Users**: Pending members are gated like rejected members (`4d836957`, #338, closes #335), and see their approval without a reload (`8f73606f`, #337, closes #329), also when their profile was created without its status in the same page load, a defensive case (`4eb7adb8`, #429)
+- **Administration**: A temporary suspension lifts when its time runs out, not an hour before (`8254d40c`, #321)
+- **Administration**: Grey text is readable in admin dark mode (`807da50a`, #351), the hREA test page's footer note included (`ab1a9419`, #448, closes #205)
+- **UI**: Every store Effect the interface calls is run (`3aaded8d`, #395)
+- **UI**: Alt+A no longer fires while typing, and the Admin button shows at once (`0627f26b`, #356, closes #206)
+- **UI**: The network status shows the iroh relay, not the tx5 signal server (`f8687cdc`, #283)
+- **UI**: The users and organizations lists take the page width, and the service type headers line up (`1e4736e8`, #389, part of #387)
+
+### Performance
+
+- **Zomes**: The list endpoints batch their latest-record reads and skip an item that fails (`3a3c8f53`, #390, closes #186, #233)
+- **Validation**: Agent-activity ops are skipped in validate, and ops are flattened once (`64b0ba11`, #280, closes #279, #281)
+
+### Refactoring
+
+- **Exchanges**: The domain lands on the seven-layer architecture (`3950bf84`, #264, closes #251)
 
 ### Documentation
 
-- **Versioning**: The rule before 1.0, minor for breaking DNA changes and patch for the rest, with breaking changes batched (`documentation/guides/versioning.md`)
+- **Versioning**: The rule before 1.0, minor for breaking DNA changes and patch for the rest, with breaking changes batched (`documentation/guides/versioning.md`), and the alpha 2 network reset notice (`be951c66`, #385)
+- **Architecture**: What validation enforces, and the known limits (`7333eedd`, #401)
+- **Contributing**: The review rules are written down (`d852be25`, #293, closes #225)
+- **Release**: The announcement is gated on a launched packaged build (`162ca5e4`, #271); a discussion form for release feedback (`d110f10b`, #294); the Homebrew cask is installed by full name for tap trust (`14666074`, #267); production checks: never on a Friday, the built app run before the tag, two peers checked before announcing (`f71f5aa4`, #447, part of #276)
+- **Installation**: The Kangaroo desktop app does not set the progenitor key, so a new desktop network runs in development mode and its first profile becomes admin (`8ad45332`, #445)
+- **Development**: The inspector's adapter contract, packaging options and a Nondominium trial (`15d069e8`, #446); the guides follow what `bun start` and `bun start:web` now launch, and the ports they take (`ff26c178`, #449)
+
+### CI and Testing
+
+- **CI**: The fast checks run on every pull request and the heavy suites on demand (`bcd17fa4`, #262); the zome crates' own unit tests run (`6f798a2c`, #272); runners are pinned to ubuntu-24.04 with actions on Node 24 (`a201e5d2`, #282); `impl-issue-status` points at the In Review column (`feaa65e7`, #313)
+- **Release**: A tag-triggered release chain with a gated build (`120ea83b`, #277)
+- **Sweettest**: The scripts are fixed and `link_canonicalisation` runs in CI (`c9967fd4`, #298, closes #297)
+- **Exchanges**: The derived state and the exchange UI predicates are pinned by tests (`8ce42848`, #258)
+- **Lint**: ESLint errors cleared in the files no open pull request touches (`922aeb07`, #450); the contrast test also reads Skeleton token pairs (`ab1a9419`, #448)
+- **E2E**: The test conductor runs on its own network (`9b2d8b24`, #372); the onboarding connection probes can go red (`5ad458df`, #314, closes #252); the organisation is re-read after the update toast (`5fcdc272`, #275, closes #274)
 
 ## [0.6.0-alpha.1] - 2026-09-14
 

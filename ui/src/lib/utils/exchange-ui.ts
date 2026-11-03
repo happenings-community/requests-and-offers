@@ -89,6 +89,18 @@ export function counterpartyOf(
     : exchange.agreement.provider;
 }
 
+/**
+ * Who a proposal is made with, before any agreement exists. A listing's author
+ * proposes to the member who showed interest; anyone else proposes to the author.
+ */
+export function proposalCounterparty(
+  author: ActionHash | undefined,
+  member: ActionHash | undefined,
+  myUserHash: ActionHash | undefined
+): ActionHash | undefined {
+  return same(author, myUserHash) ? member : author;
+}
+
 /** The agreement names the counterparty; whoever is not it wrote it up. */
 export function wroteIt(exchange: UIExchange, myUserHash: ActionHash | undefined): boolean {
   return !same(exchange.agreement.counterparty, myUserHash);

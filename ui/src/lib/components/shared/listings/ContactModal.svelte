@@ -4,13 +4,15 @@
   import { formatUserName } from '$lib/schemas/users.schemas';
   import ExternalLink from '$lib/components/shared/ExternalLink.svelte';
   import { getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
-  import { Avatar, getToastStore } from '@skeletonlabs/skeleton';
+  import { Avatar, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
 
   type Props = {
     user: UIUser | null;
     organization: UIOrganization | null;
     listingType?: 'request' | 'offer';
     listingTitle?: string;
+    /** interest: before a proposal (listing pages). exchange: the exchange already exists. */
+    context?: 'interest' | 'exchange';
   };
 
   // Props
@@ -18,7 +20,8 @@
     user = null,
     organization = null,
     listingType = 'request',
-    listingTitle = ''
+    listingTitle = '',
+    context = 'interest'
   }: Props = $props();
 
   // mailto and tel links. The subject names the listing so the recipient
@@ -32,6 +35,10 @@
   const tel = (phone: string) => `tel:${phone.replace(/[^+\d]/g, '')}`;
 
   const toastStore = getToastStore();
+  const modalStore = getModalStore();
+
+  // Who the introduction goes to: the organization when the listing has one, else the user.
+  const contactName = $derived(organization?.name || (user ? formatUserName(user.name) : '') || 'them');
 
   // Computed values
   const userPictureUrl = $derived(user ? getUserPictureUrl(user) : null);
@@ -71,12 +78,26 @@
 
 <article class="hcron-modal">
   <!-- Modal Header -->
-  <header class="mb-6 space-y-4 text-center">
-    <h4 class="h4 font-semibold text-white">🤝 Interested in this {listingType}?</h4>
+  <header class="relative mb-6 space-y-4 text-center">
+    <button
+      type="button"
+      class="variant-ghost-surface btn-icon btn-icon-sm absolute right-0 top-0"
+      aria-label="Close"
+      onclick={() => modalStore.close()}
+    >
+      <span aria-hidden="true">×</span>
+    </button>
+    <h4 class="h4 font-semibold text-white">✍️ Get in touch</h4>
     {#if listingTitle}
       <p class="italic text-surface-300">"{listingTitle}"</p>
     {/if}
-    <p class="text-sm text-surface-400">Get in touch directly with the contact information below</p>
+    <p class="text-sm text-surface-400">
+      {#if context === 'interest'}
+        Feel free to send {contactName} a quick introduction by email, then submit a proposal on the next screen.
+      {:else}
+        Feel free to send {contactName} a message by email.
+      {/if}
+    </p>
   </header>
 
   {#if organization}
@@ -228,7 +249,4 @@
     </div>
   {/if}
 
-  <footer class="mt-6 text-center">
-    <p class="text-sm text-surface-400">✨ Please contact directly using the information above</p>
-  </footer>
 </article>

@@ -3,10 +3,21 @@ import type { AgentPubKey } from '@holochain/client';
 import hc from '$lib/services/HolochainClientService.svelte';
 
 /**
+ * How long the app waits for the client service's connection before it shows
+ * the connection error. The service itself ends sooner when every attempt
+ * fails (a wrong token or a dead conductor take about 6 s over its three
+ * attempts); this bound only matters when an attempt hangs.
+ */
+export const CONNECTION_DEADLINE_MS = 60_000;
+
+/**
  * Simple, reliable Holochain connection utility
  *
  * This replaces the complex initialization logic with a minimal approach:
- * - Just connect to Holochain with a timeout
+ * - Waits on the client service's own attempt and its outcome, which can be
+ *   slow: in web mode the first load also grants zome-call signing, about 7 s
+ *   per cell on a fresh conductor. A shorter timeout here reported a failure
+ *   while that attempt went on to succeed.
  * - No zome calls, network info, or logging during startup
  * - Returns simple success/failure result
  */
@@ -16,7 +27,7 @@ export const connectToHolochain = (): Promise<boolean> => {
       try {
         console.log('🔌 Connecting to Holochain...');
         yield* E.tryPromise({
-          try: () => hc.connectClient(),
+          try: () => hc.waitForConnection(CONNECTION_DEADLINE_MS),
           catch: (error) => error
         });
 
@@ -33,7 +44,8 @@ export const connectToHolochain = (): Promise<boolean> => {
         return false;
       }
     }).pipe(
-      E.timeout(Duration.seconds(5)), // 5-second timeout for entire connection
+      // A backstop only: waitForConnection already ends at the deadline.
+      E.timeout(Duration.millis(CONNECTION_DEADLINE_MS + 1_000)),
       E.catchAll((error) => {
         console.warn('⚠️ Holochain connection failed or timed out:', error);
         return E.succeed(false);

@@ -546,6 +546,12 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
             a.reciprocal.resource_conforms_to = String::new();
             a.reciprocal.quantity = None;
         })),
+        ("the primary unit", "keeps each quantity's unit", Box::new(|a| {
+            a.primary.quantity = Some(Quantity { value: 2.0, unit: "days".into() });
+        })),
+        ("the return unit", "keeps each quantity's unit", Box::new(|a| {
+            a.reciprocal.quantity = Some(Quantity { value: 2.0, unit: "Pounds".into() });
+        })),
         ("the primary direction", "", Box::new(|a| a.primary.direction = "Receive".into())),
         ("nothing at all", "changes a quantity or the timeframe", Box::new(|a| {
             a.delivery_timeframe = "Within 2 weeks".into();

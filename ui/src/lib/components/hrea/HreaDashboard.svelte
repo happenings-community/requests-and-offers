@@ -69,7 +69,7 @@
     'not-mapped': 'not mapped'
   };
 
-  const CANVAS = { w: 900, h: 480 };
+  const CANVAS = { w: 900, h: 500 };
   const LAYOUT: Record<string, { x: number; y: number; w: number; h: number }> = {
     agentA: { x: 24, y: 14, w: 200, h: 56 },
     agentB: { x: 250, y: 14, w: 200, h: 56 },
@@ -79,10 +79,10 @@
     specS: { x: 686, y: 120, w: 190, h: 62 },
     specM: { x: 686, y: 214, w: 190, h: 62 },
     agreement: { x: 24, y: 334, w: 200, h: 62 },
-    commitP: { x: 350, y: 326, w: 210, h: 54 },
-    commitR: { x: 350, y: 408, w: 210, h: 54 },
-    eventP: { x: 686, y: 326, w: 190, h: 54 },
-    eventR: { x: 686, y: 408, w: 190, h: 54 }
+    commitP: { x: 350, y: 326, w: 210, h: 64 },
+    commitR: { x: 350, y: 416, w: 210, h: 64 },
+    eventP: { x: 686, y: 326, w: 190, h: 64 },
+    eventR: { x: 686, y: 416, w: 190, h: 64 }
   };
   type Side = 'l' | 'r' | 't' | 'b';
   function anchor(id: string, side: Side): [number, number] {
@@ -157,7 +157,7 @@
   <div class="hrea-counts" aria-busy={dash.loading}>
     {#each COUNT_CARDS as c (c.key)}
       {@const v = dash.counts?.[c.key]}
-      <div class="hrea-count-card hrea-k--{c.k}">
+      <div class="hrea-count-card card hrea-k--{c.k}">
         <span class="hrea-count-dot"></span>
         <div class="hrea-count-v">{v === null ? '—' : (v ?? '…')}</div>
         <div class="hrea-count-l">{c.label}{v === null ? ' (not mirrored)' : ''}</div>
@@ -403,8 +403,9 @@
     grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
     gap: 12px;
   }
+  /* A Skeleton card, so it carries its own surface: the admin layout keeps its
+     content area dark in light mode, and a transparent card put black text on it. */
   .hrea-count-card {
-    background: rgb(var(--color-surface-500) / 0.08);
     border: 1px solid rgb(var(--color-surface-500) / 0.2);
     border-top: 3px solid rgb(var(--k));
     border-radius: 12px;
@@ -431,7 +432,7 @@
   }
 
   .hrea-map-arrow {
-    opacity: 0.5;
+    opacity: 0.8;
     text-align: center;
     width: 28px;
   }
@@ -448,6 +449,8 @@
 
   .hrea-pill {
     --k: var(--color-secondary-500);
+    --kt: var(--color-secondary-900);
+    --kl: var(--color-secondary-400);
     display: inline-flex;
     align-items: center;
     padding: 3px 10px;
@@ -456,8 +459,12 @@
     font-size: 12px;
     line-height: 16px;
     background: rgb(var(--k) / 0.18);
-    color: rgb(var(--k));
-    border: 1px solid rgb(var(--k) / 0.42);
+    color: rgb(var(--kt));
+    border: 1px solid rgb(var(--kt) / 0.6);
+  }
+  :global(.dark) .hrea-pill {
+    color: rgb(var(--kl));
+    border-color: rgb(var(--kl) / 0.6);
   }
 
   .hrea-graph-head {
@@ -493,8 +500,25 @@
     pointer-events: none;
     overflow: visible;
   }
+  /* Every colour below is a theme shade picked per mode and measured at WCAG AA:
+     4.5:1 for text, 3:1 for strokes, dashed borders and tags. --hrea-halo is the
+     stage's own colour, painted behind edge labels so a line never runs through one. */
+  .hrea-stage {
+    --hrea-ink: var(--color-surface-900);
+    --hrea-ghost: var(--color-surface-600);
+    --hrea-line: var(--color-surface-600);
+    --hrea-line-ghost: var(--color-surface-500);
+    --hrea-halo: var(--color-surface-50);
+  }
+  :global(.dark) .hrea-stage {
+    --hrea-ink: var(--color-surface-50);
+    --hrea-ghost: var(--color-surface-300);
+    --hrea-line: var(--color-surface-300);
+    --hrea-line-ghost: var(--color-surface-400);
+    --hrea-halo: var(--color-surface-800);
+  }
   .hrea-edge {
-    stroke: rgb(var(--color-surface-500) / 0.7);
+    stroke: rgb(var(--hrea-line));
     stroke-width: 1.5;
     fill: none;
   }
@@ -502,20 +526,23 @@
     stroke-dasharray: 5 4;
   }
   .hrea-edge--ghost {
-    stroke: rgb(var(--color-surface-500) / 0.25);
+    stroke: rgb(var(--hrea-line-ghost));
   }
   .hrea-arrow-head {
-    fill: rgb(var(--color-surface-500));
+    fill: rgb(var(--hrea-line));
   }
   .hrea-edge-label {
-    fill: currentColor;
-    opacity: 0.75;
+    fill: rgb(var(--hrea-ink));
     font-weight: 600;
     font-size: 10px;
     text-anchor: middle;
+    paint-order: stroke;
+    stroke: rgb(var(--hrea-halo));
+    stroke-width: 4px;
+    stroke-linejoin: round;
   }
   .hrea-edge-label--ghost {
-    opacity: 0.35;
+    fill: rgb(var(--hrea-ghost));
   }
 
   .hrea-node {
@@ -523,7 +550,7 @@
     background: rgb(var(--color-surface-50));
     color: rgb(var(--color-surface-900));
     border-radius: 10px;
-    border-left: 4px solid rgb(var(--k));
+    border-left: 4px solid rgb(var(--kt));
     box-shadow: 0 2px 6px rgb(0 0 0 / 0.18);
     padding: 7px 12px;
     display: flex;
@@ -540,7 +567,7 @@
     line-height: 12px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: rgb(var(--k));
+    color: rgb(var(--kt));
   }
   .hrea-node-title {
     font-weight: 700;
@@ -572,9 +599,18 @@
   .hrea-node--not-mapped {
     background: rgb(var(--color-surface-500) / 0.08);
     color: inherit;
-    border: 1px dashed rgb(var(--color-surface-500) / 0.45);
-    border-left: 4px dashed rgb(var(--k));
+    border: 1px dashed rgb(var(--color-surface-500));
+    border-left: 4px dashed rgb(var(--kt));
     box-shadow: none;
+  }
+  :global(.dark) .hrea-node--not-yet,
+  :global(.dark) .hrea-node--not-mapped {
+    border-color: rgb(var(--color-surface-300));
+    border-left-color: rgb(var(--kl));
+  }
+  :global(.dark) .hrea-node--not-yet .hrea-node-kind,
+  :global(.dark) .hrea-node--not-mapped .hrea-node-kind {
+    color: rgb(var(--kl));
   }
   .hrea-node--missing {
     border: 2px solid rgb(var(--color-error-500));
@@ -658,26 +694,42 @@
 
   .hrea-k--agent {
     --k: var(--color-primary-500);
+    --kt: var(--color-primary-700);
+    --kl: var(--color-primary-300);
   }
   .hrea-k--spec {
     --k: var(--color-surface-400);
+    --kt: var(--color-surface-600);
+    --kl: var(--color-surface-300);
   }
   .hrea-k--proposal {
     --k: var(--color-secondary-500);
+    --kt: var(--color-secondary-900);
+    --kl: var(--color-secondary-400);
   }
   .hrea-k--intent {
     --k: var(--color-warning-500);
+    --kt: var(--color-warning-900);
+    --kl: var(--color-warning-400);
   }
   .hrea-k--agreement {
     --k: var(--color-success-500);
+    --kt: var(--color-success-900);
+    --kl: var(--color-success-400);
   }
   .hrea-k--commitment {
     --k: var(--color-tertiary-500);
+    --kt: var(--color-tertiary-900);
+    --kl: var(--color-tertiary-400);
   }
   .hrea-k--event {
     --k: var(--color-error-500);
+    --kt: var(--color-error-700);
+    --kl: var(--color-error-300);
   }
   .hrea-k--fulfillment {
     --k: var(--color-success-600);
+    --kt: var(--color-success-800);
+    --kl: var(--color-success-400);
   }
 </style>

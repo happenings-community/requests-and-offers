@@ -83,7 +83,7 @@ In the UI you can call `is_progenitor()` from the `administration` zome to check
 **Solutions**:
 
 - **Dev mode** (`progenitor_pubkey: ~`): ensure your agent is the first one to call `create_user` after a clean sandbox reset (`bun start` wipes the sandbox each run).
-- **Production mode**: verify the correct agent pubkey is set as `progenitor_pubkey`. Use Kangaroo to install the hApp — it sets the key automatically. If deploying manually, read the agent key from the conductor admin API and set it in `workdir/happ.yaml` before `bun build:happ`.
+- **Production mode**: verify the correct agent pubkey is set as `progenitor_pubkey`. Kangaroo does not set it: the desktop app installs the hApp with the properties `workdir/happ.yaml` carries, so read the agent key from the conductor admin API and set it there before `bun build:happ`, whichever way the hApp is then installed.
 
 For a full explanation of the two modes see [The Progenitor Pattern](progenitor.md).
 

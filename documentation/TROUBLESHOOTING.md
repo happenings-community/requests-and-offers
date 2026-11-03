@@ -55,8 +55,9 @@ lsof -ti:4444 | xargs kill -9    # Kill process on port 4444
 # 2. Find what's using the port
 lsof -i :8888                    # Show process using port 8888
 
-# 3. Use different ports (temporary)
-HC_APP_PORT=8889 ADMIN_PORT=4445 bun start
+# 3. Use different ports (temporary). Admin ports are picked free at each start;
+#    pin them, the UI port or the inspector port with:
+UI_PORT=8890 ADMIN_PORTS=4445,4446 INSPECTOR_PORT=8891 bun start
 
 # 4. Check for running Holochain processes
 ps aux | grep holochain
@@ -261,7 +262,7 @@ export const store = createEntitiesStore(); // Module level
 # Check if entries are properly linked
 
 # 4. Inspect each member's chain and DHT state
-# Run bun start:web and open the inspector URL it prints
+# Open the inspector URL that bun start or bun start:web prints
 # (documentation/guides/web-dev-mode.md#the-inspector)
 ```
 

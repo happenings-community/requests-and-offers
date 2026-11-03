@@ -78,7 +78,8 @@ export function normalizeEconomicEventResponse(raw: GraphQLEconomicEventResponse
     hasPointInTime: raw.hasPointInTime ?? undefined,
     note: raw.note ?? undefined,
     agreedIn: raw.agreedIn ?? undefined,
-    realizationOf: raw.realizationOf?.id
+    realizationOf: raw.realizationOf?.id,
+    fulfills: raw.fulfills?.map((c) => c.id)
   };
 }
 
@@ -209,6 +210,8 @@ export type EconomicEventInput = {
   note?: string;
   agreedIn?: string;
   realizationOf?: string;
+  /** The Commitments this event fulfills (VF Fulfillment, stored on the event). */
+  fulfills?: string[];
 };
 
 const AgentSchema = S.Struct({
@@ -1020,8 +1023,9 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.CREATE_ECONOMIC_EVENT))
         );
 
-      // List reads for the admin hREA dashboard: one query per VF type, so the
-      // audit reads hREA itself rather than deriving counts from R&O.
+      // List reads, one query per VF type: the admin hREA dashboard audits hREA
+      // itself rather than deriving counts from R&O, and the store reads every
+      // Agreement and Commitment to find an agreement's mirror after a reload.
       const listQuery = <Raw, Out>(
         query: typeof GET_AGREEMENTS_QUERY,
         field: string,

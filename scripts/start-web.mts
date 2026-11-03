@@ -4,7 +4,10 @@
  *
  * One local bootstrap server, one sandbox conductor, the hApp installed once
  * per member (AGENTS, default 2) on one shared network seed, one Vite dev
- * server. Prints one URL per member; Ctrl-C tears everything down.
+ * server, and the inspector page (scripts/inspector.mts), which shows each
+ * member's cells and DHT state in place of `hc playground`. Prints one URL per
+ * member and the inspector's, opens them in the browser unless WEB_OPEN=0, and
+ * Ctrl-C tears everything down.
  *
  * Runs under Node, not Bun: @holochain/client's AdminWebsocket handshake fails
  * under Bun ("Expected 101") and succeeds under Node. Needs `hc`, `holochain`
@@ -13,6 +16,7 @@
 import { AdminWebsocket } from '@holochain/client';
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import type { Server } from 'node:http';
 import { createServer } from 'node:net';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,11 +25,15 @@ import {
   hostFor,
   encodeToken,
   memberUrl,
+  openCommand,
   parseWebDevConfig,
   sandboxCreateArgs,
   sandboxRunArgs,
   workdirFor
 } from './web-dev.mts';
+import { urlsToOpen } from './inspector.mts';
+import { serveInspector } from './inspector-server.mts';
+import { roAdapter } from './inspector-adapter.mts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HAPP = join(ROOT, 'workdir', 'requests_and_offers.happ');
@@ -60,6 +68,7 @@ function onPath(bin: string): boolean {
 
 const children: ChildProcess[] = [];
 let workdir: string | null = null;
+let inspector: Server | null = null;
 let stopping = false;
 
 /** Each child runs in its own process group, so the whole tree is killed. */
@@ -73,6 +82,7 @@ async function shutdown(code: number): Promise<never> {
   if (!stopping) {
     stopping = true;
     log('tearing down...');
+    inspector?.close();
     for (const signal of ['SIGTERM', 'SIGKILL'] as const) {
       for (const child of children) {
         try {
@@ -162,7 +172,8 @@ async function main() {
     );
     log(`installed ${installed_app_id}`);
   }
-  await admin.client.close();
+  // Kept open: the inspector reads through it until Ctrl-C.
+  const adminWs = admin;
 
   log(`starting Vite on :${config.uiPort}`);
   start('bun', ['run', '--filter', 'ui', 'start'], {
@@ -181,10 +192,28 @@ async function main() {
   }
   if (!up) throw new Error(`Vite did not answer on :${config.uiPort} within 90s`);
 
+  const inspectorPort = config.inspectorPort ?? (await freePort());
+  inspector = serveInspector([adminWs], inspectorPort, roAdapter);
+  const inspectorUrl = `http://localhost:${inspectorPort}/`;
+
   console.log('');
   log(`ready: ${config.agents} member(s), network seed ${networkSeed}`);
   urls.forEach((url, i) => log(`  member ${String.fromCharCode(65 + i)}  ${url}`));
+  log(`  inspector ${inspectorUrl}`);
   log('members A and B are on different origins; any further member needs its own browser profile. Ctrl-C stops everything.');
+  openInBrowser(urlsToOpen(urls, inspectorUrl, process.env));
+}
+
+/** One browser tab per URL; a platform without an opener, or a failed open, is not fatal. */
+function openInBrowser(urls: string[]) {
+  const opener = openCommand(process.platform);
+  if (!opener || urls.length === 0) return;
+  for (const url of urls) {
+    const [cmd, ...args] = opener;
+    const child = spawn(cmd, [...args, url], { detached: true, stdio: 'ignore' });
+    child.on('error', () => log(`could not open ${url}; open it by hand`));
+    child.unref();
+  }
 }
 
 main().catch(async (error) => {

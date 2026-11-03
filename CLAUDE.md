@@ -168,8 +168,8 @@ All 8 domains follow the 7-layer pattern. Use **Service Types** as the reference
 Nix is required for anything that compiles or packs Holochain artifacts: `bun build:zomes`,
 `bun build:happ`, `bun package`, and the sweettest suite. It is **not** required for the
 front-end unit suite, despite what this file said until 2026-09-14: `@valueflows/vf-graphql-holochain`
-is a prebuilt JavaScript package (vendored as a tarball under `vendor/` until npm serves 0.700, see
-`vendor/README.md`), and `cd ui && bun run test:unit` passes 646/646 outside the shell.
+is a prebuilt JavaScript package installed from npm (0.700.0-rc.0, published from hREA by CI with
+provenance; the `vendor/` tarball it replaced is gone), and `cd ui && bun run test:unit` passes 646/646 outside the shell.
 CI relies on that, which is why the frontend job takes two minutes rather than ten.
 ```bash
 nix develop --command bun run build:happ   # needs Nix

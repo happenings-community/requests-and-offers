@@ -94,6 +94,24 @@ export function setUnitRegistry(registry: Record<string, string>): void {
   unitRegistry = registry;
 }
 
+/**
+ * Label-to-Unit-id registry from the Units on the network (#441). Two members
+ * starting together can each seed the same label, so a label may be held by
+ * several Units. Every member must resolve it to the same one whatever order
+ * the Units arrive in: the lowest id wins, compared by code unit rather than
+ * locale, so the choice is the same on every machine.
+ */
+export function unitRegistryFrom(
+  units: ReadonlyArray<{ id: string; label: string }>
+): Record<string, string> {
+  const registry: Record<string, string> = {};
+  for (const unit of units) {
+    const held = registry[unit.label];
+    if (held === undefined || unit.id < held) registry[unit.label] = unit.id;
+  }
+  return registry;
+}
+
 /** Structured measure when the label maps to a seeded hREA Unit id. */
 export function measureOf(
   term: ExchangeTerm

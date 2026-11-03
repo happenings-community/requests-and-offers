@@ -25,7 +25,9 @@ Member A is on `localhost` and member B on `127.0.0.1`: two origins to the brows
 - The hApp installed once per member, as `requests_and_offers`, `requests_and_offers_b`, `requests_and_offers_c` and so on, each with its own agent key, all on one network seed that is new on every run.
 - One Vite dev server for the UI.
 
-The URL carries what `HolochainClientService` reads (`ui/src/lib/services/HolochainClientService.svelte.ts`): `hcPort` and `hcToken` to connect to the conductor's app interface, and `hcAdminPort` so a plain browser, which has no host signer, can get zome-call signing credentials.
+The URL carries what `HolochainClientService` reads (`ui/src/lib/services/HolochainClientService.svelte.ts`): `hcPort` and `hcToken` to connect to the conductor's app interface, and `hcAdminPort` so a plain browser, which has no host signer, can get zome-call signing credentials. It authorizes signing only for that member's own cells, not the other members' cells on the same conductor.
+
+Only the first load carries them: any navigation inside the app drops the query. So the tab keeps them in its `sessionStorage` (`ui/src/lib/utils/dev-connection-params.ts`), and a reload on any route, `/offers` or `/admin/users`, reconnects as the same member. `sessionStorage` belongs to one tab and one origin, so two members' tabs never share it. A URL that carries the params always wins, so opening a member's printed URL again replaces what that tab had stored. A new tab opened on a bare address such as `http://localhost:8880/offers` has nothing stored and cannot connect: open the member's printed URL instead.
 
 ## Ports
 

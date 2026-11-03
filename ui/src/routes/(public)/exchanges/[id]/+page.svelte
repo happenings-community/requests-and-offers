@@ -58,7 +58,8 @@
         user: other,
         organization: null,
         listingType: exchange.agreement.listing_type === 'Offer' ? 'offer' : 'request',
-        listingTitle
+        listingTitle,
+        context: 'exchange'
       }
     };
     modalStore.trigger({ type: 'component', component, meta: { title: '', body: '' } });

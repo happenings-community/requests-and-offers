@@ -1,0 +1,3099 @@
+{
+ "apps": [
+  {
+   "installed_app_id": "requests_and_offers_b",
+   "cell_info": {
+    "hrea": [
+     {
+      "type": "provisioned",
+      "value": {
+       "cell_id": [
+        {
+         "$bytes": "hC0k6khsjmvkc/pHzr/mStxaPWQgikbR/6HX1h1RZBJHEZiSZqHk"
+        },
+        {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        }
+       ],
+       "dna_modifiers": {
+        "network_seed": "web-dev-1793670659728",
+        "properties": {
+         "$bytes": "wA=="
+        }
+       },
+       "name": "hrea"
+      }
+     }
+    ],
+    "requests_and_offers": [
+     {
+      "type": "provisioned",
+      "value": {
+       "cell_id": [
+        {
+         "$bytes": "hC0k5tnF0re67nwVff+7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR"
+        },
+        {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        }
+       ],
+       "dna_modifiers": {
+        "network_seed": "web-dev-1793670659728",
+        "properties": {
+         "$bytes": "gbFwcm9nZW5pdG9yX3B1YmtlecA="
+        }
+       },
+       "name": "requests_and_offers"
+      }
+     }
+    ]
+   },
+   "status": {
+    "type": "enabled"
+   },
+   "agent_pub_key": {
+    "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+   },
+   "manifest": {
+    "manifest_version": "0",
+    "name": "requests_and_offers",
+    "description": "Requests and offers distributed marketplace.",
+    "roles": [
+     {
+      "name": "requests_and_offers",
+      "provisioning": {
+       "strategy": "create",
+       "deferred": false
+      },
+      "dna": {
+       "path": "requests_and_offers.dna",
+       "modifiers": {
+        "network_seed": "web-dev-1793670659728",
+        "properties": {
+         "progenitor_pubkey": null
+        }
+       },
+       "installed_hash": "uhC0k5tnF0re67nwVff-7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR",
+       "clone_limit": 0
+      }
+     },
+     {
+      "name": "hrea",
+      "provisioning": {
+       "strategy": "create",
+       "deferred": false
+      },
+      "dna": {
+       "path": "hrea.dna",
+       "modifiers": {
+        "network_seed": "web-dev-1793670659728",
+        "properties": null
+       },
+       "installed_hash": "uhC0k6khsjmvkc_pHzr_mStxaPWQgikbR_6HX1h1RZBJHEZiSZqHk",
+       "clone_limit": 0
+      }
+     }
+    ],
+    "allow_deferred_memproofs": false,
+    "bootstrap_url": null,
+    "relay_url": null
+   },
+   "installed_at": 1793670669605415
+  },
+  {
+   "installed_app_id": "requests_and_offers",
+   "cell_info": {
+    "requests_and_offers": [
+     {
+      "type": "provisioned",
+      "value": {
+       "cell_id": [
+        {
+         "$bytes": "hC0k5tnF0re67nwVff+7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR"
+        },
+        {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        }
+       ],
+       "dna_modifiers": {
+        "network_seed": "web-dev-1793670659728",
+        "properties": {
+         "$bytes": "gbFwcm9nZW5pdG9yX3B1YmtlecA="
+        }
+       },
+       "name": "requests_and_offers"
+      }
+     }
+    ],
+    "hrea": [
+     {
+      "type": "provisioned",
+      "value": {
+       "cell_id": [
+        {
+         "$bytes": "hC0k6khsjmvkc/pHzr/mStxaPWQgikbR/6HX1h1RZBJHEZiSZqHk"
+        },
+        {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        }
+       ],
+       "dna_modifiers": {
+        "network_seed": "web-dev-1793670659728",
+        "properties": {
+         "$bytes": "wA=="
+        }
+       },
+       "name": "hrea"
+      }
+     }
+    ]
+   },
+   "status": {
+    "type": "enabled"
+   },
+   "agent_pub_key": {
+    "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+   },
+   "manifest": {
+    "manifest_version": "0",
+    "name": "requests_and_offers",
+    "description": "Requests and offers distributed marketplace.",
+    "roles": [
+     {
+      "name": "requests_and_offers",
+      "provisioning": {
+       "strategy": "create",
+       "deferred": false
+      },
+      "dna": {
+       "path": "requests_and_offers.dna",
+       "modifiers": {
+        "network_seed": "web-dev-1793670659728",
+        "properties": {
+         "progenitor_pubkey": null
+        }
+       },
+       "installed_hash": "uhC0k5tnF0re67nwVff-7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR",
+       "clone_limit": 0
+      }
+     },
+     {
+      "name": "hrea",
+      "provisioning": {
+       "strategy": "create",
+       "deferred": false
+      },
+      "dna": {
+       "path": "hrea.dna",
+       "modifiers": {
+        "network_seed": "web-dev-1793670659728",
+        "properties": null
+       },
+       "installed_hash": "uhC0k6khsjmvkc_pHzr_mStxaPWQgikbR_6HX1h1RZBJHEZiSZqHk",
+       "clone_limit": 0
+      }
+     }
+    ],
+    "allow_deferred_memproofs": false,
+    "bootstrap_url": null,
+    "relay_url": null
+   },
+   "installed_at": 1793670668801995
+  }
+ ],
+ "cells": {
+  "requests_and_offers_b/hrea": {
+   "peer_dump": {
+    "this_agent_info": {
+     "kitsune_agent": "WTtDQeo2efDKcwvb_HcwVPiJ5BwTlokIL23QvVRKKeE",
+     "kitsune_space": "6khsjmvkc_pHzr_mStxaPWQgikbR_6HX1h1RZBJHEZg",
+     "dump": "created at 2026-11-03 02:37:09.240390 UTC\nexpires at 2026-11-03 02:57:09.240390 UTC in 18 min\nurl: Some(https://use1-1.relay.n0.iroh-canary.iroh.link.:443/4e610d0ab6ad6a09ad680b256643a23fd8a5cfc9083981a89a7930a6cad119a6)"
+    },
+    "this_dna": [
+     {
+      "$bytes": "hC0k6khsjmvkc/pHzr/mStxaPWQgikbR/6HX1h1RZBJHEZiSZqHk"
+     },
+     "6khsjmvkc_pHzr_mStxaPWQgikbR_6HX1h1RZBJHEZg"
+    ],
+    "this_agent": [
+     {
+      "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+     },
+     "WTtDQeo2efDKcwvb_HcwVPiJ5BwTlokIL23QvVRKKeE"
+    ],
+    "peers": [
+     {
+      "kitsune_agent": "chZy2W7m-W11L8d721B_g5buuIWPwKeR83dOPN6u50k",
+      "kitsune_space": "6khsjmvkc_pHzr_mStxaPWQgikbR_6HX1h1RZBJHEZg",
+      "dump": "created at 2026-11-03 02:36:09.238270 UTC\nexpires at 2026-11-03 02:56:09.238270 UTC in 17 min\nurl: Some(https://use1-1.relay.n0.iroh-canary.iroh.link.:443/4e610d0ab6ad6a09ad680b256643a23fd8a5cfc9083981a89a7930a6cad119a6)"
+     },
+     {
+      "kitsune_agent": "WTtDQeo2efDKcwvb_HcwVPiJ5BwTlokIL23QvVRKKeE",
+      "kitsune_space": "6khsjmvkc_pHzr_mStxaPWQgikbR_6HX1h1RZBJHEZg",
+      "dump": "created at 2026-11-03 02:37:09.240390 UTC\nexpires at 2026-11-03 02:57:09.240390 UTC in 18 min\nurl: Some(https://use1-1.relay.n0.iroh-canary.iroh.link.:443/4e610d0ab6ad6a09ad680b256643a23fd8a5cfc9083981a89a7930a6cad119a6)"
+     }
+    ]
+   },
+   "source_chain_dump": {
+    "records": [
+     {
+      "signature": {
+       "$bytes": "OQCxs0aIxExiTsINTAx+2kZ2FlVTeXW2/iMESGEFZoKS73zeVYHyQSnFefruZ8dRoASKN+DFsbFE3Zbt4GHpCA=="
+      },
+      "action_address": {
+       "$bytes": "hCkkRDMWDVKebQ8MQMclzi1awiWMYYq0Bf9D2UpjQ8XGZVGmrhky"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793670669595264,
+        "action_seq": 0,
+        "prev_action": null
+       },
+       "data": {
+        "type": "Dna",
+        "dna_hash": {
+         "$bytes": "hC0k6khsjmvkc/pHzr/mStxaPWQgikbR/6HX1h1RZBJHEZiSZqHk"
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "3TXxrX4cMWRGIn84XhvVvXp0X9XEKwAGUxaRbQejabwGyiWAUrvZz3rSvH8A67dA7TUVkqkmob2FxHoGEuz5Aw=="
+      },
+      "action_address": {
+       "$bytes": "hCkkBEbR+ADPiQz7nXIo+E2gyfvSMj910xXqazYQAPSIXNEKDTvq"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793670669596028,
+        "action_seq": 1,
+        "prev_action": {
+         "$bytes": "hCkkRDMWDVKebQ8MQMclzi1awiWMYYq0Bf9D2UpjQ8XGZVGmrhky"
+        }
+       },
+       "data": {
+        "type": "AgentValidationPkg",
+        "membrane_proof": null
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "/EpKuwJL3ssvloXU9mbuG+ln+4oL+6dtJcrRQDoPC1KTgFj7llrQ4SLI8N48i2VOyOiZnXqllzupiFmBmr3oBg=="
+      },
+      "action_address": {
+       "$bytes": "hCkkWzoBfR6dtQzUrLhOi9S1a/QVsH7bSKRplnCZKrpzvKvYrxRr"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793670669596190,
+        "action_seq": 2,
+        "prev_action": {
+         "$bytes": "hCkkBEbR+ADPiQz7nXIo+E2gyfvSMj910xXqazYQAPSIXNEKDTvq"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "AgentPubKey",
+        "entry_hash": {
+         "$bytes": "hCEkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "Agent",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     },
+     {
+      "signature": {
+       "$bytes": "cONacrgHHdd/W4GtICW1D8VXtM6jLS5MPIqk4NdCmmD3YQLQhhyc4SjVCL7H3J2SzeEQZQn7HjKsIJh2K0c4CA=="
+      },
+      "action_address": {
+       "$bytes": "hCkkvfteCIb03u544UhhyV0aNuDhQ/wvg2Uxn2eiYBDXN7JlJv2y"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793670742536265,
+        "action_seq": 3,
+        "prev_action": {
+         "$bytes": "hCkkWzoBfR6dtQzUrLhOi9S1a/QVsH7bSKRplnCZKrpzvKvYrxRr"
+        }
+       },
+       "data": {
+        "type": "InitZomesComplete"
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "oVkz5tvlPkyQTh56yTXOnY6GznsLDexJ6SxMAzek604iNIQwJJKMTn+KMTLLO30SRhioX1Y9Be4SCTkEng7aDA=="
+      },
+      "action_address": {
+       "$bytes": "hCkkaFHR/kB8jgC4Pugtan6PPC38iu+99CQ3D1KH/oXVGQlbwLM7"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793672486133406,
+        "action_seq": 46,
+        "prev_action": {
+         "$bytes": "hCkkPiJDFMgdB58QJgBWIF6hAlbUQlsjjDnMAfUmw+nhXoeScUym"
+        }
+       },
+       "data": {
+        "type": "DeleteLink",
+        "base_address": {
+         "$bytes": "hCkkyZcDrQYf8LJbob6DkyjYjRgewNubhbsxgvafs56zTAAi+z/7"
+        },
+        "link_add_address": {
+         "$bytes": "hCkkBBGl5kLuwejP1G3C/3MBRpkiVFAo4YJHSH7BAK8uYlnP3x0g"
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "smiCjZqxnRxYWwdkqzximjPsZ7JJWIYSkcB+oEP9IOwXvRfWXQpTs2mhl8NX/x9BO03iTGXV61hWgc7QRxLKBA=="
+      },
+      "action_address": {
+       "$bytes": "hCkkSKPZgOUuqCM8QTsbhrVFY/hsexarEfF4N2J9wU4xSaIc8ImW"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793672486135217,
+        "action_seq": 47,
+        "prev_action": {
+         "$bytes": "hCkkaFHR/kB8jgC4Pugtan6PPC38iu+99CQ3D1KH/oXVGQlbwLM7"
+        }
+       },
+       "data": {
+        "type": "CreateLink",
+        "base_address": {
+         "$bytes": "hCkkyZcDrQYf8LJbob6DkyjYjRgewNubhbsxgvafs56zTAAi+z/7"
+        },
+        "target_address": {
+         "$bytes": "hCkklIvxhK50svTI79PF9vL/resMoA+R8rJgFfQV8P2Vxt6PYS42"
+        },
+        "zome_index": 0,
+        "link_type": 30,
+        "tag": {
+         "$bytes": "hCkkMKEuUD+LP2ctPwzTBtRb5WLtOZoSBIBsxj+DSL3XH3+vVrGC"
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "yItDzkXgpAKLk6QBjEjiGFwapF49HwJagL7fyTByqdad1HQbyhyEWtHm3kwGMI+hnapjCzSAekm8qxtn5YzEBA=="
+      },
+      "action_address": {
+       "$bytes": "hCkkhlJMI0i9C1CUZ5YloXdSmP3wfGJ8Ph96FOCzdZHwL3oCwPqG"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793672486138087,
+        "action_seq": 48,
+        "prev_action": {
+         "$bytes": "hCkkSKPZgOUuqCM8QTsbhrVFY/hsexarEfF4N2J9wU4xSaIc8ImW"
+        }
+       },
+       "data": {
+        "type": "DeleteLink",
+        "base_address": {
+         "$bytes": "hCkkyr7DJgHTkTE+IPYkhQop8rteKi63gz9UDvxrE4R6LqViW3TG"
+        },
+        "link_add_address": {
+         "$bytes": "hCkkNDNcojKo9evRNxW15bwNZI/Fbsqe7yqqGlppaRVAcJWGitIV"
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "7OgV0F4mF3rriFdeuiiU2ZsBCIREydILsKBFruSSQuz0GHcA9Qt5YF6/VWjTwlRhKAoQ+OP2t7EJejRwDv0fDA=="
+      },
+      "action_address": {
+       "$bytes": "hCkkJEaUTGRdukF/F9M37zATf3VZsVDdUJieqU7G/4T/Du+3i5Us"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793672486139521,
+        "action_seq": 49,
+        "prev_action": {
+         "$bytes": "hCkkhlJMI0i9C1CUZ5YloXdSmP3wfGJ8Ph96FOCzdZHwL3oCwPqG"
+        }
+       },
+       "data": {
+        "type": "CreateLink",
+        "base_address": {
+         "$bytes": "hCkkyr7DJgHTkTE+IPYkhQop8rteKi63gz9UDvxrE4R6LqViW3TG"
+        },
+        "target_address": {
+         "$bytes": "hCkklIvxhK50svTI79PF9vL/resMoA+R8rJgFfQV8P2Vxt6PYS42"
+        },
+        "zome_index": 0,
+        "link_type": 31,
+        "tag": {
+         "$bytes": "hCkkMKEuUD+LP2ctPwzTBtRb5WLtOZoSBIBsxj+DSL3XH3+vVrGC"
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "QJINIRC2Xa1RHKmG7/wRkYUb6z8dbSFzMrPrBmtW6IvUyKE66FGadeZtHlm2yfOigPqiXMMasiPOpzLn//veCQ=="
+      },
+      "action_address": {
+       "$bytes": "hCkkKJUNEcDaCfL78dox9pAOx3KIxH/Uws2i6zhNH+3nyeA9qQ7a"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793672920948766,
+        "action_seq": 50,
+        "prev_action": {
+         "$bytes": "hCkkJEaUTGRdukF/F9M37zATf3VZsVDdUJieqU7G/4T/Du+3i5Us"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "CapGrant",
+        "entry_hash": {
+         "$bytes": "hCEklxak+zjWmKMP/g6paDImz88aGIp+suX8B+2ghPaAVzqlFc89"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "CapGrant",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     },
+     {
+      "signature": {
+       "$bytes": "Mp8Ke3X+W+fdF7KpH89SnLlVI6M9PVvRNjc3/r2qkttFV5H143knSFXBnsNIuXsm8QG3Fz5Q8d1VB855LGSUCQ=="
+      },
+      "action_address": {
+       "$bytes": "hCkkKAYcV8P67fwkszqnyOaRriViRTMnFmWiyxBOufNykisNel3l"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793673442910625,
+        "action_seq": 51,
+        "prev_action": {
+         "$bytes": "hCkkKJUNEcDaCfL78dox9pAOx3KIxH/Uws2i6zhNH+3nyeA9qQ7a"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "CapGrant",
+        "entry_hash": {
+         "$bytes": "hCEk62qrkLI1G9rw+QOkJZ+ZmFnIYkRJkKV83K92O9QlA1ebIQYu"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "CapGrant",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     }
+    ],
+    "published_ops_count": 149
+   },
+   "integration_dump": {
+    "validation_limbo": [],
+    "integration_limbo": [],
+    "integrated": [
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          },
+          "timestamp": 1793670668774473,
+          "action_seq": 0,
+          "prev_action": null
+         },
+         "data": {
+          "type": "Dna",
+          "dna_hash": {
+           "$bytes": "hC0k6khsjmvkc/pHzr/mStxaPWQgikbR/6HX1h1RZBJHEZiSZqHk"
+          }
+         }
+        },
+        "signature": {
+         "$bytes": "UON0hbHrdnzm9hM900NmV8VDMV4Cjnqiw0/HXm0rl1bZA3KXodPOlGEv/w7Mm5bndfCrqWsd68Cd2Q6CfbxhBw=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668774473,
+           "action_seq": 0,
+           "prev_action": null
+          },
+          "data": {
+           "type": "Dna",
+           "dna_hash": {
+            "$bytes": "hC0k6khsjmvkc/pHzr/mStxaPWQgikbR/6HX1h1RZBJHEZiSZqHk"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "UON0hbHrdnzm9hM900NmV8VDMV4Cjnqiw0/HXm0rl1bZA3KXodPOlGEv/w7Mm5bndfCrqWsd68Cd2Q6CfbxhBw=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          },
+          "timestamp": 1793670668775198,
+          "action_seq": 1,
+          "prev_action": {
+           "$bytes": "hCkkLLD3LnXoYejWIOdhihBEOdfbblKsgIYgiJ8t8Ki1XXPXeywx"
+          }
+         },
+         "data": {
+          "type": "AgentValidationPkg",
+          "membrane_proof": null
+         }
+        },
+        "signature": {
+         "$bytes": "a/bCZmitXVJcU87vf/3vlQHwMGAvg+gwG94w5nlAJ5S8n56c/1mDxqgSlcHLkK1aPjNXtt575Z3aLmA65CuNDA=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668775198,
+           "action_seq": 1,
+           "prev_action": {
+            "$bytes": "hCkkLLD3LnXoYejWIOdhihBEOdfbblKsgIYgiJ8t8Ki1XXPXeywx"
+           }
+          },
+          "data": {
+           "type": "AgentValidationPkg",
+           "membrane_proof": null
+          }
+         },
+         "signature": {
+          "$bytes": "a/bCZmitXVJcU87vf/3vlQHwMGAvg+gwG94w5nlAJ5S8n56c/1mDxqgSlcHLkK1aPjNXtt575Z3aLmA65CuNDA=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          },
+          "timestamp": 1793670668775350,
+          "action_seq": 2,
+          "prev_action": {
+           "$bytes": "hCkkYsf98BV5x4nk2KfJ6YPD35WZTT9kvD5j7WhycUqLah2IIu1K"
+          }
+         },
+         "data": {
+          "type": "Create",
+          "entry_type": "AgentPubKey",
+          "entry_hash": {
+           "$bytes": "hCEkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          }
+         }
+        },
+        "signature": {
+         "$bytes": "KXVMD0E90HODkMfvQ/d+Sp2fEzL4OFyBlaUiNKN0fuMv8CyG6nDpdZukWOpDkT4iNukwRemD7c+Gh41BVtcKAQ=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateEntry": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668775350,
+           "action_seq": 2,
+           "prev_action": {
+            "$bytes": "hCkkYsf98BV5x4nk2KfJ6YPD35WZTT9kvD5j7WhycUqLah2IIu1K"
+           }
+          },
+          "data": {
+           "type": "Create",
+           "entry_type": "AgentPubKey",
+           "entry_hash": {
+            "$bytes": "hCEkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "KXVMD0E90HODkMfvQ/d+Sp2fEzL4OFyBlaUiNKN0fuMv8CyG6nDpdZukWOpDkT4iNukwRemD7c+Gh41BVtcKAQ=="
+         }
+        },
+        {
+         "Present": {
+          "entry_type": "Agent",
+          "entry": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668775350,
+           "action_seq": 2,
+           "prev_action": {
+            "$bytes": "hCkkYsf98BV5x4nk2KfJ6YPD35WZTT9kvD5j7WhycUqLah2IIu1K"
+           }
+          },
+          "data": {
+           "type": "Create",
+           "entry_type": "AgentPubKey",
+           "entry_hash": {
+            "$bytes": "hCEkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "KXVMD0E90HODkMfvQ/d+Sp2fEzL4OFyBlaUiNKN0fuMv8CyG6nDpdZukWOpDkT4iNukwRemD7c+Gh41BVtcKAQ=="
+         }
+        },
+        {
+         "Present": {
+          "entry_type": "Agent",
+          "entry": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           },
+           "timestamp": 1793670669595264,
+           "action_seq": 0,
+           "prev_action": null
+          },
+          "data": {
+           "type": "Dna",
+           "dna_hash": {
+            "$bytes": "hC0k6khsjmvkc/pHzr/mStxaPWQgikbR/6HX1h1RZBJHEZiSZqHk"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "OQCxs0aIxExiTsINTAx+2kZ2FlVTeXW2/iMESGEFZoKS73zeVYHyQSnFefruZ8dRoASKN+DFsbFE3Zbt4GHpCA=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+          },
+          "timestamp": 1793670669595264,
+          "action_seq": 0,
+          "prev_action": null
+         },
+         "data": {
+          "type": "Dna",
+          "dna_hash": {
+           "$bytes": "hC0k6khsjmvkc/pHzr/mStxaPWQgikbR/6HX1h1RZBJHEZiSZqHk"
+          }
+         }
+        },
+        "signature": {
+         "$bytes": "OQCxs0aIxExiTsINTAx+2kZ2FlVTeXW2/iMESGEFZoKS73zeVYHyQSnFefruZ8dRoASKN+DFsbFE3Zbt4GHpCA=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+          },
+          "timestamp": 1793670669596028,
+          "action_seq": 1,
+          "prev_action": {
+           "$bytes": "hCkkRDMWDVKebQ8MQMclzi1awiWMYYq0Bf9D2UpjQ8XGZVGmrhky"
+          }
+         },
+         "data": {
+          "type": "AgentValidationPkg",
+          "membrane_proof": null
+         }
+        },
+        "signature": {
+         "$bytes": "3TXxrX4cMWRGIn84XhvVvXp0X9XEKwAGUxaRbQejabwGyiWAUrvZz3rSvH8A67dA7TUVkqkmob2FxHoGEuz5Aw=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           },
+           "timestamp": 1793670669596028,
+           "action_seq": 1,
+           "prev_action": {
+            "$bytes": "hCkkRDMWDVKebQ8MQMclzi1awiWMYYq0Bf9D2UpjQ8XGZVGmrhky"
+           }
+          },
+          "data": {
+           "type": "AgentValidationPkg",
+           "membrane_proof": null
+          }
+         },
+         "signature": {
+          "$bytes": "3TXxrX4cMWRGIn84XhvVvXp0X9XEKwAGUxaRbQejabwGyiWAUrvZz3rSvH8A67dA7TUVkqkmob2FxHoGEuz5Aw=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateEntry": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           },
+           "timestamp": 1793670669596190,
+           "action_seq": 2,
+           "prev_action": {
+            "$bytes": "hCkkBEbR+ADPiQz7nXIo+E2gyfvSMj910xXqazYQAPSIXNEKDTvq"
+           }
+          },
+          "data": {
+           "type": "Create",
+           "entry_type": "AgentPubKey",
+           "entry_hash": {
+            "$bytes": "hCEkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "/EpKuwJL3ssvloXU9mbuG+ln+4oL+6dtJcrRQDoPC1KTgFj7llrQ4SLI8N48i2VOyOiZnXqllzupiFmBmr3oBg=="
+         }
+        },
+        {
+         "Present": {
+          "entry_type": "Agent",
+          "entry": {
+           "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+          }
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "dht_ops_cursor": {
+     "when_received": 1793673446926633,
+     "hash": {
+      "$bytes": "hCQkk8j5/Mg8XHdybBnoCfkNKi8KwzK9mQGwUvmbsz8lE3osKSq1"
+     }
+    }
+   }
+  },
+  "requests_and_offers_b/requests_and_offers": {
+   "peer_dump": {
+    "this_agent_info": {
+     "kitsune_agent": "WTtDQeo2efDKcwvb_HcwVPiJ5BwTlokIL23QvVRKKeE",
+     "kitsune_space": "5tnF0re67nwVff-7n1EbzWEX6q5BCkOzSh4yK7ROTTY",
+     "dump": "created at 2026-11-03 02:37:09.240371 UTC\nexpires at 2026-11-03 02:57:09.240371 UTC in 18 min\nurl: Some(https://use1-1.relay.n0.iroh-canary.iroh.link.:443/4e610d0ab6ad6a09ad680b256643a23fd8a5cfc9083981a89a7930a6cad119a6)"
+    },
+    "this_dna": [
+     {
+      "$bytes": "hC0k5tnF0re67nwVff+7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR"
+     },
+     "5tnF0re67nwVff-7n1EbzWEX6q5BCkOzSh4yK7ROTTY"
+    ],
+    "this_agent": [
+     {
+      "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+     },
+     "WTtDQeo2efDKcwvb_HcwVPiJ5BwTlokIL23QvVRKKeE"
+    ],
+    "peers": [
+     {
+      "kitsune_agent": "chZy2W7m-W11L8d721B_g5buuIWPwKeR83dOPN6u50k",
+      "kitsune_space": "5tnF0re67nwVff-7n1EbzWEX6q5BCkOzSh4yK7ROTTY",
+      "dump": "created at 2026-11-03 02:36:09.238395 UTC\nexpires at 2026-11-03 02:56:09.238395 UTC in 17 min\nurl: Some(https://use1-1.relay.n0.iroh-canary.iroh.link.:443/4e610d0ab6ad6a09ad680b256643a23fd8a5cfc9083981a89a7930a6cad119a6)"
+     },
+     {
+      "kitsune_agent": "WTtDQeo2efDKcwvb_HcwVPiJ5BwTlokIL23QvVRKKeE",
+      "kitsune_space": "5tnF0re67nwVff-7n1EbzWEX6q5BCkOzSh4yK7ROTTY",
+      "dump": "created at 2026-11-03 02:37:09.240371 UTC\nexpires at 2026-11-03 02:57:09.240371 UTC in 18 min\nurl: Some(https://use1-1.relay.n0.iroh-canary.iroh.link.:443/4e610d0ab6ad6a09ad680b256643a23fd8a5cfc9083981a89a7930a6cad119a6)"
+     }
+    ]
+   },
+   "source_chain_dump": {
+    "records": [
+     {
+      "signature": {
+       "$bytes": "gUdepP/HiC1+JQkbnYijPRw5o1iDEJHVPvDKlDw7f72k6NAGyVukXZLXAH2peaAwbDQ39/5f0ioDFnw16Hx9Cg=="
+      },
+      "action_address": {
+       "$bytes": "hCkkY1I6zh9T+65ZyirU8BH//O2rONCFB9cBf+vix0C1Q4h7FfqP"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793670669604088,
+        "action_seq": 0,
+        "prev_action": null
+       },
+       "data": {
+        "type": "Dna",
+        "dna_hash": {
+         "$bytes": "hC0k5tnF0re67nwVff+7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR"
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "7+oM23/bEJuO8aY7xaNFWGuSUVhru6BNVbixPdYM0om2QXuOuNB7FtWiPMOuGW21IfUTDrX74T5OaHc40uSqBA=="
+      },
+      "action_address": {
+       "$bytes": "hCkkTj1I+oRDP48H23mzjsm9UZmsMz8ejAKLRq4jF6IATqKCkWQm"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793670669604322,
+        "action_seq": 1,
+        "prev_action": {
+         "$bytes": "hCkkY1I6zh9T+65ZyirU8BH//O2rONCFB9cBf+vix0C1Q4h7FfqP"
+        }
+       },
+       "data": {
+        "type": "AgentValidationPkg",
+        "membrane_proof": null
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "1gsy3P1gimdEFMHabH5SK1yFsQd4cE9mIDc2WVZHG18c3C4vghOVR5q+o5OjjNkZ9lNTwboNhOrpLiLsCrl5CA=="
+      },
+      "action_address": {
+       "$bytes": "hCkk3ZBsMRM2jhYQGRXOz6B6QWGxgf4HNu5KXm4ukVraX/nj4bBn"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793670669604426,
+        "action_seq": 2,
+        "prev_action": {
+         "$bytes": "hCkkTj1I+oRDP48H23mzjsm9UZmsMz8ejAKLRq4jF6IATqKCkWQm"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "AgentPubKey",
+        "entry_hash": {
+         "$bytes": "hCEkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "Agent",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     },
+     {
+      "signature": {
+       "$bytes": "Gr6jYetBmHQ3co/5/Aqk+Ny06TtKSqEW2RbEPLB39sr6Z+nm71fuiZ6qoClr9f8tFWOTMZK8c4xdvbn7m/uHDg=="
+      },
+      "action_address": {
+       "$bytes": "hCkkFmopJ7l48nV+AkpoDSwvzZwA2eVCs637cDCpX+ORq0NnIQIA"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793670742366707,
+        "action_seq": 3,
+        "prev_action": {
+         "$bytes": "hCkk3ZBsMRM2jhYQGRXOz6B6QWGxgf4HNu5KXm4ukVraX/nj4bBn"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "CapGrant",
+        "entry_hash": {
+         "$bytes": "hCEknjgR0EYjn66tjg7g6X3jwYfNyHUP+JASIuYeStA4MUazIURv"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "CapGrant",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     },
+     {
+      "signature": {
+       "$bytes": "dHqKtoKAypW7H48O6stn1fgTj8+xPMiwzCzI8grUzc+XvNlM52NcKgq9TOiHMeFz4QjtT4Z1Uq18Frq8IImvBQ=="
+      },
+      "action_address": {
+       "$bytes": "hCkkTpu1eUSnkdYsx9VtqzfmxrDjCb376xf9lc5Bp98E42gPJZbW"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793672963728876,
+        "action_seq": 57,
+        "prev_action": {
+         "$bytes": "hCkkgY2NvCs87MjGHZCbxu+JBhYDfsZ0wDYbFCG6fgLbjTKuVluU"
+        }
+       },
+       "data": {
+        "type": "CreateLink",
+        "base_address": {
+         "$bytes": "hCkkZZ5KE4y/HSMsopSckyNPDaHyxdMQ9bj1O+hh0wmhrTg2Q1m7"
+        },
+        "target_address": {
+         "$bytes": "hCkkURScohZyXDplYRtAlzPeVawPrBubkB5lbX9fXtN4h8c0d4N9"
+        },
+        "zome_index": 6,
+        "link_type": 1,
+        "tag": {
+         "$bytes": ""
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "TK7MmM7gxESULjn+/b9pSN0gpfAv3Xhhz+qf1/ocZ9Ig0vOgbcIuNMCbOEl18O4Jl+j7LRT5bDxnWpETqGpaBw=="
+      },
+      "action_address": {
+       "$bytes": "hCkkGo8iemygdPeD6i397d8NrHhGhPDO5w4W72y3qcy6PMANWu+L"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793672974015245,
+        "action_seq": 58,
+        "prev_action": {
+         "$bytes": "hCkkTpu1eUSnkdYsx9VtqzfmxrDjCb376xf9lc5Bp98E42gPJZbW"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": {
+         "App": {
+          "entry_index": 1,
+          "zome_index": 6,
+          "visibility": "Public"
+         }
+        },
+        "entry_hash": {
+         "$bytes": "hCEkw4SeSO89tsruAaKKO4lFeYj/YJqfllI0w+ifektMF14FULGj"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "App",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     },
+     {
+      "signature": {
+       "$bytes": "kVoHil3DGstf8Bh7PAiALAF8As/GCszlN7KxasRa1xtbmWCDYyxyMgE1baoa2tZIMxvo6+vk6AwjNG6CzAq6AA=="
+      },
+      "action_address": {
+       "$bytes": "hCkkn1pZbmqIMaaytqIu24aijJK06E8SHPhyvQZ8I3+e5zr1EFBk"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793672974025066,
+        "action_seq": 59,
+        "prev_action": {
+         "$bytes": "hCkkGo8iemygdPeD6i397d8NrHhGhPDO5w4W72y3qcy6PMANWu+L"
+        }
+       },
+       "data": {
+        "type": "CreateLink",
+        "base_address": {
+         "$bytes": "hCkkHvyGv/jRA+n9rx5EYi4vWnds3Or7+fAmTg9HyvG4ufLlxPDP"
+        },
+        "target_address": {
+         "$bytes": "hCkkGo8iemygdPeD6i397d8NrHhGhPDO5w4W72y3qcy6PMANWu+L"
+        },
+        "zome_index": 6,
+        "link_type": 2,
+        "tag": {
+         "$bytes": ""
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "DhydzG36FsCR6J5jiNAcvwbP/CqmsoNGsBwCjBSmWE5pcHYE3cW7fufBUzDsgQNC00CDuBd/yml6fl3De2IAAA=="
+      },
+      "action_address": {
+       "$bytes": "hCkk8Y8nwhP6RojR3DHjrZttuCsevvqZ4V7zNVYZAtKrJAWioC1t"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793672974035695,
+        "action_seq": 60,
+        "prev_action": {
+         "$bytes": "hCkkn1pZbmqIMaaytqIu24aijJK06E8SHPhyvQZ8I3+e5zr1EFBk"
+        }
+       },
+       "data": {
+        "type": "CreateLink",
+        "base_address": {
+         "$bytes": "hCkkZZ5KE4y/HSMsopSckyNPDaHyxdMQ9bj1O+hh0wmhrTg2Q1m7"
+        },
+        "target_address": {
+         "$bytes": "hCkkGo8iemygdPeD6i397d8NrHhGhPDO5w4W72y3qcy6PMANWu+L"
+        },
+        "zome_index": 6,
+        "link_type": 3,
+        "tag": {
+         "$bytes": ""
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "9A4o3Ixlb8LPyJpIR0B/avko0rj7rUqmwB4UEy3JmPbkjkZId7v53oMXipI1UoC1qjTkkp8gn8NHY59NK71mCw=="
+      },
+      "action_address": {
+       "$bytes": "hCkkgMji5On7Ql151nE8lrh2Z7+XzLGjwDcsPRo3q7b3/skxV+ik"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793672974045242,
+        "action_seq": 61,
+        "prev_action": {
+         "$bytes": "hCkk8Y8nwhP6RojR3DHjrZttuCsevvqZ4V7zNVYZAtKrJAWioC1t"
+        }
+       },
+       "data": {
+        "type": "CreateLink",
+        "base_address": {
+         "$bytes": "hCkkJbYcRwEP274bAYNtLVHB1Pxmva6281pts2UOKHGQe2f38Mr/"
+        },
+        "target_address": {
+         "$bytes": "hCkkGo8iemygdPeD6i397d8NrHhGhPDO5w4W72y3qcy6PMANWu+L"
+        },
+        "zome_index": 6,
+        "link_type": 3,
+        "tag": {
+         "$bytes": ""
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "TxU5+0DHbsYEl0zUy0ADT+44b7N4NPjdAZbX1GSkMnQu55Rr+qGLgIQye5z7QSwGJ9w0SBfgBuq4FSdr1B+MAw=="
+      },
+      "action_address": {
+       "$bytes": "hCkkblYT4WJJhd76bWKZYYR6T82M3DXanWJLcAK6HychI0ZVZTnZ"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+        },
+        "timestamp": 1793673442917043,
+        "action_seq": 62,
+        "prev_action": {
+         "$bytes": "hCkkgMji5On7Ql151nE8lrh2Z7+XzLGjwDcsPRo3q7b3/skxV+ik"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "CapGrant",
+        "entry_hash": {
+         "$bytes": "hCEktzRiXljvfp5npMBQiD0tzIPmbsHRJ4Hnsmh3njf4Uixu8nww"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "CapGrant",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     }
+    ],
+    "published_ops_count": 173
+   },
+   "integration_dump": {
+    "validation_limbo": [],
+    "integration_limbo": [],
+    "integrated": [
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          },
+          "timestamp": 1793670668800347,
+          "action_seq": 0,
+          "prev_action": null
+         },
+         "data": {
+          "type": "Dna",
+          "dna_hash": {
+           "$bytes": "hC0k5tnF0re67nwVff+7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR"
+          }
+         }
+        },
+        "signature": {
+         "$bytes": "B54fXot6eNq7Wk6i1sUhUDJfbC7KqanidiAQlqGyVxBW7q6iJwEwMNjfLdwDtXO+bbwAOts2tLs3vPXA7d40Bg=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668800347,
+           "action_seq": 0,
+           "prev_action": null
+          },
+          "data": {
+           "type": "Dna",
+           "dna_hash": {
+            "$bytes": "hC0k5tnF0re67nwVff+7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "B54fXot6eNq7Wk6i1sUhUDJfbC7KqanidiAQlqGyVxBW7q6iJwEwMNjfLdwDtXO+bbwAOts2tLs3vPXA7d40Bg=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          },
+          "timestamp": 1793670668800649,
+          "action_seq": 1,
+          "prev_action": {
+           "$bytes": "hCkk4haWYNWe/O0URj9QKA1wbaIV2iV4wivRZPnStwW3JeRTCavV"
+          }
+         },
+         "data": {
+          "type": "AgentValidationPkg",
+          "membrane_proof": null
+         }
+        },
+        "signature": {
+         "$bytes": "lSz5vP15CF5OH1PYnGSlUqmkciKxE0fyuUysshasJ39RKwJCogn7mpbSPnL/AbEq9a+/IoWzhOo2JNdB8cOqCA=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668800649,
+           "action_seq": 1,
+           "prev_action": {
+            "$bytes": "hCkk4haWYNWe/O0URj9QKA1wbaIV2iV4wivRZPnStwW3JeRTCavV"
+           }
+          },
+          "data": {
+           "type": "AgentValidationPkg",
+           "membrane_proof": null
+          }
+         },
+         "signature": {
+          "$bytes": "lSz5vP15CF5OH1PYnGSlUqmkciKxE0fyuUysshasJ39RKwJCogn7mpbSPnL/AbEq9a+/IoWzhOo2JNdB8cOqCA=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668800834,
+           "action_seq": 2,
+           "prev_action": {
+            "$bytes": "hCkkNLotwuCZyK/msofSE9WtXiGD8Wl0am1KgV/Y9xtEJGpkpvyo"
+           }
+          },
+          "data": {
+           "type": "Create",
+           "entry_type": "AgentPubKey",
+           "entry_hash": {
+            "$bytes": "hCEkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "zbqadB5SoRtHrCiJnRsrDQAmyTrHe/cNbLB2yU+djbGTq7KXEkgDji0pjUxHaoVTkDdzRsQq7tMVvYBCtkdFCg=="
+         }
+        },
+        {
+         "Present": {
+          "entry_type": "Agent",
+          "entry": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          },
+          "timestamp": 1793670668800834,
+          "action_seq": 2,
+          "prev_action": {
+           "$bytes": "hCkkNLotwuCZyK/msofSE9WtXiGD8Wl0am1KgV/Y9xtEJGpkpvyo"
+          }
+         },
+         "data": {
+          "type": "Create",
+          "entry_type": "AgentPubKey",
+          "entry_hash": {
+           "$bytes": "hCEkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          }
+         }
+        },
+        "signature": {
+         "$bytes": "zbqadB5SoRtHrCiJnRsrDQAmyTrHe/cNbLB2yU+djbGTq7KXEkgDji0pjUxHaoVTkDdzRsQq7tMVvYBCtkdFCg=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateEntry": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668800834,
+           "action_seq": 2,
+           "prev_action": {
+            "$bytes": "hCkkNLotwuCZyK/msofSE9WtXiGD8Wl0am1KgV/Y9xtEJGpkpvyo"
+           }
+          },
+          "data": {
+           "type": "Create",
+           "entry_type": "AgentPubKey",
+           "entry_hash": {
+            "$bytes": "hCEkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "zbqadB5SoRtHrCiJnRsrDQAmyTrHe/cNbLB2yU+djbGTq7KXEkgDji0pjUxHaoVTkDdzRsQq7tMVvYBCtkdFCg=="
+         }
+        },
+        {
+         "Present": {
+          "entry_type": "Agent",
+          "entry": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+          },
+          "timestamp": 1793670669604088,
+          "action_seq": 0,
+          "prev_action": null
+         },
+         "data": {
+          "type": "Dna",
+          "dna_hash": {
+           "$bytes": "hC0k5tnF0re67nwVff+7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR"
+          }
+         }
+        },
+        "signature": {
+         "$bytes": "gUdepP/HiC1+JQkbnYijPRw5o1iDEJHVPvDKlDw7f72k6NAGyVukXZLXAH2peaAwbDQ39/5f0ioDFnw16Hx9Cg=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           },
+           "timestamp": 1793670669604088,
+           "action_seq": 0,
+           "prev_action": null
+          },
+          "data": {
+           "type": "Dna",
+           "dna_hash": {
+            "$bytes": "hC0k5tnF0re67nwVff+7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "gUdepP/HiC1+JQkbnYijPRw5o1iDEJHVPvDKlDw7f72k6NAGyVukXZLXAH2peaAwbDQ39/5f0ioDFnw16Hx9Cg=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+          },
+          "timestamp": 1793670669604322,
+          "action_seq": 1,
+          "prev_action": {
+           "$bytes": "hCkkY1I6zh9T+65ZyirU8BH//O2rONCFB9cBf+vix0C1Q4h7FfqP"
+          }
+         },
+         "data": {
+          "type": "AgentValidationPkg",
+          "membrane_proof": null
+         }
+        },
+        "signature": {
+         "$bytes": "7+oM23/bEJuO8aY7xaNFWGuSUVhru6BNVbixPdYM0om2QXuOuNB7FtWiPMOuGW21IfUTDrX74T5OaHc40uSqBA=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           },
+           "timestamp": 1793670669604322,
+           "action_seq": 1,
+           "prev_action": {
+            "$bytes": "hCkkY1I6zh9T+65ZyirU8BH//O2rONCFB9cBf+vix0C1Q4h7FfqP"
+           }
+          },
+          "data": {
+           "type": "AgentValidationPkg",
+           "membrane_proof": null
+          }
+         },
+         "signature": {
+          "$bytes": "7+oM23/bEJuO8aY7xaNFWGuSUVhru6BNVbixPdYM0om2QXuOuNB7FtWiPMOuGW21IfUTDrX74T5OaHc40uSqBA=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           },
+           "timestamp": 1793670669604426,
+           "action_seq": 2,
+           "prev_action": {
+            "$bytes": "hCkkTj1I+oRDP48H23mzjsm9UZmsMz8ejAKLRq4jF6IATqKCkWQm"
+           }
+          },
+          "data": {
+           "type": "Create",
+           "entry_type": "AgentPubKey",
+           "entry_hash": {
+            "$bytes": "hCEkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "1gsy3P1gimdEFMHabH5SK1yFsQd4cE9mIDc2WVZHG18c3C4vghOVR5q+o5OjjNkZ9lNTwboNhOrpLiLsCrl5CA=="
+         }
+        },
+        {
+         "Present": {
+          "entry_type": "Agent",
+          "entry": {
+           "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+          }
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "dht_ops_cursor": {
+     "when_received": 1793673446920924,
+     "hash": {
+      "$bytes": "hCQknYbEf/eI7l6Nb18IGExruKSOGmBZW+uFq1TVYxgFu4cN7ACS"
+     }
+    }
+   }
+  },
+  "requests_and_offers/requests_and_offers": {
+   "peer_dump": {
+    "this_agent_info": {
+     "kitsune_agent": "chZy2W7m-W11L8d721B_g5buuIWPwKeR83dOPN6u50k",
+     "kitsune_space": "5tnF0re67nwVff-7n1EbzWEX6q5BCkOzSh4yK7ROTTY",
+     "dump": "created at 2026-11-03 02:36:09.238395 UTC\nexpires at 2026-11-03 02:56:09.238395 UTC in 17 min\nurl: Some(https://use1-1.relay.n0.iroh-canary.iroh.link.:443/4e610d0ab6ad6a09ad680b256643a23fd8a5cfc9083981a89a7930a6cad119a6)"
+    },
+    "this_dna": [
+     {
+      "$bytes": "hC0k5tnF0re67nwVff+7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR"
+     },
+     "5tnF0re67nwVff-7n1EbzWEX6q5BCkOzSh4yK7ROTTY"
+    ],
+    "this_agent": [
+     {
+      "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+     },
+     "chZy2W7m-W11L8d721B_g5buuIWPwKeR83dOPN6u50k"
+    ],
+    "peers": [
+     {
+      "kitsune_agent": "chZy2W7m-W11L8d721B_g5buuIWPwKeR83dOPN6u50k",
+      "kitsune_space": "5tnF0re67nwVff-7n1EbzWEX6q5BCkOzSh4yK7ROTTY",
+      "dump": "created at 2026-11-03 02:36:09.238395 UTC\nexpires at 2026-11-03 02:56:09.238395 UTC in 17 min\nurl: Some(https://use1-1.relay.n0.iroh-canary.iroh.link.:443/4e610d0ab6ad6a09ad680b256643a23fd8a5cfc9083981a89a7930a6cad119a6)"
+     },
+     {
+      "kitsune_agent": "WTtDQeo2efDKcwvb_HcwVPiJ5BwTlokIL23QvVRKKeE",
+      "kitsune_space": "5tnF0re67nwVff-7n1EbzWEX6q5BCkOzSh4yK7ROTTY",
+      "dump": "created at 2026-11-03 02:37:09.240371 UTC\nexpires at 2026-11-03 02:57:09.240371 UTC in 18 min\nurl: Some(https://use1-1.relay.n0.iroh-canary.iroh.link.:443/4e610d0ab6ad6a09ad680b256643a23fd8a5cfc9083981a89a7930a6cad119a6)"
+     }
+    ]
+   },
+   "source_chain_dump": {
+    "records": [
+     {
+      "signature": {
+       "$bytes": "B54fXot6eNq7Wk6i1sUhUDJfbC7KqanidiAQlqGyVxBW7q6iJwEwMNjfLdwDtXO+bbwAOts2tLs3vPXA7d40Bg=="
+      },
+      "action_address": {
+       "$bytes": "hCkk4haWYNWe/O0URj9QKA1wbaIV2iV4wivRZPnStwW3JeRTCavV"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793670668800347,
+        "action_seq": 0,
+        "prev_action": null
+       },
+       "data": {
+        "type": "Dna",
+        "dna_hash": {
+         "$bytes": "hC0k5tnF0re67nwVff+7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR"
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "lSz5vP15CF5OH1PYnGSlUqmkciKxE0fyuUysshasJ39RKwJCogn7mpbSPnL/AbEq9a+/IoWzhOo2JNdB8cOqCA=="
+      },
+      "action_address": {
+       "$bytes": "hCkkNLotwuCZyK/msofSE9WtXiGD8Wl0am1KgV/Y9xtEJGpkpvyo"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793670668800649,
+        "action_seq": 1,
+        "prev_action": {
+         "$bytes": "hCkk4haWYNWe/O0URj9QKA1wbaIV2iV4wivRZPnStwW3JeRTCavV"
+        }
+       },
+       "data": {
+        "type": "AgentValidationPkg",
+        "membrane_proof": null
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "zbqadB5SoRtHrCiJnRsrDQAmyTrHe/cNbLB2yU+djbGTq7KXEkgDji0pjUxHaoVTkDdzRsQq7tMVvYBCtkdFCg=="
+      },
+      "action_address": {
+       "$bytes": "hCkk/F4BGvHCHZys1dySweD/f7Gwv+zcXQwonRfypxo0SJkP+ju9"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793670668800834,
+        "action_seq": 2,
+        "prev_action": {
+         "$bytes": "hCkkNLotwuCZyK/msofSE9WtXiGD8Wl0am1KgV/Y9xtEJGpkpvyo"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "AgentPubKey",
+        "entry_hash": {
+         "$bytes": "hCEkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "Agent",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     },
+     {
+      "signature": {
+       "$bytes": "4mhnW2v8ydeez4YNo7ZjjLpiqwIyQHKqqlehqnsjLl/UUUy4Qo7PZ4oSs/gAx4/EI6WOCAAoXEybE29y6FDVAg=="
+      },
+      "action_address": {
+       "$bytes": "hCkkDe1k7wayuAqN0M6x08P1hUzkxttPrZTcpf1vZSUlgl4tZWmk"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793670742462402,
+        "action_seq": 3,
+        "prev_action": {
+         "$bytes": "hCkk/F4BGvHCHZys1dySweD/f7Gwv+zcXQwonRfypxo0SJkP+ju9"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "CapGrant",
+        "entry_hash": {
+         "$bytes": "hCEknjgR0EYjn66tjg7g6X3jwYfNyHUP+JASIuYeStA4MUazIURv"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "CapGrant",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     },
+     {
+      "signature": {
+       "$bytes": "KIjC0UsBLBLGXkZMwMY7Xj6qMIm0M1PyB+ryHC/vOxGmXZEyKJ1eO7BLf7xyc8iy1MqNF1UIZpJJdi7M6FB5AQ=="
+      },
+      "action_address": {
+       "$bytes": "hCkkPGuPhshv+7Y/3LnD1SRwymuqEGr95dBksc4iGB51JPZT+Qo8"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793672901386487,
+        "action_seq": 122,
+        "prev_action": {
+         "$bytes": "hCkkPkFlTdviEDIeapbPv66xy1kA/G9+lpn/jCRv9JjGGh+bjtkj"
+        }
+       },
+       "data": {
+        "type": "CreateLink",
+        "base_address": {
+         "$bytes": "hCkkHvyGv/jRA+n9rx5EYi4vWnds3Or7+fAmTg9HyvG4ufLlxPDP"
+        },
+        "target_address": {
+         "$bytes": "hCkk12DtKb/KKuDtm9DG8CwALtBVu0DAFwdO8mqcXjis2tOTwsNJ"
+        },
+        "zome_index": 5,
+        "link_type": 5,
+        "tag": {
+         "$bytes": ""
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "/3mBMqrYKzIIoJbBkr4QPvkPuwtuIuWpYQIsPYLK8BDwAjrNvKIj9Xr5y+I5ldAtcGPSqUJ2auQLrwAbBJkHCw=="
+      },
+      "action_address": {
+       "$bytes": "hCkkVff08VFFwQQWummO3r/d1hC/V7FV1LlRZ3yY+w0yTjtNFwFm"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793673045271995,
+        "action_seq": 123,
+        "prev_action": {
+         "$bytes": "hCkkPGuPhshv+7Y/3LnD1SRwymuqEGr95dBksc4iGB51JPZT+Qo8"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": {
+         "App": {
+          "entry_index": 2,
+          "zome_index": 6,
+          "visibility": "Public"
+         }
+        },
+        "entry_hash": {
+         "$bytes": "hCEkIicz5JFNEbOuriqumAov8zoQwy5FNbCi0Y5n09SPnU+f58ql"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "App",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     },
+     {
+      "signature": {
+       "$bytes": "MeWstMgLX3xUlUritiw5gjX9v4wNQUw/UA9eZ6q0IHw9YTZrMB+NrRD7ivlqi8d6T25SuvynYhGvR5RDBI65DA=="
+      },
+      "action_address": {
+       "$bytes": "hCkkfFDQ0n82WXBp03GAqtyQvWTQIH9CIZ1gln3pLxq6rFPD9L54"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793673045282873,
+        "action_seq": 124,
+        "prev_action": {
+         "$bytes": "hCkkVff08VFFwQQWummO3r/d1hC/V7FV1LlRZ3yY+w0yTjtNFwFm"
+        }
+       },
+       "data": {
+        "type": "CreateLink",
+        "base_address": {
+         "$bytes": "hCkkGo8iemygdPeD6i397d8NrHhGhPDO5w4W72y3qcy6PMANWu+L"
+        },
+        "target_address": {
+         "$bytes": "hCkkVff08VFFwQQWummO3r/d1hC/V7FV1LlRZ3yY+w0yTjtNFwFm"
+        },
+        "zome_index": 6,
+        "link_type": 4,
+        "tag": {
+         "$bytes": ""
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "oLd/kVohj7rF3bmV+oldUyCamAwMNbtyYMVW40Jnx/zBapqShL9QpWFvtYWxsmlmsTMPXM8MFrQAt19/dp0tAg=="
+      },
+      "action_address": {
+       "$bytes": "hCkk/RTGWV49uCHeL1HfbCdwJ5jjbJh062b+jZiYkFLjttmvCROk"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793673097642928,
+        "action_seq": 125,
+        "prev_action": {
+         "$bytes": "hCkkfFDQ0n82WXBp03GAqtyQvWTQIH9CIZ1gln3pLxq6rFPD9L54"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "CapGrant",
+        "entry_hash": {
+         "$bytes": "hCEk+F//wfJ+XDr9aOildqFGoAqYgoLE6TF7qIkg/Nhz5ALq7tvI"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "CapGrant",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     },
+     {
+      "signature": {
+       "$bytes": "TRD4z3k7A5BWelQVKUzoctFlwPJTYWfeXnwwd8FJmZG8jU+LPHnAwglZ48zdpqxhPMfoSZ1QjwS1K+NEZUl0Dg=="
+      },
+      "action_address": {
+       "$bytes": "hCkkVrEAJ+0Qmc1oKo7cA7XumBV8ktHiXZrhXQijmNvf71m3fSiq"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793673442072895,
+        "action_seq": 126,
+        "prev_action": {
+         "$bytes": "hCkk/RTGWV49uCHeL1HfbCdwJ5jjbJh062b+jZiYkFLjttmvCROk"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "CapGrant",
+        "entry_hash": {
+         "$bytes": "hCEkOgp8m1a22G6DYpkRtiEDtfYPMxC+RS9sYmfAjL48z143+wap"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "CapGrant",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     },
+     {
+      "signature": {
+       "$bytes": "QwJgFMsyk+cVqKk9CHvOJbjNh7nMJRD7Tayx6PVnDaZwiHZY1YK0ofraOJg/W3xGkKbS4Hq4uEpjliabi+a+Cg=="
+      },
+      "action_address": {
+       "$bytes": "hCkkk1YRsfRhbLMYU8WDM4zbCGBQ9in2SFWpRiCaRa2BdSm0pG+m"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793673446920924,
+        "action_seq": 127,
+        "prev_action": {
+         "$bytes": "hCkkVrEAJ+0Qmc1oKo7cA7XumBV8ktHiXZrhXQijmNvf71m3fSiq"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "CapGrant",
+        "entry_hash": {
+         "$bytes": "hCEkR8dkmz4XivnNCNUeJnpI4wQH+V4R6KXMLHvgF5uPj6dCwhWz"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "CapGrant",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     }
+    ],
+    "published_ops_count": 376
+   },
+   "integration_dump": {
+    "validation_limbo": [],
+    "integration_limbo": [],
+    "integrated": [
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          },
+          "timestamp": 1793670668800347,
+          "action_seq": 0,
+          "prev_action": null
+         },
+         "data": {
+          "type": "Dna",
+          "dna_hash": {
+           "$bytes": "hC0k5tnF0re67nwVff+7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR"
+          }
+         }
+        },
+        "signature": {
+         "$bytes": "B54fXot6eNq7Wk6i1sUhUDJfbC7KqanidiAQlqGyVxBW7q6iJwEwMNjfLdwDtXO+bbwAOts2tLs3vPXA7d40Bg=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668800347,
+           "action_seq": 0,
+           "prev_action": null
+          },
+          "data": {
+           "type": "Dna",
+           "dna_hash": {
+            "$bytes": "hC0k5tnF0re67nwVff+7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "B54fXot6eNq7Wk6i1sUhUDJfbC7KqanidiAQlqGyVxBW7q6iJwEwMNjfLdwDtXO+bbwAOts2tLs3vPXA7d40Bg=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          },
+          "timestamp": 1793670668800649,
+          "action_seq": 1,
+          "prev_action": {
+           "$bytes": "hCkk4haWYNWe/O0URj9QKA1wbaIV2iV4wivRZPnStwW3JeRTCavV"
+          }
+         },
+         "data": {
+          "type": "AgentValidationPkg",
+          "membrane_proof": null
+         }
+        },
+        "signature": {
+         "$bytes": "lSz5vP15CF5OH1PYnGSlUqmkciKxE0fyuUysshasJ39RKwJCogn7mpbSPnL/AbEq9a+/IoWzhOo2JNdB8cOqCA=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668800649,
+           "action_seq": 1,
+           "prev_action": {
+            "$bytes": "hCkk4haWYNWe/O0URj9QKA1wbaIV2iV4wivRZPnStwW3JeRTCavV"
+           }
+          },
+          "data": {
+           "type": "AgentValidationPkg",
+           "membrane_proof": null
+          }
+         },
+         "signature": {
+          "$bytes": "lSz5vP15CF5OH1PYnGSlUqmkciKxE0fyuUysshasJ39RKwJCogn7mpbSPnL/AbEq9a+/IoWzhOo2JNdB8cOqCA=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668800834,
+           "action_seq": 2,
+           "prev_action": {
+            "$bytes": "hCkkNLotwuCZyK/msofSE9WtXiGD8Wl0am1KgV/Y9xtEJGpkpvyo"
+           }
+          },
+          "data": {
+           "type": "Create",
+           "entry_type": "AgentPubKey",
+           "entry_hash": {
+            "$bytes": "hCEkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "zbqadB5SoRtHrCiJnRsrDQAmyTrHe/cNbLB2yU+djbGTq7KXEkgDji0pjUxHaoVTkDdzRsQq7tMVvYBCtkdFCg=="
+         }
+        },
+        {
+         "Present": {
+          "entry_type": "Agent",
+          "entry": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          },
+          "timestamp": 1793670668800834,
+          "action_seq": 2,
+          "prev_action": {
+           "$bytes": "hCkkNLotwuCZyK/msofSE9WtXiGD8Wl0am1KgV/Y9xtEJGpkpvyo"
+          }
+         },
+         "data": {
+          "type": "Create",
+          "entry_type": "AgentPubKey",
+          "entry_hash": {
+           "$bytes": "hCEkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          }
+         }
+        },
+        "signature": {
+         "$bytes": "zbqadB5SoRtHrCiJnRsrDQAmyTrHe/cNbLB2yU+djbGTq7KXEkgDji0pjUxHaoVTkDdzRsQq7tMVvYBCtkdFCg=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateEntry": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668800834,
+           "action_seq": 2,
+           "prev_action": {
+            "$bytes": "hCkkNLotwuCZyK/msofSE9WtXiGD8Wl0am1KgV/Y9xtEJGpkpvyo"
+           }
+          },
+          "data": {
+           "type": "Create",
+           "entry_type": "AgentPubKey",
+           "entry_hash": {
+            "$bytes": "hCEkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "zbqadB5SoRtHrCiJnRsrDQAmyTrHe/cNbLB2yU+djbGTq7KXEkgDji0pjUxHaoVTkDdzRsQq7tMVvYBCtkdFCg=="
+         }
+        },
+        {
+         "Present": {
+          "entry_type": "Agent",
+          "entry": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+          },
+          "timestamp": 1793670669604088,
+          "action_seq": 0,
+          "prev_action": null
+         },
+         "data": {
+          "type": "Dna",
+          "dna_hash": {
+           "$bytes": "hC0k5tnF0re67nwVff+7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR"
+          }
+         }
+        },
+        "signature": {
+         "$bytes": "gUdepP/HiC1+JQkbnYijPRw5o1iDEJHVPvDKlDw7f72k6NAGyVukXZLXAH2peaAwbDQ39/5f0ioDFnw16Hx9Cg=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           },
+           "timestamp": 1793670669604088,
+           "action_seq": 0,
+           "prev_action": null
+          },
+          "data": {
+           "type": "Dna",
+           "dna_hash": {
+            "$bytes": "hC0k5tnF0re67nwVff+7n1EbzWEX6q5BCkOzSh4yK7ROTTZsPGLR"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "gUdepP/HiC1+JQkbnYijPRw5o1iDEJHVPvDKlDw7f72k6NAGyVukXZLXAH2peaAwbDQ39/5f0ioDFnw16Hx9Cg=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+          },
+          "timestamp": 1793670669604322,
+          "action_seq": 1,
+          "prev_action": {
+           "$bytes": "hCkkY1I6zh9T+65ZyirU8BH//O2rONCFB9cBf+vix0C1Q4h7FfqP"
+          }
+         },
+         "data": {
+          "type": "AgentValidationPkg",
+          "membrane_proof": null
+         }
+        },
+        "signature": {
+         "$bytes": "7+oM23/bEJuO8aY7xaNFWGuSUVhru6BNVbixPdYM0om2QXuOuNB7FtWiPMOuGW21IfUTDrX74T5OaHc40uSqBA=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           },
+           "timestamp": 1793670669604322,
+           "action_seq": 1,
+           "prev_action": {
+            "$bytes": "hCkkY1I6zh9T+65ZyirU8BH//O2rONCFB9cBf+vix0C1Q4h7FfqP"
+           }
+          },
+          "data": {
+           "type": "AgentValidationPkg",
+           "membrane_proof": null
+          }
+         },
+         "signature": {
+          "$bytes": "7+oM23/bEJuO8aY7xaNFWGuSUVhru6BNVbixPdYM0om2QXuOuNB7FtWiPMOuGW21IfUTDrX74T5OaHc40uSqBA=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           },
+           "timestamp": 1793670669604426,
+           "action_seq": 2,
+           "prev_action": {
+            "$bytes": "hCkkTj1I+oRDP48H23mzjsm9UZmsMz8ejAKLRq4jF6IATqKCkWQm"
+           }
+          },
+          "data": {
+           "type": "Create",
+           "entry_type": "AgentPubKey",
+           "entry_hash": {
+            "$bytes": "hCEkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "1gsy3P1gimdEFMHabH5SK1yFsQd4cE9mIDc2WVZHG18c3C4vghOVR5q+o5OjjNkZ9lNTwboNhOrpLiLsCrl5CA=="
+         }
+        },
+        {
+         "Present": {
+          "entry_type": "Agent",
+          "entry": {
+           "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+          }
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "dht_ops_cursor": {
+     "when_received": 1793673446920924,
+     "hash": {
+      "$bytes": "hCQknYbEf/eI7l6Nb18IGExruKSOGmBZW+uFq1TVYxgFu4cN7ACS"
+     }
+    }
+   }
+  },
+  "requests_and_offers/hrea": {
+   "peer_dump": {
+    "this_agent_info": {
+     "kitsune_agent": "chZy2W7m-W11L8d721B_g5buuIWPwKeR83dOPN6u50k",
+     "kitsune_space": "6khsjmvkc_pHzr_mStxaPWQgikbR_6HX1h1RZBJHEZg",
+     "dump": "created at 2026-11-03 02:36:09.238270 UTC\nexpires at 2026-11-03 02:56:09.238270 UTC in 17 min\nurl: Some(https://use1-1.relay.n0.iroh-canary.iroh.link.:443/4e610d0ab6ad6a09ad680b256643a23fd8a5cfc9083981a89a7930a6cad119a6)"
+    },
+    "this_dna": [
+     {
+      "$bytes": "hC0k6khsjmvkc/pHzr/mStxaPWQgikbR/6HX1h1RZBJHEZiSZqHk"
+     },
+     "6khsjmvkc_pHzr_mStxaPWQgikbR_6HX1h1RZBJHEZg"
+    ],
+    "this_agent": [
+     {
+      "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+     },
+     "chZy2W7m-W11L8d721B_g5buuIWPwKeR83dOPN6u50k"
+    ],
+    "peers": [
+     {
+      "kitsune_agent": "chZy2W7m-W11L8d721B_g5buuIWPwKeR83dOPN6u50k",
+      "kitsune_space": "6khsjmvkc_pHzr_mStxaPWQgikbR_6HX1h1RZBJHEZg",
+      "dump": "created at 2026-11-03 02:36:09.238270 UTC\nexpires at 2026-11-03 02:56:09.238270 UTC in 17 min\nurl: Some(https://use1-1.relay.n0.iroh-canary.iroh.link.:443/4e610d0ab6ad6a09ad680b256643a23fd8a5cfc9083981a89a7930a6cad119a6)"
+     },
+     {
+      "kitsune_agent": "WTtDQeo2efDKcwvb_HcwVPiJ5BwTlokIL23QvVRKKeE",
+      "kitsune_space": "6khsjmvkc_pHzr_mStxaPWQgikbR_6HX1h1RZBJHEZg",
+      "dump": "created at 2026-11-03 02:37:09.240390 UTC\nexpires at 2026-11-03 02:57:09.240390 UTC in 18 min\nurl: Some(https://use1-1.relay.n0.iroh-canary.iroh.link.:443/4e610d0ab6ad6a09ad680b256643a23fd8a5cfc9083981a89a7930a6cad119a6)"
+     }
+    ]
+   },
+   "source_chain_dump": {
+    "records": [
+     {
+      "signature": {
+       "$bytes": "UON0hbHrdnzm9hM900NmV8VDMV4Cjnqiw0/HXm0rl1bZA3KXodPOlGEv/w7Mm5bndfCrqWsd68Cd2Q6CfbxhBw=="
+      },
+      "action_address": {
+       "$bytes": "hCkkLLD3LnXoYejWIOdhihBEOdfbblKsgIYgiJ8t8Ki1XXPXeywx"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793670668774473,
+        "action_seq": 0,
+        "prev_action": null
+       },
+       "data": {
+        "type": "Dna",
+        "dna_hash": {
+         "$bytes": "hC0k6khsjmvkc/pHzr/mStxaPWQgikbR/6HX1h1RZBJHEZiSZqHk"
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "a/bCZmitXVJcU87vf/3vlQHwMGAvg+gwG94w5nlAJ5S8n56c/1mDxqgSlcHLkK1aPjNXtt575Z3aLmA65CuNDA=="
+      },
+      "action_address": {
+       "$bytes": "hCkkYsf98BV5x4nk2KfJ6YPD35WZTT9kvD5j7WhycUqLah2IIu1K"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793670668775198,
+        "action_seq": 1,
+        "prev_action": {
+         "$bytes": "hCkkLLD3LnXoYejWIOdhihBEOdfbblKsgIYgiJ8t8Ki1XXPXeywx"
+        }
+       },
+       "data": {
+        "type": "AgentValidationPkg",
+        "membrane_proof": null
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "KXVMD0E90HODkMfvQ/d+Sp2fEzL4OFyBlaUiNKN0fuMv8CyG6nDpdZukWOpDkT4iNukwRemD7c+Gh41BVtcKAQ=="
+      },
+      "action_address": {
+       "$bytes": "hCkk3oMxXl76tUAEl4xV9yr8RkMffXJo7auVM44IxRIGRvK3FaGm"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793670668775350,
+        "action_seq": 2,
+        "prev_action": {
+         "$bytes": "hCkkYsf98BV5x4nk2KfJ6YPD35WZTT9kvD5j7WhycUqLah2IIu1K"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "AgentPubKey",
+        "entry_hash": {
+         "$bytes": "hCEkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "Agent",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     },
+     {
+      "signature": {
+       "$bytes": "Fcp5vxVjM39WkDNRMH/hhEYg4aGz0wHHdeqO8LWpiCBUxVsDLiUfQb/yUKqrEevfWJjWHBiSO7PAT5F2ER48DQ=="
+      },
+      "action_address": {
+       "$bytes": "hCkkKJwJJfBG4PeFgND0ljPtPLcSeadP3UJWMHt5PHVwEF8HMbGZ"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793670728840244,
+        "action_seq": 3,
+        "prev_action": {
+         "$bytes": "hCkk3oMxXl76tUAEl4xV9yr8RkMffXJo7auVM44IxRIGRvK3FaGm"
+        }
+       },
+       "data": {
+        "type": "InitZomesComplete"
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "aTlD4PaaZf4oKnUg4MGRkmHplcmTlN3ieiWGdxPjKOsFyjL9NtR8y4F8899cbJ1w8UUl8OnlwPnZ4gNbC9YaAg=="
+      },
+      "action_address": {
+       "$bytes": "hCkkXIIhqCmOKY5p+L69Fbz6t2EKVUbDYXY6HRso2NcEc4ICvzYM"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793673045653670,
+        "action_seq": 126,
+        "prev_action": {
+         "$bytes": "hCkklsC4twoIXICa9mOmIbx4vWbCLLlf7QhrPrRmm5RZ576oIAnN"
+        }
+       },
+       "data": {
+        "type": "CreateLink",
+        "base_address": {
+         "$bytes": "hCkk/r3pyd46rgUxIc3L7trvhrDYLfK+ArCWb1ZZMQyF65uqF+3+"
+        },
+        "target_address": {
+         "$bytes": "hCkkTn+fh2YXriytoWFxP3c8XfQ1Ewsgg1vrB7MQwnLMxicv/hON"
+        },
+        "zome_index": 0,
+        "link_type": 29,
+        "tag": {
+         "$bytes": "hCkkTn+fh2YXriytoWFxP3c8XfQ1Ewsgg1vrB7MQwnLMxicv/hON"
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "1/sAhUrOlkqMsiabvXw+sDpo/EfSDw9WKbdqJYQUv6WcJxeUrEmfZtyiyR3yuNpLaHWSjzRJqhERrBMqQ9Y1Bg=="
+      },
+      "action_address": {
+       "$bytes": "hCkkIiTSnps2VAL8zHjHmp6devrra9rZUlMGOLpCGRyykZ7kw3xS"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793673045655843,
+        "action_seq": 127,
+        "prev_action": {
+         "$bytes": "hCkkXIIhqCmOKY5p+L69Fbz6t2EKVUbDYXY6HRso2NcEc4ICvzYM"
+        }
+       },
+       "data": {
+        "type": "CreateLink",
+        "base_address": {
+         "$bytes": "hCkkyZcDrQYf8LJbob6DkyjYjRgewNubhbsxgvafs56zTAAi+z/7"
+        },
+        "target_address": {
+         "$bytes": "hCkkTn+fh2YXriytoWFxP3c8XfQ1Ewsgg1vrB7MQwnLMxicv/hON"
+        },
+        "zome_index": 0,
+        "link_type": 30,
+        "tag": {
+         "$bytes": "hCkkTn+fh2YXriytoWFxP3c8XfQ1Ewsgg1vrB7MQwnLMxicv/hON"
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "8E3+fzVb3LqEQdqxbp3AAXcJ9Q++R20edem0LAlAAFbSGgrwq12n7ixs9ioat8eDPCC1J6LWmnJ6weT0gbFNBQ=="
+      },
+      "action_address": {
+       "$bytes": "hCkkoLxOMBRLelU+YUR6go9gw87qWbTqihGaqYTBHwX23xqJuEc+"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793673045658432,
+        "action_seq": 128,
+        "prev_action": {
+         "$bytes": "hCkkIiTSnps2VAL8zHjHmp6devrra9rZUlMGOLpCGRyykZ7kw3xS"
+        }
+       },
+       "data": {
+        "type": "CreateLink",
+        "base_address": {
+         "$bytes": "hCkkVAdJ+JooP3UzUFLIc/7Cz5zzgU7iEaKBIhRtud6fTxzMS6xu"
+        },
+        "target_address": {
+         "$bytes": "hCkkTn+fh2YXriytoWFxP3c8XfQ1Ewsgg1vrB7MQwnLMxicv/hON"
+        },
+        "zome_index": 0,
+        "link_type": 31,
+        "tag": {
+         "$bytes": "hCkkTn+fh2YXriytoWFxP3c8XfQ1Ewsgg1vrB7MQwnLMxicv/hON"
+        }
+       }
+      },
+      "entry": null
+     },
+     {
+      "signature": {
+       "$bytes": "zO4xo84rlA1QNSbdBIG5OHsPhsPmh+5nWvAsgRBEJNtk0yZOk8VBnKs2K1MBME3yBGcGABsR6sBxMYUK3z3GBA=="
+      },
+      "action_address": {
+       "$bytes": "hCkkKSPwAZ3tYnmImh6azjQeY0ogULyxO/rMGDBPlS2BNq1ANBMy"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793673097648031,
+        "action_seq": 129,
+        "prev_action": {
+         "$bytes": "hCkkoLxOMBRLelU+YUR6go9gw87qWbTqihGaqYTBHwX23xqJuEc+"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "CapGrant",
+        "entry_hash": {
+         "$bytes": "hCEkZNnfCYusVRIYRhziWjf02heCI5Lc+eQz5dB777T0z9TcpRXi"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "CapGrant",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     },
+     {
+      "signature": {
+       "$bytes": "H2sRQqCGlSa7DKBtzb6iyXbhm+3/RuTgVMBV8RLJfHEYUcGd2u1ivyCMw3ZcvS4jbVgiQL5FPAF8SlHY4ZocAg=="
+      },
+      "action_address": {
+       "$bytes": "hCkkQ9cytmD8Zf3H8WA8fkN1XNsWrbeU0yOciBALR5PARrFfdiQM"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793673442063232,
+        "action_seq": 130,
+        "prev_action": {
+         "$bytes": "hCkkKSPwAZ3tYnmImh6azjQeY0ogULyxO/rMGDBPlS2BNq1ANBMy"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "CapGrant",
+        "entry_hash": {
+         "$bytes": "hCEkL+qYe6pqwbzJV+rc21M/Mkebt13kzD4UZwliPNydIsG4kBi6"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "CapGrant",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     },
+     {
+      "signature": {
+       "$bytes": "3IyBZHGd17yIWWo2oQk1/F65wLk7AHo+3Ko17Ni5vXx6DlxwH43c9LzmoSu1HyKV59IHDFOw6G73h+yCU5vYAA=="
+      },
+      "action_address": {
+       "$bytes": "hCkkJz4/TmP6wihqT3iu77vi5XErBr8xwo3BMPst9c5SWC98G97N"
+      },
+      "action": {
+       "header": {
+        "author": {
+         "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+        },
+        "timestamp": 1793673446926633,
+        "action_seq": 131,
+        "prev_action": {
+         "$bytes": "hCkkQ9cytmD8Zf3H8WA8fkN1XNsWrbeU0yOciBALR5PARrFfdiQM"
+        }
+       },
+       "data": {
+        "type": "Create",
+        "entry_type": "CapGrant",
+        "entry_hash": {
+         "$bytes": "hCEk4SWRCtoAZ3L3zY3gAsSuhq0APY+fR2WdpBKbLL/ZJ1a3osLL"
+        }
+       }
+      },
+      "entry": {
+       "entry_type": "CapGrant",
+       "entry": {
+        "$bytes": "AA=="
+       }
+      }
+     }
+    ],
+    "published_ops_count": 383
+   },
+   "integration_dump": {
+    "validation_limbo": [],
+    "integration_limbo": [],
+    "integrated": [
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          },
+          "timestamp": 1793670668774473,
+          "action_seq": 0,
+          "prev_action": null
+         },
+         "data": {
+          "type": "Dna",
+          "dna_hash": {
+           "$bytes": "hC0k6khsjmvkc/pHzr/mStxaPWQgikbR/6HX1h1RZBJHEZiSZqHk"
+          }
+         }
+        },
+        "signature": {
+         "$bytes": "UON0hbHrdnzm9hM900NmV8VDMV4Cjnqiw0/HXm0rl1bZA3KXodPOlGEv/w7Mm5bndfCrqWsd68Cd2Q6CfbxhBw=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668774473,
+           "action_seq": 0,
+           "prev_action": null
+          },
+          "data": {
+           "type": "Dna",
+           "dna_hash": {
+            "$bytes": "hC0k6khsjmvkc/pHzr/mStxaPWQgikbR/6HX1h1RZBJHEZiSZqHk"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "UON0hbHrdnzm9hM900NmV8VDMV4Cjnqiw0/HXm0rl1bZA3KXodPOlGEv/w7Mm5bndfCrqWsd68Cd2Q6CfbxhBw=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          },
+          "timestamp": 1793670668775198,
+          "action_seq": 1,
+          "prev_action": {
+           "$bytes": "hCkkLLD3LnXoYejWIOdhihBEOdfbblKsgIYgiJ8t8Ki1XXPXeywx"
+          }
+         },
+         "data": {
+          "type": "AgentValidationPkg",
+          "membrane_proof": null
+         }
+        },
+        "signature": {
+         "$bytes": "a/bCZmitXVJcU87vf/3vlQHwMGAvg+gwG94w5nlAJ5S8n56c/1mDxqgSlcHLkK1aPjNXtt575Z3aLmA65CuNDA=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668775198,
+           "action_seq": 1,
+           "prev_action": {
+            "$bytes": "hCkkLLD3LnXoYejWIOdhihBEOdfbblKsgIYgiJ8t8Ki1XXPXeywx"
+           }
+          },
+          "data": {
+           "type": "AgentValidationPkg",
+           "membrane_proof": null
+          }
+         },
+         "signature": {
+          "$bytes": "a/bCZmitXVJcU87vf/3vlQHwMGAvg+gwG94w5nlAJ5S8n56c/1mDxqgSlcHLkK1aPjNXtt575Z3aLmA65CuNDA=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          },
+          "timestamp": 1793670668775350,
+          "action_seq": 2,
+          "prev_action": {
+           "$bytes": "hCkkYsf98BV5x4nk2KfJ6YPD35WZTT9kvD5j7WhycUqLah2IIu1K"
+          }
+         },
+         "data": {
+          "type": "Create",
+          "entry_type": "AgentPubKey",
+          "entry_hash": {
+           "$bytes": "hCEkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          }
+         }
+        },
+        "signature": {
+         "$bytes": "KXVMD0E90HODkMfvQ/d+Sp2fEzL4OFyBlaUiNKN0fuMv8CyG6nDpdZukWOpDkT4iNukwRemD7c+Gh41BVtcKAQ=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateEntry": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668775350,
+           "action_seq": 2,
+           "prev_action": {
+            "$bytes": "hCkkYsf98BV5x4nk2KfJ6YPD35WZTT9kvD5j7WhycUqLah2IIu1K"
+           }
+          },
+          "data": {
+           "type": "Create",
+           "entry_type": "AgentPubKey",
+           "entry_hash": {
+            "$bytes": "hCEkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "KXVMD0E90HODkMfvQ/d+Sp2fEzL4OFyBlaUiNKN0fuMv8CyG6nDpdZukWOpDkT4iNukwRemD7c+Gh41BVtcKAQ=="
+         }
+        },
+        {
+         "Present": {
+          "entry_type": "Agent",
+          "entry": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           },
+           "timestamp": 1793670668775350,
+           "action_seq": 2,
+           "prev_action": {
+            "$bytes": "hCkkYsf98BV5x4nk2KfJ6YPD35WZTT9kvD5j7WhycUqLah2IIu1K"
+           }
+          },
+          "data": {
+           "type": "Create",
+           "entry_type": "AgentPubKey",
+           "entry_hash": {
+            "$bytes": "hCEkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "KXVMD0E90HODkMfvQ/d+Sp2fEzL4OFyBlaUiNKN0fuMv8CyG6nDpdZukWOpDkT4iNukwRemD7c+Gh41BVtcKAQ=="
+         }
+        },
+        {
+         "Present": {
+          "entry_type": "Agent",
+          "entry": {
+           "$bytes": "hCAkchZy2W7m+W11L8d721B/g5buuIWPwKeR83dOPN6u50mWzuTJ"
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           },
+           "timestamp": 1793670669595264,
+           "action_seq": 0,
+           "prev_action": null
+          },
+          "data": {
+           "type": "Dna",
+           "dna_hash": {
+            "$bytes": "hC0k6khsjmvkc/pHzr/mStxaPWQgikbR/6HX1h1RZBJHEZiSZqHk"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "OQCxs0aIxExiTsINTAx+2kZ2FlVTeXW2/iMESGEFZoKS73zeVYHyQSnFefruZ8dRoASKN+DFsbFE3Zbt4GHpCA=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+          },
+          "timestamp": 1793670669595264,
+          "action_seq": 0,
+          "prev_action": null
+         },
+         "data": {
+          "type": "Dna",
+          "dna_hash": {
+           "$bytes": "hC0k6khsjmvkc/pHzr/mStxaPWQgikbR/6HX1h1RZBJHEZiSZqHk"
+          }
+         }
+        },
+        "signature": {
+         "$bytes": "OQCxs0aIxExiTsINTAx+2kZ2FlVTeXW2/iMESGEFZoKS73zeVYHyQSnFefruZ8dRoASKN+DFsbFE3Zbt4GHpCA=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "AgentActivity": {
+        "data": {
+         "header": {
+          "author": {
+           "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+          },
+          "timestamp": 1793670669596028,
+          "action_seq": 1,
+          "prev_action": {
+           "$bytes": "hCkkRDMWDVKebQ8MQMclzi1awiWMYYq0Bf9D2UpjQ8XGZVGmrhky"
+          }
+         },
+         "data": {
+          "type": "AgentValidationPkg",
+          "membrane_proof": null
+         }
+        },
+        "signature": {
+         "$bytes": "3TXxrX4cMWRGIn84XhvVvXp0X9XEKwAGUxaRbQejabwGyiWAUrvZz3rSvH8A67dA7TUVkqkmob2FxHoGEuz5Aw=="
+        }
+       }
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateRecord": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           },
+           "timestamp": 1793670669596028,
+           "action_seq": 1,
+           "prev_action": {
+            "$bytes": "hCkkRDMWDVKebQ8MQMclzi1awiWMYYq0Bf9D2UpjQ8XGZVGmrhky"
+           }
+          },
+          "data": {
+           "type": "AgentValidationPkg",
+           "membrane_proof": null
+          }
+         },
+         "signature": {
+          "$bytes": "3TXxrX4cMWRGIn84XhvVvXp0X9XEKwAGUxaRbQejabwGyiWAUrvZz3rSvH8A67dA7TUVkqkmob2FxHoGEuz5Aw=="
+         }
+        },
+        "ActionOnly"
+       ]
+      }
+     },
+     {
+      "ChainOp": {
+       "CreateEntry": [
+        {
+         "data": {
+          "header": {
+           "author": {
+            "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           },
+           "timestamp": 1793670669596190,
+           "action_seq": 2,
+           "prev_action": {
+            "$bytes": "hCkkBEbR+ADPiQz7nXIo+E2gyfvSMj910xXqazYQAPSIXNEKDTvq"
+           }
+          },
+          "data": {
+           "type": "Create",
+           "entry_type": "AgentPubKey",
+           "entry_hash": {
+            "$bytes": "hCEkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+           }
+          }
+         },
+         "signature": {
+          "$bytes": "/EpKuwJL3ssvloXU9mbuG+ln+4oL+6dtJcrRQDoPC1KTgFj7llrQ4SLI8N48i2VOyOiZnXqllzupiFmBmr3oBg=="
+         }
+        },
+        {
+         "Present": {
+          "entry_type": "Agent",
+          "entry": {
+           "$bytes": "hCAkWTtDQeo2efDKcwvb/HcwVPiJ5BwTlokIL23QvVRKKeEeqDab"
+          }
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "dht_ops_cursor": {
+     "when_received": 1793673446926633,
+     "hash": {
+      "$bytes": "hCQkk8j5/Mg8XHdybBnoCfkNKi8KwzK9mQGwUvmbsz8lE3osKSq1"
+     }
+    }
+   }
+  }
+ },
+ "network": {
+  "transport_stats": {
+   "backend": "iroh",
+   "peer_urls": [
+    "https://use1-1.relay.n0.iroh-canary.iroh.link.:443/4e610d0ab6ad6a09ad680b256643a23fd8a5cfc9083981a89a7930a6cad119a6"
+   ],
+   "connections": []
+  },
+  "blocked_message_counts": {}
+ },
+ "note": "Captured from a Holochain 0.7 sandbox (bun start:web, two members) with AdminWebsocket listApps, dumpFullState per provisioned cell and dumpNetworkStats on 2026-11-02, then trimmed: first 4 and last 6 records per chain, first 12 integrated ops, entry bytes blanked. Uint8Arrays are {\"$bytes\": base64}."
+}

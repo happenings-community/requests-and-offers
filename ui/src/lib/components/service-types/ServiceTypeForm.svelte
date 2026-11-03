@@ -15,7 +15,7 @@
   let {
     serviceType = null,
     mode = 'create',
-    onSubmitSuccess = (_result: UIServiceType) => {},
+    onSubmitSuccess = () => {},
     onCancel = () => {}
   }: Props = $props();
 

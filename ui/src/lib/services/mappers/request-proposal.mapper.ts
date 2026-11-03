@@ -43,7 +43,7 @@ export interface RequestProposalMappingResult {
  * - Creates a single proposal with descriptive name from request
  * - Creates one service intent per service type requested (receiver=requester)
  * - Creates one payment intent for the medium of exchange (provider=requester)
- * - Links all intents to the proposal via proposeIntent
+ * - The store creates these intents first, then the proposal that publishes them (proposal-links.ts)
  */
 export const createProposalFromRequest = (
   params: RequestProposalMappingParams

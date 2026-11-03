@@ -10,6 +10,7 @@ import type {
   Agent,
   ResourceSpecification,
   Proposal,
+  ProposalWithIntents,
   Intent,
   GraphQLIntentResponse,
   GraphQLAgreementResponse,
@@ -172,6 +173,11 @@ import {
   CREATE_ECONOMIC_EVENT_MUTATION
 } from '$lib/graphql/mutations/agreement.mutations';
 import {
+  GET_AGREEMENTS_QUERY,
+  GET_COMMITMENTS_QUERY,
+  GET_ECONOMIC_EVENTS_QUERY
+} from '$lib/graphql/queries/agreement.queries';
+import {
   GET_INTENT_QUERY,
   GET_INTENTS_QUERY,
   GET_INTENTS_BY_PROPOSAL_QUERY
@@ -270,6 +276,7 @@ export interface HreaService {
   readonly deleteProposal: (params: { revisionId: string }) => E.Effect<boolean, HreaError>;
   readonly getProposal: (id: string) => E.Effect<Proposal | null, HreaError>;
   readonly getProposals: () => E.Effect<Proposal[], HreaError>;
+  readonly getProposalsWithIntents: () => E.Effect<ProposalWithIntents[], HreaError>;
   readonly getProposalsByAgent: (agentId: string) => E.Effect<Proposal[], HreaError>;
   readonly getUnits: () => E.Effect<
     Array<{ id: string; label: string; symbol: string }>,
@@ -286,6 +293,9 @@ export interface HreaService {
   readonly createCommitment: (params: CommitmentInput) => E.Effect<Commitment, HreaError>;
   readonly updateCommitment: (params: { revisionId: string; finished: boolean }) => E.Effect<Commitment, HreaError>;
   readonly createEconomicEvent: (params: EconomicEventInput) => E.Effect<EconomicEvent, HreaError>;
+  readonly getAgreements: () => E.Effect<Agreement[], HreaError>;
+  readonly getCommitments: () => E.Effect<Commitment[], HreaError>;
+  readonly getEconomicEvents: () => E.Effect<EconomicEvent[], HreaError>;
   readonly createIntent: (params: {
     action: string;
     provider?: string;
@@ -1010,6 +1020,54 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.CREATE_ECONOMIC_EVENT))
         );
 
+      // List reads for the admin hREA dashboard: one query per VF type, so the
+      // audit reads hREA itself rather than deriving counts from R&O.
+      const listQuery = <Raw, Out>(
+        query: typeof GET_AGREEMENTS_QUERY,
+        field: string,
+        normalize: (raw: Raw) => Out,
+        context: string
+      ): E.Effect<Out[], HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                const result = await client.query({ query, fetchPolicy: 'network-only' });
+                const edges: GraphQLEdge<Raw>[] = result.data?.[field]?.edges ?? [];
+                return edges.map((edge) => normalize(edge.node));
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, context))
+        );
+
+      const getAgreements = (): E.Effect<Agreement[], HreaError> =>
+        listQuery(GET_AGREEMENTS_QUERY, 'agreements', normalizeAgreementResponse, HREA_CONTEXTS.GET_AGREEMENTS);
+
+      const getProposalsWithIntents = (): E.Effect<ProposalWithIntents[], HreaError> =>
+        listQuery(
+          GET_PROPOSALS_QUERY,
+          'proposals',
+          (raw: GraphQLProposalResponse) => ({
+            ...normalizeProposalResponse(raw),
+            intentIds: [...(raw.publishes ?? []), ...(raw.reciprocal ?? [])].map((i) => i.id)
+          }),
+          HREA_CONTEXTS.GET_PROPOSALS
+        );
+
+      const getCommitments = (): E.Effect<Commitment[], HreaError> =>
+        listQuery(GET_COMMITMENTS_QUERY, 'commitments', normalizeCommitmentResponse, HREA_CONTEXTS.GET_COMMITMENTS);
+
+      const getEconomicEvents = (): E.Effect<EconomicEvent[], HreaError> =>
+        listQuery(
+          GET_ECONOMIC_EVENTS_QUERY,
+          'economicEvents',
+          normalizeEconomicEventResponse,
+          HREA_CONTEXTS.GET_ECONOMIC_EVENTS
+        );
+
       const createIntent = (params: {
         action: string;
         provider?: string;
@@ -1189,6 +1247,10 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         deleteProposal,
         getProposal,
         getProposals,
+        getAgreements,
+        getProposalsWithIntents,
+        getCommitments,
+        getEconomicEvents,
         getProposalsByAgent,
         getUnits,
         createUnit,

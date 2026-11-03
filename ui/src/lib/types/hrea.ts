@@ -13,6 +13,8 @@ export type Agent = Schema.Schema.Type<typeof AgentSchema>;
 export type ResourceSpecification = Schema.Schema.Type<typeof ResourceSpecificationSchema>;
 export type Proposal = Schema.Schema.Type<typeof ProposalSchema>;
 export type Intent = Schema.Schema.Type<typeof IntentSchema>;
+/** A proposal with the ids of the intents it publishes, reciprocal ones included. */
+export type ProposalWithIntents = Proposal & { readonly intentIds: readonly string[] };
 export type Agreement = Schema.Schema.Type<typeof AgreementSchema>;
 export type Commitment = Schema.Schema.Type<typeof CommitmentSchema>;
 export type EconomicEvent = Schema.Schema.Type<typeof EconomicEventSchema>;

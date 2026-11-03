@@ -22,7 +22,7 @@ bun install                    # Install dependencies
 bun start                      # Development mode (2 agents)
 AGENTS=3 bun start             # Custom number of agents
 bun start:tauri                # Desktop app with Tauri
-bun start:web                  # Browser tabs, one URL per member, Vite HMR (AGENTS=n); see documentation/guides/web-dev-mode.md
+bun start:web                  # Browser tabs, one URL per member, Vite HMR, plus a conductor inspector page (AGENTS=n, WEB_OPEN=0); see documentation/guides/web-dev-mode.md
 
 # Building
 bun build:zomes                # Build Rust zomes (requires Nix)

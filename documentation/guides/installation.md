@@ -146,7 +146,8 @@ This will:
 2. Build the hApp
 3. Start the UI server
 4. Launch the Holochain environment
-5. Start the Holochain Playground
+
+To see each member's source chain and DHT state, use `bun start:web`, which also serves an inspector page (`documentation/guides/web-dev-mode.md`). `bun start` no longer starts `hc playground`: its only build reads Holochain 0.5, not 0.7.
 
 #### Verify Development Environment
 
@@ -156,7 +157,6 @@ After running `bun start`, you should see:
    - UI servers for each agent (e.g., `http://localhost:5173`, `http://localhost:5174`)
    - Bootstrap server URL
    - Signal server URL
-   - Holochain Playground URL
 
 2. **Browser Windows**: Automatically opened browser windows for each agent
 

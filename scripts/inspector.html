@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>R&amp;O Conductor Inspector</title>
+    <style>
+      /* R&O colours, from ui/src/happening_theme.ts. */
+      :root {
+        --bg: #f3f4f8; --panel: #ffffff; --ink: #1c2033; --muted: #556080; --line: #d9dce8;
+        --accent: #4720b7; --accent-soft: #e3def4; --gold: #b8960f; --sky: #0b7fb3;
+        --ok: #3f7a0b; --warn: #b35f00; --err: #b81616; --ghost: #a0a6bb;
+        --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --bg: #141826; --panel: #1d2236; --ink: #e8eaf3; --muted: #a2a9c4; --line: #333a56;
+          --accent: #a993ff; --accent-soft: #2d2459; --gold: #ebc634; --sky: #38bdf8;
+          --ok: #9ad94a; --warn: #ffab4d; --err: #f27272; --ghost: #5d6480;
+        }
+      }
+      :root[data-theme="dark"] {
+        --bg: #141826; --panel: #1d2236; --ink: #e8eaf3; --muted: #a2a9c4; --line: #333a56;
+        --accent: #a993ff; --accent-soft: #2d2459; --gold: #ebc634; --sky: #38bdf8;
+        --ok: #9ad94a; --warn: #ffab4d; --err: #f27272; --ghost: #5d6480;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.45 system-ui, sans-serif; display: flex; flex-direction: column; }
+      header { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+      header h1 { font-size: 15px; margin: 0; color: var(--accent); }
+      .meta { color: var(--muted); }
+      .spacer { flex: 1; }
+      button, select, input { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; }
+      button { cursor: pointer; }
+      button.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+      main { flex: 1; min-height: 0; display: grid; grid-template-columns: 280px minmax(0, 1fr) 340px; }
+      section { min-height: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line); }
+      section:last-child { border-right: 0; }
+      h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0; padding: 8px 12px 4px; display: flex; gap: 8px; align-items: baseline; }
+      h2 .meta { text-transform: none; letter-spacing: 0; font-weight: 400; }
+      #net { height: 230px; flex: none; border-bottom: 1px solid var(--line); }
+      #netinfo { padding: 4px 12px 8px; color: var(--muted); border-bottom: 1px solid var(--line); }
+      #chain { flex: 1; overflow: auto; list-style: none; margin: 0; padding: 0 0 8px; }
+      #chain li { display: grid; grid-template-columns: 34px 1fr; gap: 0 6px; padding: 4px 12px; border-left: 3px solid transparent; cursor: pointer; }
+      #chain li:hover { background: var(--accent-soft); }
+      #chain li.hit { border-left-color: var(--accent); background: var(--accent-soft); }
+      #chain li.dim { color: var(--ghost); cursor: default; }
+      #chain .seq { font-family: var(--mono); color: var(--muted); text-align: right; }
+      #chain .at { grid-column: 2; color: var(--muted); font-size: 11px; }
+      #chain li.fresh { animation: flash 1.6s ease-out; }
+      @keyframes flash { from { background: var(--gold); } to { background: transparent; } }
+      .toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+      .toolbar input[type="search"] { width: 220px; }
+      #types { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 12px; border-bottom: 1px solid var(--line); }
+      .chip { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); cursor: pointer; user-select: none; }
+      .chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+      .chip.off { opacity: .4; text-decoration: line-through; }
+      #graph { flex: 1; min-height: 0; position: relative; }
+      #empty { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: var(--muted); pointer-events: none; text-align: center; padding: 24px; }
+      #detail { flex: 1; overflow: auto; padding: 4px 12px 16px; }
+      #detail .none { color: var(--muted); padding-top: 8px; }
+      dl { display: grid; grid-template-columns: 82px 1fr; gap: 3px 8px; margin: 6px 0 10px; }
+      dt { color: var(--muted); }
+      dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+      .hash { font-family: var(--mono); font-size: 11.5px; }
+      .copy { padding: 0 6px; font-size: 11px; margin-left: 4px; }
+      .badge { display: inline-block; padding: 0 7px; border-radius: 999px; font-size: 11px; border: 1px solid currentColor; }
+      .integrated { color: var(--ok); } .limbo { color: var(--warn); } .unseen { color: var(--muted); } .deleted { color: var(--err); }
+      h3 { font-size: 12px; margin: 12px 0 4px; color: var(--muted); font-weight: 600; }
+      ol.revs { margin: 0; padding-left: 18px; }
+      ol.revs li { margin-bottom: 4px; }
+      pre { margin: 0; padding: 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font: 11.5px/1.4 var(--mono); overflow: auto; max-height: 42vh; }
+      .k { color: var(--accent); } .s { color: var(--ok); } .n { color: var(--sky); } .h { color: var(--gold); }
+      .err { color: var(--err); padding: 8px 16px; }
+      a.node-link { color: var(--accent); cursor: pointer; text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>R&amp;O conductor inspector</h1>
+      <span class="meta" id="taken">connecting…</span>
+      <span class="meta" id="transport"></span>
+      <span class="spacer"></span>
+      <button id="live" class="on" title="Refresh every 3 seconds, keeping the selection and the layout">Live</button>
+      <button id="refresh">Refresh</button>
+      <button id="theme" title="Light or dark">Theme</button>
+    </header>
+    <div class="err" id="error" hidden></div>
+    <main>
+      <section>
+        <h2>Network <span class="meta">cells by role; edges: peers each cell holds in its peer store</span></h2>
+        <div id="net"></div>
+        <div id="netinfo"></div>
+        <h2>Source chain <span class="meta" id="chainwho">select a cell</span></h2>
+        <ul id="chain"></ul>
+      </section>
+      <section>
+        <div class="toolbar">
+          <label>DNA <select id="role"></select></label>
+          <label>Author <select id="author"></select></label>
+          <input type="search" id="search" placeholder="Search a hash or text" />
+          <button id="labels" title="Show every edge label">Edge labels</button>
+          <button id="relayout">Re-layout</button>
+          <span class="meta" id="counts"></span>
+        </div>
+        <div id="types"></div>
+        <div id="graph"><div id="empty"></div></div>
+      </section>
+      <section>
+        <h2>Detail</h2>
+        <div id="detail"><p class="none">Select a record, an agent or an edge.</p></div>
+      </section>
+    </main>
+    <script src="/vendor/cytoscape.min.js"></script>
+    <script>
+      'use strict';
+      const $ = (id) => document.getElementById(id);
+      const PALETTE = ['#4720b7', '#0ea5e9', '#d4a90f', '#65a30d', '#ff8800', '#d21919', '#7c8dc4', '#c026d3', '#14b8a6', '#a16207', '#6366f1', '#f43f5e', '#0f766e', '#9333ea'];
+      const state = {
+        data: null, role: null, author: '', search: '', hiddenTypes: new Set(), edgeLabels: false,
+        selected: null, selectedCell: null, chainAgent: null, positions: new Map(), seenNodes: new Set(), seenActions: new Set(), signature: ''
+      };
+      const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      const short = (h) => (h ? `${h.slice(0, 8)}…${h.slice(-5)}` : '');
+      const time = (iso) => new Date(iso).toLocaleTimeString();
+      const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+      const letter = (i) => String.fromCharCode(65 + i);
+      const memberOf = (agentKey) => { const ms = state.data?.summary.members ?? []; const i = ms.findIndex((m) => m.agentKey === agentKey); return i < 0 ? undefined : `member ${letter(i)}`; };
+      const who = (agentKey) => memberOf(agentKey) ?? short(agentKey);
+      const valClass = (v) => (v === 'integrated' ? 'integrated' : v === 'not seen' ? 'unseen' : 'limbo');
+
+      // ---- Theme -------------------------------------------------------
+      const savedTheme = (() => { try { return localStorage.getItem('inspector-theme'); } catch { return null; } })();
+      if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+      $('theme').onclick = () => {
+        const dark = css('--bg') === '#141826';
+        document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+        try { localStorage.setItem('inspector-theme', document.documentElement.dataset.theme); } catch {}
+        net.style(netStyle()); cy.style(graphStyle());
+      };
+
+      // ---- Network view -------------------------------------------------
+      const roleColour = (role) => (role === 'hrea' ? css('--sky') : css('--accent'));
+      const netStyle = () => [
+        { selector: 'node', style: { 'background-color': (n) => roleColour(n.data('role')), label: 'data(label)', color: css('--ink'), 'font-size': 10, 'text-valign': 'bottom', 'text-margin-y': 4, width: 22, height: 22, 'text-wrap': 'wrap', 'text-background-color': css('--panel'), 'text-background-opacity': 0.9, 'text-background-padding': 2 } },
+        { selector: 'node:selected', style: { 'border-width': 3, 'border-color': css('--gold') } },
+        { selector: 'edge', style: { width: 1.5, 'line-color': css('--muted'), 'target-arrow-color': css('--muted'), 'target-arrow-shape': 'triangle', 'arrow-scale': 0.7, 'curve-style': 'bezier' } }
+      ];
+      const net = cytoscape({ container: $('net'), style: netStyle(), wheelSensitivity: 0.3, boxSelectionEnabled: false, autoungrabify: false });
+      net.on('tap', 'node', (e) => selectCell(e.target.id()));
+
+      function renderNetwork() {
+        const { network, summary } = state.data;
+        const ids = network.nodes.map((n) => n.id).join(',') + '|' + network.edges.map((e) => e.id).join(',');
+        if (net.scratch('ids') !== ids) {
+          net.elements().remove();
+          net.add(network.nodes.map((n) => ({ data: { id: n.id, role: n.role, label: `${memberOf(n.agentKey) ?? n.appId} · ${n.role === 'hrea' ? 'hREA' : 'R&O'}` } })));
+          net.add(network.edges.map((e) => ({ data: { id: e.id, source: e.source, target: e.target } })));
+          net.layout({ name: 'circle', padding: 24, sort: (a, b) => (a.data('role') + a.id()).localeCompare(b.data('role') + b.id()) }).run();
+          net.scratch('ids', ids);
+        }
+        if (state.selectedCell) net.$id(state.selectedCell).select();
+        const n = summary.network;
+        $('transport').textContent = `${n.backend} · transport: ${n.connections} open connection${n.connections === 1 ? '' : 's'}${n.connections ? ` (${n.directConnections} direct)` : ''}`;
+        $('transport').title = 'Open transport connections, from dumpNetworkStats. Members in one conductor reach each other without one; the network panel draws what each cell holds in its peer store.';
+        const cells = summary.members.flatMap((m) => m.cells.map((c) => ({ m, c })));
+        const limbo = cells.reduce((a, { c }) => a + c.ops.validationLimbo + c.ops.integrationLimbo, 0);
+        $('netinfo').innerHTML = `${summary.members.length} members · ${network.edges.length} peer edges · ` +
+          `<span class="${limbo ? 'limbo' : 'integrated'}">${limbo} op${limbo === 1 ? '' : 's'} in limbo</span>`;
+      }
+
+      function selectCell(id) {
+        const node = state.data.network.nodes.find((n) => n.id === id);
+        if (!node) return;
+        state.selectedCell = id;
+        net.$(':selected').unselect(); net.$id(id).select();
+        state.chainAgent = node.agentKey;
+        if (state.role !== node.role) { state.role = node.role; $('role').value = node.role; renderGraph(true); } else applyFilters();
+        renderChain();
+      }
+
+      // ---- Entry graph --------------------------------------------------
+      const typeColour = new Map();
+      const colourOf = (t) => typeColour.get(t) ?? css('--muted');
+      const graphStyle = () => [
+        { selector: 'node', style: { 'background-color': (n) => colourOf(n.data('entryType')), label: 'data(label)', color: css('--ink'), 'font-size': 10, 'text-valign': 'bottom', 'text-margin-y': 3, 'text-wrap': 'ellipsis', 'text-max-width': 110, 'min-zoomed-font-size': 7, width: 18, height: 18, shape: 'round-rectangle', 'border-width': 0, 'transition-property': 'opacity', 'transition-duration': '0.6s' } },
+        { selector: 'node[kind = "agent"]', style: { shape: 'ellipse', width: 24, height: 24, 'background-color': css('--accent'), 'border-width': 2, 'border-color': css('--gold') } },
+        { selector: 'node[revs > 1]', style: { 'border-width': 3, 'border-style': 'double', 'border-color': css('--ink') } },
+        { selector: 'node[?deleted]', style: { 'background-color': css('--ghost'), opacity: 0.55, 'border-style': 'dashed', 'border-width': 2, 'border-color': css('--err') } },
+        { selector: 'node.new', style: { opacity: 0 } },
+        { selector: 'node:selected', style: { 'overlay-color': css('--gold'), 'overlay-opacity': 0.35, 'overlay-padding': 6 } },
+        { selector: 'edge', style: { width: 1.2, 'line-color': css('--line'), 'target-arrow-color': css('--line'), 'target-arrow-shape': 'triangle', 'arrow-scale': 0.7, 'curve-style': 'bezier', 'font-size': 9, color: css('--muted'), 'text-rotation': 'autorotate', 'text-background-color': css('--bg'), 'text-background-opacity': 0.85, 'text-background-padding': 1 } },
+        { selector: 'edge[via = "field"]', style: { width: 2, 'line-color': css('--muted'), 'target-arrow-color': css('--muted'), label: 'data(label)' } },
+        { selector: 'edge[via = "link"]', style: { 'line-style': 'dashed' } },
+        { selector: 'edge.labelled', style: { label: 'data(label)' } },
+        { selector: 'edge[?deleted]', style: { 'line-color': css('--ghost'), 'target-arrow-color': css('--ghost'), opacity: 0.5 } },
+        { selector: 'edge:selected', style: { 'line-color': css('--gold'), 'target-arrow-color': css('--gold'), width: 3, label: 'data(label)' } },
+        { selector: '.faded', style: { opacity: 0.12 } },
+        { selector: '.match', style: { 'overlay-color': css('--sky'), 'overlay-opacity': 0.3, 'overlay-padding': 5 } },
+        { selector: '.hidden', style: { display: 'none' } }
+      ];
+      const cy = cytoscape({ container: $('graph'), style: graphStyle(), wheelSensitivity: 0.3, minZoom: 0.1, maxZoom: 3 });
+      cy.on('tap', 'node, edge', (e) => select(e.target.id()));
+      cy.on('tap', (e) => { if (e.target === cy) select(null); });
+      cy.on('dragfree', 'node', (e) => state.positions.set(`${state.role}|${e.target.id()}`, { ...e.target.position() }));
+
+      const roleGraph = () => state.data?.roles[state.role];
+      const nodeLabel = (n) => {
+        if (n.kind === 'agent') return memberOf(n.id) ?? n.label;
+        const base = n.label ? `${n.entryType}: ${n.label}` : n.entryType;
+        return n.revisions.length > 1 ? `${base} (v${n.revisions.length})` : base;
+      };
+      const nodeData = (n) => ({ id: n.id, kind: n.kind, entryType: n.entryType, label: nodeLabel(n), revs: n.revisions.length, deleted: n.deleted, author: n.author });
+
+      function renderGraph(fresh) {
+        const g = roleGraph();
+        if (!g) return;
+        typeColour.clear();
+        [...new Set(g.nodes.filter((n) => n.kind === 'entry').map((n) => n.entryType))].sort().forEach((t, i) => typeColour.set(t, PALETTE[i % PALETTE.length]));
+        if (fresh) { cy.elements().remove(); state.seenNodes = new Set(); }
+        const wanted = new Set([...g.nodes.map((n) => n.id), ...g.edges.map((e) => e.id)]);
+        cy.elements().filter((el) => !wanted.has(el.id())).remove();
+        const added = [];
+        for (const n of g.nodes) {
+          const el = cy.$id(n.id);
+          if (el.nonempty()) { el.data(nodeData(n)); continue; }
+          const saved = state.positions.get(`${state.role}|${n.id}`);
+          added.push(cy.add({ group: 'nodes', data: nodeData(n), position: saved ?? { x: 0, y: 0 }, classes: fresh || state.seenNodes.has(n.id) ? '' : 'new' }));
+        }
+        for (const e of g.edges) {
+          const el = cy.$id(e.id);
+          if (el.nonempty()) { el.data({ ...e }); continue; }
+          cy.add({ group: 'edges', data: { ...e } });
+        }
+        cy.style(graphStyle());
+        const unplaced = added.filter((n) => !state.positions.has(`${state.role}|${n.id()}`));
+        if (fresh && unplaced.length) layout(cy.elements());
+        else if (unplaced.length) {
+          // New records join beside what they point at, then fade in; the rest stays put.
+          for (const n of unplaced) {
+            const near = n.neighborhood('node').filter((m) => !unplaced.includes(m));
+            const c = near.nonempty() ? near.boundingBox() : cy.extent();
+            n.position({ x: (c.x1 + c.x2) / 2 + (Math.random() - 0.5) * 80, y: (c.y1 + c.y2) / 2 + (Math.random() - 0.5) * 80 });
+            state.positions.set(`${state.role}|${n.id()}`, { ...n.position() });
+          }
+          setTimeout(() => cy.$('.new').removeClass('new'), 30);
+        }
+        if (fresh) fit();
+        g.nodes.forEach((n) => state.seenNodes.add(n.id));
+        renderTypes(); applyFilters();
+        if (state.selected && cy.$id(state.selected).nonempty()) cy.$id(state.selected).select();
+        renderDetail();
+      }
+
+      function fit() { cy.fit(undefined, 30); if (cy.zoom() > 1.1) { cy.zoom(1.1); cy.center(); } }
+
+      function layout(eles) {
+        const l = eles.layout({ name: 'cose', animate: false, nodeDimensionsIncludeLabels: true, nodeRepulsion: () => 120000, idealEdgeLength: () => 90, edgeElasticity: () => 80, nodeOverlap: 30, numIter: 2500, padding: 30, randomize: true, componentSpacing: 80, gravity: 0.4 });
+        l.one('layoutstop', () => { cy.nodes().forEach((n) => state.positions.set(`${state.role}|${n.id()}`, { ...n.position() })); fit(); });
+        l.run();
+      }
+
+      function renderTypes() {
+        const g = roleGraph();
+        const counts = {};
+        for (const n of g.nodes) counts[n.entryType] = (counts[n.entryType] ?? 0) + 1;
+        $('types').innerHTML = Object.keys(counts).sort().map((t) =>
+          `<span class="chip${state.hiddenTypes.has(t) ? ' off' : ''}" data-type="${esc(t)}" title="Show or hide ${esc(t)}"><i style="background:${t === 'Agent' && !typeColour.has(t) ? css('--accent') : colourOf(t)}"></i>${esc(t)} ${counts[t]}</span>`
+        ).join('');
+      }
+      $('types').onclick = (e) => {
+        const chip = e.target.closest('.chip');
+        if (!chip) return;
+        const t = chip.dataset.type;
+        state.hiddenTypes.has(t) ? state.hiddenTypes.delete(t) : state.hiddenTypes.add(t);
+        renderTypes(); applyFilters();
+      };
+
+      function nodeText(n) {
+        return [n.id, n.entryType, n.label, ...n.revisions.map((r) => r.hash), JSON.stringify(n.entry ?? '')].join(' ').toLowerCase();
+      }
+
+      function applyFilters() {
+        const g = roleGraph();
+        if (!g) return;
+        const q = state.search.trim().toLowerCase();
+        cy.batch(() => {
+          cy.elements().removeClass('hidden faded match');
+          for (const n of g.nodes) {
+            const el = cy.$id(n.id);
+            const typeHidden = state.hiddenTypes.has(n.entryType);
+            const authorOut = state.author && n.kind === 'entry' && n.author !== state.author && !n.revisions.some((r) => r.author === state.author);
+            if (typeHidden) el.addClass('hidden');
+            else if (authorOut) el.addClass('faded');
+            if (q && !typeHidden) el.addClass(nodeText(n).includes(q) ? 'match' : 'faded');
+          }
+          cy.edges().forEach((e) => { if (e.source().hasClass('faded') || e.target().hasClass('faded')) e.addClass('faded'); });
+          cy.edges().toggleClass('labelled', state.edgeLabels);
+          if (state.selected) cy.$id(state.selected).removeClass('faded');
+        });
+        const visible = cy.nodes().not('.hidden');
+        $('counts').textContent = `${g.nodes.filter((n) => n.kind === 'entry').length} records · ${g.edges.length} edges` + (q ? ` · ${cy.$('.match').length} match` : '');
+        $('empty').style.display = visible.length ? 'none' : 'flex';
+        $('empty').textContent = g.nodes.length ? 'Every type is hidden.' : 'No records in this DNA yet. Create a profile in a member tab and they appear here.';
+      }
+
+      // ---- Selection and detail -----------------------------------------
+      function select(id, { centre = false } = {}) {
+        state.selected = id;
+        cy.$(':selected').unselect();
+        if (id) {
+          const el = cy.$id(id);
+          el.select();
+          if (centre && el.isNode()) cy.animate({ center: { eles: el }, zoom: Math.max(cy.zoom(), 1.1) }, { duration: 300 });
+        }
+        applyFilters(); renderDetail(); renderChain();
+      }
+
+      function json(value) {
+        const s = esc(JSON.stringify(value, null, 2) ?? 'null');
+        return s.replace(/(&quot;(?:[^&]|&(?!quot;))*?&quot;)(\s*:)?|\b(-?\d+(?:\.\d+)?|true|false|null)\b/g, (m, str, colon, lit) => {
+          if (str) return colon ? `<span class="k">${str}</span>${colon}` : /^&quot;uhC/.test(str) ? `<span class="h">${str}</span>` : `<span class="s">${str}</span>`;
+          return `<span class="n">${lit}</span>`;
+        });
+      }
+      const copyBtn = (text) => `<button class="copy" data-copy="${esc(text)}">copy</button>`;
+      $('detail').onclick = (e) => {
+        const c = e.target.closest('[data-copy]');
+        if (c) { navigator.clipboard?.writeText(c.dataset.copy).then(() => { c.textContent = 'copied'; setTimeout(() => (c.textContent = 'copy'), 1200); }); return; }
+        const l = e.target.closest('[data-node]');
+        if (l) select(l.dataset.node, { centre: true });
+      };
+
+      function renderDetail() {
+        const g = roleGraph();
+        const box = $('detail');
+        if (!g || !state.selected) { box.innerHTML = '<p class="none">Select a record, an agent or an edge.</p>'; return; }
+        const node = g.nodes.find((n) => n.id === state.selected);
+        const edge = !node && g.edges.find((e) => e.id === state.selected);
+        const link = (id) => { const n = g.nodes.find((x) => x.id === id); return n ? `<a class="node-link" data-node="${esc(id)}">${esc(nodeLabel(n))}</a>` : esc(short(id)); };
+        if (edge) {
+          box.innerHTML = `<h3>${edge.via === 'link' ? 'Link' : 'Entry field'}</h3><dl>
+            <dt>${edge.via === 'link' ? 'Link type' : 'Field'}</dt><dd>${esc(edge.label)}</dd>
+            <dt>From</dt><dd>${link(edge.source)}</dd><dt>To</dt><dd>${link(edge.target)}</dd>
+            <dt>State</dt><dd>${edge.deleted ? '<span class="badge deleted">deleted</span>' : 'live'}</dd></dl>`;
+          return;
+        }
+        if (!node) { box.innerHTML = '<p class="none">That record is no longer in the capture.</p>'; return; }
+        const last = node.revisions[node.revisions.length - 1];
+        const out = g.edges.filter((e) => e.source === node.id);
+        const inc = g.edges.filter((e) => e.target === node.id);
+        box.innerHTML = `
+          <h3>${esc(node.kind === 'agent' ? 'Agent' : node.entryType)} ${node.deleted ? '<span class="badge deleted">deleted</span>' : ''}</h3>
+          <dl>
+            <dt>Label</dt><dd>${esc(nodeLabel(node))}</dd>
+            <dt>Hash</dt><dd><span class="hash">${esc(node.id)}</span>${copyBtn(node.id)}</dd>
+            <dt>Author</dt><dd>${esc(who(node.author))} <span class="hash">${esc(short(node.author))}</span>${copyBtn(node.author)}</dd>
+            <dt>Created</dt><dd>${esc(new Date(node.createdAt).toLocaleString())}</dd>
+            <dt>Validation</dt><dd><span class="badge ${valClass(last.validation)}">${esc(last.validation)}</span></dd>
+          </dl>
+          <h3>Action header (Create)</h3>
+          <dl><dt>Type</dt><dd>${esc(node.header.type)}</dd><dt>Seq</dt><dd>${node.header.seq}</dd><dt>Timestamp</dt><dd>${esc(node.header.timestamp)}</dd></dl>
+          <h3>Revisions, oldest first (${node.revisions.length})</h3>
+          <ol class="revs">${node.revisions.map((r, i) => `<li><span class="hash">${esc(short(r.hash))}</span>${copyBtn(r.hash)} ${i ? 'Update' : 'Create'} by ${esc(who(r.author))}, ${esc(time(r.at))} <span class="badge ${valClass(r.validation)}">${esc(r.validation)}</span></li>`).join('')}</ol>
+          ${out.length ? `<h3>Points at</h3><ol class="revs">${out.map((e) => `<li>${esc(e.label)} → ${link(e.target)}${e.deleted ? ' <span class="badge deleted">deleted</span>' : ''}</li>`).join('')}</ol>` : ''}
+          ${inc.length ? `<h3>Pointed at by</h3><ol class="revs">${inc.map((e) => `<li>${link(e.source)} · ${esc(e.label)}${e.deleted ? ' <span class="badge deleted">deleted</span>' : ''}</li>`).join('')}</ol>` : ''}
+          ${node.kind === 'entry' ? `<h3>Entry, latest revision ${copyBtn(JSON.stringify(node.entry, null, 2))}</h3><pre>${json(node.entry)}</pre>` : ''}`;
+      }
+
+      // ---- Source chain timeline ----------------------------------------
+      function renderChain() {
+        const g = roleGraph();
+        const agent = state.chainAgent || state.author || state.data?.summary.members[0]?.agentKey;
+        const list = $('chain');
+        if (!g || !agent || !g.chains[agent]) { $('chainwho').textContent = 'select a cell or an author'; list.innerHTML = ''; return; }
+        $('chainwho').textContent = `${who(agent)} · ${state.role === 'hrea' ? 'hREA' : 'R&O'} · ${g.chains[agent].length} actions`;
+        const sel = state.selected;
+        list.innerHTML = g.chains[agent].map((a) => {
+          const key = `${state.role}|${a.hash}`;
+          const fresh = state.seenActions.size && !state.seenActions.has(key);
+          const cls = [a.nodeId ? '' : 'dim', sel && a.nodeId === sel ? 'hit' : '', fresh ? 'fresh' : ''].join(' ');
+          return `<li class="${cls}" data-node="${esc(a.nodeId ?? '')}" title="${esc(a.hash)}"><span class="seq">${a.seq}</span><span>${esc(a.type)}${a.entryType ? ` · ${esc(a.entryType)}` : ''}</span><span class="at">${esc(time(a.at))}</span></li>`;
+        }).join('');
+        for (const a of g.chains[agent]) state.seenActions.add(`${state.role}|${a.hash}`);
+        list.querySelector('.hit')?.scrollIntoView({ block: 'nearest' });
+      }
+      $('chain').onclick = (e) => {
+        const li = e.target.closest('li');
+        if (li?.dataset.node) select(li.dataset.node, { centre: true });
+      };
+
+      // ---- Controls -----------------------------------------------------
+      $('role').onchange = (e) => {
+        state.role = e.target.value; state.selected = null;
+        const cell = state.data.network.nodes.find((n) => n.role === state.role && n.agentKey === (state.chainAgent || state.author));
+        state.selectedCell = cell?.id ?? null; net.$(':selected').unselect(); if (cell) net.$id(cell.id).select();
+        renderGraph(true); renderChain();
+      };
+      $('author').onchange = (e) => {
+        state.author = e.target.value;
+        if (state.author) state.chainAgent = state.author;
+        const cell = state.data.network.nodes.find((n) => n.agentKey === state.author && n.role === state.role);
+        state.selectedCell = cell?.id ?? null; net.$(':selected').unselect(); if (cell) net.$id(cell.id).select();
+        applyFilters(); renderChain();
+      };
+      $('search').oninput = (e) => { state.search = e.target.value; applyFilters(); };
+      $('search').onkeydown = (e) => { if (e.key === 'Enter') { const m = cy.$('.match').first(); if (m.nonempty()) select(m.id(), { centre: true }); } };
+      $('labels').onclick = (e) => { state.edgeLabels = !state.edgeLabels; e.target.classList.toggle('on', state.edgeLabels); applyFilters(); };
+      $('relayout').onclick = () => { for (const k of [...state.positions.keys()]) if (k.startsWith(`${state.role}|`)) state.positions.delete(k); layout(cy.elements()); };
+
+      function renderControls() {
+        const roles = Object.keys(state.data.roles).sort();
+        if (!state.role || !roles.includes(state.role)) state.role = roles.includes('requests_and_offers') ? 'requests_and_offers' : roles[0];
+        $('role').innerHTML = roles.map((r) => `<option value="${r}">${r === 'hrea' ? 'hREA' : r === 'requests_and_offers' ? 'Requests & Offers' : esc(r)}</option>`).join('');
+        $('role').value = state.role;
+        $('author').innerHTML = '<option value="">All authors</option>' + state.data.summary.members.map((m, i) => `<option value="${esc(m.agentKey)}">member ${letter(i)} (${esc(m.appId)})</option>`).join('');
+        $('author').value = state.author;
+      }
+
+      // ---- Live refresh -------------------------------------------------
+      let live = true, busy = false, first = true;
+      $('live').onclick = (e) => { live = !live; e.target.classList.toggle('on', live); };
+      $('refresh').onclick = () => load(true);
+
+      async function load(force) {
+        if (busy) return;
+        busy = true;
+        try {
+          const res = await fetch('/api/graph', { cache: 'no-store' });
+          if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+          const data = await res.json();
+          $('error').hidden = true;
+          $('taken').textContent = `captured ${time(data.summary.takenAt)}`;
+          const signature = JSON.stringify([data.network, Object.values(data.roles).map((g) => [g.nodes.map((n) => [n.id, n.revisions.length, n.deleted, n.revisions.map((r) => r.validation)]), g.edges.map((e) => [e.id, e.deleted]), Object.values(g.chains).map((c) => c.length)])]);
+          if (!force && signature === state.signature) return;
+          state.signature = signature;
+          state.data = data;
+          renderControls(); renderNetwork(); renderGraph(first); renderChain();
+          first = false;
+        } catch (err) {
+          $('error').hidden = false;
+          $('error').textContent = `Could not read the conductor: ${err.message}`;
+        } finally {
+          busy = false;
+        }
+      }
+      load(true);
+      setInterval(() => { if (live && document.visibilityState === 'visible') load(false); }, 3000);
+    </script>
+  </body>
+</html>

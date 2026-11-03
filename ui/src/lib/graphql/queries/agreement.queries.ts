@@ -90,6 +90,9 @@ export const GET_ECONOMIC_EVENTS_QUERY = gql`
           realizationOf {
             id
           }
+          fulfills {
+            id
+          }
         }
       }
     }

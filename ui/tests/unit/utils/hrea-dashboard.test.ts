@@ -105,13 +105,14 @@ const fullSnapshot = (ex: UIExchange): HreaSnapshot => ({
       provider: 'ag-p',
       receiver: 'ag-r',
       agreedIn: ref(ex.agreement_hash),
-      realizationOf: 'agr-1'
+      realizationOf: 'agr-1',
+      fulfills: ['c-p']
     }
   ]
 });
 
 describe('countVfTypes', () => {
-  it('counts each VF type from the hREA snapshot, and reports Fulfillment as not mirrored', () => {
+  it("counts each VF type from the hREA snapshot, Fulfillments as the events' fulfills links", () => {
     const ex = exchange();
     const counts = countVfTypes(fullSnapshot(ex));
     expect(counts).toEqual({
@@ -122,7 +123,7 @@ describe('countVfTypes', () => {
       agreements: 1,
       commitments: 2,
       events: 1,
-      fulfillments: null
+      fulfillments: 1
     });
   });
 });
@@ -304,14 +305,17 @@ describe('buildExchangeFlow', () => {
 });
 
 describe('KNOWN_MAPPING_GAPS', () => {
-  it('names the three gaps the audit must not hide', () => {
+  it('names the gap the audit must not hide', () => {
     const text = KNOWN_MAPPING_GAPS.map((g) => `${g.title} ${g.detail}`).join(' ');
-    expect(text).toMatch(/Fulfillment/);
-    expect(text).toMatch(/realizationOf/);
-    expect(text).toMatch(/agreementMappings/);
-    expect(text).toMatch(/reload/);
     expect(text).toMatch(/[Cc]ancel/);
     expect(text).toMatch(/[Dd]ecline/);
     expect(text).toMatch(/[Rr]eview/);
+  });
+
+  it('no longer lists Fulfillment (#439) or the agreement mapping lost on reload (#437), both mirrored on dev', () => {
+    const text = KNOWN_MAPPING_GAPS.map((g) => `${g.title} ${g.detail}`).join(' ');
+    expect(text).not.toMatch(/Fulfillment/);
+    expect(text).not.toMatch(/agreementMappings/);
+    expect(KNOWN_MAPPING_GAPS).toHaveLength(1);
   });
 });

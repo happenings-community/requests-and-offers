@@ -93,8 +93,8 @@
     return [n.x + n.w / 2, n.y + n.h];
   }
 
-  // Event edges come from the Agreement through realizationOf, not from a
-  // Commitment through a Fulfillment: that is what the mirror records today.
+  // Each event fulfills its Commitment (the fulfills link on the event) and
+  // realizes the Agreement through realizationOf.
   const EDGES: { from: string; fs: Side; to: string; ts: Side; label: string; dashed?: boolean }[] =
     [
       { from: 'agentA', fs: 'b', to: 'proposal', ts: 't', label: 'provider' },
@@ -111,16 +111,14 @@
         fs: 'r',
         to: 'eventP',
         ts: 'l',
-        label: 'fulfils: not mirrored',
-        dashed: true
+        label: 'fulfills'
       },
       {
         from: 'commitR',
         fs: 'r',
         to: 'eventR',
         ts: 'l',
-        label: 'fulfils: not mirrored',
-        dashed: true
+        label: 'fulfills'
       }
     ];
 
@@ -159,8 +157,8 @@
       {@const v = dash.counts?.[c.key]}
       <div class="hrea-count-card card hrea-k--{c.k}">
         <span class="hrea-count-dot"></span>
-        <div class="hrea-count-v">{v === null ? '—' : (v ?? '…')}</div>
-        <div class="hrea-count-l">{c.label}{v === null ? ' (not mirrored)' : ''}</div>
+        <div class="hrea-count-v">{v ?? '…'}</div>
+        <div class="hrea-count-l">{c.label}</div>
       </div>
     {/each}
   </div>

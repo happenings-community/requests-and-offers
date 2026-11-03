@@ -68,4 +68,16 @@ describe('admin hREA entry', () => {
     const dashboard = read('src/lib/components/hrea/HreaDashboard.svelte');
     expect(dashboard).toMatch(/\{#if r\.caveat\}/);
   });
+
+  it('draws the event to its Commitment as a fulfills link, no longer as not mirrored', () => {
+    const dashboard = read('src/lib/components/hrea/HreaDashboard.svelte');
+    expect(dashboard).not.toMatch(/not mirrored/);
+    expect(dashboard).toMatch(/label: 'fulfills'/);
+  });
+
+  it("selects each event's fulfills in the dashboard events query", () => {
+    const queries = read('src/lib/graphql/queries/agreement.queries.ts');
+    const events = queries.slice(queries.indexOf('GET_ECONOMIC_EVENTS_QUERY'));
+    expect(events).toMatch(/fulfills\s*\{\s*id\s*\}/);
+  });
 });

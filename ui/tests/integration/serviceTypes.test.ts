@@ -17,7 +17,6 @@ import { CacheServiceLive } from '$lib/utils/cache.svelte';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
 import {
   createTestServiceType,
-  createMockRecord,
   createMockServiceTypeRecord
 } from '../unit/test-helpers';
 import { runEffect } from '$lib/utils/effect';

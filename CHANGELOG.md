@@ -29,7 +29,8 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Messaging**: A cross-agent nudge substrate, one ActionHash per signal (`af5429c0`, #213, closes #253)
 - **Network**: `get_network_info` names the DNA's integrity zomes (`219978e3`, #320)
 - **Exchanges**: The interest dialog says "Get in touch", invites an introduction before a proposal, and closes with × (`d481f448`, #419, closes #368)
-- **Development**: `bun start:web` runs the app in browser tabs, one URL per member, with Vite's hot reload (`1047000b`, #423); a reload on any route keeps the member's connection (`baf1d05c`, #430)
+- **hREA**: Each completion's EconomicEvent fulfills its side's Commitment, so hREA records which promise a delivery kept (`04692616`, #439)
+- **Development**: `bun start:web` runs the app in browser tabs, one URL per member, with Vite's hot reload (`1047000b`, #423); a reload on any route keeps the member's connection (`baf1d05c`, #430); `bun start` and `bun start:web` also open a graph inspector of every member's conductor (`583dac09`, #434)
 
 ### Security
 
@@ -44,12 +45,16 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Exchanges**: Interest actions are hidden from members who are not accepted (`4474f97e`, #336, closes #330)
 - **Exchanges**: A counter keeps each quantity's unit; only the amount may change, enforced by validation (`279f9a64`, #422)
 - **hREA**: A mirrored proposal publishes its intents; the link step had silently failed since the adapter has no `proposeIntent` (`42848be5`, #431)
+- **hREA**: Every member picks the same seed Unit, so the Commitments two members write name one hours Unit (`e3c95711`, #443, closes #441)
+- **hREA**: After a reload, a completion finds its agreement's mirror again and an acceptance is not mirrored twice (`f40f1b4d`, #437)
+- **Exchanges**: The propose page names the other member, not the listing's author, when the author proposes to an interested member (`260887fa`, #436, closes #435)
 - **Users**: Pending members are gated like rejected members (`4d836957`, #338, closes #335), and see their approval without a reload (`8f73606f`, #337, closes #329), also when their profile was created without its status in the same page load, a defensive case (`4eb7adb8`, #429)
 - **Administration**: A temporary suspension lifts when its time runs out, not an hour before (`8254d40c`, #321)
-- **Administration**: Grey text is readable in admin dark mode (`807da50a`, #351)
+- **Administration**: Grey text is readable in admin dark mode (`807da50a`, #351), the hREA test page's footer note included (`ab1a9419`, #448, closes #205)
 - **UI**: Every store Effect the interface calls is run (`3aaded8d`, #395)
 - **UI**: Alt+A no longer fires while typing, and the Admin button shows at once (`0627f26b`, #356, closes #206)
 - **UI**: The network status shows the iroh relay, not the tx5 signal server (`f8687cdc`, #283)
+- **UI**: The users and organizations lists take the page width, and the service type headers line up (`1e4736e8`, #389, part of #387)
 
 ### Performance
 
@@ -65,7 +70,9 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Versioning**: The rule before 1.0, minor for breaking DNA changes and patch for the rest, with breaking changes batched (`documentation/guides/versioning.md`), and the alpha 2 network reset notice (`be951c66`, #385)
 - **Architecture**: What validation enforces, and the known limits (`7333eedd`, #401)
 - **Contributing**: The review rules are written down (`d852be25`, #293, closes #225)
-- **Release**: The announcement is gated on a launched packaged build (`162ca5e4`, #271); a discussion form for release feedback (`d110f10b`, #294); the Homebrew cask is installed by full name for tap trust (`14666074`, #267)
+- **Release**: The announcement is gated on a launched packaged build (`162ca5e4`, #271); a discussion form for release feedback (`d110f10b`, #294); the Homebrew cask is installed by full name for tap trust (`14666074`, #267); production checks: never on a Friday, the built app run before the tag, two peers checked before announcing (`f71f5aa4`, #447, part of #276)
+- **Installation**: The Kangaroo desktop app does not set the progenitor key, so a new desktop network runs in development mode and its first profile becomes admin (`8ad45332`, #445)
+- **Development**: The inspector's adapter contract, packaging options and a Nondominium trial (`15d069e8`, #446); the guides follow what `bun start` and `bun start:web` now launch, and the ports they take (`ff26c178`, #449)
 
 ### CI and Testing
 
@@ -73,6 +80,7 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Release**: A tag-triggered release chain with a gated build (`120ea83b`, #277)
 - **Sweettest**: The scripts are fixed and `link_canonicalisation` runs in CI (`c9967fd4`, #298, closes #297)
 - **Exchanges**: The derived state and the exchange UI predicates are pinned by tests (`8ce42848`, #258)
+- **Lint**: ESLint errors cleared in the files no open pull request touches (`922aeb07`, #450); the contrast test also reads Skeleton token pairs (`ab1a9419`, #448)
 - **E2E**: The test conductor runs on its own network (`9b2d8b24`, #372); the onboarding connection probes can go red (`5ad458df`, #314, closes #252); the organisation is re-read after the update toast (`5fcdc272`, #275, closes #274)
 
 ## [0.6.0-alpha.1] - 2026-09-14

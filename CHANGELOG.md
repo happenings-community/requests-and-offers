@@ -28,6 +28,8 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Administration**: Applications are decided after reading them, with reasons, information requests and an admin contact (`a485d5a4`, #339, closes #331)
 - **Messaging**: A cross-agent nudge substrate, one ActionHash per signal (`af5429c0`, #213, closes #253)
 - **Network**: `get_network_info` names the DNA's integrity zomes (`219978e3`, #320)
+- **Exchanges**: The interest dialog says "Get in touch", invites an introduction before a proposal, and closes with × (`d481f448`, #419, closes #368)
+- **Development**: `bun start:web` runs the app in browser tabs, one URL per member, with Vite's hot reload (`1047000b`, #423); a reload on any route keeps the member's connection (`baf1d05c`, #430)
 
 ### Security
 
@@ -40,7 +42,9 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 
 - **Exchanges**: Every write that carries a payload is decoded (`499927c0`, #273)
 - **Exchanges**: Interest actions are hidden from members who are not accepted (`4474f97e`, #336, closes #330)
-- **Users**: Pending members are gated like rejected members (`4d836957`, #338, closes #335), and see their approval without a reload (`8f73606f`, #337, closes #329)
+- **Exchanges**: A counter keeps each quantity's unit; only the amount may change, enforced by validation (`279f9a64`, #422)
+- **hREA**: A mirrored proposal publishes its intents; the link step had silently failed since the adapter has no `proposeIntent` (`42848be5`, #431)
+- **Users**: Pending members are gated like rejected members (`4d836957`, #338, closes #335), and see their approval without a reload (`8f73606f`, #337, closes #329), also when their profile was created without its status in the same page load, a defensive case (`4eb7adb8`, #429)
 - **Administration**: A temporary suspension lifts when its time runs out, not an hour before (`8254d40c`, #321)
 - **Administration**: Grey text is readable in admin dark mode (`807da50a`, #351)
 - **UI**: Every store Effect the interface calls is run (`3aaded8d`, #395)

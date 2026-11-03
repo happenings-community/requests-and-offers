@@ -493,6 +493,46 @@ describe('HreaService', () => {
         'proposal create failed'
       );
     });
+
+    // The proposal is created with its intents: hREA stores publishes and
+    // reciprocal on the proposal entry, and this adapter has no proposeIntent.
+    it('creates the proposal with its primary and reciprocal intents', async () => {
+      mockMutate.mockResolvedValue({
+        data: {
+          createProposal: {
+            proposal: {
+              ...mockProposalRaw,
+              publishes: [{ id: 'intent-work' }],
+              reciprocal: [{ id: 'intent-pay' }]
+            }
+          }
+        }
+      });
+      await call((s) =>
+        s.createProposal({ name: 'Trade', publishes: ['intent-work'], reciprocal: ['intent-pay'] })
+      );
+      expect(mockMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: {
+            proposal: expect.objectContaining({
+              publishes: ['intent-work'],
+              reciprocal: ['intent-pay']
+            })
+          }
+        })
+      );
+    });
+
+    it('fails when the created proposal does not publish the intents it was given', async () => {
+      mockMutate.mockResolvedValue({
+        data: { createProposal: { proposal: { ...mockProposalRaw, publishes: [], reciprocal: [] } } }
+      });
+      await expect(
+        call((s) =>
+          s.createProposal({ name: 'Trade', publishes: ['intent-work'], reciprocal: ['intent-pay'] })
+        )
+      ).rejects.toThrow('does not publish');
+    });
   });
 
   describe('updateProposal', () => {
@@ -636,49 +676,6 @@ describe('HreaService', () => {
       await expect(call((s) => s.createIntent({ action: 'transfer' }))).rejects.toThrow(
         'intent create failed'
       );
-    });
-  });
-
-  describe('proposeIntent', () => {
-    it('returns true when the link is created', async () => {
-      mockMutate.mockResolvedValue({
-        data: { proposeIntent: { proposedIntent: { id: 'link-1' } } }
-      });
-      const result = await call((s) =>
-        s.proposeIntent({ intentId: 'intent-1', proposalId: 'prop-1', reciprocal: true })
-      );
-      expect(mockMutate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          variables: { publishedIn: 'prop-1', publishes: 'intent-1', reciprocal: true }
-        })
-      );
-      expect(result).toBe(true);
-    });
-
-    it('defaults reciprocal to false when omitted', async () => {
-      mockMutate.mockResolvedValue({
-        data: { proposeIntent: { proposedIntent: { id: 'link-1' } } }
-      });
-      await call((s) => s.proposeIntent({ intentId: 'intent-1', proposalId: 'prop-1' }));
-      expect(mockMutate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          variables: expect.objectContaining({ reciprocal: false })
-        })
-      );
-    });
-
-    it('returns false when no proposedIntent returned', async () => {
-      mockMutate.mockResolvedValue({ data: { proposeIntent: {} } });
-      expect(
-        await call((s) => s.proposeIntent({ intentId: 'intent-1', proposalId: 'prop-1' }))
-      ).toBe(false);
-    });
-
-    it('wraps errors', async () => {
-      mockMutate.mockRejectedValue(new Error('link failed'));
-      await expect(
-        call((s) => s.proposeIntent({ intentId: 'intent-1', proposalId: 'prop-1' }))
-      ).rejects.toThrow('link failed');
     });
   });
 

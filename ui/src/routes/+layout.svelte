@@ -25,7 +25,11 @@
   import { useBackgroundAdminCheck } from '$lib/composables/connection/useBackgroundAdminCheck.svelte';
   import NavBar from '$lib/components/shared/NavBar.svelte';
   import { setConnectionStatusContext } from '$lib/context/connection-status.context.svelte';
-  import { connectToHolochain, isHolochainConnected } from '$lib/utils/holochain-client.utils';
+  import {
+    connectToHolochain,
+    CONNECTION_DEADLINE_MS,
+    isHolochainConnected
+  } from '$lib/utils/holochain-client.utils';
   import { deriveConnectionStatus } from '$lib/utils/network-status';
   import { runEffect } from '$lib/utils/effect';
   import { getCounterpartRoute } from '$lib/services/navigation.utils';
@@ -124,7 +128,9 @@
     networkInfo: () => networkInfo
   });
 
-  // Step 1: Connect to Holochain with retry logic (exponential backoff, 3 attempts, 10s timeout)
+  // Step 1: Connect to Holochain. connectToHolochain waits on the client service's own
+  // attempt, which ends by CONNECTION_DEADLINE_MS; this cap sits above it so the layout never
+  // reports a failure while a slow attempt (web mode's first-load signing grant) still succeeds.
   const connectToHolochainStep = E.gen(function* () {
     yield* E.sync(() => updateStep('client', 'running', 'Establishing connection...'));
 
@@ -138,7 +144,7 @@
           Schedule.intersect(Schedule.recurs(2)) // Max 3 attempts (consistent with ConnectionService)
         )
       ),
-      E.timeout(Duration.seconds(10)), // Consistent timeout with ConnectionService
+      E.timeout(Duration.millis(CONNECTION_DEADLINE_MS + 5_000)),
       E.tap((connected) =>
         connected
           ? E.logInfo('✅ Holochain connection established successfully')

@@ -36,8 +36,8 @@ describe('ServiceTypeSuggestionForm Component Logic', () => {
       const withTechnical = { name: 'Test', description: 'Test', technical: true };
       const withoutTechnical = { name: 'Test', description: 'Test' };
 
-      expect(withTechnical.hasOwnProperty('technical')).toBe(true);
-      expect(withoutTechnical.hasOwnProperty('technical')).toBe(false);
+      expect(Object.hasOwn(withTechnical, 'technical')).toBe(true);
+      expect(Object.hasOwn(withoutTechnical, 'technical')).toBe(false);
     });
   });
 

@@ -44,6 +44,7 @@ bun install && bun start
 # Development Mode - Full Holochain app with dev features
 bun start              # Start complete Holochain app (2 agents by default)
 AGENTS=3 bun start     # Custom number of agents
+bun start:web          # Browser tabs, one URL per member; both open the conductor inspector
 ```
 
 ### Testing

@@ -4,6 +4,8 @@ import {
   hostFor,
   encodeToken,
   memberUrl,
+  openCommand,
+  parsePortList,
   parseWebDevConfig,
   sandboxCreateArgs,
   sandboxRunArgs,
@@ -16,14 +18,21 @@ describe('parseWebDevConfig', () => {
       agents: 2,
       uiPort: 8880,
       adminPort: undefined,
-      bootstrapPort: undefined
+      bootstrapPort: undefined,
+      inspectorPort: undefined
     });
   });
 
   it('reads AGENTS, UI_PORT, ADMIN_PORT and BOOTSTRAP_PORT', () => {
     expect(
-      parseWebDevConfig({ AGENTS: '3', UI_PORT: '8890', ADMIN_PORT: '56100', BOOTSTRAP_PORT: '56101' })
-    ).toEqual({ agents: 3, uiPort: 8890, adminPort: 56100, bootstrapPort: 56101 });
+      parseWebDevConfig({
+        AGENTS: '3',
+        UI_PORT: '8890',
+        ADMIN_PORT: '56100',
+        BOOTSTRAP_PORT: '56101',
+        INSPECTOR_PORT: '56102'
+      })
+    ).toEqual({ agents: 3, uiPort: 8890, adminPort: 56100, bootstrapPort: 56101, inspectorPort: 56102 });
   });
 
   it('refuses a member count or a port that is not a usable number', () => {
@@ -32,6 +41,7 @@ describe('parseWebDevConfig', () => {
     expect(() => parseWebDevConfig({ AGENTS: 'two' })).toThrow(/AGENTS/);
     expect(() => parseWebDevConfig({ UI_PORT: '70000' })).toThrow(/UI_PORT/);
     expect(() => parseWebDevConfig({ ADMIN_PORT: '-1' })).toThrow(/ADMIN_PORT/);
+    expect(() => parseWebDevConfig({ INSPECTOR_PORT: 'x' })).toThrow(/INSPECTOR_PORT/);
   });
 });
 
@@ -107,5 +117,28 @@ describe('sandbox commands', () => {
     expect(dir).not.toBe('/tmp/rao-e2e');
     // lair's socket lives at <dir>/<id>/ks/socket and must fit in SUN_LEN.
     expect(dir.length).toBeLessThan(40);
+  });
+});
+
+describe('openCommand', () => {
+  it('opens a URL with the platform opener, or not at all where there is none', () => {
+    expect(openCommand('linux')).toEqual(['xdg-open']);
+    expect(openCommand('darwin')).toEqual(['open']);
+    expect(openCommand('win32')).toEqual(['cmd', '/c', 'start', '']);
+    expect(openCommand('aix')).toBeNull();
+  });
+});
+
+describe('parsePortList', () => {
+  it('reads the comma-separated admin ports bun start passes to hc-spin, in order', () => {
+    expect(parsePortList('41001,41002')).toEqual([41001, 41002]);
+    expect(parsePortList(' 41001 , 41002 ')).toEqual([41001, 41002]);
+  });
+
+  it('is empty when unset, and refuses anything that is not a port', () => {
+    expect(parsePortList(undefined)).toEqual([]);
+    expect(parsePortList('')).toEqual([]);
+    expect(() => parsePortList('41001,x')).toThrow('ADMIN_PORTS');
+    expect(() => parsePortList('70000')).toThrow('ADMIN_PORTS');
   });
 });

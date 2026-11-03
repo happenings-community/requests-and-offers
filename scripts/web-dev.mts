@@ -13,6 +13,8 @@ export type WebDevConfig = {
   adminPort: number | undefined;
   /** Picked free at start when not set. */
   bootstrapPort: number | undefined;
+  /** The inspector page; picked free at start when not set. */
+  inspectorPort: number | undefined;
 };
 
 type Env = Record<string, string | undefined>;
@@ -37,7 +39,8 @@ export function parseWebDevConfig(env: Env): WebDevConfig {
     agents,
     uiPort: port(env, 'UI_PORT') ?? 8880,
     adminPort: port(env, 'ADMIN_PORT'),
-    bootstrapPort: port(env, 'BOOTSTRAP_PORT')
+    bootstrapPort: port(env, 'BOOTSTRAP_PORT'),
+    inspectorPort: port(env, 'INSPECTOR_PORT')
   };
 }
 
@@ -97,4 +100,25 @@ export function sandboxRunArgs(adminPort: number): string[] {
  */
 export function workdirFor(adminPort: number): string {
   return `/tmp/rao-web-${adminPort}`;
+}
+
+/**
+ * The command that opens a URL in the default browser, with the URL appended;
+ * null where the platform has none, in which case nothing is opened.
+ */
+export function openCommand(platform: string): string[] | null {
+  if (platform === 'linux') return ['xdg-open'];
+  if (platform === 'darwin') return ['open'];
+  if (platform === 'win32') return ['cmd', '/c', 'start', ''];
+  return null;
+}
+
+/** `ADMIN_PORTS` as `bun start` sets it, "41001,41002": the ports, in order; anything else throws. */
+export function parsePortList(raw: string | undefined): number[] {
+  if (!raw || !raw.trim()) return [];
+  return raw.split(',').map((part) => {
+    const n = Number(part.trim());
+    if (!Number.isInteger(n) || n < 1 || n > 65535) throw new Error(`ADMIN_PORTS must list port numbers, got "${raw}"`);
+    return n;
+  });
 }

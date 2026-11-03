@@ -96,6 +96,9 @@ export const CREATE_ECONOMIC_EVENT_MUTATION = gql`
         realizationOf {
           id
         }
+        fulfills {
+          id
+        }
       }
     }
   }

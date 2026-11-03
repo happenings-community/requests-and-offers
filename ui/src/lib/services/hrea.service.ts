@@ -77,7 +77,8 @@ export function normalizeEconomicEventResponse(raw: GraphQLEconomicEventResponse
     hasPointInTime: raw.hasPointInTime ?? undefined,
     note: raw.note ?? undefined,
     agreedIn: raw.agreedIn ?? undefined,
-    realizationOf: raw.realizationOf?.id
+    realizationOf: raw.realizationOf?.id,
+    fulfills: raw.fulfills?.map((c) => c.id)
   };
 }
 
@@ -171,6 +172,7 @@ import {
   UPDATE_COMMITMENT_MUTATION,
   CREATE_ECONOMIC_EVENT_MUTATION
 } from '$lib/graphql/mutations/agreement.mutations';
+import { GET_AGREEMENTS_QUERY, GET_COMMITMENTS_QUERY } from '$lib/graphql/queries/agreement.queries';
 import {
   GET_INTENT_QUERY,
   GET_INTENTS_QUERY,
@@ -203,6 +205,8 @@ export type EconomicEventInput = {
   note?: string;
   agreedIn?: string;
   realizationOf?: string;
+  /** The Commitments this event fulfills (VF Fulfillment, stored on the event). */
+  fulfills?: string[];
 };
 
 const AgentSchema = S.Struct({
@@ -286,6 +290,8 @@ export interface HreaService {
   readonly createCommitment: (params: CommitmentInput) => E.Effect<Commitment, HreaError>;
   readonly updateCommitment: (params: { revisionId: string; finished: boolean }) => E.Effect<Commitment, HreaError>;
   readonly createEconomicEvent: (params: EconomicEventInput) => E.Effect<EconomicEvent, HreaError>;
+  readonly getAgreements: () => E.Effect<Agreement[], HreaError>;
+  readonly getCommitments: () => E.Effect<Commitment[], HreaError>;
   readonly createIntent: (params: {
     action: string;
     provider?: string;
@@ -1010,6 +1016,35 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.CREATE_ECONOMIC_EVENT))
         );
 
+      // List reads, one query per VF type. The store reads every Agreement and
+      // Commitment to find an agreement's mirror again after a reload.
+      const listQuery = <Raw, Out>(
+        query: typeof GET_AGREEMENTS_QUERY,
+        field: string,
+        normalize: (raw: Raw) => Out,
+        context: string
+      ): E.Effect<Out[], HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                const result = await client.query({ query, fetchPolicy: 'network-only' });
+                const edges: GraphQLEdge<Raw>[] = result.data?.[field]?.edges ?? [];
+                return edges.map((edge) => normalize(edge.node));
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, context))
+        );
+
+      const getAgreements = (): E.Effect<Agreement[], HreaError> =>
+        listQuery(GET_AGREEMENTS_QUERY, 'agreements', normalizeAgreementResponse, HREA_CONTEXTS.GET_AGREEMENTS);
+
+      const getCommitments = (): E.Effect<Commitment[], HreaError> =>
+        listQuery(GET_COMMITMENTS_QUERY, 'commitments', normalizeCommitmentResponse, HREA_CONTEXTS.GET_COMMITMENTS);
+
       const createIntent = (params: {
         action: string;
         provider?: string;
@@ -1189,6 +1224,8 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         deleteProposal,
         getProposal,
         getProposals,
+        getAgreements,
+        getCommitments,
         getProposalsByAgent,
         getUnits,
         createUnit,

@@ -5,10 +5,7 @@ import {
   createServiceTypesStore,
   type ServiceTypesStore
 } from '$lib/stores/serviceTypes.store.svelte';
-import type {
-  ServiceTypesService,
-  ServiceTypeError
-} from '$lib/services/zomes/serviceTypes.service';
+import type { ServiceTypesService } from '$lib/services/zomes/serviceTypes.service';
 import { ServiceTypesServiceTag } from '$lib/services/zomes/serviceTypes.service';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
 import { createTestServiceType, createMockServiceTypeRecord } from '../test-helpers';
@@ -305,7 +302,6 @@ describe('ServiceTypesStore', () => {
       // Arrange
       const originalHash = await fakeActionHash();
       const previousHash = await fakeActionHash();
-      const updateServiceTypeFn = vi.fn(() => Promise.reject(new Error('Update failed')));
       const customService = createMockService({
         updateServiceType: vi.fn().mockReturnValue(E.fail(new Error('Update failed')))
       });
@@ -336,7 +332,6 @@ describe('ServiceTypesStore', () => {
 
     it('should handle errors when deleting service type', async () => {
       // Arrange
-      const deleteServiceTypeFn = vi.fn(() => Promise.reject(new Error('Delete failed')));
       const customService = createMockService({
         deleteServiceType: vi.fn().mockReturnValue(E.fail(new Error('Delete failed')))
       });

@@ -109,6 +109,7 @@
   allowCreating={true}
   title="Profile Required to Create Offers"
   description="You need an approved profile to create offers to help others in the community."
+  blockedAction="create offers"
   redirectToProfile={true}
 >
   <PrerequisitesGuard

@@ -6,7 +6,7 @@ import { createTestRequest, createMockRecord } from '../test-helpers';
 import { createTestContext } from '../../mocks/services.mock';
 import type { RequestsService } from '$lib/services/zomes/requests.service';
 import { RequestsServiceTag } from '$lib/services/zomes/requests.service';
-import { CacheServiceTag, CacheServiceLive } from '$lib/utils/cache.svelte';
+import { CacheServiceLive } from '$lib/utils/cache.svelte';
 import {
   HolochainClientServiceTag,
   type HolochainClientService

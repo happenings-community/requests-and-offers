@@ -260,8 +260,9 @@ export const store = createEntitiesStore(); // Module level
 # 3. Verify link creation
 # Check if entries are properly linked
 
-# 4. Debug with Holochain Playground
-# Open http://localhost:8888 when running bun start
+# 4. Inspect each member's chain and DHT state
+# Run bun start:web and open the inspector URL it prints
+# (documentation/guides/web-dev-mode.md#the-inspector)
 ```
 
 #### **Issue**: Schema validation errors

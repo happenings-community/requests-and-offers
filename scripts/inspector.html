@@ -59,6 +59,10 @@
       #graph { flex: 1; min-height: 0; position: relative; outline: none; }
       #crumbs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 4px 12px; border-bottom: 1px solid var(--line); font-size: 12px; min-height: 26px; color: var(--muted); }
       #crumbs:empty { display: none; }
+      #tip { position: absolute; z-index: 3; display: none; pointer-events: none; max-width: 360px; padding: 3px 8px; border-radius: 6px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); font-size: 12px; box-shadow: 0 2px 8px rgb(0 0 0 / .25); }
+      #tray { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 4px 12px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+      #tray:empty { display: none; }
+      #tray button { padding: 0 8px; border-radius: 999px; font-size: 11.5px; }
       #crumbs button { padding: 0 6px; border: 0; background: none; color: var(--accent); text-decoration: underline; }
       #crumbs button[aria-current] { color: var(--ink); text-decoration: none; font-weight: 600; }
       #legend { position: absolute; left: 8px; bottom: 8px; z-index: 2; max-width: 300px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: 11.5px; }
@@ -110,9 +114,9 @@
           <label>DNA <select id="role"></select></label>
           <label>Author <select id="author"></select></label>
           <input type="search" id="search" placeholder="Search a hash or text" />
-          <button id="labels" title="Show every edge label">Edge labels</button>
+          <button id="labels" title="Show every edge label; otherwise only the selected, focused or hovered record's">All edge labels</button>
           <button id="group" class="on" title="Show each type of more than 6 records as one counted node; click it to open it">Group large types</button>
-          <button id="unlinked" title="Hide the records nothing links to or from">Hide unlinked</button>
+          <button id="unlinked" class="on" title="Keep the records nothing links to or from in the strip above the graph, not on it">Hide unlinked</button>
           <span class="spacer"></span>
           <button id="fit" title="Fit the graph to the view (F)">Fit</button>
           <button id="zoomsel" title="Zoom to the selected record (Z)">Zoom to selection</button>
@@ -120,6 +124,7 @@
           <span class="meta" id="counts"></span>
         </div>
         <div id="types" title="Colours by entry type. Click a type to take it off the graph."></div>
+        <div id="tray" aria-label="Records nothing links to or from"></div>
         <nav id="crumbs" aria-label="Focus"></nav>
         <div id="graph">
           <div id="empty"></div>
@@ -153,7 +158,7 @@
       const PALETTE = ['#4720b7', '#0ea5e9', '#d4a90f', '#65a30d', '#ff8800', '#d21919', '#7c8dc4', '#c026d3', '#14b8a6', '#a16207', '#6366f1', '#f43f5e', '#0f766e', '#9333ea'];
       const state = {
         data: null, role: null, author: '', search: '', hiddenTypes: new Set(), edgeLabels: false,
-        selected: null, selectedCell: null, chainAgent: null, expanded: new Set(), grouping: true, hideUnlinked: false, focus: [], anchor: null, positions: new Map(), seenNodes: new Set(), seenActions: new Set(), signature: ''
+        selected: null, selectedCell: null, chainAgent: null, expanded: new Set(), grouping: true, hideUnlinked: true, focus: [], anchor: null, positions: new Map(), seenNodes: new Set(), seenActions: new Set(), signature: ''
       };
       const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
       const short = (h) => (h ? `${h.slice(0, 8)}…${h.slice(-5)}` : '');
@@ -220,15 +225,15 @@
       const graphStyle = () => [
         { selector: 'node', style: { 'background-color': (n) => colourOf(n.data('entryType')), label: 'data(label)', color: css('--ink'), 'font-size': 10, 'text-valign': 'bottom', 'text-margin-y': 3, 'text-wrap': 'ellipsis', 'text-max-width': 110, 'min-zoomed-font-size': 7, width: 18, height: 18, shape: 'round-rectangle', 'border-width': 0, 'transition-property': 'opacity', 'transition-duration': '0.6s' } },
         { selector: 'node[kind = "agent"]', style: { shape: 'ellipse', width: 24, height: 24, 'background-color': css('--accent'), 'border-width': 2, 'border-color': css('--gold') } },
-        { selector: 'node[kind = "group"]', style: { width: 34, height: 34, 'border-width': 3, 'border-style': 'dashed', 'border-color': css('--ink'), 'font-weight': 600, 'font-size': 11 } },
+        { selector: 'node[kind = "group"]', style: { width: 34, height: 34, 'border-width': 3, 'border-style': 'dashed', 'border-color': css('--ink'), 'font-weight': 600, 'font-size': 11, 'text-wrap': 'wrap', 'text-max-width': 200 } },
         { selector: 'node[revs > 1]', style: { 'border-width': 3, 'border-style': 'double', 'border-color': css('--ink') } },
         { selector: 'node[?deleted]', style: { 'background-color': css('--ghost'), opacity: 0.55, 'border-style': 'dashed', 'border-width': 2, 'border-color': css('--err') } },
         { selector: 'node.new', style: { opacity: 0 } },
         { selector: 'node:selected', style: { 'overlay-color': css('--gold'), 'overlay-opacity': 0.35, 'overlay-padding': 6 } },
         { selector: 'edge', style: { width: 1.2, 'line-color': css('--line'), 'target-arrow-color': css('--line'), 'target-arrow-shape': 'triangle', 'arrow-scale': 0.7, 'curve-style': 'bezier', 'font-size': 9, color: css('--muted'), 'text-rotation': 'autorotate', 'text-background-color': css('--bg'), 'text-background-opacity': 0.85, 'text-background-padding': 1 } },
-        { selector: 'edge[via = "field"]', style: { width: 2, 'line-color': css('--muted'), 'target-arrow-color': css('--muted'), label: 'data(label)' } },
+        { selector: 'edge[via = "field"]', style: { width: 2, 'line-color': css('--muted'), 'target-arrow-color': css('--muted') } },
+        { selector: 'edge.lab', style: { label: 'data(label)', color: css('--ink'), 'font-size': 10 } },
         { selector: 'edge[via = "link"]', style: { 'line-style': 'dashed' } },
-        { selector: 'edge.labelled', style: { label: 'data(label)' } },
         { selector: 'edge[?deleted]', style: { 'line-color': css('--ghost'), 'target-arrow-color': css('--ghost'), opacity: 0.5 } },
         { selector: 'edge:selected', style: { 'line-color': css('--gold'), 'target-arrow-color': css('--gold'), width: 3, label: 'data(label)' } },
         { selector: '.faded', style: { opacity: 0.12 } },
@@ -242,6 +247,17 @@
         select(e.target.id());
       });
       cy.on('dbltap', 'node', (e) => { if (e.target.data('kind') !== 'group') pushFocus(e.target.id()); });
+      // Hover: the full label in a tooltip, and the labels of the hovered element's edges.
+      const tip = document.createElement('div');
+      tip.id = 'tip'; tip.setAttribute('role', 'tooltip'); $('graph').appendChild(tip);
+      cy.on('mouseover', 'node, edge', (e) => {
+        const el = e.target;
+        tip.textContent = el.isNode() ? el.data('full') || el.data('label') : `${el.data('label')}: ${el.source().data('full') || el.source().data('label')} → ${el.target().data('full') || el.target().data('label')}`;
+        const p = e.renderedPosition; tip.style.left = `${p.x + 14}px`; tip.style.top = `${p.y + 10}px`; tip.style.display = 'block';
+        (el.isNode() ? el.connectedEdges() : el).addClass('hoverlab');
+        refreshLabels();
+      });
+      cy.on('mouseout', 'node, edge', (e) => { tip.style.display = 'none'; cy.elements().removeClass('hoverlab'); refreshLabels(); });
       cy.on('tap', (e) => { if (e.target === cy) select(null); });
       cy.on('dragfree', 'node', (e) => state.positions.set(`${state.role}|${e.target.id()}`, { ...e.target.position() }));
 
@@ -259,7 +275,7 @@
         const base = n.label ? `${n.entryType}: ${n.label}` : n.entryType;
         return n.revisions.length > 1 ? `${base} (v${n.revisions.length})` : base;
       };
-      const nodeData = (n) => ({ id: n.id, kind: n.kind, entryType: n.entryType, label: nodeLabel(n), revs: n.revisions?.length ?? 0, deleted: !!n.deleted, author: n.author ?? '', count: n.count ?? 0 });
+      const nodeData = (n) => ({ id: n.id, kind: n.kind, entryType: n.entryType, label: n.kind === 'group' ? `${n.entryType}\n×${n.count}` : nodeLabel(n), full: nodeLabel(n), revs: n.revisions?.length ?? 0, deleted: !!n.deleted, author: n.author ?? '', count: n.count ?? 0 });
       const edgeData = (e) => ({ ...e, label: e.count > 1 ? `${e.label} ×${e.count}` : e.label });
 
       function renderGraph(mode) {
@@ -335,6 +351,17 @@
         return [n.id, n.entryType, n.label, ...(n.revisions ?? []).map((r) => r.hash), JSON.stringify(n.entry ?? '')].join(' ').toLowerCase();
       }
 
+      // Edge labels: on the selected record's edges, the focused record's, and the hovered element's; all of them only with Edge labels on.
+      function refreshLabels() {
+        cy.batch(() => {
+          cy.edges().removeClass('lab');
+          if (state.edgeLabels) { cy.edges().addClass('lab'); return; }
+          const at = [state.selected, state.focus[state.focus.length - 1]].filter(Boolean);
+          for (const id of at) { const el = cy.$id(id); (el.isNode?.() ? el.connectedEdges() : el).addClass('lab'); }
+          cy.$('.hoverlab').addClass('lab');
+        });
+      }
+
       function applyFilters() {
         const g = roleGraph();
         if (!g) return;
@@ -355,15 +382,39 @@
             if (e.source().hasClass('outfocus') || e.target().hasClass('outfocus')) e.addClass('outfocus');
             else if (e.source().hasClass('faded') || e.target().hasClass('faded')) e.addClass('faded');
           });
-          cy.edges().toggleClass('labelled', state.edgeLabels);
           if (state.selected) cy.$id(state.selected).removeClass('faded');
         });
+        refreshLabels(); renderTray();
         const shown = cy.nodes().filter((n) => n.data('kind') !== 'group').length;
         const grouped = cy.nodes('[kind = "group"]').reduce((a, n) => a + (n.data('count') ?? 0), 0);
-        $('counts').textContent = `${shown + grouped} of ${g.nodes.length} records${grouped ? ` (${grouped} in groups)` : ''} · ${cy.edges().length} edges` + (q ? ` · ${cy.$('.match').length} match` : '');
+        const unlinked = state.hideUnlinked ? g.nodes.length - (shown + grouped) - g.nodes.filter((n) => state.hiddenTypes.has(n.entryType)).length : 0;
+        $('counts').textContent = `${g.nodes.length} records: ${shown + grouped} on the graph${grouped ? ` (${grouped} in groups)` : ''}${unlinked > 0 ? `, ${unlinked} unlinked above` : ''} · ${cy.edges().length} edges` + (q ? ` · ${cy.$('.match').length} match` : '');
         $('empty').style.display = cy.nodes().length ? 'none' : 'flex';
         $('empty').textContent = g.nodes.length ? 'Every type is off the graph: click a type above to bring it back.' : 'No records in this DNA yet. Create a profile in a member tab and they appear here.';
       }
+
+      // The records Hide unlinked keeps off the canvas, one button per label with its count.
+      function renderTray() {
+        const g = roleGraph();
+        if (!g || !state.hideUnlinked) { $('tray').innerHTML = ''; return; }
+        const linked = new Set(g.edges.flatMap((e) => [e.source, e.target]));
+        const off = g.nodes.filter((n) => !linked.has(n.id) && !state.hiddenTypes.has(n.entryType));
+        if (!off.length) { $('tray').innerHTML = ''; return; }
+        // A type with more than three unlinked records gets one button; the rest one per label.
+        const perType = new Map();
+        for (const n of off) perType.set(n.entryType, (perType.get(n.entryType) ?? 0) + 1);
+        const byLabel = new Map();
+        for (const n of off) { const k = perType.get(n.entryType) > 3 ? n.entryType : nodeLabel(n); byLabel.set(k, [...(byLabel.get(k) ?? []), n.id]); }
+        $('tray').innerHTML = `<span>Unlinked (${off.length}):</span>` + [...byLabel].map(([k, ids]) =>
+          `<button data-ids="${esc(ids.join(' '))}" title="${esc(ids.length > 1 ? `${ids.length} separate records with this label` : k)}">${esc(k)}${ids.length > 1 ? ` ×${ids.length}` : ''}</button>`).join('');
+      }
+      $('tray').onclick = (e) => {
+        const b = e.target.closest('[data-ids]');
+        if (!b) return;
+        const ids = b.dataset.ids.split(' ');
+        const i = (ids.indexOf(state.selected) + 1) % ids.length;
+        select(ids[i]);
+      };
 
       // ---- Focus and keyboard -------------------------------------------
       function pushFocus(id) {
@@ -386,7 +437,7 @@
         if (!state.focus.length || !g) { $('crumbs').innerHTML = ''; return; }
         const label = (id) => { const n = g.nodes.find((x) => x.id === id); return n ? nodeLabel(n) : short(id); };
         $('crumbs').innerHTML = '<button data-crumb="0">All records</button>' + state.focus.map((id, i) =>
-          ` › <button data-crumb="${i + 1}"${i === state.focus.length - 1 ? ' aria-current="true"' : ''}>${esc(label(id))}</button>`).join('');
+          ` › <button data-crumb="${i + 1}" title="${esc(label(id))}"${i === state.focus.length - 1 ? ' aria-current="true"' : ''}>${esc(label(id))}</button>`).join('');
       }
       $('crumbs').onclick = (e) => { const b = e.target.closest('[data-crumb]'); if (b) popFocus(Number(b.dataset.crumb)); };
       function step(dir) {
@@ -521,7 +572,7 @@
         if (hits.nonempty()) cy.animate({ fit: { eles: hits, padding: 80 }, zoom: undefined }, { duration: 250 });
       };
       $('search').onkeydown = (e) => { if (e.key === 'Enter') { const m = cy.$('.match').first(); if (m.nonempty()) select(m.id(), { centre: true }); } };
-      $('labels').onclick = (e) => { state.edgeLabels = !state.edgeLabels; e.target.classList.toggle('on', state.edgeLabels); applyFilters(); };
+      $('labels').onclick = (e) => { state.edgeLabels = !state.edgeLabels; e.target.classList.toggle('on', state.edgeLabels); refreshLabels(); };
       $('group').onclick = (e) => { state.grouping = !state.grouping; state.expanded.clear(); e.target.classList.toggle('on', state.grouping); renderGraph('relayout'); };
       $('unlinked').onclick = (e) => { state.hideUnlinked = !state.hideUnlinked; e.target.classList.toggle('on', state.hideUnlinked); renderGraph('relayout'); };
       $('fit').onclick = fit;

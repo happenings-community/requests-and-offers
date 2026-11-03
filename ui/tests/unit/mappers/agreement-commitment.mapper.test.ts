@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import {
   setUnitRegistry,
+  unitRegistryFrom,
   actionForKind,
   mapAgreementToHrea,
   mapCompletionToEvent,
@@ -119,5 +120,32 @@ describe('mapCompletionToEvent', () => {
       1
     );
     expect(r).toBeNull();
+  });
+});
+
+describe('unitRegistryFrom (#441)', () => {
+  // Two members seeded at once: two Units per label, each member reading them in its own order.
+  const units = [
+    { id: 'uhCkkB:dna', label: 'hours', symbol: 'h' },
+    { id: 'uhCkkA:dna', label: 'hours', symbol: 'h' },
+    { id: 'uhCkkD:dna', label: 'days', symbol: 'd' },
+    { id: 'uhCkkC:dna', label: 'days', symbol: 'd' },
+    { id: 'uhCkkE:dna', label: 'each', symbol: 'ea' }
+  ];
+
+  it('resolves every label to the same Unit whatever order the Units arrive in', () => {
+    expect(unitRegistryFrom(units)).toEqual(unitRegistryFrom([...units].reverse()));
+  });
+
+  it('picks the lowest id for a label held twice', () => {
+    expect(unitRegistryFrom(units)).toEqual({
+      hours: 'uhCkkA:dna',
+      days: 'uhCkkC:dna',
+      each: 'uhCkkE:dna'
+    });
+  });
+
+  it('is empty for no Units', () => {
+    expect(unitRegistryFrom([])).toEqual({});
   });
 });

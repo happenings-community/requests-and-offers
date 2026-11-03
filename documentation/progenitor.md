@@ -12,7 +12,7 @@ The progenitor pattern solves this by fixing the identity of the first admin at 
 
 ### Step 1: Embedding the progenitor key
 
-Before installing the hApp, the network creator's agent public key is written into `workdir/happ.yaml` under `progenitor_pubkey`. In production, this is done by the Kangaroo (Electron) app, which reads the creator's key from the Holochain conductor admin API.
+Before installing the hApp, the network creator's agent public key is written into `workdir/happ.yaml` under `progenitor_pubkey`. This is a manual step today: the Kangaroo (Electron) desktop app installs the hApp with the properties `happ.yaml` carries and does not set the key (see Production below).
 
 ```yaml
 # workdir/happ.yaml
@@ -109,7 +109,7 @@ Then rebuild:
 bun build:happ
 ```
 
-The Kangaroo desktop app automates this step: it reads the creator's key via the conductor admin WebSocket and injects it into DNA properties at install time.
+The Kangaroo desktop app does not automate this step. Its install ([`installHappIfNecessary`](https://github.com/happenings-community/requests-and-offers-kangaroo-electron/blob/8bcec07d/src/main/holochainManager.ts#L176-L190), kangaroo-electron #10 at `8bcec07d`) passes no role settings to `installApp`, so a desktop install keeps the hApp's own `progenitor_pubkey`, null unless it was set here before the build. With it null, the desktop network is in development mode: the first agent to create a profile becomes admin.
 
 ## API Reference
 

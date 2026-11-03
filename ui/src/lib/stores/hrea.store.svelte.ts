@@ -19,6 +19,7 @@ import {
   setUnitRegistry
 } from '$lib/services/mappers/agreement-commitment.mapper';
 import { HreaError } from '$lib/errors';
+import { proposalIntentLinks } from '$lib/services/mappers/proposal-links';
 
 // Import standardized store helpers
 import {
@@ -1889,18 +1890,9 @@ export const createHreaStore = (): E.Effect<
             mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!
           });
 
-          // 6. Create proposal first (without publishes — just name + note)
-          const createdProposal = yield* withInitialization(
-            () =>
-              hreaService.createProposal({
-                name: mappingResult.proposal.name,
-                note: mappingResult.proposal.note
-              }),
-            state.apolloClient,
-            initialize
-          );
-
-          // 7. Create intents
+          // 6. Create the intents, then the proposal that publishes them: hREA
+          // stores publishes and reciprocal on the proposal entry, and this
+          // adapter has no proposeIntent mutation to link them afterwards.
           const createdIntents: Intent[] = [];
           for (const intentData of mappingResult.allIntents) {
             const createdIntent = yield* withInitialization(
@@ -1915,21 +1907,23 @@ export const createHreaStore = (): E.Effect<
               state.apolloClient,
               initialize
             );
-
             createdIntents.push(createdIntent);
-
-            // 8. Link each intent to proposal via proposeIntent with reciprocal flag
-            yield* withInitialization(
-              () =>
-                hreaService.proposeIntent({
-                  intentId: createdIntent.id,
-                  proposalId: createdProposal.id,
-                  reciprocal: intentData.isReciprocal
-                }),
-              state.apolloClient,
-              initialize
-            );
           }
+
+          // 7. Create the proposal with its links; it fails if hREA does not
+          // return them, so an unlinked proposal never reads as created.
+          const links = proposalIntentLinks(mappingResult.allIntents, createdIntents);
+          const createdProposal = yield* withInitialization(
+            () =>
+              hreaService.createProposal({
+                name: mappingResult.proposal.name,
+                note: mappingResult.proposal.note,
+                publishes: links.publishes,
+                reciprocal: links.reciprocal
+              }),
+            state.apolloClient,
+            initialize
+          );
 
           // 9. Update state
           state.proposals = [...state.proposals, createdProposal];
@@ -1945,7 +1939,7 @@ export const createHreaStore = (): E.Effect<
           state.pendingRequestQueue.delete(requestHash);
 
           console.log(
-            `hREA Store: Created proposal "${createdProposal.name}" with ${createdIntents.length} intents (linked via proposeIntent)`
+            `hREA Store: Created proposal "${createdProposal.name}" publishing ${createdIntents.length} intents`
           );
           return createdProposal;
         }),
@@ -2231,18 +2225,9 @@ export const createHreaStore = (): E.Effect<
             mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!
           });
 
-          // 6. Create proposal first (without publishes — just name + note)
-          const createdProposal = yield* withInitialization(
-            () =>
-              hreaService.createProposal({
-                name: mappingResult.proposal.name,
-                note: mappingResult.proposal.note
-              }),
-            state.apolloClient,
-            initialize
-          );
-
-          // 7. Create intents
+          // 6. Create the intents, then the proposal that publishes them: hREA
+          // stores publishes and reciprocal on the proposal entry, and this
+          // adapter has no proposeIntent mutation to link them afterwards.
           const createdIntents: Intent[] = [];
           for (const intentData of mappingResult.allIntents) {
             const createdIntent = yield* withInitialization(
@@ -2257,21 +2242,23 @@ export const createHreaStore = (): E.Effect<
               state.apolloClient,
               initialize
             );
-
             createdIntents.push(createdIntent);
-
-            // 8. Link each intent to proposal via proposeIntent with reciprocal flag
-            yield* withInitialization(
-              () =>
-                hreaService.proposeIntent({
-                  intentId: createdIntent.id,
-                  proposalId: createdProposal.id,
-                  reciprocal: intentData.isReciprocal
-                }),
-              state.apolloClient,
-              initialize
-            );
           }
+
+          // 7. Create the proposal with its links; it fails if hREA does not
+          // return them, so an unlinked proposal never reads as created.
+          const links = proposalIntentLinks(mappingResult.allIntents, createdIntents);
+          const createdProposal = yield* withInitialization(
+            () =>
+              hreaService.createProposal({
+                name: mappingResult.proposal.name,
+                note: mappingResult.proposal.note,
+                publishes: links.publishes,
+                reciprocal: links.reciprocal
+              }),
+            state.apolloClient,
+            initialize
+          );
 
           // 9. Update state
           state.proposals = [...state.proposals, createdProposal];
@@ -2287,7 +2274,7 @@ export const createHreaStore = (): E.Effect<
           state.pendingOfferQueue.delete(offerHash);
 
           console.log(
-            `hREA Store: Created proposal "${createdProposal.name}" with ${createdIntents.length} intents (linked via proposeIntent)`
+            `hREA Store: Created proposal "${createdProposal.name}" publishing ${createdIntents.length} intents`
           );
           return createdProposal;
         }),

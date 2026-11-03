@@ -109,7 +109,6 @@ describe('HreaStore', () => {
       ),
       getIntents: vi.fn().mockReturnValue(E.succeed([])),
       getIntentsByProposal: vi.fn().mockReturnValue(E.succeed([])),
-      proposeIntent: vi.fn().mockReturnValue(E.succeed(true)),
       // Agreement, Commitment and EconomicEvent methods
       createAgreement: vi.fn().mockReturnValue(
         E.succeed({ id: 'agreement-123', revisionId: 'agreement-rev-123' })
@@ -478,7 +477,7 @@ describe('HreaStore', () => {
       await runEffect(store.initialize());
     });
 
-    it('should create proposal from request with correct flow (proposal -> intents -> proposeIntent)', async () => {
+    it('should create proposal from request with correct flow (intents -> proposal that publishes them)', async () => {
       // Arrange: Set up agent and resource spec mappings
       const userHash = testUser.original_action_hash!.toString();
       const serviceTypeHash = testServiceType.original_action_hash!.toString();
@@ -523,8 +522,7 @@ describe('HreaStore', () => {
             revisionId: `intent-rev-${intentCounter}`
           });
         }),
-        proposeIntent: vi.fn().mockReturnValue(E.succeed(true)),
-        getResourceSpecifications: vi
+          getResourceSpecifications: vi
           .fn()
           .mockReturnValue(E.succeed([mockServiceResourceSpec, mockMediumResourceSpec]))
       });
@@ -538,7 +536,6 @@ describe('HreaStore', () => {
       // Note: Full proposal creation requires resource spec mappings to be set up.
       // This test verifies the service methods are called in the correct order.
       expect(proposalService.createProposal).not.toHaveBeenCalled();
-      expect(proposalService.proposeIntent).not.toHaveBeenCalled();
     });
   });
 

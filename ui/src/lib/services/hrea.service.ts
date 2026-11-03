@@ -163,7 +163,6 @@ import {
 import { CREATE_UNIT_MUTATION, GET_UNITS_QUERY } from '$lib/graphql/mutations/unit.mutations';
 import {
   CREATE_INTENT_MUTATION,
-  PROPOSE_INTENT_MUTATION,
   UPDATE_INTENT_MUTATION,
   DELETE_INTENT_MUTATION
 } from '$lib/graphql/mutations/intent.mutations';
@@ -262,6 +261,9 @@ export interface HreaService {
     hasBeginning?: string;
     hasEnd?: string;
     unitBased?: boolean;
+    /** Ids of the intents this proposal publishes, and of its reciprocal intents. */
+    publishes?: string[];
+    reciprocal?: string[];
   }) => E.Effect<Proposal, HreaError>;
   readonly updateProposal: (params: {
     id: string;
@@ -301,11 +303,6 @@ export interface HreaService {
     resourceSpecifiedBy?: string;
     resourceQuantity?: { hasNumericalValue: number; hasUnit: string };
   }) => E.Effect<Intent, HreaError>;
-  readonly proposeIntent: (params: {
-    intentId: string;
-    proposalId: string;
-    reciprocal?: boolean;
-  }) => E.Effect<boolean, HreaError>;
   readonly updateIntent: (params: {
     id: string;
     action: string;
@@ -703,6 +700,8 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         hasBeginning?: string;
         hasEnd?: string;
         unitBased?: boolean;
+        publishes?: string[];
+        reciprocal?: string[];
       }): E.Effect<Proposal, HreaError> =>
         pipe(
           initialize(),
@@ -718,9 +717,11 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                       hasBeginning: params.hasBeginning,
                       hasEnd: params.hasEnd,
                       unitBased: params.unitBased,
-                      // hREA 0.4.0-beta: publishes is non-null on create; intents
-                      // are linked afterwards via proposeIntent
-                      publishes: []
+                      // hREA stores publishes and reciprocal on the proposal entry
+                      // itself, so a proposal is created with its intents: this
+                      // adapter has no proposeIntent mutation to link them later.
+                      publishes: params.publishes ?? [],
+                      ...(params.reciprocal ? { reciprocal: params.reciprocal } : {})
                     }
                   }
                 });
@@ -728,6 +729,18 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 const proposal = result.data?.createProposal?.proposal;
                 if (!proposal) {
                   throw new Error(`${HREA_CONTEXTS.CREATE_PROPOSAL}: No proposal returned`);
+                }
+                // A link that did not take must fail here, not read as success.
+                const missing = (sent: string[] | undefined, got?: Array<{ id: string }> | null) =>
+                  (sent ?? []).filter((id) => !(got ?? []).some((i) => i.id === id));
+                const unlinked = [
+                  ...missing(params.publishes, proposal.publishes),
+                  ...missing(params.reciprocal, proposal.reciprocal)
+                ];
+                if (unlinked.length > 0) {
+                  throw new Error(
+                    `${HREA_CONTEXTS.CREATE_PROPOSAL}: proposal does not publish intent(s) ${unlinked.join(', ')}`
+                  );
                 }
                 return normalizeProposalResponse(proposal);
               },
@@ -1092,33 +1105,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.CREATE_INTENT))
         );
 
-      const proposeIntent = (params: {
-        intentId: string;
-        proposalId: string;
-        reciprocal?: boolean;
-      }): E.Effect<boolean, HreaError> =>
-        pipe(
-          initialize(),
-          E.flatMap((client) =>
-            E.tryPromise({
-              try: async () => {
-                const result = await client.mutate({
-                  mutation: PROPOSE_INTENT_MUTATION,
-                  variables: {
-                    publishedIn: params.proposalId,
-                    publishes: params.intentId,
-                    reciprocal: params.reciprocal ?? false
-                  }
-                });
-                const success = !!result.data?.proposeIntent?.proposedIntent;
-                return success;
-              },
-              catch: (error) => error
-            })
-          ),
-          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.PROPOSE_INTENT))
-        );
-
       const updateIntent = (params: {
         id: string;
         action: string;
@@ -1273,7 +1259,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         createCommitment,
         updateCommitment,
         createEconomicEvent,
-        proposeIntent,
         updateIntent,
         deleteIntent,
         getIntent,

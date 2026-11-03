@@ -26,6 +26,10 @@ export type StatusInDHT = {
   status_type: StatusType;
   reason?: string;
   suspended_until?: string;
+  /** The grant the change rests on; set by the coordinator, read only here. */
+  grant?: ActionHash;
+  /** The entity (user, organisation) the status is for; set by the coordinator. */
+  entity?: ActionHash;
 };
 
 export type OrganizationInDHT = {

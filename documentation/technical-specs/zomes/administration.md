@@ -47,8 +47,12 @@ pub struct Status {
     pub status_type: String,
     pub reason: Option<String>,
     pub suspended_until: Option<String>,
+    pub grant: Option<ActionHash>,   // the admin or steward grant the change rests on; none on the initial "pending"
+    pub entity: Option<ActionHash>,  // the entity (user, organisation) this status is for, by its original action
 }
 ```
+
+`grant` and `entity` are written by the coordinator, never by the interface; validation requires both (except `grant` on an entity's own first `"pending"` status).
 
 Status types are defined through an enumeration:
 
@@ -332,7 +336,8 @@ Integrity zomes use `hdi::prelude::*`, which exposes `must_get_*` but not `get_l
 
 | Operation | Integrity guarantee |
 |-----------|---------------------|
-| Create `Status` past `pending`, or update any `Status` | carries a grant covering `ChangeStatus`, held by the author |
+| Create `Status` | names its entity (an existing record, by its original action); past `pending`, carries a grant covering `ChangeStatus`, held by the author |
+| Update `Status` | the same, and names the entity the chain's first status names |
 | Delete `Status` | refused |
 | Create `RoleGrant` | role available on this network; scope fits the role; authority is a valid root or a grant above it held by the author that may grant this role |
 | Create `RoleRevocation` | names a grant held by the author that may grant the revoked role |
@@ -341,9 +346,9 @@ Integrity zomes use `hdi::prelude::*`, which exposes `must_get_*` but not `get_l
 | Create `GrantRevocations` | written by the revoker |
 | Delete `AgentGrants` / `AllGrants` / `GrantRevocations` | refused |
 | Create `AllAdministrators` / `AgentAdministrators` | tag carries an admin grant held by the link's author |
-| Create `EntityStatus` | written by the author of the status it points at |
+| Create `EntityStatus` | hangs from the entity its status names; written by the author of that status |
 | Create `AcceptedEntity` | tag carries a `ChangeStatus` grant (admin or steward) held by the author |
-| Create `StatusUpdates` | both ends are statuses (the chain rule is on #400's list) |
+| Create `StatusUpdates` | the target is an `Update` whose chain reaches the base, written by the link's author |
 
 Forged-client coverage of these rules lives in `tests/sweettest/tests/grants.rs`, where one conductor carries the `forge` zome and writes past the coordinator.
 
@@ -354,6 +359,7 @@ Forged-client coverage of these rules lives in `tests/sweettest/tests/grants.rs`
 - Suspended statuses must include a reason.
 - Temporarily suspended statuses must include a `suspended_until` timestamp; indefinitely suspended ones must not.
 - Any status other than the author's own initial `pending`, and every update, carries a `ChangeStatus` grant held by its author.
+- A status names the entity it is for, by the entity's original action; a revision names the same entity as the first status in its chain. The `EntityStatus` link that makes a status current must hang from that entity, and a `StatusUpdates` link must point at a revision of its base: so nobody can make another member's accepted status their own, or point a profile at a status written for someone else.
 
 ## Usage Examples
 

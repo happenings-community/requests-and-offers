@@ -42,7 +42,9 @@ pub fn create_status(input: EntityActionHash) -> ExternResult<Record> {
     return Err(StatusError::AlreadyStatus.into());
   }
 
-  let status_hash = create_entry(&EntryTypes::Status(Status::pending()))?;
+  let status_hash = create_entry(&EntryTypes::Status(
+    Status::pending().for_entity(resolved_original_action_hash.0.clone()),
+  ))?;
   let record = get(status_hash.clone(), GetOptions::default())?
     .ok_or(CommonError::RecordNotFound("status".to_string()))?;
 
@@ -335,12 +337,16 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
   // `ChangeStatus` is answered by an admin grant, or by a steward grant on a network
   // with the stewarding module: only there can a steward grant be valid.
   let authority = require(Ability::ChangeStatus, None)?;
-  let mut new_status = input.new_status.clone();
-  new_status.grant = Some(authority.clone());
 
   // Resolve the original action hash in case we received an updated action hash
   let resolved_original_action_hash =
     find_original_action_hash(input.entity_original_action_hash.0.clone())?;
+
+  // The status carries the grant it rests on and names the entity it is for;
+  // neither comes from the caller.
+  let mut new_status = input.new_status.clone();
+  new_status.grant = Some(authority.clone());
+  new_status.entity = Some(resolved_original_action_hash.0.clone());
 
   // Check if entity has a status link using the resolved original action hash
   let link_type_filter = LinkTypes::EntityStatus

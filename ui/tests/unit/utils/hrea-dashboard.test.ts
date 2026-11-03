@@ -295,6 +295,15 @@ describe('buildExchangeFlow', () => {
     expect(state.intentR).toBe('missing');
   });
 
+  it('says whether each Commitment is finished, so a cancelled one no longer reads as open', () => {
+    const ex = exchange();
+    const snap = fullSnapshot(ex);
+    snap.commitments = snap.commitments.map((c) => (c.id === 'c-r' ? { ...c, finished: true } : c));
+    const nodes = buildExchangeFlow(ex, ctx, snap);
+    expect(nodes.find((n) => n.id === 'commitP')!.fields).toContainEqual(['finished', 'no']);
+    expect(nodes.find((n) => n.id === 'commitR')!.fields).toContainEqual(['finished', 'yes']);
+  });
+
   it('carries the hREA id of a found node in its inspector fields', () => {
     const ex = exchange();
     const agreement = buildExchangeFlow(ex, ctx, fullSnapshot(ex)).find(
@@ -307,8 +316,6 @@ describe('buildExchangeFlow', () => {
 describe('KNOWN_MAPPING_GAPS', () => {
   it('names the gaps the audit must not hide', () => {
     const text = KNOWN_MAPPING_GAPS.map((g) => `${g.title} ${g.detail}`).join(' ');
-    expect(text).toMatch(/[Cc]ancel/);
-    expect(text).toMatch(/[Dd]ecline/);
     expect(text).toMatch(/[Rr]eview/);
   });
 
@@ -316,6 +323,8 @@ describe('KNOWN_MAPPING_GAPS', () => {
     const text = KNOWN_MAPPING_GAPS.map((g) => `${g.title} ${g.detail}`).join(' ');
     expect(text).not.toMatch(/agreementMappings/);
     expect(text).not.toMatch(/Fulfillment/);
+    // U15c: cancellation is mirrored now; review is the one gap left.
+    expect(KNOWN_MAPPING_GAPS.map((g) => g.title).join(' ')).not.toMatch(/[Cc]ancel|[Dd]ecline/);
     expect(KNOWN_MAPPING_GAPS).toHaveLength(1);
   });
 });

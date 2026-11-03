@@ -335,7 +335,11 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       title: 'Commitment',
       sub: `provide ${a.primary.resource_conforms_to}`,
       state: stage(commitP, primaryMapped, accepted),
-      fields: [...idField(commitP), ['matched by', 'agreedIn R&O hash, provider']]
+      fields: [
+        ...idField(commitP),
+        ...(commitP ? [['finished', commitP.finished ? 'yes' : 'no'] as [string, string]] : []),
+        ['matched by', 'agreedIn R&O hash, provider']
+      ]
     },
     {
       id: 'commitR',
@@ -343,7 +347,11 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       title: 'Commitment',
       sub: `reciprocal in ${a.medium || '—'}`,
       state: stage(commitR, recipMapped, accepted),
-      fields: [...idField(commitR), ['matched by', 'agreedIn R&O hash, provider']]
+      fields: [
+        ...idField(commitR),
+        ...(commitR ? [['finished', commitR.finished ? 'yes' : 'no'] as [string, string]] : []),
+        ['matched by', 'agreedIn R&O hash, provider']
+      ]
     },
     {
       id: 'eventP',
@@ -375,9 +383,9 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
 /** Known gaps in the R&O to hREA mapping, shown on the dashboard rather than hidden. Fixing them is U15. */
 export const KNOWN_MAPPING_GAPS: { title: string; detail: string; where: string }[] = [
   {
-    title: 'Cancel, decline and review are not mirrored',
+    title: 'Review is not mirrored',
     detail:
-      'A cancelled or declined exchange leaves its hREA Agreement and Commitments as they were, and a review writes nothing to hREA.',
-    where: 'stores/hrea.store.svelte.ts listens to exchange:accepted and exchange:completed only'
+      'A review writes nothing to hREA. Valueflows has no class for a rating or review of an exchange: its nearest, Appreciation, is a gift EconomicEvent given in acknowledgement of another, not an assessment. Cancellation is mirrored (open Commitments marked finished); decline and withdrawal happen before acceptance, when hREA holds nothing for the exchange.',
+    where: 'stores/exchanges.store.svelte.ts review emits no event'
   }
 ];

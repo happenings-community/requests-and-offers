@@ -101,6 +101,10 @@ const service = () => {
         }
       ])
     ),
+    // Identity by default: each test says what the latest revisions hold.
+    getLatestCommitments: vi.fn((cs: Array<{ id: string }>) =>
+      E.succeed(cs as Array<{ id: string; revisionId?: string; finished?: boolean }>)
+    ),
     createAgreement: vi.fn().mockReturnValue(E.succeed({ id: 'agr-NEW', revisionId: 'x' })),
     createCommitment: vi.fn().mockReturnValue(E.succeed({ id: 'c-NEW', revisionId: 'x' })),
     createEconomicEvent: vi.fn((input) => E.succeed({ id: 'ev-1', ...input })),
@@ -164,5 +168,107 @@ describe('hREA agreement mirror after a reload (agreementMappings empty)', () =>
 
     expect(svc.createAgreement).toHaveBeenCalledTimes(1);
     expect(refs?.agreementId).toBe('agr-NEW');
+  });
+});
+
+// U15c: a cancellation after acceptance ends the mirrored Commitments; before
+// acceptance hREA holds nothing for the exchange, so nothing is written.
+describe('hREA mirror of a cancellation', () => {
+  const accepted = (): UIExchange =>
+    ({
+      ...exchange(),
+      status: 'Cancelled',
+      provider_done: undefined,
+      response: { agreement: hash(1), accepted: true, note: '', created_at: 1 }
+    }) as unknown as UIExchange;
+
+  it('marks the still-open Commitments finished, from their current revision in hREA', async () => {
+    const svc = service();
+    svc.getCommitments.mockReturnValue(
+      E.succeed([
+        {
+          id: 'c-prim',
+          revisionId: 'c-prim-rev2',
+          action: 'work',
+          provider: 'agent-p',
+          receiver: 'agent-r',
+          clauseOf: 'agr-1',
+          finished: false
+        },
+        {
+          id: 'c-recip',
+          revisionId: 'c-recip-rev2',
+          action: 'transfer',
+          provider: 'agent-r',
+          receiver: 'agent-p',
+          clauseOf: 'agr-1',
+          finished: true
+        },
+        {
+          id: 'c-other',
+          revisionId: 'x',
+          action: 'work',
+          provider: 'agent-p',
+          receiver: 'agent-r',
+          clauseOf: 'agr-other',
+          finished: false
+        }
+      ])
+    );
+    const store = await freshStore(svc);
+    await E.runPromise(store.getAllAgents());
+
+    const ended = await E.runPromise(store.mirrorCancellation(accepted()));
+
+    expect(ended).toBe(1);
+    expect(svc.updateCommitment).toHaveBeenCalledTimes(1);
+    expect(svc.updateCommitment).toHaveBeenCalledWith({
+      revisionId: 'c-prim-rev2',
+      finished: true
+    });
+  });
+
+  // hREA's list returns the original revision after an update, so the list says
+  // open while the commitment was already closed: the latest revision decides.
+  it('reads the latest revision, so a commitment the list still shows open is not closed again', async () => {
+    const svc = service();
+    svc.getLatestCommitments.mockImplementation((cs: Array<{ id: string }>) =>
+      E.succeed(
+        cs.map((c) =>
+          c.id === 'c-prim'
+            ? { ...c, revisionId: 'c-prim-rev2', finished: true }
+            : { ...c, revisionId: `${c.id}-rev2` }
+        )
+      )
+    );
+    const store = await freshStore(svc);
+    await E.runPromise(store.getAllAgents());
+
+    const ended = await E.runPromise(store.mirrorCancellation(accepted()));
+
+    expect(svc.getLatestCommitments).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'c-prim' }),
+      expect.objectContaining({ id: 'c-recip' })
+    ]);
+    expect(ended).toBe(1);
+    expect(svc.updateCommitment).toHaveBeenCalledTimes(1);
+    expect(svc.updateCommitment).toHaveBeenCalledWith({
+      revisionId: 'c-recip-rev2',
+      finished: true
+    });
+  });
+
+  it('writes nothing for an exchange that was never accepted', async () => {
+    const svc = service();
+    const store = await freshStore(svc);
+    await E.runPromise(store.getAllAgents());
+
+    const ended = await E.runPromise(
+      store.mirrorCancellation({ ...accepted(), response: undefined } as unknown as UIExchange)
+    );
+
+    expect(ended).toBe(0);
+    expect(svc.getAgreements).not.toHaveBeenCalled();
+    expect(svc.updateCommitment).not.toHaveBeenCalled();
   });
 });

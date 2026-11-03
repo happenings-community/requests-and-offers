@@ -14,7 +14,8 @@ import {
   rnoAgreementRef,
   type ResolvedParties,
   type ResolvedSpecs,
-  setUnitRegistry
+  setUnitRegistry,
+  unitRegistryFrom
 } from '$lib/services/mappers/agreement-commitment.mapper';
 import { HreaError } from '$lib/errors';
 import { proposalIntentLinks } from '$lib/services/mappers/proposal-links';
@@ -1443,11 +1444,9 @@ export const createHreaStore = (): E.Effect<
               (seed) => hreaService.createUnit(seed)
             ),
             E.map((created) => {
-              const registry: Record<string, string> = {};
-              for (const unit of [...existing, ...created]) {
-                // Dedupe on read: first id per label wins.
-                if (!registry[unit.label]) registry[unit.label] = unit.id;
-              }
+              // A label seeded by two members at once is held twice; every
+              // member picks the same Unit for it (#441).
+              const registry = unitRegistryFrom([...existing, ...created]);
               setUnitRegistry(registry);
               console.log(
                 `hREA Store: unit registry ready - ${Object.keys(registry).length} labels`

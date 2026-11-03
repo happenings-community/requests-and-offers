@@ -87,10 +87,11 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
 // indexes, and is written by the agent who wrote that grant. The grant is
 // what the network trusts; the links are how a holder is found quickly.
 //
-// Deleting these links is coordinator-only: a delete-link action has no tag of
-// its own and carries no grant, so validation cannot see who is removing an
-// index entry. A vandal can damage the index; the grants stand, and `can`
-// reads grants. Stated as the limit rather than hidden.
+// The grant indexes (`AgentGrants`, `AllGrants`, `GrantRevocations`) are
+// never tombstoned: `can` reads the first and the last, so a tombstone would
+// hide a grant or undo a revocation for every reader. The administrator
+// roster links are tombstoned by `remove_administrator`; who may do that is
+// still open (#234's list), and `can` does not read them.
 
 /// `AllAdministrators`: path to a user entity, tag the new admin's grant.
 fn validate_create_link_all_administrators(
@@ -145,6 +146,11 @@ fn validate_entry(
 ) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
     EntryTypes::Status(status) => validate_status(status, author, is_update),
+    // A grant or a revocation is a record: never updated, as it is never
+    // deleted. An update would be the other way to rewrite one.
+    EntryTypes::RoleGrant(_) | EntryTypes::RoleRevocation(_) if is_update => Ok(
+      ValidateCallbackResult::Invalid(String::from("a grant or a revocation is never updated")),
+    ),
     EntryTypes::RoleGrant(grant) => validate_role_grant(author, &grant),
     EntryTypes::RoleRevocation(revocation) => validate_role_revocation(author, &revocation),
   }
@@ -243,7 +249,18 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         original_action.target_address.clone(),
         original_action.tag.clone(),
       ),
-      // Index links come and go with the coordinator (see ROLE INDEX LINKS).
+      // The grant indexes are what `can` reads. A tombstone on a holder's
+      // index would hide their grant from every reader; one on a revocation
+      // link would bring a revoked grant back. No coordinator tombstones
+      // them, so every such delete is a forgery.
+      LinkTypes::AgentGrants | LinkTypes::AllGrants | LinkTypes::GrantRevocations => {
+        Ok(ValidateCallbackResult::Invalid(String::from(
+          "a grant index is a record and is never tombstoned",
+        )))
+      }
+      // The administrator roster links are tombstoned by `remove_administrator`,
+      // by another administrator; a tombstone carries no grant, so who may
+      // write one is still open (#234's list). `can` does not read them.
       _ => Ok(ValidateCallbackResult::Valid),
     },
     _ => Ok(ValidateCallbackResult::Valid),

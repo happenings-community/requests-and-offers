@@ -18,7 +18,7 @@
   let {
     mediumOfExchange = null,
     mode = 'create',
-    onSubmitSuccess = (_result: UIMediumOfExchange) => {},
+    onSubmitSuccess = () => {},
     onCancel = () => {}
   }: Props = $props();
 

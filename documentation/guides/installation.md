@@ -145,20 +145,22 @@ This will:
 1. Clean the Holochain sandbox
 2. Build the hApp
 3. Start the UI server
-4. Launch the Holochain environment
-5. Start the Holochain Playground
+4. Launch the Holochain environment (one hc-spin conductor per member, on free admin ports)
+5. Serve the conductor inspector and open it in your browser
+
+To see each member's source chain and DHT state, open the inspector page: `bun start` and `bun start:web` both serve it and print its URL. `INSPECTOR_PORT` fixes its port and `WEB_OPEN=0` stops it opening (`documentation/guides/web-dev-mode.md#the-inspector`). It replaces `hc playground`, whose only build reads Holochain 0.5, not 0.7.
 
 #### Verify Development Environment
 
 After running `bun start`, you should see:
 
 1. **Terminal Output**: Multiple URLs displayed:
-   - UI servers for each agent (e.g., `http://localhost:5173`, `http://localhost:5174`)
+   - The UI server, on `UI_PORT` (`http://localhost:8880` by default)
+   - The inspector: `[inspector] http://localhost:<port>/  (conductors on admin ports <a>, <b>)`
    - Bootstrap server URL
    - Signal server URL
-   - Holochain Playground URL
 
-2. **Browser Windows**: Automatically opened browser windows for each agent
+2. **Windows**: one hc-spin window per agent, and the inspector in your browser (unless `WEB_OPEN=0`). `bun start:web` opens browser tabs instead, one per member
 
 3. **Successful Connection**: Each UI should show the main interface without connection errors
 
@@ -527,7 +529,7 @@ By default, `workdir/happ.yaml` ships with `progenitor_pubkey: ~` (null), which 
 
 For a production deployment you must set the progenitor's agent public key before building the hApp:
 
-**Using Kangaroo (recommended)**: The Kangaroo Electron app handles this automatically. It reads the creator's agent public key from the Holochain conductor admin WebSocket and injects it into DNA properties before installing the hApp. No manual configuration is needed.
+**The Kangaroo desktop app does not set it.** Its install step ([`holochainManager.ts`, `installHappIfNecessary`](https://github.com/happenings-community/requests-and-offers-kangaroo-electron/blob/8bcec07d/src/main/holochainManager.ts#L176-L190), kangaroo-electron #10 at `8bcec07d`) calls `installApp` with a fresh agent key, the app id, the network seed and the hApp path, and no role settings, so the DNA properties stay those of `workdir/happ.yaml`, where `progenitor_pubkey` is `~`. No version of the wrapper has ever written that property. A desktop network therefore runs in development mode: the first agent to create a profile on it becomes the administrator. To fix the administrator in advance, set the key yourself, as below, before the webhapp the wrapper ships is built.
 
 **Manual configuration**:
 

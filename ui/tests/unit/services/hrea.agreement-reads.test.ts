@@ -1,7 +1,12 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { Effect as E, Layer, pipe } from 'effect';
 import type { AppWebsocket } from '@holochain/client';
-import { HreaServiceLive, HreaServiceTag, type HreaService } from '@/lib/services/hrea.service';
+import {
+  HreaServiceLive,
+  HreaServiceTag,
+  normalizeEconomicEventResponse,
+  type HreaService
+} from '@/lib/services/hrea.service';
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -158,5 +163,20 @@ describe('HreaService agreement and commitment reads', () => {
     expect(await call((s) => s.getAgreements())).toEqual([]);
     mockQuery.mockRejectedValueOnce(new Error('commitments failed'));
     await expect(call((s) => s.getCommitments())).rejects.toThrow('commitments failed');
+  });
+});
+
+describe('normalizeEconomicEventResponse', () => {
+  it('flattens the Commitments an event fulfills, and leaves none when hREA names none', () => {
+    const base = {
+      id: 'e-1',
+      action: { id: 'work' },
+      provider: { id: 'a-1' },
+      receiver: { id: 'a-2' }
+    };
+    expect(
+      normalizeEconomicEventResponse({ ...base, fulfills: [{ id: 'c-prim' }] }).fulfills
+    ).toEqual(['c-prim']);
+    expect(normalizeEconomicEventResponse(base).fulfills).toBeUndefined();
   });
 });

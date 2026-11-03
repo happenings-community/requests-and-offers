@@ -121,7 +121,7 @@ Routed in the integrity zome's `validate`, every op, from the first commit, per 
 - A Response's author is the Agreement's counterparty.
 - A Completion, Review or Cancellation's author is the Agreement's provider or receiver.
 - One Response per Agreement. One Completion and one Review per party per Agreement.
-- A counter (an Agreement with `counters` set) is written by the countered proposal's counterparty, as the next action after their declining Response to it. It keeps the listing, the interest, the parties, the medium, the terms text and both services, and changes only a quantity or the timeframe. An `AgreementCounters` link is written by the counter's author, from the proposal the counter names (#333).
+- A counter (an Agreement with `counters` set) is written by the countered proposal's counterparty, as the next action after their declining Response to it. It keeps the listing, the interest, the parties, the medium, the terms text and both services, and changes only a quantity or the timeframe. A quantity on both sides keeps its unit, so a counter can turn 2 hours into 3 hours but not into 2 days; adding a quantity where there was none, or removing one, is a change of quantity. An `AgreementCounters` link is written by the counter's author, from the proposal the counter names (#333).
 - Every listing, interest and agreement hash an entry refers to is a Create, and every link base is a Create.
 
 A wrong write fails validation on every peer and never lands. The coordinator guards below are the same rules applied earlier, for a better error; the integrity rules are what make them true.

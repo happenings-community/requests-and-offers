@@ -1,4 +1,4 @@
-import { Effect as E, pipe } from 'effect';
+import { Effect as E } from 'effect';
 import { HreaError } from '$lib/errors';
 import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
 import type { UIOffer } from '$lib/types/ui';
@@ -44,7 +44,7 @@ export interface OfferProposalMappingResult {
  * - Creates a single proposal with descriptive name from offer
  * - Creates one service intent per service type offered (provider=offerer)
  * - Creates one payment intent for the medium of exchange (receiver=offerer)
- * - Links all intents to the proposal via proposeIntent
+ * - The store creates these intents first, then the proposal that publishes them (proposal-links.ts)
  */
 export const createProposalFromOffer = (
   params: OfferProposalMappingParams

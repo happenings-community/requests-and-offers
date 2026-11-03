@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import {
   setUnitRegistry,
+  unitRegistryFrom,
   actionForKind,
   mapAgreementToHrea,
   mapCompletionToEvent,
-  rnoAgreementRef
+  rnoAgreementRef,
+  agreementRefsFromHrea
 } from '$lib/services/mappers/agreement-commitment.mapper';
 import type { UIExchange } from '$lib/types/ui';
 
@@ -95,6 +97,13 @@ describe('mapCompletionToEvent', () => {
     expect(r!.action).toBe('transfer');
   });
 
+  it('fulfills the Commitment of its side, and names none when the Commitment is unknown', () => {
+    const p = mapCompletionToEvent(exchange(), 'provider', parties, specs, 'hrea-agr', 1, 'c-prim');
+    expect(p!.fulfills).toEqual(['c-prim']);
+    const unknown = mapCompletionToEvent(exchange(), 'provider', parties, specs, undefined, 1);
+    expect(unknown!.fulfills).toBeUndefined();
+  });
+
   it('carries a structured measure only for registered unit labels', () => {
     const known = mapCompletionToEvent(exchange(), 'provider', parties, specs, 'hrea-agr', 1);
     expect(known!.resourceQuantity).toEqual({ hasNumericalValue: 2, hasUnit: 'unit-hours-id' });
@@ -119,5 +128,93 @@ describe('mapCompletionToEvent', () => {
       1
     );
     expect(r).toBeNull();
+  });
+});
+
+// U15a: agreementMappings lives in memory, so after a reload the store rebuilds
+// an R&O agreement's hREA ids from hREA's own records.
+describe('agreementRefsFromHrea', () => {
+  const ref = rnoAgreementRef(exchange());
+  const agreements = [
+    { id: 'agr-other', revisionId: 'r0', note: 'someone-else' },
+    { id: 'agr-1', revisionId: 'r1', note: ref }
+  ];
+  const commitment = (id: string, provider: string, receiver: string, clauseOf?: string) => ({
+    id,
+    revisionId: `${id}-rev`,
+    action: 'work',
+    provider,
+    receiver,
+    clauseOf
+  });
+
+  it('finds the agreement by its note and tells the two commitments apart by provider', () => {
+    const commitments = [
+      commitment('c-elsewhere', 'agent-p', 'agent-r', 'agr-other'),
+      commitment('c-recip', 'agent-r', 'agent-p', 'agr-1'),
+      commitment('c-prim', 'agent-p', 'agent-r', 'agr-1')
+    ];
+    expect(agreementRefsFromHrea(ref, parties, agreements, commitments)).toEqual({
+      agreementId: 'agr-1',
+      primaryCommitmentId: 'c-prim',
+      primaryRevisionId: 'c-prim-rev',
+      reciprocalCommitmentId: 'c-recip',
+      reciprocalRevisionId: 'c-recip-rev'
+    });
+  });
+
+  it('leaves the reciprocal out for a gift, which has one commitment', () => {
+    const refs = agreementRefsFromHrea(ref, parties, agreements, [
+      commitment('c-prim', 'agent-p', 'agent-r', 'agr-1')
+    ]);
+    expect(refs?.reciprocalCommitmentId).toBeUndefined();
+    expect(refs?.primaryCommitmentId).toBe('c-prim');
+  });
+
+  it('returns null when hREA holds no agreement for this R&O hash, or no primary commitment', () => {
+    expect(agreementRefsFromHrea('unknown', parties, agreements, [])).toBeNull();
+    expect(
+      agreementRefsFromHrea(ref, parties, agreements, [
+        commitment('c-recip', 'agent-r', 'agent-p', 'agr-1')
+      ])
+    ).toBeNull();
+  });
+
+  it('of two Agreements carrying the same R&O hash, takes the one whose primary Commitment exists', () => {
+    // A half-written earlier mirror: an Agreement whose Commitments were never written.
+    const twice = [
+      { id: 'agr-half', revisionId: 'rh', note: ref },
+      { id: 'agr-1', revisionId: 'r1', note: ref }
+    ];
+    const refs = agreementRefsFromHrea(ref, parties, twice, [commitment('c-prim', 'agent-p', 'agent-r', 'agr-1')]);
+    expect(refs?.agreementId).toBe('agr-1');
+    expect(refs?.primaryCommitmentId).toBe('c-prim');
+  });
+});
+
+describe('unitRegistryFrom (#441)', () => {
+  // Two members seeded at once: two Units per label, each member reading them in its own order.
+  const units = [
+    { id: 'uhCkkB:dna', label: 'hours', symbol: 'h' },
+    { id: 'uhCkkA:dna', label: 'hours', symbol: 'h' },
+    { id: 'uhCkkD:dna', label: 'days', symbol: 'd' },
+    { id: 'uhCkkC:dna', label: 'days', symbol: 'd' },
+    { id: 'uhCkkE:dna', label: 'each', symbol: 'ea' }
+  ];
+
+  it('resolves every label to the same Unit whatever order the Units arrive in', () => {
+    expect(unitRegistryFrom(units)).toEqual(unitRegistryFrom([...units].reverse()));
+  });
+
+  it('picks the lowest id for a label held twice', () => {
+    expect(unitRegistryFrom(units)).toEqual({
+      hours: 'uhCkkA:dna',
+      days: 'uhCkkC:dna',
+      each: 'uhCkkE:dna'
+    });
+  });
+
+  it('is empty for no Units', () => {
+    expect(unitRegistryFrom([])).toEqual({});
   });
 });

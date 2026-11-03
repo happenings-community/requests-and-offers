@@ -262,14 +262,16 @@ pub fn root_is_valid<D: Serialize + std::fmt::Debug>(
   match DnaProperties::get_progenitor_pubkey()? {
     None => Ok(None),
     Some(progenitor) => {
+      // The signature first, then the author: a body nobody signed is refused
+      // for the signature, a signed body written by someone else for the author.
+      if !verify_signature(progenitor.clone(), signature.clone(), payload)? {
+        return Ok(Some(Err(
+          "the root grant is not signed by the progenitor key".to_string(),
+        )));
+      }
       if author != &progenitor {
         return Ok(Some(Err(
           "the root grant is written by the progenitor".to_string(),
-        )));
-      }
-      if !verify_signature(progenitor, signature.clone(), payload)? {
-        return Ok(Some(Err(
-          "the root grant is not signed by the progenitor key".to_string(),
         )));
       }
       Ok(Some(Ok(())))

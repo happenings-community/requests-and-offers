@@ -17,6 +17,7 @@ import {
   actionLabel,
   awaitingMe,
   counterpartyOf,
+  proposalCounterparty,
   doneBy,
   exchangeStatusVariant,
   formatWhen,
@@ -384,5 +385,32 @@ describe('exchange-ui', () => {
       // action timestamps are microseconds and land fifty millennia out.
       expect(formatWhen(Date.UTC(2026, 8, 14) * 1000)).not.toMatch(/2026/);
     });
+  });
+});
+
+describe('proposalCounterparty', () => {
+  const author = new Uint8Array([1, 1, 1]) as ActionHash;
+  const member = new Uint8Array([2, 2, 2]) as ActionHash;
+
+  it('is the interested member when the listing author proposes', () => {
+    expect(proposalCounterparty(author, member, new Uint8Array([1, 1, 1]) as ActionHash)).toBe(
+      member
+    );
+  });
+
+  it('is the listing author when anyone else proposes', () => {
+    expect(proposalCounterparty(author, member, new Uint8Array([2, 2, 2]) as ActionHash)).toBe(
+      author
+    );
+  });
+
+  it('falls back to the author while the viewer is not known yet', () => {
+    expect(proposalCounterparty(author, member, undefined)).toBe(author);
+  });
+
+  it('is unknown when the author proposes and the interest has no member', () => {
+    expect(
+      proposalCounterparty(author, undefined, new Uint8Array([1, 1, 1]) as ActionHash)
+    ).toBeUndefined();
   });
 });

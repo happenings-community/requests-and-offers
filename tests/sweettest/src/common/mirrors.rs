@@ -56,6 +56,8 @@ pub struct Status {
     pub suspended_until: Option<String>,
     #[serde(default)]
     pub grant: Option<ActionHash>,
+    #[serde(default)]
+    pub entity: Option<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(Status);
 

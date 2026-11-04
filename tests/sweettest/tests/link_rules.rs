@@ -84,6 +84,31 @@ fn reason<T, E: std::fmt::Debug>(outcome: Result<T, E>) -> Result<T, String> {
     outcome.map_err(|e| format!("{e:?}"))
 }
 
+/// The root of a record's update chain, walked through the forge's `get`.
+async fn chain_root_of(conductor: &SweetConductor, mallory: &SweetCell, mut hash: ActionHash) -> ActionHash {
+    loop {
+        let record: Option<Record> = conductor
+            .call(&mallory.zome("forge"), "forge_get", hash.clone())
+            .await;
+        match &record.expect("a record on the chain").action().data {
+            ActionData::Update(update) => hash = update.original_action_address.clone(),
+            _ => return hash,
+        }
+    }
+}
+
+/// An entity's latest status record, as this conductor reads it.
+async fn latest_status(conductor: &SweetConductor, cell: &SweetCell, user: &ActionHash) -> Record {
+    let record: Option<Record> = conductor
+        .call(
+            &cell.zome("administration"),
+            "get_latest_status_record_for_entity",
+            serde_json::json!({ "entity": ENTITY_USERS, "entity_original_action_hash": user }),
+        )
+        .await;
+    record.expect("a status")
+}
+
 async fn forge_link(
     conductor: &SweetConductor,
     mallory: &SweetCell,
@@ -169,6 +194,10 @@ const SERVICE_TYPE_STATUS: u8 = 1;
 
 // ── Link type indexes, from the integrity zomes' enums ──────────────────────
 
+/// `administration_integrity::LinkTypes` and its first entry type.
+const STATUS_UPDATES: u8 = 2;
+const ENTITY_STATUS: u8 = 4;
+const STATUS_ENTRY: u8 = 0;
 /// `users_organizations_integrity::LinkTypes`.
 const ALL_USERS: u8 = 1;
 const MY_USER: u8 = 2;
@@ -523,4 +552,197 @@ async fn only_a_listings_creator_tombstones_it() {
         .call(&mallory.zome("requests"), "get_latest_request_record", request)
         .await;
     assert!(gone.is_none(), "the creator's own tombstone is written");
+}
+
+// ── Status links ────────────────────────────────────────────────────────────
+
+/// The latest status of an entity is read by following `StatusUpdates` links
+/// from its first status. Mallory is pending. She links her own first status
+/// to Alice's accepted status, a real record with a real administrator's
+/// grant, which would make every reader see her as accepted. Refused: the
+/// target is not a revision of the base. She stays pending.
+///
+/// Red: in `administration_integrity/src/status.rs`,
+/// `validate_create_link_status_updates`, return `Valid` after the two
+/// entry checks instead of walking the target's chain to the base.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_status_update_link_points_at_a_revision_of_its_base() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    for (i, cell) in [alice, &mallory].iter().enumerate() {
+        conductors[i]
+            .call::<_, Record>(&cell.zome("users_organizations"), "create_user", sample_user(format!("Agent {i}")))
+            .await;
+    }
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    let alices_user = user_of(&conductors[0], alice).await;
+    let mallorys_user = user_of(&conductors[1], &mallory).await;
+    // Alice accepts herself; Mallory stays pending.
+    accept_entity(&conductors[0], alice, ENTITY_USERS, alices_user.clone()).await;
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    let administration = zome_index(&conductors[1], &mallory, "administration_integrity").await;
+
+    let alices_accepted = latest_status(&conductors[1], &mallory, &alices_user).await;
+    let accepted: Status = alices_accepted.entry().to_app_option().unwrap().unwrap();
+    assert_eq!(accepted.status_type, "accepted", "Alice's latest status is accepted");
+    let mallorys_first = latest_status(&conductors[1], &mallory, &mallorys_user).await;
+
+    let forged = forge_link(
+        &conductors[1],
+        &mallory,
+        mallorys_first.action_address().clone().into(),
+        alices_accepted.action_address().clone().into(),
+        administration,
+        STATUS_UPDATES,
+        vec![],
+    )
+    .await;
+    refused(&forged, "a revision of its base", "a StatusUpdates link to someone else's accepted status");
+
+    let still: Status = latest_status(&conductors[0], alice, &mallorys_user)
+        .await
+        .entry()
+        .to_app_option()
+        .unwrap()
+        .unwrap();
+    assert_eq!(still.status_type, "pending", "Mallory is still pending as Alice reads her");
+}
+
+/// An entity's current status is the one its `EntityStatus` link points at,
+/// and a status names the entity it is for. Mallory links Alice's profile to
+/// Mallory's own pending status: refused, the status names another entity,
+/// although Mallory wrote it. Then, with no progenitor key, she forges
+/// herself a root admin grant and writes an accepted status for her own
+/// profile the honest way; linking Alice's profile to that is refused for the
+/// same reason. Alice's status is unchanged.
+///
+/// Red: in `administration_integrity/src/status.rs`,
+/// `validate_create_link_entity_status`, remove the comparison of the base
+/// with `status.entity`.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_entity_status_link_hangs_from_the_entity_its_status_names() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, false).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let administration = zome_index(&conductors[1], &mallory, "administration_integrity").await;
+
+    // Mallory's latest status is the accepted one Alice wrote; the root of its
+    // chain is the pending one Mallory wrote herself, which she may point at.
+    let latest = latest_status(&conductors[1], &mallory, &users[1]).await;
+    let first = chain_root_of(&conductors[1], &mallory, latest.action_address().clone()).await;
+
+    let forged = forge_link(
+        &conductors[1],
+        &mallory,
+        users[0].clone().into(),
+        first.into(),
+        administration,
+        ENTITY_STATUS,
+        vec![],
+    )
+    .await;
+    refused(&forged, "hangs from the entity its status names", "linking Alice's profile to Mallory's status");
+
+    // As a forged administrator (no key: any root is accepted), Mallory writes
+    // a real accepted status, naming her own profile, and points Alice at it.
+    let root = forge_entry(
+        &conductors[1],
+        &mallory,
+        administration,
+        1,
+        RoleGrant {
+            role: "admin".to_string(),
+            holder: mallory.agent_pubkey().clone(),
+            scope: None,
+            authority: Authority::Progenitor { signature: Signature([0; 64]) },
+        },
+    )
+    .await
+    .expect("without a key Mallory's root is accepted");
+    let accepted = forge_entry(
+        &conductors[1],
+        &mallory,
+        administration,
+        STATUS_ENTRY,
+        Status {
+            status_type: "accepted".to_string(),
+            reason: None,
+            suspended_until: None,
+            grant: Some(root),
+            entity: Some(users[1].clone()),
+        },
+    )
+    .await
+    .expect("an accepted status with a held admin grant, naming her own profile, is valid");
+    let pointed = forge_link(
+        &conductors[1],
+        &mallory,
+        users[0].clone().into(),
+        accepted.into(),
+        administration,
+        ENTITY_STATUS,
+        vec![],
+    )
+    .await;
+    refused(&pointed, "hangs from the entity its status names", "linking Alice's profile to a status written for Mallory");
+
+    let alices: Status = latest_status(&conductors[0], alice, &users[0])
+        .await
+        .entry()
+        .to_app_option()
+        .unwrap()
+        .unwrap();
+    assert_eq!(alices.status_type, "accepted", "Alice's status is her own, unchanged");
+    assert_eq!(alices.entity, Some(users[0].clone()), "and it names her profile");
+}
+
+/// A status keeps its entity: a revision names the same entity as the first
+/// status in its chain. Mallory, a forged administrator, updates her own
+/// status to accepted but names Alice's profile. Refused.
+///
+/// Red: in `administration_integrity/src/status.rs`, `validate_status`,
+/// remove the `if let Some(updated) = updates` block.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_status_keeps_its_entity() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, false).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let administration = zome_index(&conductors[1], &mallory, "administration_integrity").await;
+
+    let root = forge_entry(
+        &conductors[1],
+        &mallory,
+        administration,
+        1,
+        RoleGrant {
+            role: "admin".to_string(),
+            holder: mallory.agent_pubkey().clone(),
+            scope: None,
+            authority: Authority::Progenitor { signature: Signature([0; 64]) },
+        },
+    )
+    .await
+    .expect("without a key Mallory's root is accepted");
+    let current = latest_status(&conductors[1], &mallory, &users[1]).await.action_address().clone();
+
+    let moved = reason(
+        conductors[1]
+            .call_fallible::<_, ActionHash>(
+                &mallory.zome("forge"),
+                "forge_update",
+                serde_json::json!({
+                    "original_action_hash": current,
+                    "entry": SerializedBytes::try_from(Status {
+                        status_type: "accepted".to_string(),
+                        reason: None,
+                        suspended_until: None,
+                        grant: Some(root),
+                        entity: Some(users[0].clone()),
+                    })
+                    .unwrap(),
+                }),
+            )
+            .await,
+    );
+    refused(&moved, "keeps its entity", "a status revision naming another entity");
 }

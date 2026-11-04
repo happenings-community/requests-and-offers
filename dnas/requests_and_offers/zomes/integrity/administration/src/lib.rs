@@ -142,10 +142,11 @@ fn deleted_entry(action: &TypedAction<DeleteData>) -> ExternResult<Result<EntryT
 fn validate_entry(
   app_entry: EntryTypes,
   author: &AgentPubKey,
-  is_update: bool,
+  updates: Option<&ActionHash>,
 ) -> ExternResult<ValidateCallbackResult> {
+  let is_update = updates.is_some();
   match app_entry {
-    EntryTypes::Status(status) => validate_status(status, author, is_update),
+    EntryTypes::Status(status) => validate_status(status, author, is_update, updates),
     // A grant or a revocation is a record: never updated, as it is never
     // deleted. An update would be the other way to rewrite one.
     EntryTypes::RoleGrant(_) | EntryTypes::RoleRevocation(_) if is_update => Ok(
@@ -184,19 +185,29 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, action } => validate_entry(app_entry, action.author(), false),
-      OpEntry::UpdateEntry { app_entry, action, .. } => {
-        validate_entry(app_entry, action.author(), true)
+      OpEntry::CreateEntry { app_entry, action } => {
+        validate_entry(app_entry, action.author(), None)
       }
+      OpEntry::UpdateEntry {
+        app_entry, action, ..
+      } => validate_entry(
+        app_entry,
+        action.author(),
+        Some(&action.data.original_action_address),
+      ),
       _ => Ok(ValidateCallbackResult::Valid),
     },
     FlatOp::CreateRecord(store_record) => match store_record {
       OpRecord::CreateEntry { app_entry, action } => {
-        validate_entry(app_entry, action.author(), false)
+        validate_entry(app_entry, action.author(), None)
       }
-      OpRecord::UpdateEntry { app_entry, action, .. } => {
-        validate_entry(app_entry, action.author(), true)
-      }
+      OpRecord::UpdateEntry {
+        app_entry, action, ..
+      } => validate_entry(
+        app_entry,
+        action.author(),
+        Some(&action.data.original_action_address),
+      ),
       // Nothing in this zome is deleted: a status is a history, a grant or a
       // revocation is the record an act rests on. Routed here rather than left
       // to fall through (#234).
@@ -226,7 +237,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         LinkTypes::AgentGrants => validate_grant_index_link(author, base, target, tag, true),
         LinkTypes::AllGrants => validate_grant_index_link(author, base, target, tag, false),
         LinkTypes::GrantRevocations => validate_grant_revocation_link(author, base, target),
-        LinkTypes::EntityStatus => validate_create_link_entity_status(author, target),
+        LinkTypes::EntityStatus => validate_create_link_entity_status(author, base, target),
         LinkTypes::AcceptedEntity => validate_create_link_accepted_entity(author, tag),
         LinkTypes::StatusUpdates => validate_create_link_status_updates(
           action.clone(),
@@ -284,6 +295,7 @@ mod record_op_tests {
       reason: None,
       suspended_until: None,
       grant: None,
+      entity: None,
     }
     .try_into()
     .unwrap()

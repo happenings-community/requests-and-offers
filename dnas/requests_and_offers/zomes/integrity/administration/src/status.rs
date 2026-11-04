@@ -4,7 +4,7 @@ use chrono::Duration;
 use hdi::prelude::*;
 use utils::{
   errors::CommonError,
-  grants::{check_act, Ability},
+  grants::{chain_root, check_act, Ability},
 };
 
 /// Canonical set of status type discriminants used to validate `Status.status_type` strings.
@@ -50,6 +50,11 @@ impl FromStr for StatusType {
 /// - `suspended_until` — RFC 3339 timestamp string; only present for `"suspended temporarily"`.
 /// - `grant` — the admin or steward grant the change rests on. Absent
 ///   only on the `"pending"` status an entity's own author writes at creation.
+/// - `entity` — the original action hash of the entity (a user, an organisation)
+///   this status is for. A status names its entity so that the links that hang
+///   from it can be checked against it: an `EntityStatus` link's base must be
+///   this entity, and a revision keeps it. Written by the coordinator; the
+///   interface never sets it, hence the serde default on the way in.
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct Status {
@@ -58,6 +63,8 @@ pub struct Status {
   pub suspended_until: Option<String>,
   #[serde(default)]
   pub grant: Option<ActionHash>,
+  #[serde(default)]
+  pub entity: Option<ActionHash>,
 }
 
 impl Status {
@@ -68,6 +75,7 @@ impl Status {
       reason: None,
       suspended_until: None,
       grant: None,
+      entity: None,
     }
   }
 
@@ -78,6 +86,7 @@ impl Status {
       reason: None,
       suspended_until: None,
       grant: None,
+      entity: None,
     }
   }
 
@@ -88,6 +97,7 @@ impl Status {
       reason: None,
       suspended_until: None,
       grant: None,
+      entity: None,
     }
   }
 
@@ -98,6 +108,7 @@ impl Status {
       reason: None,
       suspended_until: None,
       grant: None,
+      entity: None,
     }
   }
 
@@ -118,6 +129,7 @@ impl Status {
         reason: Some(reason.to_string()),
         suspended_until: Some(Timestamp::from_micros(now + duration).to_string()),
         grant: None,
+      entity: None,
       };
     }
 
@@ -126,6 +138,7 @@ impl Status {
       reason: Some(reason.to_string()),
       suspended_until: None,
       grant: None,
+      entity: None,
     }
   }
 
@@ -188,6 +201,12 @@ impl Status {
     }
     false
   }
+
+  /// The same status, naming the entity it is for.
+  pub fn for_entity(mut self, entity: ActionHash) -> Self {
+    self.entity = Some(entity);
+    self
+  }
 }
 
 /// Validates that a `Status` entry conforms to the zome's business rules.
@@ -200,10 +219,13 @@ impl Status {
 /// 5. A status change is a role act: every update, and any created status other than
 ///    `"pending"`, carries an admin or steward grant held by its author. The `"pending"`
 ///    status an entity's author writes at creation is the one write without a grant.
+/// 6. A status names its entity: an existing record, and on a revision the same one
+///    the chain's root names. `updates` is the action a revision updates.
 pub fn validate_status(
   status: Status,
   author: &AgentPubKey,
   is_update: bool,
+  updates: Option<&ActionHash>,
 ) -> ExternResult<ValidateCallbackResult> {
   if StatusType::from_str(&status.status_type).is_err() {
     return Ok(ValidateCallbackResult::Invalid(format!(
@@ -230,6 +252,34 @@ pub fn validate_status(
     )));
   }
 
+  let Some(entity) = &status.entity else {
+    return Ok(ValidateCallbackResult::Invalid(String::from(
+      "a status names the entity it is for",
+    )));
+  };
+  let entity_record = must_get_valid_record(entity.clone())?;
+  if !matches!(entity_record.action().data, ActionData::Create(_)) {
+    return Ok(ValidateCallbackResult::Invalid(String::from(
+      "a status names its entity by the entity's original action",
+    )));
+  }
+  if let Some(updated) = updates {
+    let root = match chain_root(updated)? {
+      Ok((root, _)) => root,
+      Err(reason) => return Ok(ValidateCallbackResult::Invalid(reason)),
+    };
+    let first: Status = must_get_valid_record(root)?
+      .entry()
+      .to_app_option()
+      .map_err(CommonError::Serialize)?
+      .ok_or(CommonError::EntryNotFound("status".to_string()))?;
+    if first.entity.as_ref() != Some(entity) {
+      return Ok(ValidateCallbackResult::Invalid(String::from(
+        "a status keeps its entity",
+      )));
+    }
+  }
+
   if is_update || status.status_type != "pending" {
     if let Err(reason) = check_act(&status.grant, author, &Ability::ChangeStatus, &None)? {
       return Ok(ValidateCallbackResult::Invalid(format!(
@@ -242,11 +292,13 @@ pub fn validate_status(
   Ok(ValidateCallbackResult::Valid)
 }
 
-/// An `EntityStatus` link is written by the author of the status it points at: an
-/// entity's own author linking their `"pending"` status, or the administrator or steward
-/// linking the change they made. Nobody links an entity to someone else's status.
+/// An `EntityStatus` link hangs from the entity its status names, and is written by the
+/// author of that status: an entity's own author linking their `"pending"` status, or the
+/// administrator or steward linking the change they made. Nobody links an entity to
+/// someone else's status, and nobody links a status to an entity it was not written for.
 pub fn validate_create_link_entity_status(
   link_author: &AgentPubKey,
+  base_address: &AnyLinkableHash,
   target_address: &AnyLinkableHash,
 ) -> ExternResult<ValidateCallbackResult> {
   let Some(status_hash) = target_address.clone().into_action_hash() else {
@@ -255,14 +307,19 @@ pub fn validate_create_link_entity_status(
     )));
   };
   let record = must_get_valid_record(status_hash)?;
-  if record.entry().to_app_option::<Status>().ok().flatten().is_none() {
+  let Some(status) = record.entry().to_app_option::<Status>().ok().flatten() else {
     return Ok(ValidateCallbackResult::Invalid(String::from(
       "An EntityStatus link points at a status record",
     )));
-  }
+  };
   if record.action().author() != link_author {
     return Ok(ValidateCallbackResult::Invalid(String::from(
       "An EntityStatus link is written by the author of the status it points at",
+    )));
+  }
+  if base_address.clone().into_action_hash().as_ref() != status.entity.as_ref() {
+    return Ok(ValidateCallbackResult::Invalid(String::from(
+      "An EntityStatus link hangs from the entity its status names",
     )));
   }
   Ok(ValidateCallbackResult::Valid)
@@ -298,35 +355,54 @@ pub fn validate_delete_status(
   )))
 }
 
-/// Validates a `StatusUpdates` link creation by asserting both base and target resolve to
-/// valid `Status` entries. This ensures the update chain only links status-to-status.
+/// A `StatusUpdates` link runs from the root of a status chain to one of its revisions:
+/// the target is an `Update` whose chain reaches the base, written by the link's author.
+/// Readers follow these links to the latest status, so a link to a status outside the
+/// chain — someone else's accepted status, say — would be a forged approval.
 pub fn validate_create_link_status_updates(
-  _action: TypedAction<CreateLinkData>,
+  action: TypedAction<CreateLinkData>,
   base_address: AnyLinkableHash,
   target_address: AnyLinkableHash,
   _tag: LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-  let action_hash = base_address
+  let base = base_address
     .into_action_hash()
     .ok_or(CommonError::ActionHashNotFound("status".to_string()))?;
-  let record = must_get_valid_record(action_hash)?;
+  let record = must_get_valid_record(base.clone())?;
   let _status: Status = record
     .entry()
     .to_app_option()
     .map_err(CommonError::Serialize)?
     .ok_or(CommonError::EntryNotFound("status".to_string()))?;
 
-  // Check the entry type for the given action hash
-  let action_hash = target_address
+  let target = target_address
     .into_action_hash()
     .ok_or(CommonError::ActionHashNotFound("status".to_string()))?;
-  let record = must_get_valid_record(action_hash)?;
+  let record = must_get_valid_record(target.clone())?;
   let _status: Status = record
     .entry()
     .to_app_option()
     .map_err(CommonError::Serialize)?
     .ok_or(CommonError::EntryNotFound("status".to_string()))?;
-
+  let ActionData::Update(update) = &record.action().data else {
+    return Ok(ValidateCallbackResult::Invalid(String::from(
+      "A StatusUpdates link points at a revision of its base",
+    )));
+  };
+  match chain_root(&update.original_action_address)? {
+    Ok((root, _)) if root == base => {}
+    Ok(_) => {
+      return Ok(ValidateCallbackResult::Invalid(String::from(
+        "A StatusUpdates link points at a revision of its base",
+      )))
+    }
+    Err(reason) => return Ok(ValidateCallbackResult::Invalid(reason)),
+  }
+  if record.action().author() != action.author() {
+    return Ok(ValidateCallbackResult::Invalid(String::from(
+      "A StatusUpdates link is written by the author of the revision it points at",
+    )));
+  }
   Ok(ValidateCallbackResult::Valid)
 }
 

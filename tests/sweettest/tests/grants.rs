@@ -881,6 +881,7 @@ async fn a_status_change_carries_the_administrators_grant() {
         reason: None,
         suspended_until: None,
         grant,
+        entity: Some(users[1].clone()),
     };
     let without = forge_update(
         &conductors[1],

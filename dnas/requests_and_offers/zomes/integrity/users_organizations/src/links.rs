@@ -5,7 +5,8 @@
 
 use hdi::prelude::*;
 use utils::links::{
-  check_create, check_delete, check_end, verdict, End, Spec, Tombstone, Writer, ORGANIZATION, ORGANIZATION_RETIREMENT, STATUS, USER,
+  check_create, check_delete, check_end, check_membership_act, membership_end_from_tag, verdict, End, Spec,
+  Tombstone, Writer, MEMBERSHIP_END, ORGANIZATION, ORGANIZATION_RETIREMENT, STATUS, USER,
 };
 
 use crate::LinkTypes;
@@ -46,16 +47,24 @@ fn spec(link_type: &LinkTypes) -> Option<Spec> {
       writer: Writer::AuthorOfBoth,
       tombstone: Tombstone::Never,
     },
-    // Written by an organisation's creator for themselves, and by a
-    // coordinator or administrator for a new member, with no grant in the
-    // tag; tombstoned by a member leaving, a coordinator, or the
-    // organisation's removal. Open until membership is held in entries.
+    // An index from a user to the organisations they joined. Written by the
+    // user themselves, or by a coordinator or administrator whose grant is in
+    // the tag (`validate_user_organizations_link`). Never tombstoned: leaving
+    // or removal writes a `MembershipEnd`.
     LinkTypes::UserOrganizations => Spec {
       name: "UserOrganizations",
       base: End::Record(&[USER]),
       target: End::Record(&[ORGANIZATION]),
       writer: Writer::Open,
-      tombstone: Tombstone::Open,
+      tombstone: Tombstone::Never,
+    },
+    // From an organisation to a membership end, written by its author.
+    LinkTypes::MembershipEnds => Spec {
+      name: "MembershipEnds",
+      base: End::Record(&[ORGANIZATION]),
+      target: End::Record(&[MEMBERSHIP_END]),
+      writer: Writer::AuthorOfTarget,
+      tombstone: Tombstone::Never,
     },
     // Written by the creator. An organisation is retired, never tombstoned,
     // so neither is its place in the directory: readers skip retired ones.
@@ -146,6 +155,62 @@ fn validate_retirement_link(
   ))
 }
 
+/// A user's link to an organisation: the shape, then the writer is the user
+/// themselves, or a coordinator or administrator whose grant is in the tag.
+fn validate_user_organizations_link(
+  author: &AgentPubKey,
+  base: &AnyLinkableHash,
+  target: &AnyLinkableHash,
+  tag: &LinkTag,
+) -> ExternResult<ValidateCallbackResult> {
+  let name = "UserOrganizations";
+  if let Err(reason) = check_end(base, &End::Record(&[USER]), "base")? {
+    return Ok(verdict(Err(reason), name));
+  }
+  if let Err(reason) = check_end(target, &End::Record(&[ORGANIZATION]), "target")? {
+    return Ok(verdict(Err(reason), name));
+  }
+  let (Some(user), Some(organization)) = (base.clone().into_action_hash(), target.clone().into_action_hash()) else {
+    return Ok(verdict(Err("both ends must be records".into()), name));
+  };
+  let grant = if tag.0.is_empty() { None } else { utils::grants::grant_from_tag(tag).ok() };
+  Ok(verdict(check_membership_act(&organization, &user, &grant, author)?, name))
+}
+
+/// A link from an organisation to a membership end: the general rule, the end
+/// names this organisation, and the tag names exactly the links the end closes.
+fn validate_membership_end_link(
+  author: &AgentPubKey,
+  base: &AnyLinkableHash,
+  target: &AnyLinkableHash,
+  tag: &LinkTag,
+) -> ExternResult<ValidateCallbackResult> {
+  let Some(spec) = spec(&LinkTypes::MembershipEnds) else {
+    return Ok(ValidateCallbackResult::Valid);
+  };
+  let named = match membership_end_from_tag(tag) {
+    Ok(named) => named,
+    Err(reason) => return Ok(verdict(Err(reason), spec.name)),
+  };
+  match check_create(&spec, author, base, target, &LinkTag::new(vec![]))? {
+    ValidateCallbackResult::Valid => (),
+    other => return Ok(other),
+  }
+  let Some(end_hash) = target.clone().into_action_hash() else {
+    return Ok(verdict(Err("the link's target must be a record".into()), spec.name));
+  };
+  let record = must_get_valid_record(end_hash)?;
+  let end: crate::MembershipEnd = match record.entry().to_app_option() {
+    Ok(Some(end)) => end,
+    _ => return Ok(verdict(Err("the membership end could not be read".into()), spec.name)),
+  };
+  let matches = base.clone().into_action_hash() == Some(end.organization) && end.links == named;
+  Ok(verdict(
+    if matches { Ok(()) } else { Err("the link must name the end's organisation and the links it closes".into()) },
+    spec.name,
+  ))
+}
+
 /// Routes a create for a type this module covers. `None` for the four types
 /// `lib.rs` routes itself.
 pub fn validate_create_link(
@@ -160,6 +225,12 @@ pub fn validate_create_link(
   }
   if matches!(link_type, LinkTypes::OrganizationRetirements) {
     return validate_retirement_link(author, base, target, tag);
+  }
+  if matches!(link_type, LinkTypes::UserOrganizations) {
+    return validate_user_organizations_link(author, base, target, tag);
+  }
+  if matches!(link_type, LinkTypes::MembershipEnds) {
+    return validate_membership_end_link(author, base, target, tag);
   }
   match spec(link_type) {
     Some(spec) => check_create(&spec, author, base, target, tag),

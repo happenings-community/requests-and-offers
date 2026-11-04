@@ -203,11 +203,26 @@ holochain_serialized_bytes::holochain_serial!(OrganizationRetirement);
 /// `OrganizationRetirement` is the third entry type of `users_organizations_integrity`.
 const ORGANIZATION_RETIREMENT: u8 = 2;
 
+/// Mirror of `MembershipEnd` in `users_organizations_integrity`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MembershipEnd {
+    organization: ActionHash,
+    user: ActionHash,
+    links: Vec<ActionHash>,
+    grant: Option<ActionHash>,
+}
+holochain_serialized_bytes::holochain_serial!(MembershipEnd);
+
+/// `MembershipEnd` is the fourth entry type of `users_organizations_integrity`.
+const MEMBERSHIP_END: u8 = 3;
+
 // ── Link type indexes, from the integrity zomes' enums ──────────────────────
 
 /// `users_organizations_integrity::LinkTypes`.
 const ALL_USERS: u8 = 1;
 const MY_USER: u8 = 2;
+const USER_ORGANIZATIONS: u8 = 5;
+const ORGANIZATION_MEMBERS: u8 = 9;
 /// `offers_integrity::LinkTypes`.
 const ALL_OFFERS: u8 = 1;
 /// `service_types_integrity::LinkTypes`.
@@ -648,4 +663,269 @@ async fn retiring_an_organisation_needs_a_grant_for_it() {
         .call(&mallory.zome("users_organizations"), "get_latest_organization_record", alices)
         .await;
     assert!(alices_still.is_some(), "Alice's organisation is untouched");
+}
+
+async fn membership(conductor: &SweetConductor, cell: &SweetCell, organization: &ActionHash, user: &ActionHash) -> bool {
+    conductor
+        .call(
+            &cell.zome("users_organizations"),
+            "is_organization_member",
+            serde_json::json!({
+                "organization_original_action_hash": organization,
+                "user_original_action_hash": user,
+            }),
+        )
+        .await
+}
+
+/// A membership link is an index, never tombstoned: a tombstone carries no
+/// grant, so validation could not tell a coordinator from a stranger. Alice
+/// adds Mallory to her organisation; Mallory tries to tombstone the member
+/// link Alice wrote, and refused. She leaves through the app instead: she is
+/// no longer a member, and the link is still there. Alice adds her again and
+/// she reads as a member: the new link is newer than the end.
+///
+/// Red: in `users_organizations_integrity/src/lib.rs`, route
+/// `OrganizationMembers` tombstones to `links::validate_delete_link` again.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_membership_link_is_never_tombstoned() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let alices = approved_organization(&conductors, 0, alice, alice, "Alice's", &[alice, &mallory]).await;
+    let pair = serde_json::json!({
+        "organization_original_action_hash": alices,
+        "user_original_action_hash": users[1],
+    });
+    let _: bool = conductors[0]
+        .call(&alice.zome("users_organizations"), "add_member_to_organization", pair.clone())
+        .await;
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+
+    let links: Vec<Link> = conductors[1]
+        .call(&mallory.zome("users_organizations"), "get_organization_members_links", alices.clone())
+        .await;
+    let hers = links
+        .iter()
+        .find(|l| l.target.clone().into_action_hash() == Some(users[1].clone()))
+        .expect("Mallory's member link")
+        .create_link_hash
+        .clone();
+    let tombstone = reason(
+        conductors[1]
+            .call_fallible::<_, ActionHash>(&mallory.zome("forge"), "forge_delete_link", hers)
+            .await,
+    );
+    refused(&tombstone, "never tombstoned", "a tombstone of a member link");
+
+    let _: bool = conductors[1]
+        .call(&mallory.zome("users_organizations"), "leave_organization", alices.clone())
+        .await;
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+    assert!(!membership(&conductors[0], alice, &alices, &users[1]).await, "Mallory has left");
+
+    let _: bool = conductors[0]
+        .call(&alice.zome("users_organizations"), "add_member_to_organization", pair)
+        .await;
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+    assert!(membership(&conductors[0], alice, &alices, &users[1]).await, "Mallory rejoined");
+}
+
+/// Ending someone else's membership, or writing their link to an
+/// organisation, is a role act. Mallory is an accepted member with no role in
+/// Alice's organisation. She forges an end of Alice's membership carrying her
+/// member grant, and a link from Alice's profile to an organisation, with no
+/// grant: both refused. Alice is still a member.
+///
+/// Mallory then forges an end of her own place that names Alice's member
+/// link: refused, because an end names only links between its organisation
+/// and its member.
+///
+/// Red: in `utils/src/links.rs`, return `Ok(Ok(()))` from
+/// `check_membership_act` without checking the grant. (The misnamed end goes
+/// red separately when `closes` in `organization.rs` returns `Ok(())`.)
+#[tokio::test(flavor = "multi_thread")]
+async fn ending_someone_elses_membership_needs_a_grant() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let alices = approved_organization(&conductors, 0, alice, alice, "Alice's", &[alice, &mallory]).await;
+    let index = zome_index(&conductors[1], &mallory, "users_organizations_integrity").await;
+
+    let member = role_grant(&conductors[1], &mallory, "member").await;
+    let alices_links: Vec<Link> = conductors[1]
+        .call(&mallory.zome("users_organizations"), "get_organization_members_links", alices.clone())
+        .await;
+    let alices_link = alices_links
+        .iter()
+        .find(|l| l.target.clone().into_action_hash() == Some(users[0].clone()))
+        .expect("Alice's member link")
+        .create_link_hash
+        .clone();
+    let forged_end = forge_entry(
+        &conductors[1],
+        &mallory,
+        index,
+        MEMBERSHIP_END,
+        MembershipEnd {
+            organization: alices.clone(),
+            user: users[0].clone(),
+            links: vec![alices_link.clone()],
+            grant: Some(member),
+        },
+    )
+    .await;
+    refused(&forged_end, "only the member, or a coordinator", "an end of Alice's membership by Mallory");
+
+    // Her own place is hers to end, but an end names only links between the
+    // organisation and its member: naming Alice's link as her own is refused.
+    let misnamed = forge_entry(
+        &conductors[1],
+        &mallory,
+        index,
+        MEMBERSHIP_END,
+        MembershipEnd {
+            organization: alices.clone(),
+            user: users[1].clone(),
+            links: vec![alices_link],
+            grant: None,
+        },
+    )
+    .await;
+    refused(&misnamed, "names links between its organisation and its member", "an end of Mallory's naming Alice's link");
+
+    let forged_link = forge_link(
+        &conductors[1],
+        &mallory,
+        users[0].clone().into(),
+        alices.clone().into(),
+        index,
+        USER_ORGANIZATIONS,
+        vec![],
+    )
+    .await;
+    refused(&forged_link, "only the member, or a coordinator", "a link from Alice's profile written by Mallory");
+
+    assert!(membership(&conductors[0], alice, &alices, &users[0]).await, "Alice is still a member");
+}
+
+async fn coordination(conductor: &SweetConductor, cell: &SweetCell, organization: &ActionHash, user: &ActionHash) -> bool {
+    conductor
+        .call(
+            &cell.zome("users_organizations"),
+            "is_organization_coordinator",
+            serde_json::json!({
+                "organization_original_action_hash": organization,
+                "user_original_action_hash": user,
+            }),
+        )
+        .await
+}
+
+/// A coordinator who is not the last may leave (from Aria's read of the
+/// stack: no test ran this path). Alice makes Mallory a member and then a
+/// coordinator; Mallory leaves through the app. Her role ends first, with her
+/// own coordinator grant on the role's end and the grant revoked, then her
+/// membership; Alice is still the organisation's coordinator, and Mallory
+/// holds no live coordinator grant. This also shows a holder may revoke their
+/// own role, which Aria had not read.
+///
+/// Red: in `leave_organization`, skip `remove_organization_coordinator`. Her
+/// coordinator link is then never closed and she still reads as coordinator.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_coordinator_who_is_not_the_last_can_leave() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let alices = approved_organization(&conductors, 0, alice, alice, "Alice's", &[alice, &mallory]).await;
+    let pair = serde_json::json!({
+        "organization_original_action_hash": alices,
+        "user_original_action_hash": users[1],
+    });
+    let _: bool = conductors[0]
+        .call(&alice.zome("users_organizations"), "add_coordinator_to_organization", pair)
+        .await;
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+    assert!(coordination(&conductors[1], &mallory, &alices, &users[1]).await, "Mallory is a coordinator");
+
+    let _: bool = conductors[1]
+        .call(&mallory.zome("users_organizations"), "leave_organization", alices.clone())
+        .await;
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+
+    assert!(!coordination(&conductors[0], alice, &alices, &users[1]).await, "Mallory's role has ended");
+    assert!(!membership(&conductors[0], alice, &alices, &users[1]).await, "Mallory has left");
+    assert!(coordination(&conductors[0], alice, &alices, &users[0]).await, "Alice is still a coordinator");
+    let live: Vec<Record> = conductors[0]
+        .call(&alice.zome("administration"), "get_agent_grants", mallory.agent_pubkey().clone())
+        .await;
+    let still_coordinates = live.iter().any(|r| {
+        let grant: RoleGrant = r.entry().to_app_option().unwrap().expect("a grant entry");
+        grant.role == "org_coordinator"
+    });
+    assert!(!still_coordinates, "Mallory's coordinator grant was revoked when she left");
+}
+
+/// No limit on what one end may name can pin a member in (Aria, 26 Oct). A
+/// coordinator may write member links, so a modified client can write more of
+/// them to one member than a single end names. Mallory coordinates her own
+/// organisation: she adds Alice honestly, then forges four more member links to
+/// her, each carrying her real coordinator grant, so each is written. Alice
+/// leaves through the app: her leave closes all six links (five member links
+/// and her own link back) in two ends, and she is no longer a member.
+///
+/// Red: in `write_membership_end` (coordinator `organization.rs`), write one
+/// end naming every link instead of one per `MAX_ENDED_LINKS`. Alice's leave
+/// is then refused and she stays a member.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_member_linked_many_times_can_still_leave() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let hers = approved_organization(&conductors, 1, &mallory, alice, "Mallory's", &[alice, &mallory]).await;
+    let index = zome_index(&conductors[1], &mallory, "users_organizations_integrity").await;
+
+    let _: bool = conductors[1]
+        .call(
+            &mallory.zome("users_organizations"),
+            "add_member_to_organization",
+            serde_json::json!({
+                "organization_original_action_hash": hers,
+                "user_original_action_hash": users[0],
+            }),
+        )
+        .await;
+    let grant = role_grant(&conductors[1], &mallory, "org_coordinator").await;
+    for _ in 0..4 {
+        let extra = forge_link(
+            &conductors[1],
+            &mallory,
+            hers.clone().into(),
+            users[0].clone().into(),
+            index,
+            ORGANIZATION_MEMBERS,
+            grant.get_raw_39().to_vec(),
+        )
+        .await;
+        assert!(extra.is_ok(), "a coordinator may write a member link: {extra:?}");
+    }
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+    assert!(membership(&conductors[0], alice, &hers, &users[0]).await, "Alice is a member");
+
+    let left = reason(
+        conductors[0]
+            .call_fallible::<_, bool>(&alice.zome("users_organizations"), "leave_organization", hers.clone())
+            .await,
+    );
+    assert_eq!(left, Ok(true), "Alice can leave however many links name her");
+    await_consistency_s(30, [alice, &mallory]).await.unwrap();
+
+    assert!(!membership(&conductors[1], &mallory, &hers, &users[0]).await, "Alice has left");
+    let open: Vec<Link> = conductors[1]
+        .call(&mallory.zome("users_organizations"), "get_organization_members_links", hers)
+        .await;
+    assert!(
+        open.iter().all(|l| l.target.clone().into_action_hash() != Some(users[0].clone())),
+        "no member link to Alice is left open"
+    );
 }

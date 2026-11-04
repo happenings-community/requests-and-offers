@@ -52,6 +52,8 @@ pub const ORGANIZATION: EntryKind = EntryKind { zome: USERS_ORGANIZATIONS_ZOME, 
 pub const STATUS: EntryKind = EntryKind { zome: ADMINISTRATION_ZOME, index: 0, name: "status" };
 pub const ORGANIZATION_RETIREMENT: EntryKind =
   EntryKind { zome: USERS_ORGANIZATIONS_ZOME, index: 2, name: "organisation retirement" };
+pub const MEMBERSHIP_END: EntryKind =
+  EntryKind { zome: USERS_ORGANIZATIONS_ZOME, index: 3, name: "membership end" };
 pub const SERVICE_TYPE_STATUS: EntryKind =
   EntryKind { zome: SERVICE_TYPES_INTEGRITY_ZOME, index: 1, name: "service type status" };
 pub const MEDIUM_OF_EXCHANGE_STATUS: EntryKind =
@@ -172,6 +174,64 @@ pub fn check_organization_retirement(
       reason
     )),
   })
+}
+
+/// Whether `author` may act on someone's place in an organisation: the member
+/// themselves (the creator of the user record), or the holder of a grant that
+/// covers `Coordinate` for that organisation (its coordinators, an
+/// administrator) or `ChangeStatus` (an administrator or steward, as when an
+/// approval makes the creator a member). The same rule the grants stack gives
+/// the member and coordinator links.
+pub fn check_membership_act(
+  organization: &ActionHash,
+  user: &ActionHash,
+  grant: &Option<ActionHash>,
+  author: &AgentPubKey,
+) -> ExternResult<Result<(), String>> {
+  match crate::grants::creator_of(user)? {
+    Ok(creator) if &creator == author => return Ok(Ok(())),
+    Ok(_) => {}
+    Err(reason) => return Ok(Err(reason)),
+  }
+  let as_coordinator = check_act(grant, author, &Ability::Coordinate, &Some(organization.clone()))?;
+  if as_coordinator.is_ok() {
+    return Ok(Ok(()));
+  }
+  Ok(match check_act(grant, author, &Ability::ChangeStatus, &None)? {
+    Ok(_) => Ok(()),
+    Err(_) => Err(format!(
+      "only the member, or a coordinator or administrator with a grant, acts on a membership: {}",
+      as_coordinator.err().unwrap_or_default()
+    )),
+  })
+}
+
+/// The most links one membership end may name: a member link, a coordinator
+/// link and the user's link to the organisation, with room for one more. A
+/// membership with more open links than this is closed by several ends.
+pub const MAX_ENDED_LINKS: usize = 4;
+
+/// The tag of a `MembershipEnds` link: the hashes of the links the end closes,
+/// one after another. Readers learn which links are closed without fetching
+/// the entry; validation checks the tag against the entry (#234). An end names
+/// links, not a time, so no clock decides whether a membership stands.
+pub fn membership_end_tag(links: &[ActionHash]) -> LinkTag {
+  LinkTag::new(links.iter().flat_map(|link| link.get_raw_39().to_vec()).collect::<Vec<u8>>())
+}
+
+/// The links a `MembershipEnds` tag names.
+pub fn membership_end_from_tag(tag: &LinkTag) -> Result<Vec<ActionHash>, String> {
+  let bytes = &tag.0;
+  let count = bytes.len() / 39;
+  if bytes.is_empty() || !bytes.len().is_multiple_of(39) || count > MAX_ENDED_LINKS {
+    return Err(format!("a membership end's tag names 1 to {} link hashes", MAX_ENDED_LINKS));
+  }
+  bytes
+    .chunks(39)
+    .map(|chunk| {
+      ActionHash::try_from_raw_39(chunk.to_vec()).map_err(|_| "a membership end's tag names link hashes".to_string())
+    })
+    .collect()
 }
 
 /// What one end of a link must be.
@@ -448,6 +508,16 @@ mod tests {
     }
     assert!(catalogue_state_from_tag(&catalogue_state_tag(&CatalogueState::Pending)).is_err());
     assert!(catalogue_state_from_tag(&LinkTag::new(vec![])).is_err());
+  }
+
+  #[test]
+  fn a_membership_end_tag_round_trips() {
+    let links: Vec<ActionHash> = (1..=3).map(|b| ActionHash::from_raw_36(vec![b; 36])).collect();
+    assert_eq!(membership_end_from_tag(&membership_end_tag(&links)), Ok(links.clone()));
+    assert!(membership_end_from_tag(&LinkTag::new(vec![])).is_err());
+    assert!(membership_end_from_tag(&LinkTag::new(vec![1; 40])).is_err());
+    let five: Vec<ActionHash> = (1..=5).map(|b| ActionHash::from_raw_36(vec![b; 36])).collect();
+    assert!(membership_end_from_tag(&membership_end_tag(&five)).is_err());
   }
 
   #[test]

@@ -50,6 +50,8 @@ pub const REQUEST: EntryKind = EntryKind { zome: REQUESTS_INTEGRITY_ZOME, index:
 pub const USER: EntryKind = EntryKind { zome: USERS_ORGANIZATIONS_ZOME, index: 0, name: "user" };
 pub const ORGANIZATION: EntryKind = EntryKind { zome: USERS_ORGANIZATIONS_ZOME, index: 1, name: "organisation" };
 pub const STATUS: EntryKind = EntryKind { zome: ADMINISTRATION_ZOME, index: 0, name: "status" };
+pub const ORGANIZATION_RETIREMENT: EntryKind =
+  EntryKind { zome: USERS_ORGANIZATIONS_ZOME, index: 2, name: "organisation retirement" };
 pub const SERVICE_TYPE_STATUS: EntryKind =
   EntryKind { zome: SERVICE_TYPES_INTEGRITY_ZOME, index: 1, name: "service type status" };
 pub const MEDIUM_OF_EXCHANGE_STATUS: EntryKind =
@@ -147,6 +149,29 @@ pub fn latest_catalogue_state(links: &[Link]) -> CatalogueState {
     .max_by(|(a, _), (b, _)| a.cmp(b))
     .map(|(_, state)| state)
     .unwrap_or(CatalogueState::Pending)
+}
+
+/// The rule for retiring an organisation. An organisation is shared: members,
+/// coordinators, listings and exchanges name it, so nobody tombstones it.
+/// Its coordinators, or an administrator, retire it instead, with a grant
+/// that covers `Coordinate` for that very organisation. The organisation named
+/// is the original record, so a retirement cannot hang off a revision.
+pub fn check_organization_retirement(
+  organization: &ActionHash,
+  grant: &ActionHash,
+  author: &AgentPubKey,
+) -> ExternResult<ValidateCallbackResult> {
+  let action = must_get_action(organization.clone())?;
+  if !matches!(action.action().data, ActionData::Create(_)) || !writes(action.action(), &ORGANIZATION)? {
+    return Ok(invalid("a retirement names the original record of an organisation"));
+  }
+  Ok(match check_act(&Some(grant.clone()), author, &Ability::Coordinate, &Some(organization.clone()))? {
+    Ok(_) => ValidateCallbackResult::Valid,
+    Err(reason) => invalid(format!(
+      "retiring an organisation needs a coordinator's or an administrator's grant for it: {}",
+      reason
+    )),
+  })
 }
 
 /// What one end of a link must be.

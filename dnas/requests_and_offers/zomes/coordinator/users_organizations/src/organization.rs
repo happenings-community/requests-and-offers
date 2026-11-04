@@ -9,11 +9,7 @@ use utils::{
 };
 
 use crate::{
-  administration::get_organization_status_link,
-  external_calls::{
-    check_if_entity_is_accepted, create_status, delete_status, get_accepted_entities,
-    grant_role, revoke_roles_of,
-  },
+  external_calls::{check_if_entity_is_accepted, create_status, grant_role, revoke_roles_of},
   user::{get_agent_user, get_latest_user, get_user_agents},
 };
 
@@ -126,6 +122,10 @@ pub fn register_approved_coordinator(input: ApprovedCoordinatorInput) -> ExternR
 pub fn get_latest_organization_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
+  // A retired organisation reads as gone everywhere the interface looks (#234).
+  if organization_retirement(&original_action_hash)?.is_some() {
+    return Ok(None);
+  }
   let link_type_filter = LinkTypes::OrganizationUpdates
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
@@ -285,18 +285,19 @@ pub fn get_user_organizations(
 ) -> ExternResult<Vec<Organization>> {
   let links = get_user_organizations_links(user_original_action_hash.clone())?;
 
-  let organizations = links
-    .into_iter()
-    .map(|link| {
-      get_latest_organization(
-        link
-          .target
-          .clone()
-          .into_action_hash()
-          .ok_or(CommonError::ActionHashNotFound("organization".to_string()))?,
-      )
-    })
-    .collect::<ExternResult<Vec<Organization>>>()?;
+  // A retired organisation is skipped rather than failing the whole list.
+  let mut organizations = Vec::new();
+  for link in links {
+    let organization = link
+      .target
+      .clone()
+      .into_action_hash()
+      .ok_or(CommonError::ActionHashNotFound("organization".to_string()))?;
+    if organization_retirement(&organization)?.is_some() {
+      continue;
+    }
+    organizations.push(get_latest_organization(organization)?);
+  }
 
   Ok(organizations)
 }
@@ -768,97 +769,46 @@ pub fn update_organization(input: UpdateOrganizationInput) -> ExternResult<Recor
   Ok(record)
 }
 
+/// The retirement of an organisation, if it has one.
+pub fn organization_retirement(organization: &ActionHash) -> ExternResult<Option<ActionHash>> {
+  let filter = LinkTypes::OrganizationRetirements
+    .try_into_filter()
+    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+  let links = get_links(LinkQuery::new(organization.clone(), filter), GetStrategy::Network)?;
+  Ok(links.into_iter().find_map(|link| link.target.into_action_hash()))
+}
+
+/// Whether an organisation has been retired.
+#[hdk_extern]
+pub fn is_organization_retired(organization_original_action_hash: ActionHash) -> ExternResult<bool> {
+  Ok(organization_retirement(&organization_original_action_hash)?.is_some())
+}
+
+/// Retires an organisation (#234). An organisation is shared: members,
+/// coordinators, listings and exchanges name it, so it is never tombstoned.
+/// One of its coordinators, or an administrator, writes a retirement that
+/// carries their `Coordinate` grant, and every reader skips it from then on.
+/// Membership, coordinator and contact links stay as the record of who
+/// belonged. Keeps its name so the interface's call is unchanged; returns the
+/// retirement's hash, or the existing one if it was already retired.
 #[hdk_extern]
 pub fn delete_organization(
   organization_original_action_hash: ActionHash,
 ) -> ExternResult<ActionHash> {
-  if !check_if_agent_is_organization_coordinator(organization_original_action_hash.clone())? {
-    return Err(OrganizationsError::NotCoordinator.into());
+  let organization = find_original_action_hash(organization_original_action_hash)?.0;
+  let grant = require_coordinate(&organization)?;
+  if let Some(existing) = organization_retirement(&organization)? {
+    return Ok(existing);
   }
-
-  // Delete member links first
-  let members_links = get_organization_members_links(organization_original_action_hash.clone())?;
-  for link in members_links.clone() {
-    let user_hash = link
-      .target
-      .clone()
-      .into_action_hash()
-      .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
-
-    // Delete UserOrganizations link
-    let user_organizations_links = get_user_organizations_links(user_hash.clone())?;
-    for user_org_link in user_organizations_links {
-      if let Some(hash) = user_org_link.target.clone().into_action_hash() {
-        if hash == organization_original_action_hash {
-          delete_link(user_org_link.create_link_hash, GetOptions::default())?;
-          break;
-        }
-      }
-    }
-
-    // Delete OrganizationMembers link
-    delete_link(link.create_link_hash, GetOptions::default())?;
-  }
-
-  // Delete coordinator links
-  let coordinator_links =
-    get_organization_coordinators_links(organization_original_action_hash.clone())?;
-  for link in coordinator_links {
-    delete_link(link.create_link_hash, GetOptions::default())?;
-  }
-
-  // Delete contact links
-  let contact_links =
-    get_organization_contacts_links(organization_original_action_hash.clone())?;
-  for link in contact_links {
-    delete_link(link.create_link_hash, GetOptions::default())?;
-  }
-
-  // Delete organization links
-  let link_type_filter = LinkTypes::AllOrganizations
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let all_organizations_links = get_links(
-    LinkQuery::new(
-      Path::from("organizations").path_entry_hash()?,
-      link_type_filter,
-    ),
-    GetStrategy::Network,
+  let retirement = create_entry(EntryTypes::OrganizationRetirement(OrganizationRetirement {
+    organization: organization.clone(),
+    grant,
+  }))?;
+  create_link(
+    organization,
+    retirement.clone(),
+    LinkTypes::OrganizationRetirements,
+    (),
   )?;
-
-  for link in all_organizations_links {
-    if let Some(hash) = link.target.clone().into_action_hash() {
-      if hash == organization_original_action_hash {
-        delete_link(link.create_link_hash, GetOptions::default())?;
-        break;
-      }
-    }
-  }
-
-  // Delete status links
-  let organization_status_links =
-    get_organization_status_link(organization_original_action_hash.clone())?;
-  if let Some(link) = organization_status_links {
-    delete_link(link.create_link_hash, GetOptions::default())?;
-  }
-
-  let organization_status_link = get_accepted_entities(String::from("organizations"))?
-    .into_iter()
-    .find(|organization_status| {
-      organization_status.target.clone().into_action_hash()
-        == Some(organization_original_action_hash.clone())
-    });
-
-  if let Some(link) = organization_status_link {
-    delete_link(link.create_link_hash, GetOptions::default())?;
-  }
-
-  // Delete status
-  delete_status(EntityActionHash {
-    entity_original_action_hash: OriginalActionHash(organization_original_action_hash.clone()),
-    entity: String::from("organizations"),
-  })?;
-
-  // Finally delete the organization entry
-  delete_entry(organization_original_action_hash)
+  Ok(retirement)
 }

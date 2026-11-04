@@ -340,17 +340,19 @@ async fn without_stewarding_a_steward_grant_is_refused() {
     );
 }
 
-/// The grant indexes are what `can` reads, so a tombstone on one is refused:
-/// Mallory cannot hide her own index (which would lock an honest holder out
-/// the same way), and a revoked member cannot delete the link that records
-/// the revocation and come back. After both refusals `can` still says what
-/// it said.
+/// The grant indexes are what `can` reads, so a tombstone on one is refused.
+/// Alice revokes Mallory's member grant; Mallory cannot tombstone the link
+/// that records the revocation and come back, and `get_agent_grants` still
+/// says she is revoked. Then she cannot hide her own index either (which
+/// would lock an honest holder out the same way). The revocation comes
+/// first so that the final read goes through an intact index: with the
+/// rule gone, the comeback is what that read shows.
 ///
 /// **To make it go red:** in `administration_integrity/src/lib.rs`, the
 /// `DeleteLink` match, remove the `AgentGrants | AllGrants | GrantRevocations`
-/// arm so those deletes fall through to `Valid`. The first tombstone is
-/// written, and after the second `get_agent_grants` returns Mallory's member
-/// grant again.
+/// arm so those deletes fall through to `Valid`. The revocation tombstone is
+/// written; with the first `refused` off as well, `get_agent_grants` returns
+/// Mallory's revoked member grant as live again (Aria, 4 November, R1c).
 #[tokio::test(flavor = "multi_thread")]
 async fn a_grant_index_is_never_tombstoned() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(1, false).await;
@@ -366,16 +368,6 @@ async fn a_grant_index_is_never_tombstoned() {
         .find(|(_, g)| g.role == "member")
         .cloned()
         .expect("acceptance issued a member grant");
-    let index = links_of(&conductors[1], &mallory, me.clone().into(), administration, AGENT_GRANTS_LINK).await;
-    let index_link = index
-        .iter()
-        .find(|l| l.target == grant.clone().into())
-        .expect("the member grant is indexed from Mallory's key")
-        .create_link_hash
-        .clone();
-
-    let hidden = forge_delete_link(&conductors[1], &mallory, index_link).await;
-    refused(&hidden, "never tombstoned", "tombstoning a holder's grant index");
 
     // Alice revokes the grant; the revocation hangs from it as a link.
     conductors[0]
@@ -402,6 +394,17 @@ async fn a_grant_index_is_never_tombstoned() {
         !live.iter().any(|(h, _)| *h == grant),
         "the revoked member grant stays revoked; live grants: {live:?}"
     );
+
+    // Her own index link, which `can` would read, is a record too.
+    let index = links_of(&conductors[1], &mallory, me.clone().into(), administration, AGENT_GRANTS_LINK).await;
+    let index_link = index
+        .iter()
+        .find(|l| l.target == grant.clone().into())
+        .expect("the member grant is still indexed from Mallory's key")
+        .create_link_hash
+        .clone();
+    let hidden = forge_delete_link(&conductors[1], &mallory, index_link).await;
+    refused(&hidden, "never tombstoned", "tombstoning a holder's grant index");
 }
 
 /// A grant is a record: Mallory cannot update her member grant any more than
@@ -427,6 +430,51 @@ async fn a_grant_is_never_updated() {
 
     let rewritten = forge_update(&conductors[1], &mallory, &grant, entry).await;
     refused(&rewritten, "never updated", "updating a grant to itself");
+}
+
+/// An issuer cannot rewrite a grant they issued either. Mallory, holding a
+/// root admin grant (no key: any root is accepted), issues Alice a member
+/// grant resting on it, the honest shape; an update of that grant is
+/// refused. This is the case the `is_update` arm alone guards: a self-update
+/// is also caught by "written by the holder of the grant it rests on", but
+/// the issuer *is* that holder (Aria, 4 November, R2).
+///
+/// **To make it go red:** the same edit as `a_grant_is_never_updated`; the
+/// update is validated as a fresh grant, which the issuer may write, and is
+/// written.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_issuer_cannot_rewrite_a_grant_they_issued() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, false).await;
+    let alice = &cells[0];
+    everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let administration = zome_index(&conductors[1], &mallory, "administration_integrity").await;
+
+    let root = forge_entry(
+        &conductors[1],
+        &mallory,
+        administration,
+        ROLE_GRANT,
+        RoleGrant {
+            role: "admin".to_string(),
+            holder: mallory.agent_pubkey().clone(),
+            scope: None,
+            authority: Authority::Progenitor { signature: Signature([0; 64]) },
+        },
+    )
+    .await
+    .expect("without a key Mallory's root is accepted");
+    let issued_entry = RoleGrant {
+        role: "member".to_string(),
+        holder: alice.agent_pubkey().clone(),
+        scope: None,
+        authority: Authority::Grant(root),
+    };
+    let issued = forge_entry(&conductors[1], &mallory, administration, ROLE_GRANT, issued_entry.clone())
+        .await
+        .expect("a member grant resting on a held admin grant is valid");
+
+    let rewritten = forge_update(&conductors[1], &mallory, &issued, issued_entry).await;
+    refused(&rewritten, "never updated", "an issuer updating a grant they issued");
 }
 
 /// A status change is a role act: Mallory cannot move her own status past

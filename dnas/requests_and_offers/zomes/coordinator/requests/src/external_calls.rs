@@ -18,6 +18,11 @@ pub fn check_if_agent_is_administrator(agent_pubkey: AgentPubKey) -> ExternResul
   external_local_call("check_if_agent_is_administrator", "administration", input)
 }
 
+/// The decision that approved a service type, if its current state is approved.
+pub fn get_service_type_approval(service_type_hash: ActionHash) -> ExternResult<Option<ActionHash>> {
+  external_local_call("get_service_type_approval", "service_types", service_type_hash)
+}
+
 pub fn link_to_service_type(input: ServiceTypeLinkInput) -> ExternResult<()> {
   external_local_call("link_to_service_type", "service_types", input)
 }

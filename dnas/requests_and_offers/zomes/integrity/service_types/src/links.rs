@@ -9,6 +9,8 @@ use utils::links::{SERVICE_TYPE_STATUS,
   Tombstone, Writer, SERVICE_TYPE, OFFER, REQUEST, USER,
 };
 
+use utils::listings::{check_listing_link, OFFERS_INTEGRITY_ZOME, REQUESTS_INTEGRITY_ZOME};
+
 use crate::LinkTypes;
 
 const INDEX: &str = "service_types";
@@ -144,7 +146,31 @@ pub fn validate_create_link(
     LinkTypes::ServiceTypeToUser => Ok(utils::links::unused("ServiceTypeToUser")),
     LinkTypes::UserToServiceType => Ok(utils::links::unused("UserToServiceType")),
     LinkTypes::ServiceTypeStatusUpdates => validate_status_update_link(author, base, target, tag),
+    // A listing's links to its service type: the shape and writer rule, then
+    // the listing's own entry must name the service type at the other end
+    // (#257, `utils::listings::check_listing_link`).
+    LinkTypes::RequestToServiceType => listing_link(link_type, author, base, target, tag, base, target, REQUESTS_INTEGRITY_ZOME),
+    LinkTypes::ServiceTypeToRequest => listing_link(link_type, author, base, target, tag, target, base, REQUESTS_INTEGRITY_ZOME),
+    LinkTypes::OfferToServiceType => listing_link(link_type, author, base, target, tag, base, target, OFFERS_INTEGRITY_ZOME),
+    LinkTypes::ServiceTypeToOffer => listing_link(link_type, author, base, target, tag, target, base, OFFERS_INTEGRITY_ZOME),
     other => check_create(&spec(other), author, base, target, tag),
+  }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn listing_link(
+  link_type: &LinkTypes,
+  author: &AgentPubKey,
+  base: &AnyLinkableHash,
+  target: &AnyLinkableHash,
+  tag: &LinkTag,
+  listing: &AnyLinkableHash,
+  service_type: &AnyLinkableHash,
+  listing_zome: &str,
+) -> ExternResult<ValidateCallbackResult> {
+  match check_create(&spec(link_type), author, base, target, tag)? {
+    ValidateCallbackResult::Valid => check_listing_link(listing.clone(), service_type.clone(), listing_zome),
+    other => Ok(other),
   }
 }
 

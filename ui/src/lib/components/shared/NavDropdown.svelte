@@ -83,13 +83,20 @@
   function onFocusOut(event: FocusEvent) {
     if (!wrapper?.contains(event.relatedTarget as Node | null)) open = false;
   }
+
+  // The pointer leaving closes a hovered menu, but not one a keyboard user is
+  // inside: a nudged mouse would unmount the item they are on and drop focus
+  // to the body. Escape, Tab and a click still close it.
+  function onMouseLeave() {
+    if (!links.some((link) => link === document.activeElement)) open = false;
+  }
 </script>
 
 <div
   class="group relative"
   role="presentation"
   onmouseenter={() => (open = true)}
-  onmouseleave={() => (open = false)}
+  onmouseleave={onMouseLeave}
   onfocusout={onFocusOut}
   bind:this={wrapper}
 >
@@ -99,7 +106,7 @@
     bind:this={trigger}
     aria-expanded={open}
     aria-haspopup="menu"
-    aria-controls={id}
+    aria-controls={open ? id : undefined}
     onclick={onTriggerClick}
     onkeydown={onTriggerKey}
     aria-label={total > 0 ? `${title} menu, ${total} waiting on you` : `${title} menu`}

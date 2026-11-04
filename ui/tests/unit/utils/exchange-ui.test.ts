@@ -21,6 +21,7 @@ import {
   doneBy,
   exchangeStatusVariant,
   formatWhen,
+  latestOnInterest,
   otherRole,
   reviewedBy,
   roleOf,
@@ -348,6 +349,27 @@ describe('exchange-ui', () => {
       for (const status of ALL_STATUSES) {
         expect(actionLabel(exchange({ status }), null), status).toBeTruthy();
       }
+    });
+  });
+
+  describe('latestOnInterest', () => {
+    it('is undefined when nothing has been proposed on the interest', () => {
+      expect(latestOnInterest(INTEREST, [])).toBeUndefined();
+      const elsewhere = exchange({ agreement: agreement({ interest: hash(6) }) });
+      expect(latestOnInterest(INTEREST, [elsewhere])).toBeUndefined();
+    });
+
+    it('picks the newest proposal on that interest, ignoring other interests', () => {
+      const first = exchange({ agreement_hash: hash(10), created_at: 100, status: 'Declined' });
+      const counter = exchange({ agreement_hash: hash(11), created_at: 200 });
+      const newerElsewhere = exchange({
+        agreement_hash: hash(12),
+        created_at: 300,
+        agreement: agreement({ interest: hash(6) })
+      });
+      expect(latestOnInterest(INTEREST, [counter, newerElsewhere, first])?.agreement_hash).toEqual(
+        hash(11)
+      );
     });
   });
 

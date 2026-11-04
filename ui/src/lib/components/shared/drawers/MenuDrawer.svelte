@@ -2,6 +2,8 @@
   import { getDrawerStore } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import { getUserPictureUrl } from '$lib/utils';
+  import { myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
 
   const drawerStore = getDrawerStore();
   const { currentUser } = $derived(usersStore);
@@ -37,6 +39,34 @@
 
   <!-- Navigation Content -->
   <div class="flex-1 space-y-6 overflow-y-auto p-4">
+    <!-- The member's own section first, as in the nav bar's top right -->
+    <div class="space-y-3">
+      {#if currentUser}
+        <div class="flex items-center gap-3">
+          <img
+            src={getUserPictureUrl(currentUser)}
+            alt=""
+            class="h-10 w-10 rounded-full bg-surface-200 object-cover"
+          />
+          <span class="truncate font-semibold">{currentUser.name}</span>
+        </div>
+      {:else}
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Profile</h3>
+      {/if}
+      <div class="space-y-2">
+        {#each myProfileItems(!!currentUser) as item (item.href)}
+          <a
+            href={item.href}
+            onclick={closeDrawer}
+            class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
+          >
+            <span class="text-lg">{item.icon}</span>
+            <span>{item.label}</span>
+          </a>
+        {/each}
+      </div>
+    </div>
+
     <!-- Primary Actions -->
     <div class="space-y-3">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Main Actions</h3>
@@ -58,63 +88,26 @@
       </a>
     </div>
 
-    <!-- Profile -->
-    <div class="space-y-3">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Profile</h3>
-      <div class="space-y-2">
-        {#if currentUser}
-          <a
-            href="/user"
-            onclick={closeDrawer}
-            class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-          >
-            <span class="text-lg">👤</span>
-            <span>My Profile</span>
-          </a>
-        {:else}
-          <a
-            href="/user/create"
-            onclick={closeDrawer}
-            class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-          >
-            <span class="text-lg">👤</span>
-            <span>Create Profile</span>
-          </a>
-        {/if}
-        <a
-          href="/requests?filter=my"
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-        >
-          <span class="text-lg">📋</span>
-          <span>My Requests</span>
-        </a>
-        <a
-          href="/offers?filter=my"
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-        >
-          <span class="text-lg">🎯</span>
-          <span>My Offers</span>
-        </a>
-        <a
-          href="/my-listings"
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-        >
-          <span class="text-lg">📋</span>
-          <span>My Listings</span>
-        </a>
-        <a
-          href="/exchanges"
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-        >
-          <span class="text-xl">🤝</span>
-          <span>My Exchanges</span>
-        </a>
+    <!-- My Activity, as in the nav bar -->
+    {#if currentUser}
+      <div class="space-y-3">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">
+          My Activity
+        </h3>
+        <div class="space-y-2">
+          {#each myActivityItems() as item (item.href)}
+            <a
+              href={item.href}
+              onclick={closeDrawer}
+              class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
+            >
+              <span class="text-lg">{item.icon}</span>
+              <span>{item.label}</span>
+            </a>
+          {/each}
+        </div>
       </div>
-    </div>
+    {/if}
 
     <!-- Community -->
     <div class="space-y-3">

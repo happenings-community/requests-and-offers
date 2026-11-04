@@ -200,8 +200,8 @@
         {:else if isCurrentUser && user.status?.status_type === 'rejected' && user.status.reason}
           <p class="text-sm"><strong>Reason:</strong> {user.status.reason}</p>
         {/if}
-        {#if status?.label === 'Suspended' && user.status?.reason}
-          <p class="text-sm"><strong>Reason:</strong> {user.status.reason}</p>
+        {#if status?.reason}
+          <p class="text-sm"><strong>Reason:</strong> {status.reason}</p>
         {/if}
         {#if status?.until}
           <p class="text-sm"><strong>Suspended until:</strong> {status.until}</p>

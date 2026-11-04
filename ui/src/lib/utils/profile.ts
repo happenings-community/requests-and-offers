@@ -15,6 +15,8 @@ export interface StatusChip {
   variant: string;
   /** For a temporary suspension: when it ends. */
   until?: string;
+  /** For a suspension, ended or not: why. */
+  reason?: string;
 }
 
 const formatDate = (iso: string) =>
@@ -35,16 +37,17 @@ export function statusChip(status: UIStatus | undefined, now = Date.now()): Stat
     case 'archived':
       return { label: 'Archived', variant: 'variant-soft-surface' };
     case 'suspended indefinitely':
-      return { label: 'Suspended', variant: 'variant-soft-error' };
+      return { label: 'Suspended', variant: 'variant-soft-error', reason: status.reason };
     case 'suspended temporarily': {
       const until = status.suspended_until;
       if (until && new Date(until).getTime() <= now) {
-        return { label: 'In review', variant: 'variant-soft-warning' };
+        return { label: 'In review', variant: 'variant-soft-warning', reason: status.reason };
       }
       return {
         label: 'Suspended',
         variant: 'variant-soft-error',
-        until: until ? formatDate(until) : undefined
+        until: until ? formatDate(until) : undefined,
+        reason: status.reason
       };
     }
     default:

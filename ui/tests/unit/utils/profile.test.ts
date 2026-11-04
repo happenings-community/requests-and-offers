@@ -42,6 +42,41 @@ describe('statusChip', () => {
   it('shows nothing without a status', () => {
     expect(statusChip(undefined)).toBeNull();
   });
+
+  // #353 review: the reason belongs to the suspension, not to the label, so an
+  // ended suspension that reads "In review" still carries it.
+  it('carries the reason for a suspension, ended or not', () => {
+    const reason = 'Repeated no-shows';
+    expect(statusChip(status({ status_type: 'suspended indefinitely', reason }))?.reason).toBe(
+      reason
+    );
+    expect(
+      statusChip(
+        status({
+          status_type: 'suspended temporarily',
+          suspended_until: '2026-11-01T12:00:00Z',
+          reason
+        }),
+        Date.parse('2026-10-18T00:00:00Z')
+      )?.reason
+    ).toBe(reason);
+    expect(
+      statusChip(
+        status({
+          status_type: 'suspended temporarily',
+          suspended_until: '2026-10-01T00:00:00Z',
+          reason
+        }),
+        Date.parse('2026-10-18T00:00:00Z')
+      )
+    ).toEqual({ label: 'In review', variant: 'variant-soft-warning', reason });
+  });
+
+  it('carries no reason for a status that is not a suspension', () => {
+    expect(
+      statusChip(status({ status_type: 'accepted', reason: 'welcome' }))?.reason
+    ).toBeUndefined();
+  });
 });
 
 describe('detailsLine', () => {

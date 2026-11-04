@@ -45,13 +45,10 @@ fn validate_entry(
   update: Option<&ActionHash>,
 ) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
-    EntryTypes::Request(request) => {
-      let grant = request.grant.clone();
-      match validate_request(request)? {
-        ValidateCallbackResult::Valid => validate_request_grant(&grant, author, update),
-        other => Ok(other),
-      }
-    }
+    EntryTypes::Request(request) => match validate_request(request.clone())? {
+      ValidateCallbackResult::Valid => validate_request_write(&request, author, update),
+      other => Ok(other),
+    },
   }
 }
 
@@ -175,6 +172,9 @@ mod record_op_tests {
       links: vec![],
       status: ListingStatus::Active,
       grant: None,
+      organization: None,
+      membership: None,
+      removal_reason: None,
     }
     .try_into()
     .unwrap()

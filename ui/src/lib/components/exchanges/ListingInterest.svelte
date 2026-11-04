@@ -66,9 +66,11 @@
               <a class="anchor" href={`/users/${encodeHashToBase64(item.user)}`}>
                 {person?.name ?? 'A member'}
               </a>
-              <a class="variant-filled-primary btn btn-sm" href={interest.hrefFor(item)}>
-                Send a proposal
-              </a>
+              {#if canAct}
+                <a class="variant-filled-primary btn btn-sm" href={interest.hrefFor(item)}>
+                  Send a proposal
+                </a>
+              {/if}
             </li>
           {/each}
         </ul>

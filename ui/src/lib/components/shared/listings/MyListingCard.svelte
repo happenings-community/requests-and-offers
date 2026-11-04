@@ -167,7 +167,7 @@
               href={`/exchanges/${encodeHashToBase64(exchange.agreement_hash)}`}
               >{statusLabel(exchange)} &rarr;</a
             >
-          {:else}
+          {:else if interest.canAct}
             <a class="variant-filled-primary btn btn-sm ml-auto" href={interest.hrefFor(person)}
               >Send a proposal</a
             >

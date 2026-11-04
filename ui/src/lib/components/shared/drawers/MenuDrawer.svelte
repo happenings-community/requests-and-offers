@@ -4,10 +4,15 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { getUserPictureUrl } from '$lib/utils';
   import { myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
+  import { adminMenuItems, adminWaiting } from '$lib/navigation/admin-menu';
 
   const drawerStore = getDrawerStore();
   const { currentUser } = $derived(usersStore);
   const { agentIsAdministrator } = $derived(administrationStore);
+  // The same items as the nav bar's Admin menu (#359), counts included.
+  const adminItems = $derived(
+    adminMenuItems(adminWaiting(administrationStore.allUsers, administrationStore.allOrganizations))
+  );
 
   function closeDrawer() {
     drawerStore.close();
@@ -153,14 +158,24 @@
         <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">
           Administration
         </h3>
-        <a
-          href="/admin"
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg border border-secondary-400 p-3 transition-colors hover:bg-secondary-600"
-        >
-          <span class="text-lg">⚙️</span>
-          <span>Admin Panel</span>
-        </a>
+        <div class="space-y-2">
+          {#each adminItems as item (item.href)}
+            <a
+              href={item.href}
+              onclick={closeDrawer}
+              class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
+            >
+              <span class="text-lg" aria-hidden="true">{item.icon}</span>
+              <span>{item.label}</span>
+              {#if item.badge}
+                <span
+                  class="badge ml-auto bg-white px-1.5 py-0 text-xs font-semibold text-primary-700"
+                  aria-label="{item.badge} waiting to be accepted">{item.badge}</span
+                >
+              {/if}
+            </a>
+          {/each}
+        </div>
       </div>
     {/if}
   </div>

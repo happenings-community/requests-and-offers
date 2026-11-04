@@ -40,6 +40,6 @@ test.describe.serial('07 — users directory', () => {
 
     await expect(page).toHaveURL(/\/users\/[^/]+$/, { timeout: 15_000 });
     await expect(page.locator('text=e2e_tester').first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('text=Status :').first()).toBeVisible();
+    await expect(page.getByTestId('status-chip')).toBeVisible();
   });
 });

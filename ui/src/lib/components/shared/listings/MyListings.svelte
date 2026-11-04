@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { page } from '$app/state';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import offersStore from '$lib/stores/offers.store.svelte';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
@@ -44,7 +45,10 @@
     }
   ];
 
-  let view = $state<ListingView>('requests');
+  const asked = page.url.searchParams.get('view');
+  let view = $state<ListingView>(
+    asked === 'offers' || asked === 'archived' ? asked : 'requests'
+  );
   let sets = $state<MyListingSets>({
     activeRequests: [],
     activeOffers: [],

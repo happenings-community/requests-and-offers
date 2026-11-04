@@ -213,9 +213,9 @@
               <button
                 class="variant-filled-error btn btn-sm"
                 onclick={() => onDelete?.(moe)}
-                title="Delete this medium of exchange"
+                title="Retire this medium of exchange"
               >
-                Delete
+                Retire
               </button>
             </div>
           </td>

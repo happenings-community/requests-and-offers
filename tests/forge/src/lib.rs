@@ -110,3 +110,9 @@ pub fn forge_get_links(input: ForgeGetLinksInput) -> ExternResult<Vec<Link>> {
     GetStrategy::Local,
   )
 }
+
+/// The hash of a path, which a test cannot compute outside the wasm host.
+#[hdk_extern]
+pub fn forge_path_hash(path: String) -> ExternResult<EntryHash> {
+  Path::from(path).path_entry_hash()
+}

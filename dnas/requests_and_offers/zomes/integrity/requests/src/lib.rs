@@ -1,5 +1,6 @@
 use hdi::prelude::*;
 
+mod links;
 mod request;
 pub use request::*;
 
@@ -135,13 +136,40 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           }
         };
         match original_app_entry {
-          EntryTypes::Request(_original_request) => {
-            // You can add specific delete validation for requests here if needed
+          EntryTypes::Request(_) => {
+            return utils::links::check_creator_tombstone(
+              &action.deletes_address,
+              action.author(),
+              &utils::links::REQUEST,
+            );
           }
         }
       }
       _ => (),
     },
+    FlatOp::Delete(OpDelete { action }) => {
+      return utils::links::check_creator_tombstone(
+        &action.deletes_address,
+        action.author(),
+        &utils::links::REQUEST,
+      );
+    }
+    FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
+      return links::validate_create_link(
+        &link_type,
+        action.author(),
+        &action.base_address,
+        &action.target_address,
+        &action.tag,
+      );
+    }
+    FlatOp::Link(OpLink::DeleteLink {
+      link_type,
+      action,
+      original_action,
+    }) => {
+      return links::validate_delete_link(&link_type, original_action.author(), action.author());
+    }
     _ => (),
   }
   Ok(ValidateCallbackResult::Valid)

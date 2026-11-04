@@ -146,6 +146,15 @@ pub fn get_offer(action_hash: ActionHash) -> ExternResult<Option<Record>> {
 
 #[hdk_extern]
 pub fn get_latest_offer_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+  // A offer its creator has tombstoned is gone, whatever revision a link
+  // points at. Its update chain's links stay (#234), so read the tombstone on
+  // the original record rather than relying on those links having gone.
+  let root = resolve_chain_root(original_action_hash.clone());
+  if let Some(Details::Record(details)) = get_details(root, GetOptions::default())? {
+    if !details.deletes.is_empty() {
+      return Ok(None);
+    }
+  }
   let latest_action_hash = latest_offer_action_hash(original_action_hash)?;
   get(latest_action_hash, GetOptions::default())
 }
@@ -174,14 +183,28 @@ fn latest_offer_action_hash(original_action_hash: ActionHash) -> ExternResult<Ac
 }
 
 /// Resolve each link target to its latest revision, then fetch them all in one batched
-/// `get` (#186). A target whose update links cannot be read is skipped rather than failing
+/// `get` (#186). A offer its creator has tombstoned is left out (#234): the tombstones on
+/// every original record are read in one batched `get_details`, since its update chain's
+/// links stay. A target whose update links cannot be read is skipped rather than failing
 /// the whole list (#233); targets that are not found are dropped, as before #184. A fetch
-/// error on any one record still fails the batch, which is also the pre-#184 contract.
+/// error on either batch still fails the list, which is also the pre-#184 contract.
 fn get_latest_offer_records(links: Vec<Link>) -> ExternResult<Vec<Record>> {
-  let get_input: Vec<GetInput> = links
+  let originals: Vec<ActionHash> = links
     .into_iter()
     .filter_map(|link| link.target.into_action_hash())
-    .filter_map(|original_action_hash| {
+    .collect();
+  let details_input: Vec<GetInput> = originals
+    .iter()
+    .map(|original| GetInput::new(resolve_chain_root(original.clone()).into(), GetOptions::default()))
+    .collect();
+  let details = HDK.with(|hdk| hdk.borrow().get_details(details_input))?;
+  let get_input: Vec<GetInput> = originals
+    .into_iter()
+    .zip(details)
+    .filter(|(_, details)| {
+      !matches!(details, Some(Details::Record(record)) if !record.deletes.is_empty())
+    })
+    .filter_map(|(original_action_hash, _)| {
       latest_offer_action_hash(original_action_hash.clone())
         .inspect_err(|err| warn!("Skipping offer {original_action_hash} in a list: {err:?}"))
         .ok()
@@ -224,13 +247,24 @@ pub fn get_active_offers(_: ()) -> ExternResult<Vec<Record>> {
   // Resolve the LATEST record per link target so edits are visible on list
   // surfaces (Bug 4 fix).
   //
-  // Note which invariant this surface follows: update_offer ROTATES the
-  // ActiveOffers link, deleting the one at previous_hash and creating one at
-  // the new revision, so the target read here is already the tip. The resolve
-  // is still the right shape, because it is what makes the non-rotating
-  // surfaces correct (UserOffers and the archived path stay anchored at the
-  // Create), and one shape across all three is what stops them drifting apart.
-  get_latest_offer_records(links)
+  // Every surface links the offer's original record and never rewrites the
+  // link (#234), so resolving the latest revision here is what shows edits, and
+  // the status filter below is what leaves archived and removed offers out.
+  // Archived and removed offers keep their link; their status leaves them out.
+  Ok(
+    get_latest_offer_records(links)?
+      .into_iter()
+      .filter(|record| {
+        record
+          .entry()
+          .to_app_option::<Offer>()
+          .ok()
+          .flatten()
+          .map(|l| l.status == ListingStatus::Active)
+          .unwrap_or(false)
+      })
+      .collect(),
+  )
 }
 
 #[hdk_extern]
@@ -410,7 +444,6 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
     return Err(CommonError::CannotUpdateArchived("offer".to_string()).into());
   }
 
-  let previous_hash = input.previous_action_hash.0.clone();
   // The creator needs no grant; an admin carries theirs. Never the client's.
   let mut updated_offer = input.updated_offer;
   updated_offer.grant = if is_author {
@@ -430,43 +463,13 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
   updated_offer.removal_reason = None;
   let updated_offer_hash = update_entry(input.previous_action_hash.into(), &updated_offer)?;
 
-  // Update the ActiveOffers link in "offers.active" to point to the new record.
-  // create_offer uses Path::from("offers.active") + LinkTypes::ActiveOffers, so
-  // we must use the same path and link type here, or get_active_offers will keep
-  // returning the original (pre-edit) record.
-  let active_path = Path::from("offers.active");
-  let active_path_hash = active_path.path_entry_hash()?;
-  let active_link_filter = LinkTypes::ActiveOffers
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let active_links = get_links(
-    LinkQuery::new(active_path_hash.clone(), active_link_filter),
-    GetStrategy::Local,
-  )?;
-
-  // Find and remove the link pointing to the current (previous) hash
-  for link in active_links {
-    if let Some(hash) = link.target.clone().into_action_hash() {
-      if hash == previous_hash {
-        delete_link(link.create_link_hash, GetOptions::default())?;
-        break;
-      }
-    }
-  }
-
-  // Create new ActiveOffers link pointing to the updated record
-  create_link(
-    active_path_hash.clone(),
-    updated_offer_hash.clone(),
-    LinkTypes::ActiveOffers,
-    (),
-  )?;
+  // The active list links each offer's original record once, at creation, and
+  // is never rewritten: readers take the latest revision and its status. So an
+  // edit by an administrator never tombstones a link the creator wrote (#234).
 
   // Create the update tracking link (root -> updated, for get_latest_offer_record).
-  // Anchored at the chain root, not at the caller's "original": the ActiveOffers
-  // path link rotates to the newest revision, so after one edit the client's idea
-  // of "original" IS a revision. Anchoring there would hide the second edit from
-  // every non-rotating surface, UserOffers and the archived path among them.
+  // Anchored at the chain root, not at the caller\'s "original", which may
+  // itself be a revision, so every surface finds every edit.
   create_link(
     resolve_chain_root(input.original_action_hash.0),
     updated_offer_hash.clone(),
@@ -503,12 +506,11 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
   )?;
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
-  // Check if the agent is the author or an administrator
+  // Only the creator tombstones their offer, and validation holds that too
+  // (#234). A role holder removes it instead, with `remove_offer`, which records
+  // who and why.
   let author = original_record.action().author().clone();
-  let is_author = author == agent_pubkey;
-  let is_admin = check_if_agent_is_administrator(agent_pubkey.clone())?;
-
-  if !is_author && !is_admin {
+  if author != agent_pubkey {
     return Err(UsersError::NotAuthor.into());
   }
 
@@ -614,17 +616,17 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
     entity: "offer".to_string(),
   })?;
 
-  // Delete any update links
-  let link_type_filter = LinkTypes::OfferUpdates
+  // The update chain's links stay: the records they join stay on the DHT, and
+  // an administrator's edit wrote some of them. Only the creator's own active
+  // list link goes.
+  let active_path_hash = Path::from("offers.active").path_entry_hash()?;
+  let active_filter = LinkTypes::ActiveOffers
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let update_links = get_links(
-    LinkQuery::new(original_action_hash.clone(), link_type_filter),
-    GetStrategy::Network,
-  )?;
-
-  for link in update_links {
-    delete_link(link.create_link_hash, GetOptions::default())?;
+  for link in get_links(LinkQuery::new(active_path_hash, active_filter), GetStrategy::Network)? {
+    if link.target.clone().into_action_hash() == Some(original_action_hash.clone()) {
+      delete_link(link.create_link_hash, GetOptions::default())?;
+    }
   }
 
   // Finally delete the offer entry
@@ -682,27 +684,8 @@ pub fn archive_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
   let latest_action_hash = latest_record.signed_action.hashed.hash.clone();
   let updated_offer_hash = update_entry(latest_action_hash.clone(), &updated_offer)?;
 
-  // Move the link from "offers.active" to "offers.archived" path
-  // First, remove the link from the active path
-  let active_path = Path::from("offers.active");
-  let active_path_hash = active_path.path_entry_hash()?;
-  let active_link_filter = LinkTypes::ActiveOffers
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let active_links = get_links(
-    LinkQuery::new(active_path_hash.clone(), active_link_filter),
-    GetStrategy::Local,
-  )?;
-
-  // Find and remove the link from active path
-  for link in active_links {
-    if let Some(hash) = link.target.clone().into_action_hash() {
-      if hash == latest_action_hash {
-        delete_link(link.create_link_hash, GetOptions::default())?;
-        break;
-      }
-    }
-  }
+  // The active list keeps its link; readers see the archived status and leave
+  // the offer out (#234).
 
   // Create new link in the archived path
   let archived_path = Path::from("offers.archived");
@@ -714,9 +697,10 @@ pub fn archive_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
     (),
   )?;
 
-  // Create link to track the update (from original to new)
+  // Create link to track the update, anchored at the chain root like every
+  // other revision.
   create_link(
-    original_action_hash.clone(),
+    resolve_chain_root(original_action_hash.clone()),
     updated_offer_hash.clone(),
     LinkTypes::OfferUpdates,
     (),
@@ -810,17 +794,9 @@ pub fn remove_offer(input: RemoveOfferInput) -> ExternResult<Record> {
   let removed_hash = update_entry(latest_hash.clone(), &removed)?;
   create_link(root, removed_hash.clone(), LinkTypes::OfferUpdates, ())?;
 
-  // Out of the active list; the creator's and the organisation's links stay, so
-  // they still find it and read why.
-  let active_path_hash = Path::from("offers.active").path_entry_hash()?;
-  let filter = LinkTypes::ActiveOffers
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  for link in get_links(LinkQuery::new(active_path_hash, filter), GetStrategy::Local)? {
-    if link.target.clone().into_action_hash() == Some(latest_hash.clone()) {
-      delete_link(link.create_link_hash, GetOptions::default())?;
-    }
-  }
+  // Every link stays, the active list's included: readers see the `Deleted`
+  // status and leave the offer out of the active list, and the creator and the
+  // organisation still find it and read why (#234).
 
   get(removed_hash, GetOptions::default())?
     .ok_or(CommonError::EntryNotFound("Could not find the removed offer".to_string()).into())

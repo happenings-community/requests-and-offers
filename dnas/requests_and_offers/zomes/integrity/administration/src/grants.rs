@@ -7,7 +7,7 @@
 
 use hdi::prelude::*;
 use utils::grants::{
-  grant_from_tag, load_grant, may_grant, role_available, root_signature_is_valid, scope_fits,
+  grant_from_tag, load_grant, may_grant, role_available, root_is_valid, scope_fits,
   stewarding_present, Authority, Role, RoleGrant, RoleRevocation,
 };
 
@@ -47,12 +47,12 @@ pub fn validate_role_grant(
       if role != Role::Admin {
         return invalid("the progenitor key grants the first administrators, nothing else");
       }
-      match root_signature_is_valid(signature, &grant.body())? {
+      match root_is_valid(author, signature, &grant.body())? {
         // No progenitor key in the DNA properties: development, Sweettest. The
         // root is accepted, and the app's bootstrap guard is the only gate.
         None => Ok(ValidateCallbackResult::Valid),
-        Some(true) => Ok(ValidateCallbackResult::Valid),
-        Some(false) => invalid("the root grant is not signed by the progenitor key"),
+        Some(Ok(())) => Ok(ValidateCallbackResult::Valid),
+        Some(Err(reason)) => invalid(reason),
       }
     }
     Authority::Grant(above_hash) => {

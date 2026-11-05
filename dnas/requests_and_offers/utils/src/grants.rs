@@ -238,26 +238,44 @@ pub fn grant_covers(
   }
 }
 
-/// Checks a root signature against the progenitor key in the DNA properties.
+/// Checks a root grant against the progenitor key in the DNA properties: the
+/// author is the progenitor, and the signature is the progenitor's over the
+/// body. Both, because the signature covers only the body: a signed body
+/// written again by someone else would be a second grant that no revocation
+/// names.
 ///
 /// `None` when no key is configured: development and Sweettest run that way,
 /// and the root is accepted, as Fieldnotes does. That is not a hole, because
 /// the properties are part of the DNA hash: a network without a key is a
-/// different network from one with it. Every released build carries a key.
+/// different network from one with it. A released build is meant to carry a
+/// key; until the membrane work ships one, a release accepts any root, and
+/// the chain of grants records who did what without stopping a modified
+/// client.
 ///
 /// This is the one place the progenitor's signature is checked, so a membrane
 /// invite (alpha 3) can be verified here too rather than by a second mechanism.
-pub fn root_signature_is_valid<D: Serialize + std::fmt::Debug>(
+pub fn root_is_valid<D: Serialize + std::fmt::Debug>(
+  author: &AgentPubKey,
   signature: &Signature,
   payload: &D,
-) -> ExternResult<Option<bool>> {
+) -> ExternResult<Option<Result<(), String>>> {
   match DnaProperties::get_progenitor_pubkey()? {
     None => Ok(None),
-    Some(progenitor) => Ok(Some(verify_signature(
-      progenitor,
-      signature.clone(),
-      payload,
-    )?)),
+    Some(progenitor) => {
+      // The signature first, then the author: a body nobody signed is refused
+      // for the signature, a signed body written by someone else for the author.
+      if !verify_signature(progenitor.clone(), signature.clone(), payload)? {
+        return Ok(Some(Err(
+          "the root grant is not signed by the progenitor key".to_string(),
+        )));
+      }
+      if author != &progenitor {
+        return Ok(Some(Err(
+          "the root grant is written by the progenitor".to_string(),
+        )));
+      }
+      Ok(Some(Ok(())))
+    }
   }
 }
 

@@ -84,7 +84,7 @@ describe('tabToOpen', () => {
   });
 
   it('reads the tabs in the order the page shows them', () => {
-    expect([...EXCHANGE_TAB_ORDER]).toEqual(['proposals', 'active', 'completed']);
+    expect([...EXCHANGE_TAB_ORDER]).toEqual(['proposals', 'active', 'completed', 'all']);
   });
 });
 
@@ -141,10 +141,13 @@ describe('applyExchangeFilters', () => {
     expect(oldestFirst.agreement_hash).toEqual(hash(11));
   });
 
-  it('puts a withdrawn proposal with the proposals, not the active ones', () => {
+  it('shows an ended exchange only under All', () => {
     const withdrawn = exchange({ status: 'Cancelled' });
-    expect(applyExchangeFilters([withdrawn], me, base)).toHaveLength(1);
+    expect(applyExchangeFilters([withdrawn], me, base)).toHaveLength(0);
     expect(applyExchangeFilters([withdrawn], me, { ...base, tab: 'active' })).toHaveLength(0);
+    expect(applyExchangeFilters([withdrawn, exchange()], me, { ...base, tab: 'all' })).toHaveLength(
+      2
+    );
   });
 });
 
@@ -167,10 +170,10 @@ describe('validateReview', () => {
 });
 
 describe('proposal links', () => {
-  it('carries the interest, the listing and its type into the counter-proposal', () => {
+  it('sends a counter-proposal to its own page for the proposal it answers', () => {
     const href = counterProposalHref(exchange());
-    expect(href).toContain('/exchanges/propose?interest=');
-    expect(href).toContain('&type=Offer');
+    expect(href).toMatch(/^\/exchanges\/[^/]+\/counter$/);
+    expect(href).not.toContain('propose');
   });
 
   it('builds the same link from an interest on a listing', () => {

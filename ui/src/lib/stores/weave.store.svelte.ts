@@ -169,8 +169,7 @@ function createWeaveStore() {
    * Returns a new UIUser with Moss nickname/picture applied if available.
    */
   function enrichWithMossProfile(
-    raoUser: UIUser | null,
-    _agentPubKey: AgentPubKey
+    raoUser: UIUser | null
   ): E.Effect<UIUser | null, WeaveError> {
     return E.sync(() => {
       if (isWeaveContext && mossProfile) {

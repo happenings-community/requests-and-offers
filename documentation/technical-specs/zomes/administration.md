@@ -85,7 +85,7 @@ pub enum LinkTypes {
 pub fn add_administrator(input: EntityActionHashAgents) -> ExternResult<bool>
 ```
 
-The sole public extern for administrator registration. Callers must be either an existing administrator **or** the network progenitor. Internally calls the private `register_administrator` helper, which is idempotent (returns `false` without error if the entity is already an administrator).
+The sole public extern for administrator registration. Callers must be either an existing administrator **or** the network progenitor. It writes the new administrator's admin grant (see *The chain of grants* below) and the two roster links, and is idempotent (returns `false` without error if the entity is already an administrator).
 
 - Requires caller to be the progenitor or an existing administrator
 - Idempotent: safe to call when already an administrator
@@ -291,42 +291,69 @@ pub fn check_if_entity_is_accepted(input: EntityActionHash) -> ExternResult<bool
 - Status queries available to all users
 - Entity acceptance management restricted to administrators
 
+## The chain of grants
+
+Every act of authority on the network is a **role act**: a record that names the grant its author holds for it, written only by that holder. The grants form a chain that validation walks one step up with `must_get_valid_record`, so every peer reaches the same verdict.
+
+### Entries
+
+- **`RoleGrant`** `{ role, holder, scope, authority }`. `role` is `admin`, `member`, `coordinator` (scoped to an organisation) or `steward` (only on a network with the stewarding module). `authority` is either `Progenitor { signature }` — the progenitor key's signature over the grant's body, admitted for `admin` only — or `Grant(hash)`: a grant above it whose holder wrote this one and whose role may grant this role in this scope (`utils::grants::may_grant`).
+- **`RoleRevocation`** `{ grant, authority, reason }`: withdraws a grant. Written by the holder of a grant that could have given the role. The grant stands as a record; `can` treats it as withdrawn.
+
+Grants and revocations are records: never updated, never deleted. The only way to end a grant is a revocation.
+
+### Index links
+
+| Link | From → to | Rule |
+|---|---|---|
+| `AgentGrants` | holder's key → grant | written by the granter; tag carries the grant's hash |
+| `AllGrants` | `grants.{role}` path → grant | written by the granter; tag carries the grant's hash |
+| `GrantRevocations` | grant → revocation | written by the revoker |
+
+These three are what `can` reads, and **none of them is ever tombstoned**: a tombstone on a holder's index would hide their grant from every reader, and one on a revocation link would bring a revoked grant back. No coordinator tombstones them. (The administrator roster links `AllAdministrators` / `AgentAdministrators` are tombstoned by `remove_administrator`; who may write that tombstone is still open, and `can` does not read them.)
+
+### Reading authority
+
+`can(agent, ability, scope)` returns the agent's live grant that covers the ability, or none: it reads the holder's `AgentGrants` index, drops any grant with a `GrantRevocations` link, and checks `grant_covers`. Coordinators call `require_grant` before a write and put the grant on the record; integrity checks the record with `check_act`, which reloads the grant and confirms its holder is the author and its role covers the ability. Revocation is checked on the read side only: a record written while a grant was live stays valid after the grant is revoked.
+
+### The root
+
+With a `progenitor_pubkey` in the DNA properties, a root (`Authority::Progenitor`) grant is accepted only when its author **is** the progenitor and the signature verifies against the progenitor key — both, because the signature covers only the body, and a signed body written again by someone else would be a second grant that no revocation names. With no key configured (development, Sweettest, and the alpha 2 release, whose manifest carries `null`), the root is accepted from any author: a network without a key is a different network from one with it, since the properties are part of the DNA hash. On such a network the chain of grants records who did what; it does not stop a modified client from writing itself a root.
+
 ## Integrity Validation
 
-The integrity zome adds a `validate` callback that dispatches `FlatOp` variants for `AllAdministrators` and `AgentAdministrators` link types. Its primary guarantee is the **progenitor bootstrap**: only the network progenitor can write the very first admin links without any pre-existing authority.
+The integrity zome's `validate` callback dispatches every `FlatOp` for the zome's entries and links. Authorisation is checked **in validation**, not only in the coordinator: a status past `pending`, a grant, a revocation and each roster link carry the grant they rest on, and `check_act` walks it with `must_get_valid_record`.
 
 ### Design note: HDI vs HDK
 
-Integrity zomes use `hdi::prelude::*`. The HDI crate does **not** expose `get_links`, `LinkQuery`, or `GetStrategy` — only `must_get_*` variants (which require a known action hash). Dynamic "is this agent currently an administrator?" checks therefore cannot be performed inside integrity validation. That authorization is enforced by the coordinator layer (`check_if_agent_is_administrator` / `check_if_entity_is_administrator`) on every mutating call.
+Integrity zomes use `hdi::prelude::*`, which exposes `must_get_*` but not `get_links`. That is why authority is carried **on the record** as a grant hash rather than looked up: validation can `must_get_valid_record` a hash it is given, deterministically on every peer, but cannot ask "is this agent an administrator right now?". The coordinator still checks `require_grant` first, so an honest client gets a clear refusal before writing; the validator is what a modified client meets.
 
 ### What the integrity zome validates
 
 | Operation | Integrity guarantee |
 |-----------|---------------------|
-| Create `AllAdministrators` link by the progenitor | Cryptographically verified (deterministic DNA property comparison) |
-| Create `AllAdministrators` link by any other agent | Default-allow; coordinator enforces admin-membership check |
-| Delete `AllAdministrators` link | Default-allow; coordinator enforces admin-membership check |
-| Create `AgentAdministrators` link by the progenitor | Cryptographically verified |
-| Create `AgentAdministrators` link by any other agent | Default-allow; coordinator enforces admin-membership check |
-| Delete `AgentAdministrators` link | Default-allow; coordinator enforces admin-membership check |
+| Create `Status` past `pending`, or update any `Status` | carries a grant covering `ChangeStatus`, held by the author |
+| Delete `Status` | refused |
+| Create `RoleGrant` | role available on this network; scope fits the role; authority is a valid root or a grant above it held by the author that may grant this role |
+| Create `RoleRevocation` | names a grant held by the author that may grant the revoked role |
+| Update or delete `RoleGrant` / `RoleRevocation` | refused |
+| Create `AgentGrants` / `AllGrants` | written by the granter, from the right base, tag names the grant |
+| Create `GrantRevocations` | written by the revoker |
+| Delete `AgentGrants` / `AllGrants` / `GrantRevocations` | refused |
+| Create `AllAdministrators` / `AgentAdministrators` | tag carries an admin grant held by the link's author |
+| Create `EntityStatus` | written by the author of the status it points at |
+| Create `AcceptedEntity` | tag carries a `ChangeStatus` grant (admin or steward) held by the author |
+| Create `StatusUpdates` | both ends are statuses (the chain rule is on #400's list) |
 
-### Validation Helper
-
-One private helper is used inside the `validate` callback:
-
-```rust
-// Deterministic: compares agent to the DNA progenitor_pubkey property
-fn is_progenitor(agent: &AgentPubKey) -> ExternResult<bool>
-```
-
-The `validate` extern uses `op.flattened::<EntryTypes, LinkTypes>()` to dispatch each `FlatOp` variant to the appropriate validation function. All unrecognised ops return `ValidateCallbackResult::Valid` (default-allow pattern).
+Forged-client coverage of these rules lives in `tests/sweettest/tests/grants.rs`, where one conductor carries the `forge` zome and writes past the coordinator.
 
 ### Status Entry Validation
 
-The existing `validate_status` function continues to enforce that:
+`validate_status` enforces that:
 - Status type must be one of the defined `StatusType` variants.
 - Suspended statuses must include a reason.
-- Temporarily suspended statuses must include a `suspended_until` timestamp.
+- Temporarily suspended statuses must include a `suspended_until` timestamp; indefinitely suspended ones must not.
+- Any status other than the author's own initial `pending`, and every update, carries a `ChangeStatus` grant held by its author.
 
 ## Usage Examples
 

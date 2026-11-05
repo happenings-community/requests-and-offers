@@ -36,9 +36,22 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
 /// `must_get_valid_record` trusts the record authority's verdict. A rule run
 /// on the entry op alone is never seen by the authority that answers for
 /// the record.
-fn validate_entry(app_entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
+///
+/// `update` is the action an update updates, `None` for a create: the grant
+/// rule needs it to find the request's creator. Field rules run first.
+fn validate_entry(
+  app_entry: EntryTypes,
+  author: &AgentPubKey,
+  update: Option<&ActionHash>,
+) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
-    EntryTypes::Request(request) => validate_request(request),
+    EntryTypes::Request(request) => {
+      let grant = request.grant.clone();
+      match validate_request(request)? {
+        ValidateCallbackResult::Valid => validate_request_grant(&grant, author, update),
+        other => Ok(other),
+      }
+    }
   }
 }
 
@@ -60,14 +73,28 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
-        return validate_entry(app_entry);
+      OpEntry::CreateEntry { app_entry, action } => {
+        return validate_entry(app_entry, action.author(), None);
+      }
+      OpEntry::UpdateEntry { app_entry, action } => {
+        return validate_entry(
+          app_entry,
+          action.author(),
+          Some(&action.data.original_action_address),
+        );
       }
       _ => (),
     },
     FlatOp::CreateRecord(store_record) => match store_record {
-      OpRecord::CreateEntry { app_entry, .. } | OpRecord::UpdateEntry { app_entry, .. } => {
-        return validate_entry(app_entry);
+      OpRecord::CreateEntry { app_entry, action } => {
+        return validate_entry(app_entry, action.author(), None);
+      }
+      OpRecord::UpdateEntry { app_entry, action } => {
+        return validate_entry(
+          app_entry,
+          action.author(),
+          Some(&action.data.original_action_address),
+        );
       }
       OpRecord::DeleteEntry { action } => {
         let original_record = must_get_valid_record(action.deletes_address.clone())?;
@@ -147,6 +174,7 @@ mod record_op_tests {
       interaction_type: InteractionType::InPerson,
       links: vec![],
       status: ListingStatus::Active,
+      grant: None,
     }
     .try_into()
     .unwrap()

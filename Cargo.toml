@@ -9,6 +9,7 @@ members = [
   "dnas/requests_and_offers/utils",
   "dnas/*/zomes/coordinator/*",
   "dnas/*/zomes/integrity/*",
+  "tests/forge",
   "tests/sweettest",
 ]
 # Exclude sweettest from the default workspace build.
@@ -18,6 +19,9 @@ default-members = [
   "dnas/requests_and_offers/utils",
   "dnas/*/zomes/coordinator/*",
   "dnas/*/zomes/integrity/*",
+  # Test-only coordinator zome, built to wasm beside the real ones and never
+  # packed into the DNA; Sweettest loads it from target/.
+  "tests/forge",
 ]
 resolver = "2"
 

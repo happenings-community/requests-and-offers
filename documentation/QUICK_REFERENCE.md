@@ -24,6 +24,7 @@ bun start                      # Start development (2 agents)
 # Development servers
 bun start                      # 2 agents (default)
 AGENTS=3 bun start            # Custom number of agents
+bun start:web                 # Browser tabs, one URL per member (Vite HMR)
 bun start:test                # Test mode (dev features, no mock buttons)
 bun start:prod                # Production mode (all dev features disabled)
 
@@ -311,8 +312,8 @@ nix develop --command bun test:unit  # Use autonomous execution
 **Port conflicts:**
 
 ```bash
-lsof -ti:8888 | xargs kill -9     # Kill process on port 8888
-lsof -ti:4444 | xargs kill -9     # Kill process on port 4444
+lsof -ti:8880 | xargs kill -9     # Kill process on the default UI port (UI_PORT)
+# Admin ports are picked free at each start; pin them with ADMIN_PORTS=4445,4446
 ```
 
 **Nix environment issues:**

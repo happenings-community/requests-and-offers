@@ -55,13 +55,13 @@ describe('the propose page labels the listing it actually loaded', () => {
   });
 
   it('the type label reads that, never the query string', () => {
-    const label = source.slice(source.indexOf("{otherName}'s "));
-    expect(label.slice(0, 60)).toContain('loadedType');
-    expect(label.slice(0, 60)).not.toContain('params.listingType');
+    const label = source.slice(source.indexOf("{iAmAuthor ? 'Your'"));
+    expect(label.slice(0, 120)).toContain('loadedType');
+    expect(label.slice(0, 120)).not.toContain('params.listingType');
   });
 
   it('the other person is whoever is not proposing', () => {
-    expect(source).toMatch(/const other = \$derived\(iAmAuthor \? interestedUser : creator\)/);
+    expect(source).toMatch(/proposalCounterparty\(listing\?\.creator, memberHash, me\)/);
     expect(source).toMatch(/const otherName = \$derived\(other\?\.name/);
   });
 });

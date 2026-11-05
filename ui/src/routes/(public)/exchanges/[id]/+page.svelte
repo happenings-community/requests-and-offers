@@ -47,7 +47,7 @@
 
   const { accept, decline, complete, cancel, withdraw, review } = details;
 
-  /** The composable declines and hands back where the counter is written. */
+  /** Opens the counter page. Nothing is declined until the counter is sent there. */
   async function counter() {
     const href = await details.counter();
     if (href) await goto(href);
@@ -120,7 +120,7 @@
         would only be noise.
       -->
       {#if back.wording !== 'conversation' && exchange && me}
-        <ReachPerson person={counterpartyOf(exchange, me)} />
+        <ReachPerson person={counterpartyOf(exchange, me)} context="exchange" />
       {/if}
     </div>
   </div>

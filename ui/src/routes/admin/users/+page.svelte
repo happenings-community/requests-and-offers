@@ -118,7 +118,7 @@
       {#if users.length > 0}
         <UsersTable {users} />
       {:else}
-        <p class="text-center text-surface-500">No {title.toLowerCase()}</p>
+        <p class="text-center text-surface-500 dark:text-surface-300">No {title.toLowerCase()}</p>
       {/if}
     </details>
   {:else}
@@ -127,7 +127,7 @@
       {#if users.length > 0}
         <UsersTable {users} />
       {:else}
-        <p class="text-center text-surface-500">No {title.toLowerCase()}</p>
+        <p class="text-center text-surface-500 dark:text-surface-300">No {title.toLowerCase()}</p>
       {/if}
     </div>
   {/if}

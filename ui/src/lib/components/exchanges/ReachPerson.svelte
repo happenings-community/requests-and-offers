@@ -31,12 +31,18 @@
     listingTitle?: string;
     /** An organisation's details stand in for a member's, as on the listing pages. */
     organization?: UIOrganization | null;
+    /**
+     * Where the pop-up is opened from (#368). On an exchange no proposal screen follows,
+     * so the pop-up leaves out the line that says one does.
+     */
+    context?: 'interest' | 'exchange';
   };
   const {
     person,
     listingType = 'request',
     listingTitle = '',
-    organization = null
+    organization = null,
+    context = 'interest'
   }: Props = $props();
 
   const plugged = getReachPerson();
@@ -96,7 +102,7 @@
   function openContact() {
     const component: ModalComponent = {
       ref: ContactModal,
-      props: { user: contact, organization, listingType, listingTitle }
+      props: { user: contact, organization, listingType, listingTitle, context }
     };
     modalStore.trigger({ type: 'component', component, meta: { title: '', body: '' } });
   }

@@ -1,4 +1,4 @@
-import { Effect as E, Layer, pipe } from 'effect';
+import { Effect as E, Layer } from 'effect';
 import { vi } from 'vitest';
 import type { EventBusService } from '$lib/utils/eventBus.effect';
 import type { StoreEvents } from '$lib/stores/storeEvents';

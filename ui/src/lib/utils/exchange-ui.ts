@@ -89,36 +89,45 @@ export function exchangeStatusVariant(status: ExchangeStatus): string {
   }
 }
 
-export type ExchangeTab = 'proposals' | 'active' | 'completed';
+export type LiveTab = 'proposals' | 'active' | 'completed';
+export type ExchangeTab = LiveTab | 'all';
 
 /**
- * Which group each state belongs to.
+ * Which live tab each state belongs to, or null once it has ended.
  *
  * One entry per state rather than a list per tab, so a new state fails to compile here
- * instead of falling through to whichever tab the old loop ended on. A proposal taken
- * back belongs with proposals: it never became an exchange.
+ * instead of falling through to whichever tab the old loop ended on. A declined, withdrawn
+ * or cancelled exchange has ended and belongs to none of the live tabs: it shows under
+ * All, with everything else.
  */
-export const TAB_OF_STATE: Record<ExchangeState, ExchangeTab> = {
+export const TAB_OF_STATE: Record<ExchangeState, LiveTab | null> = {
   proposed: 'proposals',
-  declined: 'proposals',
-  withdrawn: 'proposals',
+  declined: null,
+  withdrawn: null,
   agreed: 'active',
   partlyDone: 'active',
-  cancelled: 'active',
+  cancelled: null,
   awaitingReviews: 'completed',
   reviewed: 'completed'
 };
 
-export function tabOf(exchange: UIExchange): ExchangeTab {
+/** The live tab an exchange sits in, or null once it has ended. */
+export function tabOf(exchange: UIExchange): LiveTab | null {
   return TAB_OF_STATE[exchangeState(exchange)];
+}
+
+export function inTab(exchange: UIExchange, tab: ExchangeTab): boolean {
+  return tab === 'all' || tabOf(exchange) === tab;
 }
 
 export function termLabel(term: ExchangeTerm): string {
   if (term.resource_kind === 'Tbd') return 'To be discussed';
   if (term.resource_kind === 'Gift') return 'Gift, nothing owed';
   if (!term.quantity) return term.resource_conforms_to;
-  if (term.resource_kind === 'Currency') return `${term.quantity.value} ${term.resource_conforms_to}`;
-  const unit = term.quantity.value === 1 ? term.quantity.unit.replace(/s$/, '') : term.quantity.unit;
+  if (term.resource_kind === 'Currency')
+    return `${term.quantity.value} ${term.resource_conforms_to}`;
+  const unit =
+    term.quantity.value === 1 ? term.quantity.unit.replace(/s$/, '') : term.quantity.unit;
   return `${term.quantity.value} ${unit} of ${term.resource_conforms_to}`;
 }
 
@@ -146,16 +155,34 @@ export function namedInterest<T extends { interest_hash: ActionHash }>(
   return interests.find((i) => same(i.interest_hash, wanted));
 }
 
-export function roleOf(exchange: UIExchange, myUserHash: ActionHash | undefined): ExchangeRole | null {
+export function roleOf(
+  exchange: UIExchange,
+  myUserHash: ActionHash | undefined
+): ExchangeRole | null {
   if (same(exchange.agreement.provider, myUserHash)) return 'provider';
   if (same(exchange.agreement.receiver, myUserHash)) return 'receiver';
   return null;
 }
 
-export function counterpartyOf(exchange: UIExchange, myUserHash: ActionHash | undefined): ActionHash {
+export function counterpartyOf(
+  exchange: UIExchange,
+  myUserHash: ActionHash | undefined
+): ActionHash {
   return same(exchange.agreement.provider, myUserHash)
     ? exchange.agreement.receiver
     : exchange.agreement.provider;
+}
+
+/**
+ * Who a proposal is made with, before any agreement exists. A listing's author
+ * proposes to the member who showed interest; anyone else proposes to the author.
+ */
+export function proposalCounterparty(
+  author: ActionHash | undefined,
+  member: ActionHash | undefined,
+  myUserHash: ActionHash | undefined
+): ActionHash | undefined {
+  return same(author, myUserHash) ? member : author;
 }
 
 /** The agreement names the counterparty; whoever is not it wrote it up. */
@@ -164,11 +191,19 @@ export function wroteIt(exchange: UIExchange, myUserHash: ActionHash | undefined
 }
 
 export function doneBy(exchange: UIExchange, role: ExchangeRole | null): boolean {
-  return role === 'provider' ? !!exchange.provider_done : role === 'receiver' ? !!exchange.receiver_done : false;
+  return role === 'provider'
+    ? !!exchange.provider_done
+    : role === 'receiver'
+      ? !!exchange.receiver_done
+      : false;
 }
 
 export function reviewedBy(exchange: UIExchange, role: ExchangeRole | null): boolean {
-  return role === 'provider' ? !!exchange.provider_review : role === 'receiver' ? !!exchange.receiver_review : false;
+  return role === 'provider'
+    ? !!exchange.provider_review
+    : role === 'receiver'
+      ? !!exchange.receiver_review
+      : false;
 }
 
 export function otherRole(role: ExchangeRole | null): ExchangeRole | null {
@@ -279,7 +314,11 @@ export function actionLabel(exchange: UIExchange, role: ExchangeRole | null): st
 }
 
 export function formatWhen(ms: number): string {
-  return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(ms).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  });
 }
 
 /**

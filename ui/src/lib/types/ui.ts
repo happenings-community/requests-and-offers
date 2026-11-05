@@ -38,6 +38,10 @@ export type UIUser = UserInDHT & {
   status?: UIStatus;
   status_history?: Revision[];
   organizations?: ActionHash[];
+  /** Set by createUIUser from the record's timestamp, in milliseconds. */
+  created_at?: number;
+  /** When the profile's latest revision was written, in milliseconds (#331). */
+  updated_at?: number;
   role?: OrganizationRole;
   // Test mode peer fields
   is_test_peer?: boolean;
@@ -136,6 +140,8 @@ export type UIExchange = Timed & {
   provider_review?: import('$lib/types/holochain').ReviewInDHT & Timed;
   receiver_review?: import('$lib/types/holochain').ReviewInDHT & Timed;
   cancellation?: import('$lib/types/holochain').CancellationInDHT & Timed;
+  /** The counter-proposal that answers this one: the next round (#333). */
+  countered_by?: ActionHash;
 };
 
 // ============================================================================

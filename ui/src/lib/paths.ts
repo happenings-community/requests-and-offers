@@ -148,6 +148,8 @@ export const paths = {
   exchanges: () => '/exchanges',
   exchangeDetail: (id: IdLike, opts: { from?: IdLike } = {}) =>
     `/exchanges/${h(id)}${query({ [P.from]: opts.from && h(opts.from) })}`,
+  /** The counter page for an exchange: answer a proposal with changed terms (#333). */
+  exchangeCounter: (id: IdLike) => `/exchanges/${h(id)}/counter`,
   /**
    * The propose page.
    *

@@ -18,6 +18,7 @@ import {
   awaitingMe,
   closureOf,
   counterpartyOf,
+  proposalCounterparty,
   doneBy,
   exchangeState,
   exchangeStatusVariant,
@@ -30,6 +31,7 @@ import {
   roleOf,
   statusLabel,
   tabOf,
+  inTab,
   termLabel,
   turnOf,
   wroteIt
@@ -81,6 +83,7 @@ const agreement = (over: Partial<AgreementInDHT> = {}): AgreementInDHT => ({
   medium: 'CAD',
   terms: 'Within the month',
   delivery_timeframe: '2 weeks',
+  counters: null,
   ...over
 });
 
@@ -189,11 +192,19 @@ describe('exchange-ui', () => {
     });
 
     it('at OneSideDone, asks whoever has not completed, either side', () => {
-      const providerWent = exchange({ status: 'OneSideDone', response: accepted, provider_done: { created_at: 1 } });
+      const providerWent = exchange({
+        status: 'OneSideDone',
+        response: accepted,
+        provider_done: { created_at: 1 }
+      });
       expect(turnOf(providerWent, RECEIVER)).toBe('you');
       expect(turnOf(providerWent, PROVIDER)).toBe('them');
 
-      const receiverWent = exchange({ status: 'OneSideDone', response: accepted, receiver_done: { created_at: 1 } });
+      const receiverWent = exchange({
+        status: 'OneSideDone',
+        response: accepted,
+        receiver_done: { created_at: 1 }
+      });
       expect(turnOf(receiverWent, PROVIDER)).toBe('you');
       expect(turnOf(receiverWent, RECEIVER)).toBe('them');
     });
@@ -230,25 +241,27 @@ describe('exchange-ui', () => {
     });
   });
 
-  describe('tabOf', () => {
-    it('groups each status as EXCHANGE_TABS declares', () => {
+  describe('tabOf and inTab', () => {
+    it('places each live status as EXCHANGE_TABS declares', () => {
       expect(tabOf(exchange({ status: 'Proposed' }))).toBe('proposals');
-      expect(tabOf(exchange({ status: 'Declined', response: declined }))).toBe('proposals');
       expect(tabOf(exchange({ status: 'Agreed', response: accepted }))).toBe('active');
       expect(tabOf(exchange({ status: 'OneSideDone', response: accepted }))).toBe('active');
       expect(tabOf(exchange({ status: 'Complete', response: accepted }))).toBe('completed');
       expect(tabOf(exchange({ status: 'Reviewed', response: accepted }))).toBe('completed');
     });
 
-    it('puts a withdrawal back with proposals, but a cancellation after acceptance stays active', () => {
-      expect(tabOf(exchange({ status: 'Cancelled' }))).toBe('proposals');
-      expect(tabOf(exchange({ status: 'Cancelled', response: accepted }))).toBe('active');
+    it('gives an ended exchange no live tab: declined, withdrawn or cancelled', () => {
+      expect(tabOf(exchange({ status: 'Declined', response: declined }))).toBeNull();
+      expect(tabOf(exchange({ status: 'Cancelled' }))).toBeNull();
+      expect(tabOf(exchange({ status: 'Cancelled', response: accepted }))).toBeNull();
     });
 
-    it('lands every status in exactly one tab', () => {
+    it('puts every status under All, and live ones in exactly one live tab as well', () => {
       for (const status of ALL_STATUSES) {
         const e = exchange({ status, response: accepted });
-        expect(Object.values(TAB_OF_STATE), status).toContain(tabOf(e));
+        expect(inTab(e, 'all'), status).toBe(true);
+        const live = (['proposals', 'active', 'completed'] as const).filter((t) => inTab(e, t));
+        expect(live.length, status).toBe(tabOf(e) ? 1 : 0);
       }
     });
   });
@@ -461,12 +474,12 @@ describe('exchangeState, the record read once', () => {
     expect(statusLabel(e), 'and the label follows the state').toBe('Declined');
   });
 
-  it('has a label and exactly one tab for every state, with nothing left unplaced', () => {
+  it('has a label and at most one live tab for every state, with nothing left unplaced', () => {
     for (const state of Object.keys(
       EXCHANGE_STATE_LABEL
     ) as (keyof typeof EXCHANGE_STATE_LABEL)[]) {
       expect(EXCHANGE_STATE_LABEL[state], state).toBeTruthy();
-      expect(['proposals', 'active', 'completed'], state).toContain(TAB_OF_STATE[state]);
+      expect(['proposals', 'active', 'completed', null], state).toContain(TAB_OF_STATE[state]);
     }
   });
 
@@ -481,7 +494,7 @@ describe('exchangeState, the record read once', () => {
     });
     expect(exchangeState(withdrawn)).toBe('withdrawn');
     expect(statusLabel(withdrawn)).toBe('Withdrawn');
-    expect(tabOf(withdrawn), 'it never became an exchange').toBe('proposals');
+    expect(tabOf(withdrawn), 'it has ended, so it shows under All only').toBeNull();
     expect(turnOf(withdrawn, RECEIVER), 'nothing is asked of either side').toBe('none');
     expect(actionLabel(withdrawn, 'receiver'), 'a proposal is what there is to open').toBe(
       'Open proposal'
@@ -583,5 +596,32 @@ describe('the exchange pages read the state, not the status', () => {
     expect(closureOf(exchange({ status: 'Proposed' }))).toBeNull();
     expect(closureOf(exchange({ status: 'Agreed', response: accepted }))).toBeNull();
     expect(closureOf(exchange({ status: 'Reviewed', response: accepted }))).toBeNull();
+  });
+});
+
+describe('proposalCounterparty', () => {
+  const author = new Uint8Array([1, 1, 1]) as ActionHash;
+  const member = new Uint8Array([2, 2, 2]) as ActionHash;
+
+  it('is the interested member when the listing author proposes', () => {
+    expect(proposalCounterparty(author, member, new Uint8Array([1, 1, 1]) as ActionHash)).toBe(
+      member
+    );
+  });
+
+  it('is the listing author when anyone else proposes', () => {
+    expect(proposalCounterparty(author, member, new Uint8Array([2, 2, 2]) as ActionHash)).toBe(
+      author
+    );
+  });
+
+  it('falls back to the author while the viewer is not known yet', () => {
+    expect(proposalCounterparty(author, member, undefined)).toBe(author);
+  });
+
+  it('is unknown when the author proposes and the interest has no member', () => {
+    expect(
+      proposalCounterparty(author, undefined, new Uint8Array([1, 1, 1]) as ActionHash)
+    ).toBeUndefined();
   });
 });

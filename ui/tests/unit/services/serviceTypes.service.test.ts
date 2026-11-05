@@ -699,7 +699,7 @@ describe('ServiceTypesService', () => {
       mockHolochainClient.callZome.mockResolvedValue(undefined);
 
       // Act
-      const result = await runServiceEffect(
+      await runServiceEffect(
         E.gen(function* () {
           const service = yield* ServiceTypesServiceTag;
           return yield* service.rejectServiceType(mockActionHash);

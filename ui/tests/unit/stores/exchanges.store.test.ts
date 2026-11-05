@@ -31,7 +31,8 @@ const agreement: AgreementInDHT = {
   reciprocal: { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Gift', quantity: null },
   medium: 'Free/Pay it Forward',
   terms: 'Saturday, bring gloves',
-  delivery_timeframe: 'Within 2 weeks'
+  delivery_timeframe: 'Within 2 weeks',
+  counters: null
 };
 
 const interest: InterestInDHT = { listing: hash(1), listing_type: 'Offer', user: hash(3) };
@@ -45,6 +46,7 @@ const model = (over: Partial<ExchangeReadModel> = {}): ExchangeReadModel => ({
   receiver_review: null,
   cancellation: null,
   status: 'Proposed',
+  countered_by: null,
   ...over
 });
 
@@ -60,6 +62,7 @@ function mockService(over: Partial<ExchangesService> = {}): ExchangesService {
     getMyInterests: vi.fn(() => E.succeed([])),
     createAgreement: vi.fn(() => E.succeed(record(agreement, hash(10)))),
     respondToAgreement: vi.fn(() => E.succeed(record({ agreement: hash(10), accepted: true, note: '' }, hash(11)))),
+    counterAgreement: vi.fn(() => E.succeed(record(agreement, hash(12)))),
     completeAgreement: vi.fn(() => E.succeed(record({ agreement: hash(10) }, hash(12)))),
     reviewAgreement: vi.fn(() => E.succeed(record({ agreement: hash(10), rating: 5, on_time: true, as_agreed: true, comment: '' }, hash(13)))),
     cancelAgreement: vi.fn(() => E.succeed(record({ agreement: hash(10), note: '' }, hash(14)))),

@@ -34,13 +34,12 @@ export function validateReview(input: ReviewInput): string | null {
   return issues[0]?.message ?? 'That review is not valid.';
 }
 
-/** Where a counter-proposal is written, carrying the agreement's own context. */
+/**
+ * Where a counter-proposal is written: its own page, reading the proposal it
+ * answers rather than the listing (#332).
+ */
 export function counterProposalHref(exchange: UIExchange): string {
-  const { interest, listing, listing_type } = exchange.agreement;
-  return (
-    `/exchanges/propose?interest=${encodeHashToBase64(interest)}` +
-    `&listing=${encodeHashToBase64(listing)}&type=${listing_type}`
-  );
+  return `/exchanges/${encodeHashToBase64(exchange.agreement_hash)}/counter`;
 }
 
 /** How often an open exchange page re-reads its exchange (#334). */
@@ -141,18 +140,14 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
     act('Agreement declined', () => runEffect(exchangesStore.respond(hash(), false, note)));
 
   /**
-   * Declines, then hands back where the counter-proposal is written. Navigation
-   * stays with the page: a composable that calls `goto` cannot be unit tested
-   * without stubbing SvelteKit, and routing is the page's job anyway.
+   * Hands back where the counter-proposal is written. Nothing is declined here:
+   * the counter page declines the original only once the counter is sent, so
+   * leaving that page leaves this proposal open. Navigation stays with the page:
+   * a composable that calls `goto` cannot be unit tested without stubbing
+   * SvelteKit, and routing is the page's job anyway.
    */
-  const counter = async (): Promise<string | null> => {
-    if (!exchange) return null;
-    const href = counterProposalHref(exchange);
-    const declined = await act('Declined; make your counter-proposal', () =>
-      runEffect(exchangesStore.respond(hash(), false, 'Countered with a new proposal'))
-    );
-    return declined ? href : null;
-  };
+  const counter = async (): Promise<string | null> =>
+    exchange ? counterProposalHref(exchange) : null;
 
   const complete = () => act('Marked as done', () => runEffect(exchangesStore.complete(hash())));
 

@@ -129,9 +129,9 @@
       <!-- Additional error details for development -->
       {#if import.meta.env.DEV && error && typeof error === 'object' && '_tag' in error}
         <p class="mt-1 text-xs opacity-75">
-          Error Type: {(error as any)._tag}
+          Error Type: {(error as { _tag: unknown })._tag}
           {#if error && typeof error === 'object' && 'cause' in error}
-            | Cause: {String((error as any).cause).substring(0, 100)}
+            | Cause: {String((error as { cause?: unknown }).cause).substring(0, 100)}
           {/if}
         </p>
       {/if}

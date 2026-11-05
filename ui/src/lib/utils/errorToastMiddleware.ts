@@ -32,7 +32,7 @@ export function withToastNotification<A, E, R>(
 
   return pipe(
     effect,
-    E.tap((result) => {
+    E.tap(() => {
       if (enableSuccessToast && successMessage) {
         return E.sync(() => {
           toastStore.trigger({
@@ -203,7 +203,7 @@ export function withAsyncToast<A, E, R>(
       }
     }),
     E.andThen(() => effect),
-    E.tap((result) => {
+    E.tap(() => {
       return E.sync(() => {
         // Close loading toast
         if (loadingToastId) {

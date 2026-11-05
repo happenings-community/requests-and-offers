@@ -1,5 +1,5 @@
 import type { ActionHash } from '@holochain/client';
-import { storeEventBus } from '$lib/stores/storeEvents';
+import { storeEventBus, type StoreEvents } from '$lib/stores/storeEvents';
 import type {
   EventEmitter,
   EventEmitterConfig,
@@ -38,7 +38,7 @@ export const createEventEmitterFactory = <TEntity extends CacheableEntity>(
 
   const emitCreated = (entity: TEntity): void => {
     try {
-      storeEventBus.emit(`${entityName}:created` as any, { [entityName]: entity });
+      storeEventBus.emit(`${entityName}:created` as keyof StoreEvents, { [entityName]: entity } as never);
     } catch (error) {
       console.error(`Failed to emit ${entityName}:created event:`, error);
     }
@@ -46,7 +46,7 @@ export const createEventEmitterFactory = <TEntity extends CacheableEntity>(
 
   const emitUpdated = (entity: TEntity): void => {
     try {
-      storeEventBus.emit(`${entityName}:updated` as any, { [entityName]: entity });
+      storeEventBus.emit(`${entityName}:updated` as keyof StoreEvents, { [entityName]: entity } as never);
     } catch (error) {
       console.error(`Failed to emit ${entityName}:updated event:`, error);
     }
@@ -54,7 +54,7 @@ export const createEventEmitterFactory = <TEntity extends CacheableEntity>(
 
   const emitDeleted = (entityHash: ActionHash): void => {
     try {
-      storeEventBus.emit(`${entityName}:deleted` as any, { [`${entityName}Hash`]: entityHash });
+      storeEventBus.emit(`${entityName}:deleted` as keyof StoreEvents, { [`${entityName}Hash`]: entityHash } as never);
     } catch (error) {
       console.error(`Failed to emit ${entityName}:deleted event:`, error);
     }
@@ -67,13 +67,13 @@ export const createEventEmitterFactory = <TEntity extends CacheableEntity>(
           if ('status' in entity && typeof entity.status === 'string') {
             const status = entity.status as EntityStatus;
             // Emit both generic status change and specific status events
-            storeEventBus.emit(`${entityName}:status:changed` as any, {
+            storeEventBus.emit(`${entityName}:status:changed` as keyof StoreEvents, {
               [entityName]: entity,
               status
-            });
-            storeEventBus.emit(`${entityName}:${status}` as any, { [entityName]: entity });
+            } as never);
+            storeEventBus.emit(`${entityName}:${status}` as keyof StoreEvents, { [entityName]: entity } as never);
           } else {
-            storeEventBus.emit(`${entityName}:status:changed` as any, { [entityName]: entity });
+            storeEventBus.emit(`${entityName}:status:changed` as keyof StoreEvents, { [entityName]: entity } as never);
           }
         } catch (error) {
           console.error(`Failed to emit ${entityName}:status:changed event:`, error);
@@ -247,24 +247,24 @@ export const createEventSubscriptions = <TEntity extends CacheableEntity>(
 
   // Standard lifecycle events
   if (handlers.created) {
-    const unsubscribe = storeEventBus.on(`${entityName}:created` as any, (payload) => {
-      const entity = (payload as any)[entityName];
+    const unsubscribe = storeEventBus.on(`${entityName}:created` as keyof StoreEvents, (payload) => {
+      const entity = (payload as Record<string, unknown>)[entityName] as TEntity | undefined;
       if (entity) handlers.created!(entity);
     });
     unsubscribeFunctions.push(unsubscribe);
   }
 
   if (handlers.updated) {
-    const unsubscribe = storeEventBus.on(`${entityName}:updated` as any, (payload) => {
-      const entity = (payload as any)[entityName];
+    const unsubscribe = storeEventBus.on(`${entityName}:updated` as keyof StoreEvents, (payload) => {
+      const entity = (payload as Record<string, unknown>)[entityName] as TEntity | undefined;
       if (entity) handlers.updated!(entity);
     });
     unsubscribeFunctions.push(unsubscribe);
   }
 
   if (handlers.deleted) {
-    const unsubscribe = storeEventBus.on(`${entityName}:deleted` as any, (payload) => {
-      const entityHash = (payload as any)[`${entityName}Hash`];
+    const unsubscribe = storeEventBus.on(`${entityName}:deleted` as keyof StoreEvents, (payload) => {
+      const entityHash = (payload as Record<string, unknown>)[`${entityName}Hash`] as ActionHash | undefined;
       if (entityHash) handlers.deleted!(entityHash);
     });
     unsubscribeFunctions.push(unsubscribe);
@@ -272,9 +272,9 @@ export const createEventSubscriptions = <TEntity extends CacheableEntity>(
 
   // Status change events
   if (handlers.statusChanged) {
-    const unsubscribe = storeEventBus.on(`${entityName}:status:changed` as any, (payload) => {
-      const entity = (payload as any)[entityName];
-      const status = (payload as any).status;
+    const unsubscribe = storeEventBus.on(`${entityName}:status:changed` as keyof StoreEvents, (payload) => {
+      const entity = (payload as Record<string, unknown>)[entityName] as TEntity | undefined;
+      const status = (payload as Record<string, unknown>).status as EntityStatus | undefined;
       if (entity) handlers.statusChanged!(entity, status);
     });
     unsubscribeFunctions.push(unsubscribe);
@@ -282,24 +282,24 @@ export const createEventSubscriptions = <TEntity extends CacheableEntity>(
 
   // Specific status events
   if (handlers.approved) {
-    const unsubscribe = storeEventBus.on(`${entityName}:approved` as any, (payload) => {
-      const entity = (payload as any)[entityName];
+    const unsubscribe = storeEventBus.on(`${entityName}:approved` as keyof StoreEvents, (payload) => {
+      const entity = (payload as Record<string, unknown>)[entityName] as TEntity | undefined;
       if (entity) handlers.approved!(entity);
     });
     unsubscribeFunctions.push(unsubscribe);
   }
 
   if (handlers.rejected) {
-    const unsubscribe = storeEventBus.on(`${entityName}:rejected` as any, (payload) => {
-      const entity = (payload as any)[entityName];
+    const unsubscribe = storeEventBus.on(`${entityName}:rejected` as keyof StoreEvents, (payload) => {
+      const entity = (payload as Record<string, unknown>)[entityName] as TEntity | undefined;
       if (entity) handlers.rejected!(entity);
     });
     unsubscribeFunctions.push(unsubscribe);
   }
 
   if (handlers.pending) {
-    const unsubscribe = storeEventBus.on(`${entityName}:pending` as any, (payload) => {
-      const entity = (payload as any)[entityName];
+    const unsubscribe = storeEventBus.on(`${entityName}:pending` as keyof StoreEvents, (payload) => {
+      const entity = (payload as Record<string, unknown>)[entityName] as TEntity | undefined;
       if (entity) handlers.pending!(entity);
     });
     unsubscribeFunctions.push(unsubscribe);
@@ -334,18 +334,18 @@ export const createCrossDomainEventEmitter = <TEntity extends CacheableEntity>(
   ): void => {
     try {
       // Emit to source domain
-      storeEventBus.emit(`${sourceDomain}:${eventType}` as any, {
+      storeEventBus.emit(`${sourceDomain}:${eventType}` as keyof StoreEvents, {
         [sourceDomain]: entity,
         ...additionalData
-      });
+      } as never);
 
       // Emit to target domains
       targetDomains.forEach((targetDomain) => {
-        storeEventBus.emit(`${targetDomain}:${sourceDomain}:${eventType}` as any, {
+        storeEventBus.emit(`${targetDomain}:${sourceDomain}:${eventType}` as keyof StoreEvents, {
           [sourceDomain]: entity,
           targetDomain,
           ...additionalData
-        });
+        } as never);
       });
     } catch (error) {
       console.error(`Failed to emit cross-domain event ${sourceDomain}:${eventType}:`, error);

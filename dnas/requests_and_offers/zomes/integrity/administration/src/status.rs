@@ -2,7 +2,10 @@ use std::str::FromStr;
 
 use chrono::Duration;
 use hdi::prelude::*;
-use utils::errors::CommonError;
+use utils::{
+  errors::CommonError,
+  grants::{check_act, Ability},
+};
 
 /// Canonical set of status type discriminants used to validate `Status.status_type` strings.
 ///
@@ -45,12 +48,16 @@ impl FromStr for StatusType {
 /// - `status_type` — One of the canonical status strings defined in [`StatusType`].
 /// - `reason` — Required for any `suspended*` status; `None` for all other states.
 /// - `suspended_until` — RFC 3339 timestamp string; only present for `"suspended temporarily"`.
+/// - `grant` — the admin or steward grant the change rests on. Absent
+///   only on the `"pending"` status an entity's own author writes at creation.
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct Status {
   pub status_type: String,
   pub reason: Option<String>,
   pub suspended_until: Option<String>,
+  #[serde(default)]
+  pub grant: Option<ActionHash>,
 }
 
 impl Status {
@@ -60,6 +67,7 @@ impl Status {
       status_type: "pending".to_string(),
       reason: None,
       suspended_until: None,
+      grant: None,
     }
   }
 
@@ -69,6 +77,7 @@ impl Status {
       status_type: "accepted".to_string(),
       reason: None,
       suspended_until: None,
+      grant: None,
     }
   }
 
@@ -78,6 +87,7 @@ impl Status {
       status_type: "rejected".to_string(),
       reason: None,
       suspended_until: None,
+      grant: None,
     }
   }
 
@@ -87,6 +97,7 @@ impl Status {
       status_type: "archived".to_string(),
       reason: None,
       suspended_until: None,
+      grant: None,
     }
   }
 
@@ -106,6 +117,7 @@ impl Status {
         status_type: "suspended temporarily".to_string(),
         reason: Some(reason.to_string()),
         suspended_until: Some(Timestamp::from_micros(now + duration).to_string()),
+        grant: None,
       };
     }
 
@@ -113,6 +125,7 @@ impl Status {
       status_type: "suspended indefinitely".to_string(),
       reason: Some(reason.to_string()),
       suspended_until: None,
+      grant: None,
     }
   }
 
@@ -179,12 +192,19 @@ impl Status {
 
 /// Validates that a `Status` entry conforms to the zome's business rules.
 ///
-/// Enforces four rules:
+/// Enforces five rules:
 /// 1. `status_type` must match a known [`StatusType`] discriminant string.
 /// 2. Any `suspended*` status must include a non-`None` `reason`.
 /// 3. `"suspended temporarily"` must have a `suspended_until` timestamp.
 /// 4. `"suspended indefinitely"` must NOT have a `suspended_until` timestamp.
-pub fn validate_status(status: Status) -> ExternResult<ValidateCallbackResult> {
+/// 5. A status change is a role act: every update, and any created status other than
+///    `"pending"`, carries an admin or steward grant held by its author. The `"pending"`
+///    status an entity's author writes at creation is the one write without a grant.
+pub fn validate_status(
+  status: Status,
+  author: &AgentPubKey,
+  is_update: bool,
+) -> ExternResult<ValidateCallbackResult> {
   if StatusType::from_str(&status.status_type).is_err() {
     return Ok(ValidateCallbackResult::Invalid(format!(
       "Invalid status type: {}",
@@ -210,7 +230,58 @@ pub fn validate_status(status: Status) -> ExternResult<ValidateCallbackResult> {
     )));
   }
 
+  if is_update || status.status_type != "pending" {
+    if let Err(reason) = check_act(&status.grant, author, &Ability::ChangeStatus, &None)? {
+      return Ok(ValidateCallbackResult::Invalid(format!(
+        "a status change is a role act: {}",
+        reason
+      )));
+    }
+  }
+
   Ok(ValidateCallbackResult::Valid)
+}
+
+/// An `EntityStatus` link is written by the author of the status it points at: an
+/// entity's own author linking their `"pending"` status, or the administrator or steward
+/// linking the change they made. Nobody links an entity to someone else's status.
+pub fn validate_create_link_entity_status(
+  link_author: &AgentPubKey,
+  target_address: &AnyLinkableHash,
+) -> ExternResult<ValidateCallbackResult> {
+  let Some(status_hash) = target_address.clone().into_action_hash() else {
+    return Ok(ValidateCallbackResult::Invalid(String::from(
+      "An EntityStatus link points at a status record",
+    )));
+  };
+  let record = must_get_valid_record(status_hash)?;
+  if record.entry().to_app_option::<Status>().ok().flatten().is_none() {
+    return Ok(ValidateCallbackResult::Invalid(String::from(
+      "An EntityStatus link points at a status record",
+    )));
+  }
+  if record.action().author() != link_author {
+    return Ok(ValidateCallbackResult::Invalid(String::from(
+      "An EntityStatus link is written by the author of the status it points at",
+    )));
+  }
+  Ok(ValidateCallbackResult::Valid)
+}
+
+/// An `AcceptedEntity` link is the accepted index itself, so it carries the admin or
+/// steward grant of the agent who wrote it, in its tag.
+pub fn validate_create_link_accepted_entity(
+  link_author: &AgentPubKey,
+  tag: &LinkTag,
+) -> ExternResult<ValidateCallbackResult> {
+  let grant = utils::grants::grant_from_tag(tag).ok();
+  match check_act(&grant, link_author, &Ability::ChangeStatus, &None)? {
+    Ok(_) => Ok(ValidateCallbackResult::Valid),
+    Err(reason) => Ok(ValidateCallbackResult::Invalid(format!(
+      "the accepted index is written with an admin or steward grant: {}",
+      reason
+    ))),
+  }
 }
 
 /// Validates a `Status` delete — always returns `Invalid`.

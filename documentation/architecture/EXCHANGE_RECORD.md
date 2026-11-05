@@ -71,6 +71,7 @@ Party names, locations and avatars are read from profiles at display time. The e
 | AgreementCompletions | Agreement | Completion |
 | AgreementReviews | Agreement | Review |
 | AgreementCancellations | Agreement | Cancellation |
+| AgreementCounters | Agreement | the counter Agreement that answers it (#333) |
 
 A dashboard is `UserAgreements` from the viewer's own hash. A listing's interested members are `ListingInterests` from the listing. Everything about one exchange is the agreement and its four child link types.
 
@@ -110,7 +111,7 @@ stateDiagram-v2
     Reviewed --> [*]
 ```
 
-Every arrow is one append-only entry; no state is stored. Withdrawn and Cancelled are the same `Cancellation` entry, told apart by whether a `Response` exists. Counter is a `Response` declined followed by a new `Agreement` on the same `Interest`. Whose turn it is falls out of the same reading: the counterparty at Proposed, whoever has not marked their part done at Agreed and at OneSideDone, whoever has not reviewed at Complete.
+Every arrow is one append-only entry; no state is stored. Withdrawn and Cancelled are the same `Cancellation` entry, told apart by whether a `Response` exists. A counter is a declining `Response` followed, as the very next action on the same chain, by a new `Agreement` whose `counters` names the proposal it answers and that decline; an `AgreementCounters` link from the answered proposal lets the rounds be read forwards (#333). Whose turn it is falls out of the same reading: the counterparty at Proposed, whoever has not marked their part done at Agreed and at OneSideDone, whoever has not reviewed at Complete.
 
 ## 7. Integrity rules
 
@@ -120,6 +121,7 @@ Routed in the integrity zome's `validate`, every op, from the first commit, per 
 - A Response's author is the Agreement's counterparty.
 - A Completion, Review or Cancellation's author is the Agreement's provider or receiver.
 - One Response per Agreement. One Completion and one Review per party per Agreement.
+- A counter (an Agreement with `counters` set) is written by the countered proposal's counterparty, as the next action after their declining Response to it. It keeps the listing, the interest, the parties, the medium, the terms text and both services, and changes only a quantity or the timeframe. A quantity on both sides keeps its unit, so a counter can turn 2 hours into 3 hours but not into 2 days; adding a quantity where there was none, or removing one, is a change of quantity. An `AgreementCounters` link is written by the counter's author, from the proposal the counter names (#333).
 - Every listing, interest and agreement hash an entry refers to is a Create, and every link base is a Create.
 
 A wrong write fails validation on every peer and never lands. The coordinator guards below are the same rules applied earlier, for a better error; the integrity rules are what make them true.
@@ -137,11 +139,23 @@ The companion design's table, with this record's entries beside it. Each row is 
 | Agreement | Agreement, plus a Commitment per term |
 | Response, accepted | the Commitments become binding |
 | Completion, per party | EconomicEvent, one per party |
-| both Completions | Fulfillment links, Event to Commitment |
+| each Completion | its EconomicEvent fulfills that side's Commitment (`fulfills` on the event, hREA's form of a Fulfillment) and realizes the Agreement (`realizationOf`) |
 | Review | custom review zome, as the companion design has it |
 | primary and reciprocal terms | Intent pair on the Proposal |
 
 When #90 lands, the mapping runs over existing agreements and new ones are written both ways. Nothing here is replaced.
+
+### Decided for alpha 2 (#250)
+
+- **No migration.** Alpha 2 changes the DNA hash and resets the network, so no exchange from alpha 1 crosses into it. Every exchange on the alpha 2 network is written to this record, and mirrored into hREA when it is accepted, best effort: the interface writes the mirror, and skips it while the two members have no hREA agents yet (#255). There is nothing to move.
+- **This record stays, and hREA is layered over it.** The `exchanges` zome is the validated, append-only record of who agreed what:
+  - who may answer a proposal, and only once (#343);
+  - how a counter chains to the proposal it answers (#343);
+  - that nothing is updated.
+
+  hREA's zomes do not enforce R&O's rules, and under the module contract (#249) the core has to work with hREA absent. So hREA describes this record in Valueflows terms, and does not replace it. This retires an earlier note on #250 (11 September), which spoke of retiring the interim record once hREA carried the lifecycle.
+- **An agreement's mirror is found again after a reload.** The store's map from an R&O agreement hash to its hREA Agreement and Commitments is held in memory, so on a miss it reads hREA itself: the Agreement whose note is the R&O hash, and its Commitments by `clauseOf`, the primary one provided by the provider (`agreementRefsFromHrea`). A completion after a reload therefore still names its Agreement (`realizationOf`) and marks its Commitment finished, and an acceptance mirrored before a reload is not mirrored twice.
+- **Still open, and not a migration:** writing the hREA mirror later for a record whose mirror write failed (reconcile-at-boot, named in #255). It has a known hazard. The mapping tables are held in memory only, so reconciling before the note-derived mappings load would mint duplicate proposals into an append-only ledger. It stays its own piece of work.
 
 ## 10. Screens
 

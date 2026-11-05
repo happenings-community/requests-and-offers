@@ -6,7 +6,7 @@
  * maintaining Svelte 5 reactivity.
  */
 
-import { Effect as E, pipe, Fiber, Context, Layer, Duration } from 'effect';
+import { Effect as E, pipe, Fiber, Duration } from 'effect';
 import { onMount, onDestroy } from 'svelte';
 
 // ============================================================================
@@ -52,7 +52,7 @@ export const useEffectOnMount = <A, Err>(
     timeout?: Duration.DurationInput;
   }
 ): void => {
-  let fiber: Fiber.Fiber<void, any> | undefined;
+  let fiber: Fiber.Fiber<void, unknown> | undefined;
 
   onMount(() => {
     const effectToRun = options?.timeout ? pipe(program, E.timeout(options.timeout)) : program;
@@ -158,7 +158,7 @@ export const createReactiveStoreInitializer = <T, Err = unknown>(
   options?: StoreInitConfig<T>
 ) => {
   let lastDependencyValue: T;
-  let fiber: Fiber.Fiber<unknown, any> | undefined;
+  let fiber: Fiber.Fiber<unknown, unknown> | undefined;
 
   const checkAndReinitialize = () => {
     const currentValue = dependency();
@@ -257,7 +257,7 @@ export const useEffectResource = <A, Err>(
   release: (resource: A) => E.Effect<void, never>
 ): { resource: A | null } => {
   let resource: A | null = null;
-  let fiber: Fiber.Fiber<A, any> | undefined;
+  let fiber: Fiber.Fiber<A, unknown> | undefined;
 
   onMount(() => {
     fiber = E.runFork(
@@ -298,7 +298,7 @@ export const createScopedResourceManager = () => {
   const resources: Array<{
     resource: unknown;
     cleanup: E.Effect<void, never>;
-    fiber?: Fiber.Fiber<unknown, any>;
+    fiber?: Fiber.Fiber<unknown, unknown>;
   }> = [];
 
   const acquire = <A, Err>(

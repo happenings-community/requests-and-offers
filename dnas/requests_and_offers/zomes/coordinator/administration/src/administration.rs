@@ -2,8 +2,11 @@ use administration_integrity::*;
 use hdk::prelude::*;
 use utils::{
   errors::{AdministrationError, CommonError},
-  DnaProperties, EntityActionHash, EntityActionHashAgents, EntityAgent,
+  grants::{grant_tag, Ability, Role},
+  EntityActionHash, EntityActionHashAgents, EntityAgent,
 };
+
+use crate::grants::{authority_for, require, revoke_all, write_grant};
 
 /// Returns `true` if the calling agent is the network progenitor.
 ///
@@ -14,70 +17,48 @@ pub fn is_progenitor(_: ()) -> ExternResult<bool> {
   utils::check_if_progenitor()
 }
 
-/// Internal helper — not exposed as an extern. Called only by `add_administrator`
-/// (which enforces the progenitor-or-existing-admin gate) and from within this
-/// coordinator via cross-zome call through `add_administrator`.
+/// Adds a new administrator for the entity specified in `input`.
 ///
-/// Creates the `AllAdministrators` path link and one `AgentAdministrators` link per agent
-/// public key in `input.agent_pubkeys`. Idempotent: returns `false` without writing if
-/// the entity is already an administrator.
-fn register_administrator(input: EntityActionHashAgents) -> ExternResult<bool> {
+/// Every administrator holds an `admin` grant. The caller's authority
+/// for it is settled by [`authority_for`]: their own admin grant, or, for the first
+/// administrators, the progenitor's signature over the grant, which is open to the
+/// progenitor key and, where no key is configured, to the first user while there is no
+/// administrator yet. Anyone else gets `Err(AdministrationError::Unauthorized)`.
+///
+/// Idempotent: an entity already in the index is left as it is. Otherwise one grant is
+/// written per agent key, and the index links carry the grants in their tags, which is
+/// what their validators check.
+#[hdk_extern]
+pub fn add_administrator(input: EntityActionHashAgents) -> ExternResult<bool> {
   if check_if_entity_is_administrator(EntityActionHash {
     entity_original_action_hash: input.entity_original_action_hash.clone(),
     entity: input.entity.clone(),
   })? {
-    // Idempotent: already an admin, nothing to do.
-    return Ok(false);
+    return Ok(true);
   }
 
   let path = Path::from(format!("{}.administrators", input.entity));
+  let mut first_grant = None;
+  for agent_pubkey in input.agent_pubkeys.clone() {
+    let authority = authority_for(Role::Admin, &None, &agent_pubkey)?;
+    let grant = write_grant(Role::Admin, agent_pubkey.clone(), None, authority)?;
+    create_link(
+      agent_pubkey,
+      path.path_entry_hash()?,
+      LinkTypes::AgentAdministrators,
+      grant_tag(&grant),
+    )?;
+    first_grant.get_or_insert(grant);
+  }
+  let roster_grant = first_grant
+    .ok_or_else(|| CommonError::InvalidData("an administrator needs an agent key".to_string()))?;
   create_link(
     path.path_entry_hash()?,
     input.entity_original_action_hash.clone(),
     LinkTypes::AllAdministrators,
-    (),
+    grant_tag(&roster_grant),
   )?;
 
-  for agent_pubkey in input.agent_pubkeys.clone() {
-    create_link(
-      agent_pubkey.clone(),
-      path.path_entry_hash()?,
-      LinkTypes::AgentAdministrators,
-      (),
-    )?;
-  }
-
-  Ok(true)
-}
-
-/// Adds a new administrator for the entity specified in `input`.
-///
-/// The caller must be either the network progenitor or an existing administrator of the
-/// given entity type. Returns `Err(AdministrationError::Unauthorized)` otherwise.
-///
-/// Delegates to [`register_administrator`] which is idempotent (safe to call if the entity
-/// is already an administrator).
-#[hdk_extern]
-pub fn add_administrator(input: EntityActionHashAgents) -> ExternResult<bool> {
-  let caller = agent_info()?.agent_initial_pubkey;
-  let is_admin = check_if_agent_is_administrator(EntityAgent {
-    entity: input.entity.clone(),
-    agent_pubkey: caller.clone(),
-  })?;
-  let is_prog = utils::check_if_progenitor()?;
-  // Bootstrap: only active when no progenitor_pubkey is configured (dev mode).
-  // When a progenitor key IS set, only the progenitor may bypass the admin-membership
-  // check. This prevents any early caller from seizing the first-admin seat before the
-  // progenitor connects in a production deployment.
-  let progenitor_configured = DnaProperties::get_progenitor_pubkey()?.is_some();
-  let is_bootstrap =
-    !progenitor_configured && get_all_administrators_links(input.entity.clone())?.is_empty();
-
-  if !is_admin && !is_prog && !is_bootstrap {
-    return Err(AdministrationError::Unauthorized.into());
-  }
-
-  register_administrator(input)?;
   Ok(true)
 }
 
@@ -134,20 +115,16 @@ pub fn check_if_agent_is_administrator(input: EntityAgent) -> ExternResult<bool>
 
 /// Removes an administrator from the entity specified in `input`.
 ///
-/// The caller must be an existing administrator. Returns `Err(AdministrationError::Unauthorized)`
+/// The caller needs an admin grant. Returns `Err(AdministrationError::Unauthorized)`
 /// otherwise. Returns `Err(AdministrationError::LastAdmin)` if removing this administrator
 /// would leave the entity with no administrators (preventing lock-out).
 ///
-/// Deletes the `AllAdministrators` link for the entity and all `AgentAdministrators` links
-/// for each agent public key in `input.agent_pubkeys`.
+/// Revokes each agent's admin grant, then deletes the `AllAdministrators` link for the
+/// entity and all `AgentAdministrators` links for each agent public key in
+/// `input.agent_pubkeys`. The grants stand as records; what they authorised stands.
 #[hdk_extern]
 pub fn remove_administrator(input: EntityActionHashAgents) -> ExternResult<bool> {
-  if !check_if_agent_is_administrator(EntityAgent {
-    entity: input.entity.clone(),
-    agent_pubkey: agent_info()?.agent_initial_pubkey,
-  })? {
-    return Err(AdministrationError::Unauthorized.into());
-  }
+  require(Ability::Grant(Role::Admin), None)?;
 
   let administrators_links = get_all_administrators_links(input.entity.clone())?;
   if administrators_links.len() == 1 {
@@ -165,6 +142,8 @@ pub fn remove_administrator(input: EntityActionHashAgents) -> ExternResult<bool>
   )?;
 
   for agent_pubkey in input.agent_pubkeys.clone() {
+    revoke_all(&agent_pubkey, Role::Admin, &None, "removed as administrator")?;
+
     let link_type_filter = LinkTypes::AgentAdministrators
       .try_into_filter()
       .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;

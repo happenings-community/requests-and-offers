@@ -23,6 +23,7 @@
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import {
     namedInterest,
+    proposalCounterparty,
     reciprocalTermFor,
     termLabel,
     type ExchangeRole
@@ -60,8 +61,8 @@
    */
   let loadedType = $state<ListingType | null>(null);
   let creator = $state<UIUser | null>(null);
-  /** Whoever registered the interest being proposed against. */
-  let interestedUser = $state<UIUser | null>(null);
+  let member = $state<UIUser | null>(null);
+  let memberHash = $state<ActionHash | undefined>(undefined);
   let services = $state<string[]>([]);
   let giverOffers = $state<string[]>([]);
   let mediums = $state<Medium[]>([]);
@@ -161,15 +162,10 @@
     (params.listingType === 'Offer') === iAmAuthor ? 'provider' : 'receiver'
   );
   const isCurrency = $derived(mediums.find((m) => m.name === medium)?.currency ?? false);
-  /**
-   * The other person in this proposal, which is not always the listing's author.
-   *
-   * Either side can propose: if the listing is mine, the other person is whoever showed
-   * interest in it, and if it is theirs, it is its author. This read the author either
-   * way, so proposing on your own listing addressed the page to yourself — "with Agent 1",
-   * "Agent can accept", "Agent 1's request" — and never named the person it was going to.
-   */
-  const other = $derived(iAmAuthor ? interestedUser : creator);
+  // The other party: the interested member when the author proposes, the author otherwise.
+  const other = $derived(
+    proposalCounterparty(listing?.creator, memberHash, me) === listing?.creator ? creator : member
+  );
   const otherName = $derived(other?.name ?? 'them');
 
   const primary = $derived<ExchangeTerm>({
@@ -271,10 +267,8 @@
         const theInterest = namedInterest(interests, params.interest);
         interestOnListing = theInterest ? 'found' : 'missing';
         const authorHash = item.creator;
-        const memberHash = theInterest?.user;
-        if (memberHash) {
-          interestedUser = await runEffect(usersStore.getUserByActionHash(memberHash));
-        }
+        memberHash = theInterest?.user;
+        if (memberHash) member = await runEffect(usersStore.getUserByActionHash(memberHash));
         const authorProvides = listingType === 'Offer';
         const giver = authorProvides ? memberHash : authorHash;
         if (giver) {
@@ -367,7 +361,8 @@
 
     <div class="card space-y-2 p-4">
       <p class="text-xs uppercase tracking-wide text-surface-500">
-        {otherName}'s {loadedType?.toLowerCase()}
+        {iAmAuthor ? 'Your' : creator ? `${creator.name}'s` : 'Their'}
+        {loadedType?.toLowerCase()}
       </p>
       <p class="font-semibold">{listing.title}</p>
       {#if listing.description}<p class="line-clamp-3 text-sm text-surface-500">

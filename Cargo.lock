@@ -1895,6 +1895,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "exchanges_probe"
+version = "0.1.0"
+dependencies = [
+ "exchanges_integrity",
+ "hdk",
+ "serde",
+]
+
+[[package]]
 name = "exr"
 version = "1.73.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -546,16 +546,6 @@
             </p>
           </div>
         </div>
-      {:else}
-        <!-- Instructions for contacting -->
-        <div class="card variant-soft-primary p-4">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined">info</span>
-            <p class="text-sm">
-              Use the contact information below to get in touch with the requester directly.
-            </p>
-          </div>
-        </div>
       {/if}
     {/if}
 

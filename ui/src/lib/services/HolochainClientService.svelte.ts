@@ -1,7 +1,9 @@
 import {
   AdminWebsocket,
   type AppClient,
+  type AppInfo,
   type AppInfoResponse,
+  type CellId,
   AppWebsocket,
   type PeerMetaInfoResponse,
   type Signal,
@@ -12,6 +14,20 @@ import { HolochainClientError } from '$lib/errors/holochain-client.errors';
 import { HOLOCHAIN_CLIENT_CONTEXTS } from '$lib/errors/error-contexts';
 import { Context, Layer } from 'effect';
 import weaveStore from '$lib/stores/weave.store.svelte';
+import { resolveDevConnectionParams, tabStorage } from '$lib/utils/dev-connection-params';
+
+const cellKey = ([dna, agent]: CellId): string => `${dna.join(',')}|${agent.join(',')}`;
+
+/** The cells an app's own roles hold, provisioned or cloned, as comparable keys. */
+function appCellKeys(info: AppInfo | null): Set<string> {
+  const keys = new Set<string>();
+  for (const cells of Object.values(info?.cell_info ?? {})) {
+    for (const cell of cells) {
+      if (cell.type === 'provisioned' || cell.type === 'cloned') keys.add(cellKey(cell.value.cell_id));
+    }
+  }
+  return keys;
+}
 
 export type ZomeName =
   | 'users_organizations'
@@ -193,12 +209,12 @@ function createHolochainClientService(): HolochainClientService {
           client = result.appClient;
           console.log('✅ Successfully connected via WeaveClient');
         } else {
-          // Check for start:progenitor dev launcher URL params
-          const urlParams = new URLSearchParams(window.location.search);
-          const hcPort = urlParams.get('hcPort');
-          const hcToken = urlParams.get('hcToken');
+          // Dev launcher params (start:web, e2e): from the URL, or on a reload
+          // after in-app navigation, from what this tab stored on its first load.
+          const devParams = resolveDevConnectionParams(window.location.search, tabStorage());
 
-          if (hcPort && hcToken) {
+          if (devParams) {
+            const { hcPort, hcToken, hcAdminPort } = devParams;
             console.log(`📡 Dev progenitor mode, connecting to conductor on port ${hcPort}...`);
             const token = Array.from(atob(hcToken), (c) => c.charCodeAt(0));
             client = await AppWebsocket.connect({
@@ -216,14 +232,16 @@ function createHolochainClientService(): HolochainClientService {
             // signing store. This branch never runs in production/dev (no
             // hcAdminPort is ever injected there — hc-spin provides the host
             // signer instead), so it cannot weaken the real security model.
-            const hcAdminPort = urlParams.get('hcAdminPort');
             if (hcAdminPort) {
               console.log(`🔑 E2E mode: authorizing signing credentials via admin port ${hcAdminPort}...`);
               const admin = await AdminWebsocket.connect({
                 url: new URL(`ws://localhost:${hcAdminPort}`),
               });
               try {
-                const cellIds = await admin.listCellIds();
+                // Only this app's cells: in start:web one conductor also holds
+                // the other members' cells, which this tab never calls.
+                const ownCells = appCellKeys(await client.appInfo());
+                const cellIds = (await admin.listCellIds()).filter((id) => ownCells.has(cellKey(id)));
                 for (const cellId of cellIds) {
                   await admin.authorizeSigningCredentials(cellId);
                 }

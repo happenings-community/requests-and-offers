@@ -13,7 +13,6 @@
   const meta = $modalStore[0]?.meta as ModalMeta;
   // Sanitize statusHistory to handle Svelte 5 state proxies
   const statusHistory = meta?.statusHistory ? [...meta.statusHistory] : [];
-  const title = meta?.title || 'Status History';
 </script>
 
 <article class="hcron-modal">

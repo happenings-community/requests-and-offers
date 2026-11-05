@@ -62,8 +62,20 @@ export function useApprovalWatch({ onAccepted, onInformationRequested }: UseAppr
 
   async function check(): Promise<void> {
     if (settled) return;
-    const user = usersStore.currentUser;
     // The profile may still be loading at start-up: wait for it.
+    if (!usersStore.currentUser?.original_action_hash) return;
+    // A profile created in this page load has no status loaded (createUser
+    // does not read it back), so load it rather than skip every tick (#329,
+    // seen again on 2 November). If that fails, the next tick tries again.
+    if (!usersStore.currentUser.status) {
+      try {
+        await runEffect(usersStore.refreshCurrentUser());
+      } catch {
+        return;
+      }
+      if (settled) return;
+    }
+    const user = usersStore.currentUser;
     if (!user?.original_action_hash || !user.status) return;
     // A member who is not pending never needs watching; nothing in the app returns them to pending.
     if (user.status.status_type !== 'pending') {

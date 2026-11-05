@@ -15,9 +15,10 @@
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
   import type { AlertModalMeta } from '$lib/types/ui';
-  import { createMockedUsers } from '$lib/utils/mocks';
+  import { loadMocks } from '$lib/utils/load-mocks';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import { goto } from '$app/navigation';
+  import { recheckAdminStatusNow } from '$lib/services/adminStatus.service.svelte';
   import weaveStore from '$lib/stores/weave.store.svelte';
   import MarkdownField from '$lib/components/shared/MarkdownField.svelte';
   import { paths } from '$lib/paths';
@@ -119,9 +120,11 @@
     isLoading = true;
     error = null;
     try {
+      const { createMockedUsers } = await loadMocks();
       let userData: UserInDHT = (await createMockedUsers())[0];
 
       await onSubmit(userData);
+      await recheckAdminStatusNow();
       isLoading = false;
 
       modalStore.trigger(
@@ -165,6 +168,8 @@
       const userInput: UserInDHT = formInputToDHT(formInput);
 
       await onSubmit(userInput);
+      // Creating a profile can make this agent an admin; show the Admin button at once (#206).
+      if (mode === 'create') await recheckAdminStatusNow();
 
       // Persist migration banner acknowledgment so it doesn't return on subsequent edits.
       if (mode === 'edit' && migrationConfirmed && migrationAckKey) {

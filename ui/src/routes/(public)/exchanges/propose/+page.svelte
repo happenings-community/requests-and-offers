@@ -251,7 +251,12 @@
               {#each mediums as m (m.name)}<option value={m.name}>{m.name}</option>{/each}
             </select>
           {:else}
-            <input class="input" type="text" bind:value={medium} placeholder="As agreed" />
+            <!-- A listing names at least one medium (#413), so this means its mediums
+                 could not be read. The proposal stays unsendable: canSubmit needs one. -->
+            <p class="text-sm text-surface-600 dark:text-surface-400">
+              This listing's medium of exchange couldn't be read, so a proposal can't be sent from
+              it yet.
+            </p>
           {/if}
         </label>
         <label class="label">

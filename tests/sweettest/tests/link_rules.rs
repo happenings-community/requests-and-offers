@@ -506,8 +506,9 @@ async fn only_a_listings_creator_tombstones_it() {
     let alice = &cells[0];
     everyone_accepted(&conductors, &[alice, &mallory]).await;
     let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let fpf = a_medium(&conductors[0], alice, "PIF", "Free/Pay it Forward").await;
     let request: Record = conductors[0]
-        .call(&alice.zome("requests"), "create_request", sample_request("Alice's", gardening))
+        .call(&alice.zome("requests"), "create_request", sample_request("Alice's", gardening, fpf.clone()))
         .await;
     let request = request.action_address().clone();
     await_consistency_s(30, [alice, &mallory]).await.unwrap();

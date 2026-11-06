@@ -267,8 +267,10 @@ pub fn check_same_approval(before: &Option<ActionHash>, after: &Option<ActionHas
 //
 // A listing's mediums of exchange are part of its terms, like its service type:
 // set when it is created, never changed (a new listing for new terms). A
-// listing names none (a gift), or up to `MAX_MEDIUMS_OF_EXCHANGE`, each with
-// the decision that approved it, in the same order. The same limit applies as
+// listing names at least one and at most `MAX_MEDIUMS_OF_EXCHANGE`, each with
+// the decision that approved it, in the same order. A gift is named too, as a
+// medium such as Free/Pay it Forward: a proposal takes its terms from the
+// listing, so a listing with no medium would leave nothing to propose. The same limit applies as
 // for the service type: a medium approved and later retired can still be named
 // by its old approval; honest clients refuse it at the coordinator.
 
@@ -288,9 +290,12 @@ pub struct ListingMediums {
   pub medium_of_exchange_approvals: Vec<ActionHash>,
 }
 
-/// The shape of a listing's mediums as a pure function: at most
+/// The shape of a listing's mediums as a pure function: at least one, at most
 /// [`MAX_MEDIUMS_OF_EXCHANGE`], each once, each with one approval.
 pub fn check_medium_list(hashes: &[ActionHash], approvals: &[ActionHash]) -> Result<(), String> {
+  if hashes.is_empty() {
+    return Err("names at least one medium of exchange".to_string());
+  }
   if hashes.len() > MAX_MEDIUMS_OF_EXCHANGE {
     return Err(format!("names at most {} mediums of exchange", MAX_MEDIUMS_OF_EXCHANGE));
   }
@@ -477,10 +482,11 @@ mod tests {
   }
 
   #[test]
-  fn a_listing_names_up_to_eight_mediums_each_once_each_approved() {
+  fn a_listing_names_one_to_eight_mediums_each_once_each_approved() {
     let hashes: Vec<ActionHash> = (1..=8).map(hash).collect();
     let approvals: Vec<ActionHash> = (11..=18).map(hash).collect();
-    assert_eq!(check_medium_list(&[], &[]), Ok(()), "a gift names none");
+    assert!(check_medium_list(&[], &[]).unwrap_err().contains("at least one"), "none is refused");
+    assert_eq!(check_medium_list(&hashes[..1], &approvals[..1]), Ok(()), "one is enough");
     assert_eq!(check_medium_list(&hashes, &approvals), Ok(()));
     let nine: Vec<ActionHash> = (1..=9).map(hash).collect();
     let nine_approvals: Vec<ActionHash> = (11..=19).map(hash).collect();

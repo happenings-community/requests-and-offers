@@ -168,6 +168,7 @@ async fn a_listing_for_an_organisation_carries_its_authors_membership() {
     let all = [alice, bob, &mallory];
     let users = everyone_accepted(&conductors, &all).await;
     let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let fpf = a_medium(&conductors[0], alice, "PIF", "Free/Pay it Forward").await;
     await_consistency_s(15, all).await.unwrap();
     let approval = approval_of(&conductors[0], alice, &gardening).await;
     let bobs_org = approved_organization(&conductors, &all, 1, "Bob's").await;
@@ -175,7 +176,7 @@ async fn a_listing_for_an_organisation_carries_its_authors_membership() {
     let requests = zome_index(&conductors[2], &mallory, "requests_integrity").await;
 
     // The honest write, through the coordinator.
-    let mut input = sample_request("Bob's, for his organisation", gardening.clone());
+    let mut input = sample_request("Bob's, for his organisation", gardening.clone(), fpf.clone());
     input.organization = Some(bobs_org.clone());
     let record: Record = conductors[1]
         .call(&bob.zome("requests"), "create_request", input)
@@ -185,7 +186,7 @@ async fn a_listing_for_an_organisation_carries_its_authors_membership() {
     let bobs_membership = written.membership.expect("the request carries Bob's membership");
 
     // Mallory is not a member of Bob's organisation: the coordinator refuses her.
-    let mut input = sample_request("Mallory's, for Bob's organisation", gardening.clone());
+    let mut input = sample_request("Mallory's, for Bob's organisation", gardening.clone(), fpf.clone());
     input.organization = Some(bobs_org.clone());
     let through_the_app = reason(
         conductors[2]
@@ -244,12 +245,13 @@ async fn a_listing_stays_in_the_organisation_it_was_posted_for() {
     let all = [alice, &mallory];
     everyone_accepted(&conductors, &all).await;
     let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let fpf = a_medium(&conductors[0], alice, "PIF", "Free/Pay it Forward").await;
     await_consistency_s(15, all).await.unwrap();
     let approval = approval_of(&conductors[0], alice, &gardening).await;
     let org = approved_organization(&conductors, &all, 1, "Mallory's").await;
 
     let record: Record = conductors[1]
-        .call(&mallory.zome("requests"), "create_request", sample_request("posted with no organisation", gardening.clone()))
+        .call(&mallory.zome("requests"), "create_request", sample_request("posted with no organisation", gardening.clone(), fpf.clone()))
         .await;
     let original = record.action_address().clone();
 
@@ -274,6 +276,7 @@ async fn a_removal_by_a_role_holder_says_who_and_why() {
     let all = [alice, bob, &mallory];
     let users = everyone_accepted(&conductors, &all).await;
     let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let fpf = a_medium(&conductors[0], alice, "PIF", "Free/Pay it Forward").await;
     await_consistency_s(15, all).await.unwrap();
     let approval = approval_of(&conductors[0], alice, &gardening).await;
     let bobs_org = approved_organization(&conductors, &all, 1, "Bob's").await;
@@ -281,7 +284,7 @@ async fn a_removal_by_a_role_holder_says_who_and_why() {
     // Alice joins Bob's organisation and posts for it.
     add_member(&conductors, bob, 1, &bobs_org, &users[0]).await;
     await_consistency_s(15, all).await.unwrap();
-    let mut input = sample_request("Alice's, for Bob's organisation", gardening.clone());
+    let mut input = sample_request("Alice's, for Bob's organisation", gardening.clone(), fpf.clone());
     input.organization = Some(bobs_org.clone());
     let record: Record = conductors[0]
         .call(&alice.zome("requests"), "create_request", input)
@@ -362,6 +365,7 @@ async fn an_administrators_removal_without_a_reason_is_refused() {
     let all = [alice, &mallory];
     let users = everyone_accepted(&conductors, &all).await;
     let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let fpf = a_medium(&conductors[0], alice, "PIF", "Free/Pay it Forward").await;
     await_consistency_s(15, all).await.unwrap();
     let approval = approval_of(&conductors[0], alice, &gardening).await;
     conductors[0]
@@ -376,7 +380,7 @@ async fn an_administrators_removal_without_a_reason_is_refused() {
         )
         .await;
     let record: Record = conductors[0]
-        .call(&alice.zome("requests"), "create_request", sample_request("Alice's", gardening.clone()))
+        .call(&alice.zome("requests"), "create_request", sample_request("Alice's", gardening.clone(), fpf.clone()))
         .await;
     let original = record.action_address().clone();
     await_consistency_s(15, all).await.unwrap();

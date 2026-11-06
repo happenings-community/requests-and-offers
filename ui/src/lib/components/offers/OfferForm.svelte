@@ -169,6 +169,7 @@
     title.trim().length > 0 &&
       description.trim().length > 0 &&
       serviceTypeHashes.length > 0 &&
+      selectedMediumOfExchange.length > 0 &&
       timePreferenceType !== undefined &&
       (timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0) &&
       timeZone !== undefined &&
@@ -417,12 +418,17 @@
       onSelectionChange={handleMediumOfExchangeChange}
       label={hasCurrencyMoEs() ? 'Additional Currencies' : 'Medium of Exchange'}
       placeholder="Select how you'd like to be compensated..."
-      required={false}
+      required={true}
       name="mediumOfExchange"
       id="offer-medium-of-exchange"
       mode="multiple"
       disabled={mode === 'edit'}
     />
+    {#if mode !== 'edit'}
+      <p class="text-sm text-surface-600 dark:text-surface-400">
+        For a gift, choose Free/Pay it Forward.
+      </p>
+    {/if}
     {#if mode === 'edit'}
       <p class="text-sm text-surface-600 dark:text-surface-400">
         An offer's mediums of exchange can't be changed. For different ones, publish a new offer.

@@ -435,6 +435,7 @@ async fn a_listing_names_the_approval_of_its_service_type() {
     let service_types = zome_index(&conductors[2], &mallory, "service_types_integrity").await;
     let mine = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "member").await;
     let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let fpf = a_medium(&conductors[0], alice, "PIF", "Free/Pay it Forward").await;
     let design = a_service_type(&conductors[0], alice, "Design").await;
     let pending: Record = conductors[2]
         .call(&mallory.zome("service_types"), "suggest_service_type", sample_service_type("Mallory's pending"))
@@ -498,7 +499,7 @@ async fn a_listing_names_the_approval_of_its_service_type() {
     // Through the app, the rejected suggestion is refused before writing.
     let through_the_app = reason(
         conductors[2]
-            .call_fallible::<_, Record>(&mallory.zome("requests"), "create_request", sample_request("rejected", rejected))
+            .call_fallible::<_, Record>(&mallory.zome("requests"), "create_request", sample_request("rejected", rejected, fpf.clone()))
             .await,
     );
     assert!(through_the_app.is_err(), "the coordinator refuses a rejected service type");
@@ -514,10 +515,11 @@ async fn a_listing_names_the_approval_of_its_service_type() {
 }
 
 /// A listing names its mediums of exchange on its entry, each with the
-/// decision that approved it, at most eight, each once (#234, on #257's
-/// pattern). Past the coordinator, with Mallory's own member grant and an
-/// approved service type, nine forgeries are refused:
+/// decision that approved it, at least one and at most eight, each once (#234,
+/// on #257's pattern). Past the coordinator, with Mallory's own member grant and
+/// an approved service type, ten forgeries are refused:
 ///
+/// - no medium at all (a gift is named too, as Free/Pay it Forward);
 /// - a medium with no approval;
 /// - a pending suggestion of hers, carrying cash's approval (the only kind of
 ///   approval she can borrow);
@@ -529,12 +531,13 @@ async fn a_listing_names_the_approval_of_its_service_type() {
 /// - nine mediums;
 /// - cash named twice.
 ///
-/// Then the honest writes (two mediums, and none, a gift), and through the
-/// app, a rejected medium is refused.
+/// Then the honest writes (two mediums, and one, Free/Pay it Forward), and
+/// through the app, a rejected medium is refused.
 ///
 /// **To make each go red** (in `utils/src/listings.rs`):
-/// - no approval, nine, twice: in `check_medium_list`, remove the matching
-///   check (the length comparison, the cap, the repeat loop);
+/// - none, no approval, nine, twice: in `check_medium_list`, remove the
+///   matching check (the empty check, the length comparison, the cap, the
+///   repeat loop);
 /// - pending, and another medium's approval: in `check_decision`, drop the
 ///   comparison of `decision.item(catalogue)` with `item`;
 /// - rejected: in `check_decision`, accept any state;
@@ -552,6 +555,7 @@ async fn a_listing_names_its_mediums_and_their_approvals() {
     let mediums = zome_index(&conductors[2], &mallory, "mediums_of_exchange_integrity").await;
     let mine = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "member").await;
     let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let fpf = a_medium(&conductors[0], alice, "PIF", "Free/Pay it Forward").await;
     let cash = a_medium(&conductors[0], alice, "GBP", "Pounds").await;
     let hours = a_medium(&conductors[0], alice, "HRS", "Hours").await;
     let pending: Record = conductors[2]
@@ -591,6 +595,7 @@ async fn a_listing_names_its_mediums_and_their_approvals() {
         entry
     };
     let cases = [
+        (forge("a gift, unnamed", vec![], vec![]), "at least one medium of exchange", "a listing naming no medium"),
         (forge("no approval", vec![cash.clone()], vec![]), "one approval for each medium of exchange", "a medium with no approval"),
         (
             forge("pending", vec![pending.clone()], vec![cashs.clone()]),
@@ -635,10 +640,11 @@ async fn a_listing_names_its_mediums_and_their_approvals() {
 
     let two = forge_entry(&conductors[2], &mallory, requests, REQUEST, forge("two", vec![cash.clone(), hours.clone()], vec![cashs, hourss])).await;
     two.unwrap_or_else(|e| panic!("a request naming two approved mediums should be written; got {e}"));
-    let gift = forge_entry(&conductors[2], &mallory, requests, REQUEST, forge("a gift", vec![], vec![])).await;
-    gift.unwrap_or_else(|e| panic!("a request naming no medium, a gift, should be written; got {e}"));
+    let fpfs = medium_approval_of(&conductors[2], &mallory, &fpf).await;
+    let gift = forge_entry(&conductors[2], &mallory, requests, REQUEST, forge("a gift", vec![fpf.clone()], vec![fpfs])).await;
+    gift.unwrap_or_else(|e| panic!("a request naming Free/Pay it Forward should be written; got {e}"));
 
-    let mut input = sample_request("rejected", gardening);
+    let mut input = sample_request("rejected", gardening, fpf.clone());
     input.medium_of_exchange_hashes = vec![rejected];
     let through_the_app = reason(
         conductors[2]
@@ -669,11 +675,12 @@ async fn a_listing_keeps_its_mediums_and_is_linked_only_to_them() {
     everyone_accepted(&conductors, &all).await;
     let mediums = zome_index(&conductors[2], &mallory, "mediums_of_exchange_integrity").await;
     let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let fpf = a_medium(&conductors[0], alice, "PIF", "Free/Pay it Forward").await;
     let cash = a_medium(&conductors[0], alice, "GBP", "Pounds").await;
     let hours = a_medium(&conductors[0], alice, "HRS", "Hours").await;
     await_consistency_s(15, all).await.unwrap();
 
-    let mut input = sample_request("A lift", gardening.clone());
+    let mut input = sample_request("A lift", gardening.clone(), fpf.clone());
     input.medium_of_exchange_hashes = vec![cash.clone()];
     let record: Record = conductors[2]
         .call(&mallory.zome("requests"), "create_request", input)
@@ -693,7 +700,7 @@ async fn a_listing_keeps_its_mediums_and_is_linked_only_to_them() {
                 serde_json::json!({
                     "original_action_hash": original,
                     "previous_action_hash": original,
-                    "updated_request": sample_request("A lift", gardening.clone()).request,
+                    "updated_request": sample_request("A lift", gardening.clone(), fpf.clone()).request,
                     "service_type_hash": gardening,
                     "medium_of_exchange_hashes": [cash.clone(), hours.clone()],
                 }),
@@ -745,6 +752,7 @@ async fn a_listing_may_name_its_service_type_by_a_revision() {
     let (alice, bob) = (&cells[0], &cells[1]);
     everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
     let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let fpf = a_medium(&conductors[0], alice, "PIF", "Free/Pay it Forward").await;
     let revision: ActionHash = conductors[0]
         .call(
             &alice.zome("service_types"),
@@ -762,7 +770,7 @@ async fn a_listing_may_name_its_service_type_by_a_revision() {
     await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
 
     let record: Record = conductors[2]
-        .call(&mallory.zome("requests"), "create_request", sample_request("Help with the beds", revision))
+        .call(&mallory.zome("requests"), "create_request", sample_request("Help with the beds", revision, fpf.clone()))
         .await;
     let written: Request = record.entry().to_app_option().unwrap().expect("a request");
     assert_eq!(written.service_type_hash, Some(gardening), "the request names the type's original record");
@@ -783,11 +791,12 @@ async fn a_listing_keeps_its_service_type() {
     let (alice, bob) = (&cells[0], &cells[1]);
     everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
     let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let fpf = a_medium(&conductors[0], alice, "PIF", "Free/Pay it Forward").await;
     let design = a_service_type(&conductors[0], alice, "Design").await;
     await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
 
     let record: Record = conductors[2]
-        .call(&mallory.zome("requests"), "create_request", sample_request("A lift", gardening.clone()))
+        .call(&mallory.zome("requests"), "create_request", sample_request("A lift", gardening.clone(), fpf.clone()))
         .await;
     let original = record.action_address().clone();
     let written: Request = record.entry().to_app_option().unwrap().expect("a request");
@@ -802,7 +811,7 @@ async fn a_listing_keeps_its_service_type() {
                 serde_json::json!({
                     "original_action_hash": original,
                     "previous_action_hash": original,
-                    "updated_request": sample_request("A lift", design.clone()).request,
+                    "updated_request": sample_request("A lift", design.clone(), fpf.clone()).request,
                     "service_type_hash": design,
                     "medium_of_exchange_hashes": [],
                 }),
@@ -843,14 +852,15 @@ async fn a_listing_is_linked_only_to_its_own_service_type() {
     everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
     let service_types = zome_index(&conductors[2], &mallory, "service_types_integrity").await;
     let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let fpf = a_medium(&conductors[0], alice, "PIF", "Free/Pay it Forward").await;
     let design = a_service_type(&conductors[0], alice, "Design").await;
     await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
 
     let request: Record = conductors[2]
-        .call(&mallory.zome("requests"), "create_request", sample_request("A lift", gardening.clone()))
+        .call(&mallory.zome("requests"), "create_request", sample_request("A lift", gardening.clone(), fpf.clone()))
         .await;
     let offer: Record = conductors[2]
-        .call(&mallory.zome("offers"), "create_offer", sample_offer("Pruning", gardening.clone()))
+        .call(&mallory.zome("offers"), "create_offer", sample_offer("Pruning", gardening.clone(), fpf.clone()))
         .await;
     let (request, offer) = (request.action_address().clone(), offer.action_address().clone());
 
@@ -878,10 +888,11 @@ async fn a_listing_is_edited_by_its_author_or_an_administrator() {
     let (alice, bob) = (&cells[0], &cells[1]);
     everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
     let st = a_service_type(&conductors[0], alice, "Gardening").await;
+    let fpf = a_medium(&conductors[0], alice, "PIF", "Free/Pay it Forward").await;
     await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
 
     let record: Record = conductors[1]
-        .call(&bob.zome("requests"), "create_request", sample_request("Bob's listing", st.clone()))
+        .call(&bob.zome("requests"), "create_request", sample_request("Bob's listing", st.clone(), fpf.clone()))
         .await;
     let original = record.action_address().clone();
     await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
@@ -891,7 +902,7 @@ async fn a_listing_is_edited_by_its_author_or_an_administrator() {
     refused(&forged, "needs a grant for Administer", "an edit by a member who is not the author");
 
     let edit = |title: &str| {
-        let mut input = sample_request(title, st.clone());
+        let mut input = sample_request(title, st.clone(), fpf.clone());
         input.request.title = title.to_string();
         serde_json::json!({
             "original_action_hash": original,
@@ -915,7 +926,7 @@ async fn a_listing_is_edited_by_its_author_or_an_administrator() {
             serde_json::json!({
                 "original_action_hash": original,
                 "previous_action_hash": by_bob.action_address(),
-                "updated_request": sample_request("Alice's edit", st.clone()).request,
+                "updated_request": sample_request("Alice's edit", st.clone(), fpf.clone()).request,
                 "service_type_hash": st,
                 "medium_of_exchange_hashes": [],
             }),

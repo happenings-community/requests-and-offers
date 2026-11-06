@@ -56,6 +56,11 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
     await ensureAcceptedUser(client);
     await ensureServiceType(client, 'E2E Service Type');
     await ensureMediumOfExchange(client, 'E2EBASE');
+    // A listing names at least one medium (#413); the form's gift choice.
+    await ensureMediumOfExchange(client, 'PIF', {
+      name: 'Free/Pay it Forward',
+      exchange_type: 'base'
+    });
   });
 
   test.afterAll(async () => {
@@ -76,6 +81,11 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
       timeout: 5_000
     });
     await selectTimezone(page);
+    // A listing names at least one medium of exchange (#413).
+    await page
+      .locator('label:has-text("Free/Pay it Forward") input[type="checkbox"]')
+      .first()
+      .check();
 
     // Type into the links chip and do not press Enter, so the text stays
     // pending in the input rather than becoming a chip.
@@ -133,6 +143,11 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
     });
     // Time zone is required and has no default — without it the submit stays disabled.
     await selectTimezone(page);
+    // A listing names at least one medium of exchange (#413).
+    await page
+      .locator('label:has-text("Free/Pay it Forward") input[type="checkbox"]')
+      .first()
+      .check();
 
     await page.getByRole('button', { name: 'Create Offer' }).click();
 

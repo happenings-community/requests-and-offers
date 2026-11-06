@@ -126,10 +126,11 @@ async fn setup_with_offer() -> (SweetConductorBatch, SweetCell, SweetCell, Actio
         )
         .await;
     let st_hash = st_record.signed_action.hashed.hash.clone();
+    let fpf = a_medium(&conductors[0], &alice, "PIF", "Free/Pay it Forward").await;
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let offer: Record = conductors[0]
-        .call(&alice.zome("offers"), "create_offer", sample_offer("Web design review", st_hash.clone()))
+        .call(&alice.zome("offers"), "create_offer", sample_offer("Web design review", st_hash.clone(), fpf.clone()))
         .await;
     let offer_hash = offer.signed_action.hashed.hash.clone();
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
@@ -588,6 +589,7 @@ struct Three {
     carol: SweetCell,
     /// The approved service type every listing here names (a listing names one since #256).
     service_type: ActionHash,
+    medium: ActionHash,
 }
 
 impl Three {
@@ -629,8 +631,9 @@ async fn three_members(carol_accepted: bool) -> Three {
         .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Gardening"))
         .await;
     let service_type = service_type.signed_action.hashed.hash.clone();
+    let medium = a_medium(&conductors[0], &alice, "PIF", "Free/Pay it Forward").await;
     await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
-    Three { conductors, alice, bob, carol, service_type }
+    Three { conductors, alice, bob, carol, service_type, medium }
 }
 
 fn currency_agreement(listing: &ActionHash, listing_type: &str, interest: &ActionHash) -> Value {
@@ -658,7 +661,7 @@ async fn counters_on_a_request_and_each_permitted_change() {
     let t = three_members(true).await;
     // Alice requests; Bob offers to help.
     let request: Record = t.conductors[0]
-        .call(&t.alice.zome("requests"), "create_request", sample_request("Garden help", t.service_type.clone()))
+        .call(&t.alice.zome("requests"), "create_request", sample_request("Garden help", t.service_type.clone(), t.medium.clone()))
         .await;
     let request = request.signed_action.hashed.hash.clone();
     t.sync().await;
@@ -706,7 +709,7 @@ async fn counters_on_a_request_and_each_permitted_change() {
 async fn parallel_negotiations_stay_separate() {
     let t = three_members(true).await;
     let offer: Record = t.conductors[0]
-        .call(&t.alice.zome("offers"), "create_offer", sample_offer("Web design review", t.service_type.clone()))
+        .call(&t.alice.zome("offers"), "create_offer", sample_offer("Web design review", t.service_type.clone(), t.medium.clone()))
         .await;
     let offer = offer.signed_action.hashed.hash.clone();
     t.sync().await;
@@ -752,7 +755,7 @@ async fn parallel_negotiations_stay_separate() {
 async fn counter_refusals_by_member_and_state() {
     let t = three_members(false).await;
     let offer: Record = t.conductors[0]
-        .call(&t.alice.zome("offers"), "create_offer", sample_offer("Web design review", t.service_type.clone()))
+        .call(&t.alice.zome("offers"), "create_offer", sample_offer("Web design review", t.service_type.clone(), t.medium.clone()))
         .await;
     let offer = offer.signed_action.hashed.hash.clone();
     t.sync().await;

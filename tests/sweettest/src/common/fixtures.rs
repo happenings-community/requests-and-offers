@@ -245,10 +245,12 @@ pub struct RequestData {
     pub status: String,
 }
 
-/// Create a sample request input. A listing names one service type.
+/// Create a sample request input. A listing names one service type and at
+/// least one medium of exchange.
 pub fn sample_request(
     title: impl Into<String>,
     service_type_hash: ActionHash,
+    medium_of_exchange_hash: ActionHash,
 ) -> CreateRequestInput {
     CreateRequestInput {
         request: RequestData {
@@ -265,7 +267,7 @@ pub fn sample_request(
         },
         organization: None,
         service_type_hash,
-        medium_of_exchange_hashes: vec![],
+        medium_of_exchange_hashes: vec![medium_of_exchange_hash],
     }
 }
 
@@ -291,10 +293,12 @@ pub struct OfferData {
     pub status: String,
 }
 
-/// Create a sample offer input.
+/// Create a sample offer input. A listing names one service type and at
+/// least one medium of exchange.
 pub fn sample_offer(
     title: impl Into<String>,
     service_type_hash: ActionHash,
+    medium_of_exchange_hash: ActionHash,
 ) -> CreateOfferInput {
     CreateOfferInput {
         offer: OfferData {
@@ -308,7 +312,7 @@ pub fn sample_offer(
         },
         organization: None,
         service_type_hash,
-        medium_of_exchange_hashes: vec![],
+        medium_of_exchange_hashes: vec![medium_of_exchange_hash],
     }
 }
 

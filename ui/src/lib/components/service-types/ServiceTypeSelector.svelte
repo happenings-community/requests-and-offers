@@ -398,12 +398,17 @@
             </span>
           {/if}
         </h4>
-        <div class="max-h-80 space-y-2 overflow-y-auto">
+        <!-- Locked on edit: shown, greyed, not clickable. Still scrolls. -->
+        <div class="max-h-80 space-y-2 overflow-y-auto" class:opacity-50={disabled}>
           {#each filteredServiceTypes as serviceType (serviceType.original_action_hash)}
             {@const isSelected = selectedHashes.some(
               (hash) => hash.toString() === serviceType.original_action_hash?.toString()
             )}
-            <label class="label flex cursor-pointer items-start gap-3">
+            <label
+              class="label flex items-start gap-3"
+              class:cursor-pointer={!disabled}
+              class:cursor-not-allowed={disabled}
+            >
               <input
                 type="checkbox"
                 class="checkbox"

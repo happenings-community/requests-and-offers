@@ -165,15 +165,25 @@
   }
 
   // Form validation
-  const isValid = $derived(
-    title.trim().length > 0 &&
-      description.trim().length > 0 &&
-      serviceTypeHashes.length > 0 &&
-      timePreferenceType !== undefined &&
-      (timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0) &&
-      timeZone !== undefined &&
-      interactionType !== undefined
+  // Each required field and how it is named when missing. The submit button and the
+  // "Still needed" line both read this, so they can never disagree.
+  const stillNeeded = $derived(
+    (
+      [
+        [title.trim().length > 0, 'title'],
+        [description.trim().length > 0, 'description'],
+        [serviceTypeHashes.length > 0, 'service type'],
+        [selectedMediumOfExchange.length > 0, 'medium of exchange'],
+        [timePreferenceType !== undefined, 'time preference'],
+        [timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0, 'your time preference'],
+        [timeZone !== undefined, 'time zone'],
+        [interactionType !== undefined, 'interaction type']
+      ] as [boolean, string][]
+    )
+      .filter(([filled]) => !filled)
+      .map(([, name]) => name)
   );
+  const isValid = $derived(stillNeeded.length === 0);
 
   async function mockOffer() {
     submitting = true;
@@ -401,25 +411,33 @@
   <div class="card variant-ghost-surface p-4">
     <div class="mb-2 flex items-center justify-between">
       <h3 class="h3">{hasCurrencyMoEs() ? 'Additional Currencies' : 'Medium of Exchange'}</h3>
-      <button
-        type="button"
-        class="variant-ghost-primary btn btn-sm"
-        onclick={openSuggestMediumModal}
-        title="Suggest a new medium of exchange for administrator review"
-      >
-        💡 Suggest New
-      </button>
+      {#if mode !== 'edit'}
+        <button
+          type="button"
+          class="variant-ghost-primary btn btn-sm"
+          onclick={openSuggestMediumModal}
+          title="Suggest a new medium of exchange for administrator review"
+        >
+          💡 Suggest New
+        </button>
+      {/if}
     </div>
     <MediumOfExchangeSelector
       selectedMediums={selectedMediumOfExchange}
       onSelectionChange={handleMediumOfExchangeChange}
       label={hasCurrencyMoEs() ? 'Additional Currencies' : 'Medium of Exchange'}
       placeholder="Select how you'd like to be compensated..."
-      required={false}
+      required={true}
       name="mediumOfExchange"
       id="offer-medium-of-exchange"
       mode="multiple"
+      disabled={mode === 'edit'}
     />
+    {#if mode === 'edit'}
+      <p class="text-sm text-surface-600 dark:text-surface-400">
+        An offer's mediums of exchange can't be changed. For different ones, publish a new offer.
+      </p>
+    {/if}
   </div>
 
   <div class="grid grid-cols-1 gap-4">
@@ -582,6 +600,11 @@
     {/if}
   </label>
 
+  {#if !isValid && !submitting}
+    <p class="text-sm text-surface-600 dark:text-surface-400" data-testid="still-needed">
+      Still needed: {stillNeeded.join(', ')}.
+    </p>
+  {/if}
   <!-- Submit buttons -->
   <div class="flex gap-4">
     <button type="submit" class="variant-filled-primary btn" disabled={!isValid || submitting}>

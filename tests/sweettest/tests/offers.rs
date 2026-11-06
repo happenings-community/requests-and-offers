@@ -38,6 +38,7 @@ async fn basic_offer_crud_operations() {
         )
         .await;
     let st_hash = st_record.signed_action.hashed.hash.clone();
+    let fpf = a_medium(&conductors[0], &alice, "PIF", "Free/Pay it Forward").await;
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
@@ -46,7 +47,7 @@ async fn basic_offer_crud_operations() {
         .call(
             &alice.zome("offers"),
             "create_offer",
-            sample_offer("Offering web design help", st_hash.clone()),
+            sample_offer("Offering web design help", st_hash.clone(), fpf.clone()),
         )
         .await;
 
@@ -67,7 +68,7 @@ async fn basic_offer_crud_operations() {
     assert!(!all_offers.is_empty());
 
     // Alice updates the offer.
-    let mut updated_input = sample_offer("Updated offer title", st_hash.clone());
+    let mut updated_input = sample_offer("Updated offer title", st_hash.clone(), fpf.clone());
     updated_input.offer.title = "Updated offer title".to_string();
     let _: Record = conductors[0]
         .call(
@@ -78,7 +79,7 @@ async fn basic_offer_crud_operations() {
                 "previous_action_hash": offer_record.signed_action.hashed.hash,
                 "updated_offer": updated_input.offer,
                 "service_type_hash": st_hash,
-                "medium_of_exchange_hashes": []
+                "medium_of_exchange_hashes": [fpf]
             }),
         )
         .await;
@@ -138,6 +139,7 @@ async fn offer_archive_and_delete() {
         )
         .await;
     let st_hash = st_record.signed_action.hashed.hash.clone();
+    let fpf = a_medium(&conductors[0], &alice, "PIF", "Free/Pay it Forward").await;
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
@@ -146,7 +148,7 @@ async fn offer_archive_and_delete() {
         .call(
             &alice.zome("offers"),
             "create_offer",
-            sample_offer("Offer to archive", st_hash.clone()),
+            sample_offer("Offer to archive", st_hash.clone(), fpf.clone()),
         )
         .await;
     let offer_hash = offer_record.signed_action.hashed.hash.clone();
@@ -155,7 +157,7 @@ async fn offer_archive_and_delete() {
     let archived_offer = OfferData {
         title: "Offer to archive".to_string(),
         status: "Archived".to_string(),
-        ..sample_offer("x", st_hash.clone()).offer
+        ..sample_offer("x", st_hash.clone(), fpf.clone()).offer
     };
     let _: Record = conductors[0]
         .call(
@@ -166,7 +168,7 @@ async fn offer_archive_and_delete() {
                 "previous_action_hash": offer_record.signed_action.hashed.hash,
                 "updated_offer": archived_offer,
                 "service_type_hash": st_hash,
-                "medium_of_exchange_hashes": []
+                "medium_of_exchange_hashes": [fpf]
             }),
         )
         .await;

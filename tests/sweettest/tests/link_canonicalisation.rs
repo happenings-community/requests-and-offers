@@ -129,12 +129,13 @@ async fn links_created_via_revision_hash_anchor_at_chain_root() {
         )
         .await;
     let st_hash = st_record.signed_action.hashed.hash.clone();
+    let fpf = a_medium(&conductors[0], &alice, "PIF", "Free/Pay it Forward").await;
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     // Bob creates a request holding the REVISION hash, exactly as a UI client
     // whose fetch returned the updated record would.
-    let mut request_input = sample_request("Canonicalisation test request", st_hash);
+    let mut request_input = sample_request("Canonicalisation test request", st_hash, fpf.clone());
     request_input.medium_of_exchange_hashes = vec![revision_hash.clone()];
     let request_record: Record = conductors[1]
         .call(&bob.zome("requests"), "create_request", request_input)

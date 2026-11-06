@@ -1,6 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { encodeHashToBase64, type AppWebsocket, type Record as HcRecord } from '@holochain/client';
-import { gotoApp, createTestClient, closeTestClient, ensureAcceptedUser, callZome } from '../utils/e2e-helpers.js';
+import {
+  gotoApp,
+  createTestClient,
+  closeTestClient,
+  ensureAcceptedUser,
+  ensureMediumOfExchange,
+  callZome
+} from '../utils/e2e-helpers.js';
 
 // ============================================================================
 // 09 — EXCHANGES
@@ -71,7 +78,13 @@ test.describe.serial('09 — exchanges', () => {
       },
       organization: null,
       service_type_hash: serviceTypeHash,
-      medium_of_exchange_hashes: []
+      // A listing names at least one medium of exchange (#413).
+      medium_of_exchange_hashes: [
+        await ensureMediumOfExchange(client, 'PIF', {
+          name: 'Free/Pay it Forward',
+          exchange_type: 'base'
+        })
+      ]
     })) as HcRecord;
     const hash = encodeHashToBase64(created.signed_action.hashed.hash);
     await gotoApp(page, `/offers/${hash}`);

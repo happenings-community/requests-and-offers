@@ -73,6 +73,17 @@ pub struct Request {
   /// serde default is for decoding only: the coordinator fills it in.
   #[serde(default)]
   pub service_type_approval: Option<ActionHash>,
+  /// The listing's mediums of exchange, part of its terms: one to
+  /// eight (a gift names Free/Pay it Forward), each the original record of a
+  /// `MediumOfExchange`, set at creation and the same on every revision. See
+  /// `utils::listings`.
+  #[serde(default)]
+  pub medium_of_exchange_hashes: Vec<ActionHash>,
+  /// The decision that approved each medium, in the same order: a
+  /// `MediumOfExchangeStatus` entry whose state is `Approved`. The coordinator
+  /// fills both lists; the serde default is for decoding only.
+  #[serde(default)]
+  pub medium_of_exchange_approvals: Vec<ActionHash>,
 }
 
 /// Validates a request entry

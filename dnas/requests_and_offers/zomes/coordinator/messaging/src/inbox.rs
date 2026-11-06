@@ -2,7 +2,9 @@ use hdk::prelude::*;
 use messaging_integrity::{EntryTypes, LinkTypes};
 
 use crate::cases::CaseRef;
-use crate::external_calls::{check_if_entity_is_accepted, get_agent_user};
+use crate::external_calls::{
+  check_if_agent_is_administrator, check_if_entity_is_accepted, get_agent_user,
+};
 use crate::message::MessageBody;
 use crate::roles::{holds_role, RoleDirection, RoleRef};
 
@@ -65,8 +67,13 @@ pub enum InboxEntry {
 
 /// Everything addressed to this agent that it is willing to show, as personal chat.
 ///
-/// Three filters, all on the reading side on purpose:
+/// Four filters, all on the reading side on purpose:
 ///
+/// - **While the reader is not accepted, only administrators' messages are kept.** The
+///   sending side lets only an administrator write to a member who is not accepted
+///   (`require_may_write_to`), but a modified client can skip that and still put a link
+///   in this inbox. A reader who is an administrator is exempt, as a sender is: an
+///   administrator whose own profile is suspended still holds the role.
 /// - **Authors who are not accepted members *now* are dropped.** The sender-side check
 ///   in `send_message` passed when the message was written, but a status can change
 ///   afterwards, and a modified client could have skipped it. The recipient's own node
@@ -250,6 +257,12 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
   // two admins costs two.
   let mut role_claims: Vec<(AgentPubKey, RoleRef, bool)> = Vec::new();
 
+  // The reading-side twin of `require_may_write_to`: while this agent is not accepted,
+  // and is not an administrator, only an administrator may reach them. Read once per
+  // call, and each author's administrator status once.
+  let restricted = !authors.accepted(&me)? && !check_if_agent_is_administrator(me.clone())?;
+  let mut administrators: Vec<(AgentPubKey, bool)> = Vec::new();
+
   for link in links {
     let Some(hash) = link.target.clone().into_action_hash() else {
       continue;
@@ -261,6 +274,10 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
     let from = record.action().author().clone();
 
     if !authors.accepted(&from)? {
+      continue;
+    }
+
+    if restricted && !is_administrator(&from, &mut administrators)? {
       continue;
     }
 
@@ -639,4 +656,17 @@ mod tests {
       "a role message with no case has no opener to match against"
     );
   }
+}
+
+/// Whether `agent` is an administrator, asked once per agent per inbox read.
+fn is_administrator(
+  agent: &AgentPubKey,
+  seen: &mut Vec<(AgentPubKey, bool)>,
+) -> ExternResult<bool> {
+  if let Some((_, is)) = seen.iter().find(|(a, _)| a == agent) {
+    return Ok(*is);
+  }
+  let is = check_if_agent_is_administrator(agent.clone())?;
+  seen.push((agent.clone(), is));
+  Ok(is)
 }

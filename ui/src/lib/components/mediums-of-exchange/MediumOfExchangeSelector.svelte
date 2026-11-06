@@ -40,15 +40,51 @@
   let search = $state('');
   let selectedHashes = $state<ActionHash[]>([...selectedMediums]);
 
-  // Sync external selection changes to internal state, as ServiceTypeSelector does:
-  // an edit form loads its listing after this mounts, so the first copy is empty.
-  $effect(() => {
-    const external = selectedMediums.map((hash) => hash.toString()).sort();
-    const current = selectedHashes.map((hash) => hash.toString()).sort();
-    if (JSON.stringify(external) !== JSON.stringify(current)) {
-      selectedHashes = [...selectedMediums];
-    }
-  });
+  // Each medium's chain root, keyed by the revision hash the list carries. Approving a
+  // medium rewrites it, so the list's hash is a revision, while a published listing
+  // links to the root. A medium is selected when either hash is in the selection.
+  let rootOf = $state<Record<string, string>>({});
+
+  function isMediumSelected(medium: UIMediumOfExchange): boolean {
+    const revision = medium.original_action_hash?.toString();
+    if (!revision) return false;
+    const root = rootOf[revision];
+    return selectedHashes.some((hash) => {
+      const h = hash.toString();
+      return h === revision || h === root;
+    });
+  }
+
+  function mediumForHash(hash: ActionHash): UIMediumOfExchange | undefined {
+    const h = hash.toString();
+    return mediums.find((m) => {
+      const revision = m.original_action_hash?.toString();
+      return revision === h || (revision !== undefined && rootOf[revision] === h);
+    });
+  }
+
+  // Whether a selected hash names the medium whose list (revision) hash is given.
+  function sameMedium(hash: ActionHash, revision: string): boolean {
+    const h = hash.toString();
+    return h === revision || h === rootOf[revision];
+  }
+
+  async function loadRoots(list: UIMediumOfExchange[]) {
+    const pairs = await Promise.all(
+      list.map(async (medium) => {
+        const revision = medium.original_action_hash;
+        if (!revision) return null;
+        try {
+          const root = await runEffect(mediumsOfExchangeStore.resolveToOriginal(revision));
+          return [revision.toString(), root.toString()] as const;
+        } catch {
+          return null;
+        }
+      })
+    );
+    rootOf = Object.fromEntries(pairs.filter((pair) => pair !== null));
+  }
+
   let loading = $state(false);
   let error = $state<string | null>(null);
   let initialized = $state(false);
@@ -110,11 +146,7 @@
   });
 
   // Get selected medium objects for display
-  const selectedMediumObjects = $derived(
-    mediums.filter((medium) =>
-      selectedHashes.some((hash) => hash.toString() === medium.original_action_hash?.toString())
-    )
-  );
+  const selectedMediumObjects = $derived(mediums.filter((medium) => isMediumSelected(medium)));
 
   // Visible selected mediums (for display)
   const visibleSelectedMediums = $derived(selectedMediumObjects.slice(0, maxVisible));
@@ -129,10 +161,7 @@
 
   // Check if any currencies are currently selected
   const hasCurrencySelection = $derived(() => {
-    return selectedHashes.some((hash) => {
-      const medium = mediums.find((m) => m.original_action_hash?.toString() === hash.toString());
-      return medium?.exchange_type === 'currency';
-    });
+    return selectedHashes.some((hash) => mediumForHash(hash)?.exchange_type === 'currency');
   });
 
   async function loadMediums() {
@@ -145,6 +174,7 @@
       await runEffect(mediumsOfExchangeStore.getApprovedMediumsOfExchange());
       mediums = mediumsOfExchangeStore.approvedMediumsOfExchange;
       initialized = true;
+      await loadRoots(mediums);
     } catch (err) {
       const errorMessage = String(err);
 
@@ -187,7 +217,7 @@
       }
     } else {
       // Remove from selection
-      selectedHashes = selectedHashes.filter((hash) => hash.toString() !== hashString);
+      selectedHashes = selectedHashes.filter((hash) => !sameMedium(hash, hashString));
     }
 
     // Reset auto-selection tracking when user manually selects
@@ -210,7 +240,7 @@
       }
     } else {
       // Remove from selection
-      selectedHashes = selectedHashes.filter((hash) => hash.toString() !== hashString);
+      selectedHashes = selectedHashes.filter((hash) => !sameMedium(hash, hashString));
     }
 
     // Reset auto-selection tracking when user manually selects
@@ -222,7 +252,7 @@
 
   function removeMedium(mediumHash: ActionHash) {
     const hashString = mediumHash.toString();
-    selectedHashes = selectedHashes.filter((hash) => hash.toString() !== hashString);
+    selectedHashes = selectedHashes.filter((hash) => !sameMedium(hash, hashString));
 
     // Reset auto-selection tracking when user manually removes
     lastAutoSelectedHash = null;
@@ -310,9 +340,7 @@
           </h4>
           <div class="space-y-2">
             {#each groupedMediums().base as medium}
-              {@const isSelected = selectedHashes.some(
-                (hash) => hash.toString() === medium.original_action_hash?.toString()
-              )}
+              {@const isSelected = isMediumSelected(medium)}
               <label
                 class="label flex items-start gap-3"
                 class:cursor-pointer={!disabled}
@@ -345,12 +373,9 @@
                 Currencies
                 {#if hasCurrencySelection()}
                   <span class="variant-soft-primary badge text-xs">
-                    {selectedHashes.filter((hash) => {
-                      const medium = mediums.find(
-                        (m) => m.original_action_hash?.toString() === hash.toString()
-                      );
-                      return medium?.exchange_type === 'currency';
-                    }).length} selected
+                    {selectedHashes.filter(
+                      (hash) => mediumForHash(hash)?.exchange_type === 'currency'
+                    ).length} selected
                   </span>
                 {/if}
               </h4>
@@ -380,9 +405,7 @@
             {#if !currenciesCollapsed}
               <div class="space-y-2">
                 {#each groupedMediums().currency as medium}
-                  {@const isSelected = selectedHashes.some(
-                    (hash) => hash.toString() === medium.original_action_hash?.toString()
-                  )}
+                  {@const isSelected = isMediumSelected(medium)}
                   <label
                     class="label flex items-start gap-3"
                     class:cursor-pointer={!disabled}

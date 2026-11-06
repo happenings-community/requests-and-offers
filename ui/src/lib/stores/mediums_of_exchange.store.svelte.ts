@@ -164,6 +164,9 @@ export type MediumsOfExchangeStore = {
     originalActionHash: ActionHash
   ) => E.Effect<UIMediumOfExchange | null, MediumOfExchangeStoreError>;
   getAllMediumsOfExchange: () => E.Effect<UIMediumOfExchange[], MediumOfExchangeStoreError>;
+  resolveToOriginal: (
+    mediumOfExchangeHash: ActionHash
+  ) => E.Effect<ActionHash, MediumOfExchangeStoreError>;
   suggestMediumOfExchange: (
     mediumOfExchange: MediumOfExchangeInDHT
   ) => E.Effect<HolochainRecord, MediumOfExchangeStoreError>;
@@ -449,6 +452,20 @@ export const createMediumsOfExchangeStore = (): E.Effect<
           )
         )
       )(setters);
+
+    // The chain root of any revision of a medium, as the DHT holds it. Listings link
+    // to the root, while the lists here carry each medium's latest revision hash.
+    const resolveToOriginal = (
+      mediumOfExchangeHash: ActionHash
+    ): E.Effect<ActionHash, MediumOfExchangeStoreError> =>
+      pipe(
+        mediumsOfExchangeService.resolveToOriginal(mediumOfExchangeHash),
+        E.catchAll((error) =>
+          E.fail(
+            MediumOfExchangeStoreError.fromError(error, MEDIUM_OF_EXCHANGE_CONTEXTS.GET_MEDIUM)
+          )
+        )
+      );
 
     const createMediumOfExchange = (
       mediumOfExchange: MediumOfExchangeInDHT
@@ -849,6 +866,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
       getMediumOfExchange,
       getLatestMediumOfExchangeRecord,
       getAllMediumsOfExchange,
+      resolveToOriginal,
       suggestMediumOfExchange,
       createMediumOfExchange,
       getPendingMediumsOfExchange,

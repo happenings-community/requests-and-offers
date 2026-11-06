@@ -120,6 +120,15 @@ fn a_request(
     }
 }
 
+/// The same request, naming the given mediums of exchange and their approvals.
+/// A listing names at least one; the forgeries that are meant to be refused for
+/// something else carry none only where an earlier check refuses them first.
+fn naming(mut request: Request, mediums: &[ActionHash], approvals: &[ActionHash]) -> Request {
+    request.medium_of_exchange_hashes = mediums.to_vec();
+    request.medium_of_exchange_approvals = approvals.to_vec();
+    request
+}
+
 fn reason<T, E: std::fmt::Debug>(outcome: Result<T, E>) -> Result<T, String> {
     outcome.map_err(|e| format!("{e:?}"))
 }
@@ -327,11 +336,21 @@ async fn a_listing_carries_the_member_grant_its_author_holds() {
     .await;
     refused(&on_bobs, "written by the holder of the grant it rests on", "a grant resting on Bob's grant");
 
-    // The honest write: her own member grant, and a service type (#257).
+    // The honest write: her own member grant, a service type (#257) and a
+    // medium of exchange (#234).
     let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let fpf = a_medium(&conductors[0], alice, "PIF", "Free/Pay it Forward").await;
     await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
     let approval = approval_of(&conductors[2], &mallory, &gardening).await;
-    let honest = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("honest", Some(mine), Some(gardening), Some(approval))).await;
+    let fpfs = medium_approval_of(&conductors[2], &mallory, &fpf).await;
+    let honest = forge_entry(
+        &conductors[2],
+        &mallory,
+        requests,
+        REQUEST,
+        naming(a_request("honest", Some(mine), Some(gardening), Some(approval)), &[fpf], &[fpfs]),
+    )
+    .await;
     let hash = honest.unwrap_or_else(|e| panic!("a listing with its author's member grant should be written; got {e}"));
     await_consistency_s(30, [alice, bob, &mallory]).await.unwrap();
     let read: Option<Record> = conductors[0]
@@ -383,7 +402,9 @@ async fn a_listing_names_one_real_service_type() {
     let requests = zome_index(&conductors[2], &mallory, "requests_integrity").await;
     let mine = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "member").await;
     let gardening = a_service_type(&conductors[0], alice, "Gardening").await;
+    let fpf = a_medium(&conductors[0], alice, "PIF", "Free/Pay it Forward").await;
     await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let fpfs = medium_approval_of(&conductors[2], &mallory, &fpf).await;
 
     let untyped = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("no type", Some(mine.clone()), None, None)).await;
     refused(&untyped, "must name its service type", "a request naming no service type");
@@ -399,7 +420,14 @@ async fn a_listing_names_one_real_service_type() {
     refused(&not_a_type, "the original record of a service type", "a request naming a record that is not a service type");
 
     let approval = approval_of(&conductors[2], &mallory, &gardening).await;
-    let typed = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("gardening", Some(mine), Some(gardening), Some(approval))).await;
+    let typed = forge_entry(
+        &conductors[2],
+        &mallory,
+        requests,
+        REQUEST,
+        naming(a_request("gardening", Some(mine), Some(gardening), Some(approval)), &[fpf], &[fpfs]),
+    )
+    .await;
     typed.unwrap_or_else(|e| panic!("a request naming a service type should be written; got {e}"));
 }
 
@@ -452,6 +480,7 @@ async fn a_listing_names_the_approval_of_its_service_type() {
     await_consistency_s(15, all).await.unwrap();
     let approval = approval_of(&conductors[2], &mallory, &gardening).await;
     let designs = approval_of(&conductors[2], &mallory, &design).await;
+    let fpfs = medium_approval_of(&conductors[2], &mallory, &fpf).await;
     let decisions: Vec<Link> = conductors[2]
         .call(
             &mallory.zome("forge"),
@@ -505,12 +534,13 @@ async fn a_listing_names_the_approval_of_its_service_type() {
     assert!(through_the_app.is_err(), "the coordinator refuses a rejected service type");
 
     // The honest write names gardening's approval; an update cannot swap it.
-    let honest = forge_entry(&conductors[2], &mallory, requests, REQUEST, forge("honest", &gardening, Some(approval.clone())))
+    let gift = |request: Request| naming(request, &[fpf.clone()], &[fpfs.clone()]);
+    let honest = forge_entry(&conductors[2], &mallory, requests, REQUEST, gift(forge("honest", &gardening, Some(approval.clone()))))
         .await
         .unwrap_or_else(|e| panic!("a request naming its type's approval should be written; got {e}"));
-    let swapped = forge_update(&conductors[2], &mallory, &honest, a_request("honest, edited", None, Some(gardening.clone()), Some(designs))).await;
+    let swapped = forge_update(&conductors[2], &mallory, &honest, gift(a_request("honest, edited", None, Some(gardening.clone()), Some(designs)))).await;
     refused(&swapped, "approval cannot change", "an update swapping in another approval");
-    let kept = forge_update(&conductors[2], &mallory, &honest, a_request("honest, edited", None, Some(gardening), Some(approval))).await;
+    let kept = forge_update(&conductors[2], &mallory, &honest, gift(a_request("honest, edited", None, Some(gardening), Some(approval)))).await;
     kept.unwrap_or_else(|e| panic!("an update keeping the approval should be written; got {e}"));
 }
 
@@ -813,20 +843,21 @@ async fn a_listing_keeps_its_service_type() {
                     "previous_action_hash": original,
                     "updated_request": sample_request("A lift", design.clone(), fpf.clone()).request,
                     "service_type_hash": design,
-                    "medium_of_exchange_hashes": [],
+                    "medium_of_exchange_hashes": [fpf],
                 }),
             )
             .await,
     );
     match moved {
         Ok(record) => panic!("moving a listing to another service type should be refused, but wrote {}", record.action_address()),
-        Err(text) => assert!(text.contains("cannot change"), "the refusal should say the type cannot change; got {text}"),
+        Err(text) => assert!(text.contains("service type cannot change"), "the refusal should say the type cannot change; got {text}"),
     }
 
     // Past the coordinator: validation refuses the move, and keeps the same type.
-    let forged = forge_update(&conductors[2], &mallory, &original, a_request("A lift, moved", None, Some(design.clone()), written.service_type_approval.clone())).await;
-    refused(&forged, "cannot change", "an update moving a listing to another service type");
-    let kept = forge_update(&conductors[2], &mallory, &original, a_request("A lift, retitled", None, Some(gardening), written.service_type_approval.clone())).await;
+    let same_mediums = |request: Request| naming(request, &written.medium_of_exchange_hashes, &written.medium_of_exchange_approvals);
+    let forged = forge_update(&conductors[2], &mallory, &original, same_mediums(a_request("A lift, moved", None, Some(design.clone()), written.service_type_approval.clone()))).await;
+    refused(&forged, "service type cannot change", "an update moving a listing to another service type");
+    let kept = forge_update(&conductors[2], &mallory, &original, same_mediums(a_request("A lift, retitled", None, Some(gardening), written.service_type_approval.clone()))).await;
     kept.unwrap_or_else(|e| panic!("an update keeping the service type should be written; got {e}"));
 }
 
@@ -909,7 +940,7 @@ async fn a_listing_is_edited_by_its_author_or_an_administrator() {
             "previous_action_hash": original,
             "updated_request": input.request,
             "service_type_hash": st,
-            "medium_of_exchange_hashes": [],
+            "medium_of_exchange_hashes": [fpf],
         })
     };
     // The author.
@@ -928,7 +959,7 @@ async fn a_listing_is_edited_by_its_author_or_an_administrator() {
                 "previous_action_hash": by_bob.action_address(),
                 "updated_request": sample_request("Alice's edit", st.clone(), fpf.clone()).request,
                 "service_type_hash": st,
-                "medium_of_exchange_hashes": [],
+                "medium_of_exchange_hashes": [fpf],
             }),
         )
         .await;

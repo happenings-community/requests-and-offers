@@ -85,7 +85,7 @@ async fn basic_request_crud_operations() {
                 "previous_action_hash": req_record.signed_action.hashed.hash,
                 "updated_request": updated_input.request,
                 "service_type_hash": st_hash,
-                "medium_of_exchange_hashes": []
+                "medium_of_exchange_hashes": [fpf]
             }),
         )
         .await;
@@ -174,7 +174,7 @@ async fn request_archive_and_delete() {
                 "previous_action_hash": req_record.signed_action.hashed.hash,
                 "updated_request": archived_request,
                 "service_type_hash": st_hash,
-                "medium_of_exchange_hashes": []
+                "medium_of_exchange_hashes": [fpf]
             }),
         )
         .await;

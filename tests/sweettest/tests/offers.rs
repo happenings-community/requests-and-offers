@@ -79,7 +79,7 @@ async fn basic_offer_crud_operations() {
                 "previous_action_hash": offer_record.signed_action.hashed.hash,
                 "updated_offer": updated_input.offer,
                 "service_type_hash": st_hash,
-                "medium_of_exchange_hashes": []
+                "medium_of_exchange_hashes": [fpf]
             }),
         )
         .await;
@@ -168,7 +168,7 @@ async fn offer_archive_and_delete() {
                 "previous_action_hash": offer_record.signed_action.hashed.hash,
                 "updated_offer": archived_offer,
                 "service_type_hash": st_hash,
-                "medium_of_exchange_hashes": []
+                "medium_of_exchange_hashes": [fpf]
             }),
         )
         .await;

@@ -20,7 +20,7 @@ use holochain::prelude::*;
 use holochain::sweettest::*;
 use requests_and_offers_sweettest::common::*;
 use serde::{Deserialize, Serialize};
-use std::time::{Duration, Instant};
+
 
 /// Mirror of the coordinator's `SendMessageInput`, for an ordinary message.
 ///
@@ -34,6 +34,36 @@ use std::time::{Duration, Instant};
 struct SendMessageInput {
     to_user: ActionHash,
     content: String,
+    /// Matches copies of one message. Empty on the cases that predate send ids, which is
+    /// deliberate: those exercise the `#[serde(default)]` fallback.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    send_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    read_up_to: Option<Timestamp>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    listing: Option<ActionHash>,
+}
+
+/// An ordinary message with no send id, no read mark and no listing.
+///
+/// The cases that predate send ids go through here, so they keep exercising the serde
+/// defaults rather than quietly sending an empty id on purpose.
+fn plain(to_user: ActionHash, content: impl Into<String>) -> SendMessageInput {
+    SendMessageInput {
+        to_user,
+        content: content.into(),
+        send_id: String::new(),
+        read_up_to: None,
+        listing: None,
+    }
+}
+
+/// Mirror of the coordinator's `FindSentInput`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FindSentInput {
+    send_id: String,
+    since: Timestamp,
 }
 
 /// Mirror of the coordinator's `SentMessage`.
@@ -75,23 +105,6 @@ fn readable(entries: Vec<InboxEntry>) -> Vec<Message> {
     out
 }
 
-/// Mirror of the coordinator's `BlockEvent`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct BlockEvent {
-    agent: AgentPubKey,
-    blocked: bool,
-    at: Timestamp,
-}
-
-/// Mirror of the coordinator's `Blocks`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Blocks {
-    blocked: Vec<AgentPubKey>,
-    history: Vec<BlockEvent>,
-}
-
 /// Mirror of the coordinator's `MessageRead` outcomes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -111,6 +124,12 @@ struct Message {
     to: AgentPubKey,
     at: Timestamp,
     content: String,
+    #[serde(default)]
+    send_id: String,
+    #[serde(default)]
+    read_up_to: Option<Timestamp>,
+    #[serde(default)]
+    listing: Option<ActionHash>,
     /// Kept in the mirror although every message in this file is personal, so that these
     /// cases can assert they stay `None`. A personal message that grew a role would
     /// otherwise pass here and only fail in the role suite.
@@ -179,10 +198,7 @@ async fn recipient_reads_the_message() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                content: "the kettle is on".to_string(),
-            },
+            plain(bob_user, "the kettle is on".to_string()),
         )
         .await;
 
@@ -237,10 +253,7 @@ async fn sender_reads_their_own_sent_message() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                content: "I said the kettle is on".to_string(),
-            },
+            plain(bob_user, "I said the kettle is on".to_string()),
         )
         .await;
 
@@ -302,10 +315,7 @@ async fn a_third_member_cannot_read_the_message() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                content: "not for Carol".to_string(),
-            },
+            plain(bob_user, "not for Carol".to_string()),
         )
         .await;
     let hash = sent[0].hash.clone();
@@ -352,10 +362,7 @@ async fn a_message_waits_for_an_offline_recipient() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                content: "sent while you were out".to_string(),
-            },
+            plain(bob_user, "sent while you were out".to_string()),
         )
         .await;
 
@@ -413,10 +420,7 @@ async fn a_message_arrives_with_the_sender_offline() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                content: "Carol is holding this for you".to_string(),
-            },
+            plain(bob_user, "Carol is holding this for you".to_string()),
         )
         .await;
     let hash = sent[0].hash.clone();
@@ -539,10 +543,7 @@ async fn an_unaccepted_sender_is_refused() {
         .call_fallible::<_, Vec<SentMessage>>(
             &bob.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: alice_user,
-                content: "let me in".to_string(),
-            },
+            plain(alice_user, "let me in".to_string()),
         )
         .await;
 
@@ -595,10 +596,7 @@ async fn only_an_administrator_may_write_to_a_member_who_is_not_accepted() {
         .call_fallible::<_, Vec<SentMessage>>(
             &bob.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: carol_user.clone(),
-                content: "hello".to_string(),
-            },
+            plain(carol_user.clone(), "hello"),
         )
         .await;
     let err = match refused {
@@ -618,10 +616,7 @@ async fn only_an_administrator_may_write_to_a_member_who_is_not_accepted() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: carol_user,
-                content: "what does your application leave out?".to_string(),
-            },
+            plain(carol_user, "what does your application leave out?"),
         )
         .await;
     assert_eq!(sent.len(), 1, "Carol has one agent, so one copy is written");
@@ -654,10 +649,7 @@ async fn a_message_from_a_since_rejected_author_is_hidden() {
         .call(
             &alice.zome("messaging"),
             "send_message",
-            SendMessageInput {
-                to_user: bob_user,
-                content: "written while I was in good standing".to_string(),
-            },
+            plain(bob_user, "written while I was in good standing".to_string()),
         )
         .await;
     await_consistency_s(30, [&alice, &bob]).await.unwrap();
@@ -688,11 +680,180 @@ async fn a_message_from_a_since_rejected_author_is_hidden() {
     );
 }
 
-/// Copied from `tests/messaging.rs` (#213), which owns the nudge substrate and its
-/// timings. Duplicated rather than shared because that file is under review: these move
-/// to `common` once #213 merges.
+// ── Send ids, read marks, listings, and what left the chain ───────────────────
+
+/// A send id and a read mark survive the round trip, and `find_sent` locates the send.
 ///
-/// Mirror of the messaging zome's `Signal`.
+/// Three facts in one case, because they are one send seen from three sides. `find_sent`
+/// is what replaces guessing after a timeout: the sender looks for the id on their own
+/// chain instead of deciding whether the call went through.
+///
+/// **To make the bound go red:** have `find_sent` ignore `since`. The last assertion,
+/// which searches from a time after the send, then finds it anyway.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_send_id_rides_along_and_find_sent_locates_it() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+
+    let before = Timestamp::now();
+    let mark = Timestamp::now();
+
+    conductors[0]
+        .call::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user.clone(),
+                content: "the kettle is on".to_string(),
+                send_id: "send-1".to_string(),
+                read_up_to: Some(mark),
+                listing: None,
+            },
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // The recipient reads both fields out of the ciphertext.
+    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    assert_eq!(inbox.len(), 1);
+    assert_eq!(inbox[0].send_id, "send-1", "the send id should round-trip");
+    assert_eq!(
+        inbox[0].read_up_to,
+        Some(mark),
+        "the read mark rides inside the body, with no second signal"
+    );
+
+    // The sender can find their own send by its id.
+    let found: Option<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "find_sent",
+            FindSentInput {
+                send_id: "send-1".to_string(),
+                since: before,
+            },
+        )
+        .await;
+    assert!(found.is_some(), "find_sent should locate a send it made");
+
+    let missing: Option<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "find_sent",
+            FindSentInput {
+                send_id: "a-send-that-never-happened".to_string(),
+                since: before,
+            },
+        )
+        .await;
+    assert!(missing.is_none(), "an id never sent should not be found");
+
+    // The search is bounded, so one starting after the send finds nothing.
+    let after = Timestamp::now();
+    let out_of_range: Option<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "find_sent",
+            FindSentInput {
+                send_id: "send-1".to_string(),
+                since: after,
+            },
+        )
+        .await;
+    assert!(
+        out_of_range.is_none(),
+        "find_sent reads only from `since` onwards, so a later window finds nothing"
+    );
+}
+
+/// A message carries text or a listing, never both.
+///
+/// A listing travels on a card-only message, which is how it reaches the other person
+/// without becoming a context tag on something somebody wrote.
+///
+/// **To make this go red:** drop the check in `send_message`. The first call succeeds.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_message_carries_text_or_a_listing_never_both() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+    let a_listing = ActionHash::from_raw_36(vec![7; 36]);
+
+    let err = conductors[0]
+        .call_fallible::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user.clone(),
+                content: "here is one I posted".to_string(),
+                send_id: "send-2".to_string(),
+                read_up_to: None,
+                listing: Some(a_listing.clone()),
+            },
+        )
+        .await
+        .expect_err("a message with both text and a listing should be refused")
+        .to_string();
+    assert!(
+        err.contains("either text or a listing"),
+        "the refusal should say why; got {err}"
+    );
+
+    // The card on its own goes through, and arrives as a card.
+    conductors[0]
+        .call::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user,
+                content: String::new(),
+                send_id: "send-3".to_string(),
+                read_up_to: None,
+                listing: Some(a_listing.clone()),
+            },
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    assert_eq!(inbox.len(), 1);
+    assert_eq!(inbox[0].listing, Some(a_listing));
+    assert_eq!(inbox[0].content, "", "a card-only message carries no text");
+}
+
+/// A message with no text and no listing is refused.
+///
+/// The interface never sends one on purpose: the composer refuses an empty draft and a
+/// card always carries its listing. One reaching the zome is a client defect, and
+/// writing it would put a blank bubble on both chains that nobody meant to send.
+///
+/// **To make this go red:** drop the "neither" check in `send_message`. The call succeeds
+/// and Bob's inbox holds an empty message.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_message_with_neither_text_nor_a_listing_is_refused() {
+    let (conductors, alice, _bob, _alice_user, bob_user) = two_accepted_members().await;
+
+    for content in ["", "   \n"] {
+        let err = conductors[0]
+            .call_fallible::<_, Vec<SentMessage>>(
+                &alice.zome("messaging"),
+                "send_message",
+                SendMessageInput {
+                    to_user: bob_user.clone(),
+                    content: content.to_string(),
+                    send_id: "send-4".to_string(),
+                    read_up_to: None,
+                    listing: None,
+                },
+            )
+            .await
+            .expect_err("a message with neither text nor a listing should be refused")
+            .to_string();
+        assert!(
+            err.contains("This one has neither"),
+            "the refusal should say why; got {err}"
+        );
+    }
+}
+
+/// Mirror of the zome's `Signal`, both halves, as the interface decodes them.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 enum MessagingSignal {
@@ -700,49 +861,58 @@ enum MessagingSignal {
         hash: ActionHash,
         from: AgentPubKey,
     },
+    Receipt {
+        #[serde(rename = "readUpTo")]
+        read_up_to: Timestamp,
+        from: AgentPubKey,
+    },
 }
 
-/// Also from #213. Generous because an unprimed recipient runs `init` for every
-/// coordinator zome when the nudge arrives: measured at 68.4s for the first nudge on a
-/// hosted runner.
-const SIGNAL_DEADLINE: Duration = Duration::from_secs(240);
+/// Mirror of the zome's `SendReceiptInput`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SendReceiptInput {
+    to_user: ActionHash,
+    read_up_to: Timestamp,
+}
 
-/// Wait for a nudge carrying `wanted`, reporting how long it took and every hash seen.
+/// A receipt reaches the other member's agent, from its sender, with the mark under the
+/// name the interface reads.
 ///
-/// Returns `(Some(latency), seen)` if `wanted` arrived inside `window`, `(None, seen)`
-/// otherwise. `seen` matters for the negative case: it is how the test can say that a
-/// *different* nudge turned up, rather than only that the wanted one did not.
+/// The interface's schema says `readUpTo`, like every other field it reads from this
+/// zome. The signal used to carry `read_up_to`, so the interface read `undefined` and
+/// Read never appeared on anyone's message (review of 16 October, F5).
 ///
-/// `sent` must be the instant the send was **issued**, not the instant this call started.
-/// #213's `await_messaging_signal` takes the same parameter for the same reason: the
-/// subscription buffers, so a nudge often arrives before anyone waits for it, and a clock
-/// started here measures the time to pull it off a channel. Measured that way the first
-/// nudge looked like 30µs; timed from the send it is about 1.5s on a developer machine.
-/// Any window derived from the former is meaningless.
-async fn watch_for_nudge(
-    signals: &mut tokio::sync::broadcast::Receiver<Signal>,
-    wanted: &ActionHash,
-    window: Duration,
-    who: &str,
-    sent: Instant,
-) -> (Option<Duration>, Vec<ActionHash>) {
-    let mut seen: Vec<ActionHash> = Vec::new();
+/// **To make this go red:** drop the `rename` on `Signal::Receipt`. The signal arrives,
+/// decodes as nothing this mirror knows, and the wait runs out.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_receipt_arrives_as_read_up_to_from_its_sender() {
+    let (conductors, alice, _bob, _alice_user, bob_user) = two_accepted_members().await;
 
-    let found = tokio::time::timeout(window, async {
+    // Subscribe before sending, as the nudge cases do.
+    let mut bob_signals =
+        conductors[1].subscribe_to_app_signals("requests_and_offers".to_string());
+
+    let mark = Timestamp::now();
+    let _: () = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_receipt",
+            SendReceiptInput {
+                to_user: bob_user,
+                read_up_to: mark,
+            },
+        )
+        .await;
+
+    // The same deadline as the nudge cases in `messaging.rs` (`SIGNAL_DEADLINE`), for
+    // the same reason: it is what the hosted runner has been measured to need.
+    let received = tokio::time::timeout(std::time::Duration::from_secs(240), async {
         loop {
-            match signals
-                .recv()
-                .await
-                .unwrap_or_else(|e| panic!("{who} signal channel error: {e:?}"))
-            {
+            match bob_signals.recv().await.expect("Bob's signal channel closed") {
                 Signal::App { signal, .. } => {
-                    if let Ok(MessagingSignal::Nudge { hash, .. }) =
-                        signal.into_inner().decode::<MessagingSignal>()
-                    {
-                        seen.push(hash.clone());
-                        if &hash == wanted {
-                            break sent.elapsed();
-                        }
+                    if let Ok(decoded) = signal.into_inner().decode::<MessagingSignal>() {
+                        break decoded;
                     }
                 }
                 Signal::System(_) => {}
@@ -752,181 +922,54 @@ async fn watch_for_nudge(
             }
         }
     })
-    .await;
+    .await
+    .expect("Bob should receive the receipt as a signal the interface can decode");
 
-    match found {
-        Ok(latency) => {
-            eprintln!("[inbox] {who} received the nudge for the wanted message in {latency:?}");
-            (Some(latency), seen)
-        }
-        Err(_) => {
-            eprintln!(
-                "[inbox] {who} saw no nudge for the wanted message within {window:?}; \
-                 hashes seen: {seen:?}"
+    match received {
+        MessagingSignal::Receipt { read_up_to, from } => {
+            assert_eq!(read_up_to, mark, "the mark should round-trip");
+            assert_eq!(
+                &from,
+                alice.agent_pubkey(),
+                "the sender is taken from call provenance"
             );
-            (None, seen)
         }
+        other => panic!("expected a receipt, got {other:?}"),
     }
 }
 
-/// Send one message, for tests that send more than once.
-async fn send_one(
-    conductor: &SweetConductor,
-    sender: &SweetCell,
-    to_user: ActionHash,
-    content: &str,
-) -> ActionHash {
-    let sent: Vec<SentMessage> = conductor
-        .call(
-            &sender.zome("messaging"),
+/// The chain functions for blocks and read markers are gone.
+///
+/// Read markers and blocks left the chain because a private entry hides its content but
+/// not its timing. This is what notices if one comes back: the functions no longer exist,
+/// so calling them fails.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_chain_functions_for_blocks_and_read_markers_are_gone() {
+    let (conductors, alice, bob, _alice_user, _bob_user) = two_accepted_members().await;
+
+    for gone in ["block_agent", "unblock_agent", "get_blocks", "mark_read", "get_read_markers"] {
+        let result = conductors[0]
+            .call_fallible::<_, ()>(&alice.zome("messaging"), gone, ())
+            .await;
+        assert!(
+            result.is_err(),
+            "{gone} should no longer exist on the messaging zome"
+        );
+    }
+
+    // And the zome still works: nothing above broke ordinary messaging.
+    let bob_user = user_hash_of(&conductors[1], &bob).await;
+    conductors[0]
+        .call::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
             "send_message",
             SendMessageInput {
-                to_user,
-                content: content.to_string(),
+                to_user: bob_user,
+                content: "still working".to_string(),
+                send_id: "send-4".to_string(),
+                read_up_to: None,
+                listing: None,
             },
         )
         .await;
-    sent
-        .first()
-        .unwrap_or_else(|| panic!("send_message returned no copies for {content:?}"))
-        .hash
-        .clone()
 }
-
-/// Blocking hides stored messages and drops nudges; unblocking restores both.
-///
-/// The negative step is the hard one. An earlier version waited a flat ten seconds and
-/// used consistency as its clock. Two things were wrong with that, and one of them is
-/// worth stating carefully.
-///
-/// The clear fault: nothing was sent after the unblock, so "unblocking restores nudges"
-/// rested on a stored-message count alone. Step 5 exists for that.
-///
-/// The weaker one: the ten seconds was not derived from anything measured on the machine
-/// running the test, and consistency does not time a nudge, since it is a gossip clock
-/// and a nudge is a remote call. Nothing guaranteed a leak would be caught on a slower
-/// machine. It might well have been caught here, because the test subscribed before
-/// sending and waited for consistency first, so a leaked nudge would probably have been
-/// buffered and seen.
-///
-/// So the window is now derived from a measurement taken in this same test: step 1
-/// records how long a nudge actually takes here, and step 3 waits twice that, with a
-/// ten-second floor. Step 5 then proves the block was the cause rather than the nudges
-/// having stopped, and that the suppressed nudge is not merely late.
-#[tokio::test(flavor = "multi_thread")]
-async fn blocking_hides_messages_and_nudges_and_unblocking_restores_them() {
-    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
-
-    // One subscription for the whole test, so a nudge suppressed in step 3 cannot slip
-    // past unnoticed and then be attributed to step 5.
-    let mut bob_signals =
-        conductors[1].subscribe_to_app_signals("requests_and_offers".to_string());
-
-    // 1. Unblocked: the nudge must arrive, and its latency sets the window below.
-    let m1_sent = Instant::now();
-    let m1 = send_one(&conductors[0], &alice, bob_user.clone(), "before the block").await;
-    let (latency, _) =
-        watch_for_nudge(&mut bob_signals, &m1, SIGNAL_DEADLINE, "Bob", m1_sent).await;
-    let latency = latency.unwrap_or_else(|| {
-        panic!(
-            "no nudge arrived for the first message within {SIGNAL_DEADLINE:?}; without this \
-             control the negative step below proves nothing"
-        )
-    });
-
-    await_consistency_s(30, [&alice, &bob]).await.unwrap();
-    let before = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
-    assert_eq!(
-        before.len(),
-        1,
-        "Bob should see the first message, got {before:?}"
-    );
-
-    // 2. Block.
-    let _: () = conductors[1]
-        .call(
-            &bob.zome("messaging"),
-            "block_agent",
-            alice.agent_pubkey().clone(),
-        )
-        .await;
-
-    let blocked = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
-    assert!(
-        blocked.is_empty(),
-        "a blocked author's stored messages should be hidden, got {blocked:?}"
-    );
-
-    // 3. Blocked: no nudge for m2, watched for twice the measured latency.
-    let window = std::cmp::max(latency * 2, Duration::from_secs(10));
-    eprintln!(
-        "[inbox] first nudge took {latency:?}, so the blocked window is {window:?}"
-    );
-    let m2_sent = Instant::now();
-    let m2 = send_one(&conductors[0], &alice, bob_user.clone(), "while blocked").await;
-    let (leaked, seen_while_blocked) =
-        watch_for_nudge(&mut bob_signals, &m2, window, "Bob", m2_sent).await;
-    assert!(
-        leaked.is_none(),
-        "a blocked sender's nudge reached the UI after {leaked:?}, within a {window:?} \
-         window derived from the {latency:?} the first nudge took"
-    );
-    assert!(
-        !seen_while_blocked.contains(&m2),
-        "the blocked message's nudge was seen: {seen_while_blocked:?}"
-    );
-
-    // 4. Unblock: both stored messages come back.
-    let _: () = conductors[1]
-        .call(
-            &bob.zome("messaging"),
-            "unblock_agent",
-            alice.agent_pubkey().clone(),
-        )
-        .await;
-
-    await_consistency_s(30, [&alice, &bob]).await.unwrap();
-    let restored = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
-    assert_eq!(
-        restored.len(),
-        2,
-        "unblocking should restore both messages, got {restored:?}"
-    );
-
-    // 5. Unblocked again: a fresh nudge arrives, and m2's never does.
-    let m3_sent = Instant::now();
-    let m3 = send_one(&conductors[0], &alice, bob_user.clone(), "after the unblock").await;
-    let (after_unblock, seen_after) =
-        watch_for_nudge(&mut bob_signals, &m3, SIGNAL_DEADLINE, "Bob", m3_sent).await;
-    assert!(
-        after_unblock.is_some(),
-        "a nudge should arrive again once unblocked, so the block was the cause rather \
-         than nudges having stopped; hashes seen: {seen_after:?}"
-    );
-    assert!(
-        !seen_after.contains(&m2),
-        "the nudge suppressed while blocked must not arrive late; hashes seen: {seen_after:?}"
-    );
-
-    // The history keeps both events, so a member can see what they did and undo it.
-    let blocks: Blocks = conductors[1].call(&bob.zome("messaging"), "get_blocks", ()).await;
-    assert!(
-        blocks.blocked.is_empty(),
-        "nobody should be blocked after the unblock, got {:?}",
-        blocks.blocked
-    );
-    assert_eq!(
-        blocks.history.len(),
-        2,
-        "the block and the unblock should both be kept, got {:?}",
-        blocks.history
-    );
-    assert!(
-        blocks.history[0].blocked && !blocks.history[1].blocked,
-        "history should read block then unblock, in chain order; got {:?}",
-        blocks.history
-    );
-}
-
-// ── Technical reports to administrators ───────────────────────────────────────
-//

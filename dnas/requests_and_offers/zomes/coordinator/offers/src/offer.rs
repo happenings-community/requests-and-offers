@@ -607,6 +607,10 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
 
 #[hdk_extern]
 pub fn archive_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
+  // Clients routinely hold a mid-chain Update hash (lists show the latest revision),
+  // and the update link below must hang off the chain root like update_offer's does,
+  // or get_latest_offer_record from the root never sees the archived revision.
+  let original_action_hash = resolve_chain_root(original_action_hash);
   // Get the latest offer record (follows update chain)
   let latest_record = get_latest_offer_record(original_action_hash.clone())?.ok_or(
     CommonError::EntryNotFound("Could not find the offer".to_string()),

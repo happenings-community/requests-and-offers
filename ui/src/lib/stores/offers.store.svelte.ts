@@ -289,10 +289,12 @@ export const createOffersStore = (): E.Effect<
     };
 
     // 2. CACHE SYNCHRONIZATION - Using createGenericCacheSyncHelper
+    // Keyed by the status values themselves: the helper files a listing back under
+    // entityArrays[listing.status], and ListingStatus is 'Active' / 'Archived'.
     const { syncCacheToState } = createGenericCacheSyncHelper({
       all: offers,
-      active: activeOffers,
-      archived: archivedOffers
+      Active: activeOffers,
+      Archived: archivedOffers
     });
 
     // 3. EVENT EMITTERS - Using createStandardEventEmitters

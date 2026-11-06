@@ -15,8 +15,6 @@ pub enum EntryTypes {
   Unblock(Unblock),
   #[entry_type(visibility = "private")]
   ReadMarker(ReadMarker),
-  #[entry_type(visibility = "private")]
-  ReportResolution(ReportResolution),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -112,13 +110,12 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 fn validate_entry(app_entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
     EntryTypes::EncryptedMessage(message) => validate_encrypted_message(message),
-    // The private entries hold an agent key, a read position or a report's hash,
-    // and are only ever on their author's own chain. There is nothing for a third
-    // party to check, and no other agent can see them.
-    EntryTypes::Block(_)
-    | EntryTypes::Unblock(_)
-    | EntryTypes::ReadMarker(_)
-    | EntryTypes::ReportResolution(_) => Ok(ValidateCallbackResult::Valid),
+    // The private entries hold an agent key or a read position, and are only ever
+    // on their author's own chain. There is nothing for a third party to check, and
+    // no other agent can see them.
+    EntryTypes::Block(_) | EntryTypes::Unblock(_) | EntryTypes::ReadMarker(_) => {
+      Ok(ValidateCallbackResult::Valid)
+    }
   }
 }
 

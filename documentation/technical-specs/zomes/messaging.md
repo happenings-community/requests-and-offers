@@ -71,6 +71,8 @@ Every recipient is unprimed. The deadline is 240s, set from the hosted runner's 
 
 ## 6. The Encrypted Inbox (#301)
 
+> **Changed by #304.** Technical reports to administrators are replaced by messages to a role and cases (`send_role_message`, `get_role_inbox`, `get_my_role_correspondence`), so the private `ReportResolution` entry in 6.1, the `kind` field and the rule that a report goes only to an administrator are gone from the zome. The access rule in 6.3, who may write to a member who is not accepted, carries over and is now checked in `deliver`, the one path every send takes: it covers the member a personal message is sent to and the member whose case a holder replies on, and not the holders a role message reaches through their role. A section on role messages and cases is still to be written, with #304.
+
 Messages are stored encrypted on the shared DNA and linked from the recipient's agent key; a nudge carrying only the action hash tells the recipient to look. **Sender, recipient and timing are public for the life of the network; content and conversation grouping are private.** A sealed mailbox that also hides who wrote to whom is a later module.
 
 ### 6.1. What is public and what is private

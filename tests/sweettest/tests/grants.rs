@@ -1142,3 +1142,146 @@ async fn with_a_progenitor_key_the_root_is_written_by_the_progenitor() {
     .await;
     refused(&forged, "written by the progenitor", "a root grant Mallory wrote with Alice's signature");
 }
+
+/// Mirror of the messaging coordinator's `InboxEntry`, enough to see who wrote each one.
+#[derive(Debug, serde::Deserialize)]
+#[serde(tag = "type")]
+enum InboxEntry {
+    Read(InboxMessage),
+    Unreadable { from: AgentPubKey },
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct InboxMessage {
+    from: AgentPubKey,
+}
+
+impl InboxEntry {
+    fn from(&self) -> &AgentPubKey {
+        match self {
+            InboxEntry::Read(m) => &m.from,
+            InboxEntry::Unreadable { from } => from,
+        }
+    }
+}
+
+async fn inbox_authors(conductor: &SweetConductor, cell: &SweetCell) -> Vec<AgentPubKey> {
+    let inbox: Vec<InboxEntry> = conductor.call(&cell.zome("messaging"), "get_inbox", ()).await;
+    inbox.iter().map(|entry| entry.from().clone()).collect()
+}
+
+/// While a member is not accepted, only an administrator reaches their inbox.
+///
+/// `send_message` refuses a non-administrator writing to a member who is not
+/// accepted, but a modified client can skip it: Mallory, accepted and holding
+/// her own member grant, forges a message and an `Inbox` link to Carol, who is
+/// still pending. Validation lets both through (the grant is hers), so the rule
+/// has to hold where Carol reads. Two controls show it holds for that reason:
+/// Alice's message, an administrator's, does reach pending Carol; and once
+/// Carol is accepted, Mallory's forged message is shown.
+///
+/// **To make this go red:** remove the `restricted` check in
+/// `read_inbox_entries` (coordinator `messaging/src/inbox.rs`). Pending Carol
+/// then sees Mallory's message.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_member_who_is_not_accepted_hears_only_from_administrators() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(3, true).await;
+    let (alice, bob, carol) = (&cells[0], &cells[1], &cells[2]);
+    let users = everyone_accepted(&conductors, &[alice, bob]).await;
+
+    // Carol applies and stays pending; Mallory applies and is accepted.
+    conductors[2]
+        .call::<_, Record>(&carol.zome("users_organizations"), "create_user", sample_user("Carol"))
+        .await;
+    conductors[3]
+        .call::<_, Record>(&mallory.zome("users_organizations"), "create_user", sample_user("Mallory"))
+        .await;
+    await_consistency_s(15, [alice, bob, carol, &mallory]).await.unwrap();
+    let carols_user = user_of(&conductors[2], carol).await;
+    let mallorys_user = user_of(&conductors[3], &mallory).await;
+    accept_entity(&conductors[0], alice, ENTITY_USERS, mallorys_user).await;
+    await_consistency_s(15, [alice, bob, carol, &mallory]).await.unwrap();
+
+    // Control: an administrator may write to a member who is not accepted.
+    let _: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput { to_user: carols_user.clone(), content: "welcome, Carol".to_string() },
+        )
+        .await;
+
+    // The app refuses Mallory, who is no administrator.
+    let through_the_app: Result<Vec<SentMessage>, String> = reason(
+        conductors[3]
+            .call_fallible(
+                &mallory.zome("messaging"),
+                "send_message",
+                SendMessageInput { to_user: carols_user.clone(), content: "hello".to_string() },
+            )
+            .await,
+    );
+    assert!(
+        through_the_app.as_ref().is_err_and(|e| e.contains("not accepted yet")),
+        "the app should refuse a member writing to a pending member; got {through_the_app:?}"
+    );
+
+    // So she forges it: a real ciphertext of hers (sent to Bob), stored again with her
+    // own grant, and an Inbox link at Carol's key. Both pass validation.
+    let sent: Vec<SentMessage> = conductors[3]
+        .call(
+            &mallory.zome("messaging"),
+            "send_message",
+            SendMessageInput { to_user: users[1].clone(), content: "a ciphertext to reuse".to_string() },
+        )
+        .await;
+    let record: Option<Record> = conductors[3]
+        .call(&mallory.zome("forge"), "forge_get", sent[0].hash.clone())
+        .await;
+    let theirs: EncryptedMessage =
+        record.expect("her own message").entry().to_app_option().unwrap().expect("an EncryptedMessage");
+    let messaging = zome_index(&conductors[3], &mallory, "messaging_integrity").await;
+    let grant = grant_for_role(&conductors[3], &mallory, mallory.agent_pubkey(), "member").await;
+    let forged = forge_entry(
+        &conductors[3],
+        &mallory,
+        messaging,
+        ENCRYPTED_MESSAGE,
+        EncryptedMessage { encrypted: theirs.encrypted.clone(), grant: Some(grant) },
+    )
+    .await
+    .unwrap_or_else(|e| panic!("a member's message with her own grant should be written; got {e}"));
+    reason(
+        conductors[3]
+            .call_fallible::<_, ActionHash>(
+                &mallory.zome("forge"),
+                "forge_link",
+                serde_json::json!({
+                    "base": AnyLinkableHash::from(carol.agent_pubkey().clone()),
+                    "target": AnyLinkableHash::from(forged),
+                    "zome_index": messaging,
+                    "link_type": INBOX_LINK,
+                    "tag": Vec::<u8>::new(),
+                }),
+            )
+            .await,
+    )
+    .unwrap_or_else(|e| panic!("the forged Inbox link should be written; got {e}"));
+    await_consistency_s(30, [alice, bob, carol, &mallory]).await.unwrap();
+
+    let pending = inbox_authors(&conductors[2], carol).await;
+    assert!(pending.contains(alice.agent_pubkey()), "pending Carol should see the administrator's message");
+    assert!(
+        !pending.contains(mallory.agent_pubkey()),
+        "pending Carol should not see a message from a member who is not an administrator"
+    );
+
+    // Control: accepted, Carol hears from members too, the forged message included.
+    accept_entity(&conductors[0], alice, ENTITY_USERS, carols_user).await;
+    await_consistency_s(15, [alice, bob, carol, &mallory]).await.unwrap();
+    let accepted = inbox_authors(&conductors[2], carol).await;
+    assert!(
+        accepted.contains(mallory.agent_pubkey()),
+        "once accepted, Carol should see Mallory's message; the rule is about her status"
+    );
+}

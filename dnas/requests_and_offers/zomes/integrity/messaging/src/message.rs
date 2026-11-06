@@ -1,4 +1,5 @@
 use hdi::prelude::*;
+use utils::grants::{check_act, Ability};
 
 /// A message stored on the shared DNA, encrypted for one recipient agent.
 ///
@@ -7,10 +8,17 @@ use hdi::prelude::*;
 /// carry the grouping. What the DHT does carry, for the life of the network, is the
 /// action: author, recipient (via the `Inbox` link base) and timestamp. That is a
 /// deliberate trade, not an oversight.
+///
+/// `grant` is the author's member grant, the same rule a listing has: only an accepted
+/// member writes a message the network will hold. It is public, like the author's key
+/// on the action, and says no more than that key already does.
 #[derive(Clone, PartialEq)]
 #[hdk_entry_helper]
 pub struct EncryptedMessage {
   pub encrypted: XSalsa20Poly1305EncryptedData,
+  /// The member grant this write rests on, held by the author.
+  #[serde(default)]
+  pub grant: Option<ActionHash>,
 }
 
 /// A private note on the author's own chain that they have blocked an agent.
@@ -143,10 +151,32 @@ pub fn check_inbox_tag_is_empty(tag: &LinkTag) -> ValidateCallbackResult {
   ValidateCallbackResult::Valid
 }
 
-pub fn validate_encrypted_message(message: EncryptedMessage) -> ExternResult<ValidateCallbackResult> {
-  Ok(check_ciphertext_size(
-    message.encrypted.as_encrypted_data_ref().len(),
-  ))
+/// The rules for a new message: its size, then its grant.
+///
+/// The grant rule is what keeps an agent who was never accepted from using the network
+/// to carry messages. The coordinator refuses them first, but a modified client skips
+/// the coordinator; it cannot skip this. Every `Inbox` link reads its message with
+/// `must_get_valid_record`, so a refused message takes its links with it.
+///
+/// What this cannot see is a grant revoked since: validation can prove a grant exists,
+/// not that nothing revoked it (see `utils::grants`). A suspended member's message is
+/// caught on read instead, where `get_inbox` drops authors who are not accepted now.
+pub fn validate_encrypted_message(
+  message: EncryptedMessage,
+  author: &AgentPubKey,
+) -> ExternResult<ValidateCallbackResult> {
+  match check_ciphertext_size(message.encrypted.as_encrypted_data_ref().len()) {
+    ValidateCallbackResult::Valid => (),
+    refused => return Ok(refused),
+  }
+  Ok(
+    match check_act(&message.grant, author, &Ability::Participate, &None)? {
+      Ok(_) => ValidateCallbackResult::Valid,
+      Err(reason) => {
+        ValidateCallbackResult::Invalid(format!("Sending a message is a member act: {}", reason))
+      }
+    },
+  )
 }
 
 #[cfg(test)]

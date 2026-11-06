@@ -1,5 +1,8 @@
 use hdi::prelude::*;
-use utils::{InteractionType, TimePreference, TimeZone};
+use utils::{
+  grants::{check_act, check_author_or_act, Ability},
+  InteractionType, TimePreference, TimeZone,
+};
 
 /// Represents the status of a listing
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -28,6 +31,11 @@ pub struct Offer {
   /// The status of the offer (defaults to Active for new offers)
   #[serde(default = "default_listing_status")]
   pub status: ListingStatus,
+  /// The grant this write rests on: a member grant held by the
+  /// author on a create; on an update, an admin grant when the author is not
+  /// the offer's creator.
+  #[serde(default)]
+  pub grant: Option<ActionHash>,
 }
 
 /// Default function for listing status
@@ -59,4 +67,28 @@ pub fn validate_offer(offer: Offer) -> ExternResult<ValidateCallbackResult> {
   }
 
   Ok(ValidateCallbackResult::Valid)
+}
+
+/// The grant rule for an offer, run after the field rules.
+/// A create needs a member grant held by the author. An update (`update` is the
+/// action it updates) needs the offer's creator, or an admin grant.
+pub fn validate_offer_grant(
+  grant: &Option<ActionHash>,
+  author: &AgentPubKey,
+  update: Option<&ActionHash>,
+) -> ExternResult<ValidateCallbackResult> {
+  let (act, verdict) = match update {
+    None => (
+      "Posting an offer",
+      check_act(grant, author, &Ability::Participate, &None)?.map(|_| ()),
+    ),
+    Some(original) => (
+      "Changing an offer",
+      check_author_or_act(original, grant, author, &Ability::Administer, &None)?,
+    ),
+  };
+  Ok(match verdict {
+    Ok(()) => ValidateCallbackResult::Valid,
+    Err(reason) => ValidateCallbackResult::Invalid(format!("{} is a role act: {}", act, reason)),
+  })
 }

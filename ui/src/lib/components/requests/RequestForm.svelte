@@ -211,18 +211,27 @@
   }
 
   // Form validation
-  const isValid = $derived(
-    title.trim().length > 0 &&
-      description.trim().length > 0 &&
-      serviceTypeHashes.length > 0 &&
-      selectedMediumOfExchange.length > 0 &&
-      timePreferenceType !== undefined &&
-      (timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0) &&
-      contactPreferenceType !== undefined &&
-      (contactPreferenceType !== 'Other' || contactPreferenceOther.trim().length > 0) &&
-      timeZone !== undefined &&
-      interactionType !== undefined
+  // Each required field and how it is named when missing. The submit button and the
+  // "Still needed" line both read this, so they can never disagree.
+  const stillNeeded = $derived(
+    (
+      [
+        [title.trim().length > 0, 'title'],
+        [description.trim().length > 0, 'description'],
+        [serviceTypeHashes.length > 0, 'service type'],
+        [selectedMediumOfExchange.length > 0, 'medium of exchange'],
+        [timePreferenceType !== undefined, 'time preference'],
+        [timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0, 'your time preference'],
+    [contactPreferenceType !== undefined, 'contact preference'],
+    [contactPreferenceType !== 'Other' || contactPreferenceOther.trim().length > 0, 'your contact preference'],
+        [timeZone !== undefined, 'time zone'],
+        [interactionType !== undefined, 'interaction type']
+      ] as [boolean, string][]
+    )
+      .filter(([filled]) => !filled)
+      .map(([, name]) => name)
   );
+  const isValid = $derived(stillNeeded.length === 0);
 
   async function mockRequest() {
     submitting = true;
@@ -487,11 +496,6 @@
       mode="multiple"
       disabled={mode === 'edit'}
     />
-    {#if mode !== 'edit'}
-      <p class="text-sm text-surface-600 dark:text-surface-400">
-        For a gift, choose Free/Pay it Forward.
-      </p>
-    {/if}
     {#if mode === 'edit'}
       <p class="text-sm text-surface-600 dark:text-surface-400">
         A request's mediums of exchange can't be changed. For different ones, publish a new request.
@@ -726,6 +730,11 @@
     </p>
   {/if}
 
+  {#if !isValid && !submitting}
+    <p class="text-sm text-surface-600 dark:text-surface-400" data-testid="still-needed">
+      Still needed: {stillNeeded.join(', ')}.
+    </p>
+  {/if}
   <!-- Submit Button -->
   <div class="flex gap-4">
     <button

@@ -39,6 +39,16 @@
   let filteredMediums: UIMediumOfExchange[] = $state([]);
   let search = $state('');
   let selectedHashes = $state<ActionHash[]>([...selectedMediums]);
+
+  // Sync external selection changes to internal state, as ServiceTypeSelector does:
+  // an edit form loads its listing after this mounts, so the first copy is empty.
+  $effect(() => {
+    const external = selectedMediums.map((hash) => hash.toString()).sort();
+    const current = selectedHashes.map((hash) => hash.toString()).sort();
+    if (JSON.stringify(external) !== JSON.stringify(current)) {
+      selectedHashes = [...selectedMediums];
+    }
+  });
   let loading = $state(false);
   let error = $state<string | null>(null);
   let initialized = $state(false);
@@ -291,7 +301,8 @@
 
     <!-- Base Categories (Checkboxes) -->
     {#if !loading && !error && groupedMediums().base.length > 0}
-      <div class="space-y-3">
+      <!-- Locked on edit: shown, greyed, not clickable, like the service type list. -->
+      <div class="space-y-3" class:opacity-50={disabled}>
         <div class="card p-3">
           <h4 class="h4 mb-3 flex items-center gap-2">
             <span class="text-lg">📂</span>
@@ -302,7 +313,11 @@
               {@const isSelected = selectedHashes.some(
                 (hash) => hash.toString() === medium.original_action_hash?.toString()
               )}
-              <label class="label flex cursor-pointer items-start gap-3">
+              <label
+                class="label flex items-start gap-3"
+                class:cursor-pointer={!disabled}
+                class:cursor-not-allowed={disabled}
+              >
                 <input
                   type="checkbox"
                   class="checkbox"
@@ -368,7 +383,11 @@
                   {@const isSelected = selectedHashes.some(
                     (hash) => hash.toString() === medium.original_action_hash?.toString()
                   )}
-                  <label class="label flex cursor-pointer items-start gap-3">
+                  <label
+                    class="label flex items-start gap-3"
+                    class:cursor-pointer={!disabled}
+                    class:cursor-not-allowed={disabled}
+                  >
                     <input
                       type="checkbox"
                       class="checkbox"
@@ -428,13 +447,7 @@
     <!-- Help text -->
     {#if !disabled && !loading && !error && (groupedMediums().base.length > 0 || groupedMediums().currency.length > 0)}
       <div class="mt-3 text-sm text-surface-500">
-        <div class="mb-1">
-          📂 <strong>Base Categories:</strong> Check boxes to select foundational exchange types
-        </div>
-        <div class="text-xs text-surface-500">
-          💰 <strong>Currencies:</strong> Check boxes to select specific monetary units (currencies section
-          collapsed by default)
-        </div>
+        Select the medium(s) you would like to use as exchange.
       </div>
     {/if}
   </label>

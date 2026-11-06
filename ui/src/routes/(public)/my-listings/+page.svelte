@@ -3,6 +3,7 @@
   import MyListings from '$lib/components/shared/listings/MyListings.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { getToastStore } from '@skeletonlabs/skeleton';
+  import { paths } from '$lib/paths';
 
   // Initialize stores
   const toastStore = getToastStore();
@@ -68,7 +69,7 @@
       <p class="mb-4 text-surface-600 dark:text-surface-400">
         {error}
       </p>
-      <a href="/user/create" class="variant-filled-primary btn"> Create Profile </a>
+      <a href={paths.myProfileCreate()} class="variant-filled-primary btn"> Create Profile </a>
     </div>
   {:else if currentUserHash}
     <MyListings userHash={currentUserHash} />

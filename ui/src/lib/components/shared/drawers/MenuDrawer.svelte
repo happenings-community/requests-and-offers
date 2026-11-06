@@ -2,10 +2,21 @@
   import { getDrawerStore } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import messagingPresence from '$lib/services/messagingPresence.svelte';
+  import { getUnreadCount } from '$lib/extensions/unread-count';
+  import { paths } from '$lib/paths';
 
   const drawerStore = getDrawerStore();
   const { currentUser } = $derived(usersStore);
   const { agentIsAdministrator } = $derived(administrationStore);
+
+  // The same entry the nav bar's Profile menu has, asked for the same way: whether this
+  // network has messaging comes from the one presence module, and the count from the
+  // extension point, so the drawer knows nothing of messaging itself. On a narrow screen
+  // this is the only menu, and without the entry the only way to Messages was a Go to
+  // chat link or the address bar.
+  const unread = getUnreadCount();
+  const unreadCount = $derived(unread());
 
   function closeDrawer() {
     drawerStore.close();
@@ -41,7 +52,7 @@
     <div class="space-y-3">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Main Actions</h3>
       <a
-        href="/requests"
+        href={paths.requests()}
         onclick={closeDrawer}
         class="flex items-center gap-3 rounded-lg bg-secondary-600 p-3 transition-colors hover:bg-secondary-700"
       >
@@ -49,7 +60,7 @@
         <span class="font-medium">Requests</span>
       </a>
       <a
-        href="/offers"
+        href={paths.offers()}
         onclick={closeDrawer}
         class="flex items-center gap-3 rounded-lg bg-warning-600 p-3 transition-colors hover:bg-warning-700"
       >
@@ -64,7 +75,7 @@
       <div class="space-y-2">
         {#if currentUser}
           <a
-            href="/user"
+            href={paths.myProfile()}
             onclick={closeDrawer}
             class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
           >
@@ -73,7 +84,7 @@
           </a>
         {:else}
           <a
-            href="/user/create"
+            href={paths.myProfileCreate()}
             onclick={closeDrawer}
             class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
           >
@@ -82,7 +93,7 @@
           </a>
         {/if}
         <a
-          href="/requests?filter=my"
+          href={paths.requests({ filter: 'my' })}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
@@ -90,7 +101,7 @@
           <span>My Requests</span>
         </a>
         <a
-          href="/offers?filter=my"
+          href={paths.offers({ filter: 'my' })}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
@@ -98,7 +109,7 @@
           <span>My Offers</span>
         </a>
         <a
-          href="/my-listings"
+          href={paths.myListings()}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
@@ -106,13 +117,27 @@
           <span>My Listings</span>
         </a>
         <a
-          href="/exchanges"
+          href={paths.exchanges()}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
           <span class="text-xl">🤝</span>
           <span>My Exchanges</span>
         </a>
+        {#if !messagingPresence.isAbsent}
+          <a
+            href={paths.messages()}
+            onclick={closeDrawer}
+            class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
+            data-testid="drawer-messages"
+          >
+            <span class="text-xl">✉️</span>
+            <span>My Messages</span>
+            {#if unreadCount}
+              <span class="variant-filled-secondary badge ml-auto">{unreadCount}</span>
+            {/if}
+          </a>
+        {/if}
       </div>
     </div>
 
@@ -121,7 +146,7 @@
       <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Community</h3>
       <div class="space-y-2">
         <a
-          href="/users"
+          href={paths.users()}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
@@ -129,7 +154,7 @@
           <span>All Users</span>
         </a>
         <a
-          href="/organizations"
+          href={paths.organizations()}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
@@ -144,7 +169,7 @@
       <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Resources</h3>
       <div class="space-y-2">
         <a
-          href="/service-types"
+          href={paths.serviceTypes()}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
         >
@@ -161,7 +186,7 @@
           Administration
         </h3>
         <a
-          href="/admin"
+          href={paths.admin()}
           onclick={closeDrawer}
           class="flex items-center gap-3 rounded-lg border border-secondary-400 p-3 transition-colors hover:bg-secondary-600"
         >

@@ -3,10 +3,12 @@ import exchangesStore from '$lib/stores/exchanges.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils/toast';
+import { reasonOf } from '$lib/utils/error-shape';
 import { plainZomeError } from '$lib/utils/zome-refusals';
 import { isUserApproved } from '$lib/utils';
 import type { ListingType } from '$lib/types/holochain';
 import type { UIInterest, UIUser } from '$lib/types/ui';
+import { paths } from '$lib/paths';
 
 /**
  * Interest on one listing: who registered it, whether I did, and the two writes
@@ -22,10 +24,11 @@ export function proposeHref(
   listingHash: ActionHash,
   listingType: ListingType
 ): string {
-  return (
-    `/exchanges/propose?interest=${encodeHashToBase64(interest.interest_hash)}` +
-    `&listing=${encodeHashToBase64(listingHash)}&type=${listingType}`
-  );
+  return paths.exchangePropose({
+    listing: listingHash,
+    type: listingType,
+    interest: interest.interest_hash
+  });
 }
 
 export interface UseListingInterestOptions {
@@ -43,6 +46,8 @@ export function useListingInterest(options: UseListingInterestOptions) {
   let interests = $state<UIInterest[]>([]);
   const people = $state<Record<string, UIUser | null>>({});
   let loaded = $state(false);
+  /** Why the interests could not be read. The door shows this, with a way to try again. */
+  let loadError = $state<string | null>(null);
   let busy = $state(false);
 
   const me = $derived(usersStore.currentUser?.original_action_hash);
@@ -65,7 +70,12 @@ export function useListingInterest(options: UseListingInterestOptions) {
     });
   }
 
+  /**
+   * Read who is interested. **A failed read is shown, not toasted away:** a toast fades
+   * and leaves the listing with no door at all, which reads as "nothing to do here".
+   */
   async function load(): Promise<void> {
+    loadError = null;
     try {
       interests = await runEffect(exchangesStore.getInterestsForListing(listingHash()));
       loaded = true;
@@ -76,7 +86,7 @@ export function useListingInterest(options: UseListingInterestOptions) {
         }
       }
     } catch (e) {
-      fail(e);
+      loadError = reasonOf(e);
     }
   }
 
@@ -120,6 +130,9 @@ export function useListingInterest(options: UseListingInterestOptions) {
     },
     get loaded() {
       return loaded;
+    },
+    get loadError() {
+      return loadError;
     },
     get busy() {
       return busy;

@@ -5,6 +5,7 @@
   import OfferFilterControls from '$lib/components/offers/OfferFilterControls.svelte';
   import ProfileGuard from '$lib/components/common/ProfileGuard.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
+  import { paths } from '$lib/paths';
 
   // Use the composable for all state management and operations
   const management = useOffersManagement();
@@ -30,7 +31,7 @@
 
   // Handle create offer action
   function handleCreateOffer() {
-    goto('/offers/create');
+    goto(paths.offerCreate());
   }
 
   // Handle filtered results change from search component
@@ -86,7 +87,7 @@
             Create Offer (Profile Approval Required)
           </button>
         {:else}
-          <a href="/user/create" class="variant-filled-primary btn btn-sm">
+          <a href={paths.myProfileCreate()} class="variant-filled-primary btn btn-sm">
             Create Profile to Make Offers
           </a>
         {/if}

@@ -19,6 +19,7 @@ import {
 } from '$lib/utils/exchange-ui';
 import type { ReviewInput } from '$lib/types/holochain';
 import type { UIExchange, UIUser } from '$lib/types/ui';
+import { paths } from '$lib/paths';
 
 /**
  * One exchange: what it says, whose move it is, and the six things a party can
@@ -39,7 +40,7 @@ export function validateReview(input: ReviewInput): string | null {
  * answers rather than the listing (#332).
  */
 export function counterProposalHref(exchange: UIExchange): string {
-  return `/exchanges/${encodeHashToBase64(exchange.agreement_hash)}/counter`;
+  return paths.exchangeCounter(exchange.agreement_hash);
 }
 
 /** How often an open exchange page re-reads its exchange (#334). */

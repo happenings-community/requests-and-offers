@@ -36,7 +36,8 @@ const createMockHolochainClientService = () => ({
   getNetworkInfo: vi.fn(() => Promise.resolve({})),
   getNetworkPeers: vi.fn(() => Promise.resolve([])),
   isGroupProgenitor: vi.fn(() => Promise.resolve(false)),
-  getNetworkPeerStatus: vi.fn()
+  getNetworkPeerStatus: vi.fn(),
+  onZomeSignal: vi.fn(() => () => {})
 });
 
 const valid: CreateAgreementInput = {

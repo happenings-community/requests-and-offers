@@ -7,6 +7,7 @@
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
+  import { paths } from '$lib/paths';
 
   let mediumOfExchange = $state<UIMediumOfExchange | null>(null);
   let loading = $state(true);
@@ -54,11 +55,11 @@
   });
 
   function handleSuccess() {
-    goto('/admin/mediums-of-exchange');
+    goto(paths.adminMediumsOfExchange());
   }
 
   function handleCancel() {
-    goto('/admin/mediums-of-exchange');
+    goto(paths.adminMediumsOfExchange());
   }
 </script>
 

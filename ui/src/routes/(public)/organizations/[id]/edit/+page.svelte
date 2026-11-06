@@ -10,6 +10,7 @@
   import OrganizationForm from '$lib/components/organizations/OrganizationForm.svelte';
   import { runEffect } from '$lib/utils/effect';
   import type { UIOrganization } from '@/lib/composables';
+  import { paths } from '$lib/paths';
 
   const toastStore = getToastStore();
   const organizationHash = $page.params.id
@@ -144,7 +145,7 @@
       });
 
       // Navigate back to organization page
-      goto(`/organizations/${$page.params.id}`);
+      goto(paths.organizationDetail($page.params.id!));
     } catch (e) {
       console.error('Error updating organization:', e);
       return Promise.reject('Failed to update organization');
@@ -168,7 +169,7 @@
           background: 'variant-filled-success'
         });
 
-        goto('/organizations');
+        goto(paths.organizations());
       } else {
         throw new Error('Failed to delete organization');
       }
@@ -198,7 +199,7 @@
           <h2 class="h2">Edit Organization</h2>
           <button
             class="variant-ghost-surface btn"
-            onclick={() => goto(`/organizations/${$page.params.id}`)}
+            onclick={() => goto(paths.organizationDetail($page.params.id!))}
           >
             Cancel
           </button>

@@ -10,6 +10,7 @@
   import { getUserPictureUrl } from '$lib/utils';
   import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
+  import { paths } from '$lib/paths';
 
   type Props = {
     title?: string;
@@ -221,7 +222,7 @@
           {#each displayMembers as member (member.original_action_hash)}
             <tr>
               <td class="flex items-center gap-2 whitespace-nowrap">
-                <a href={`/users/${encodeHashToBase64(member.original_action_hash!)}`}>
+                <a href={paths.userProfile(member.original_action_hash!)}>
                   <Avatar src={getUserPictureUrl(member)} width="w-12" />
                   {member.name}
                 </a>

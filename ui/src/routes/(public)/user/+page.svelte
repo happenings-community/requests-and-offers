@@ -3,6 +3,7 @@
   import NavButton from '$lib/components/shared/NavButton.svelte';
   import UserProfile from '$lib/components/users/UserProfile.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import { paths } from '$lib/paths';
 
   const { currentUser } = $derived(usersStore);
 
@@ -35,7 +36,7 @@
   {:else if !currentUser}
     <div class="flex flex-col items-center">
       <p class="mb-4 text-center text-xl">It looks like you don't have a user profile yet!</p>
-      <NavButton href="/user/create">Create Profile</NavButton>
+      <NavButton href={paths.myProfileCreate()}>Create Profile</NavButton>
     </div>
   {:else}
     <UserProfile user={currentUser} isCurrentUser />

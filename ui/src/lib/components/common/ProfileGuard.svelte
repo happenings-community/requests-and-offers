@@ -3,6 +3,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { canBrowseFor } from '$lib/utils/profile-access';
   import type { Snippet } from 'svelte';
+  import { paths } from '$lib/paths';
   import { getModalStore } from '@skeletonlabs/skeleton';
   import ContactAdminsModal from '$lib/components/users/ContactAdminsModal.svelte';
 
@@ -186,7 +187,7 @@
       case 'missing':
         return {
           label: 'Create Profile',
-          href: '/user/create',
+          href: paths.myProfileCreate(),
           variant: 'variant-filled-primary'
         };
       // These open the administrators' contact details (#331); the routes they
@@ -230,7 +231,7 @@
     if (state === 'unknown') {
       return {
         label: 'Browse Community',
-        href: '/users',
+        href: paths.users(),
         variant: 'variant-soft'
       };
     }
@@ -262,7 +263,7 @@
   // Auto-redirect if enabled and profile is missing
   $effect(() => {
     if (redirectToProfile && profileState().state === 'missing') {
-      goto('/user/create');
+      goto(paths.myProfileCreate());
     }
   });
 </script>

@@ -255,4 +255,24 @@ describe('Offers Store', () => {
       expect(store.offers.length).toBeGreaterThan(0);
     });
   });
+
+  // The store's lists are kept in step by createGenericCacheSyncHelper, which takes a
+  // listing out of every list and files it back under the list named by its status.
+  // The lists must be registered under the status values themselves ('Active',
+  // 'Archived'): registered as 'active' and 'archived', nothing ever matched, and every
+  // read that goes through the add path took the listing out of the active list for good.
+  describe('a listing read again stays in the list its status names', () => {
+    it('keeps an active offer in the active list when getMyListings reads it again', async () => {
+      await runEffect(store.getActiveOffers());
+      expect(store.activeOffers.length).toBe(1);
+
+      const me = (await createMockRecord()).signed_action.hashed.hash;
+      await runEffect(store.getMyListings(me));
+
+      expect(store.activeOffers.length, 'reading my listings took it out of the active list').toBe(
+        1
+      );
+      expect(store.offers.length, 'and it is still in the full list').toBe(1);
+    });
+  });
 });

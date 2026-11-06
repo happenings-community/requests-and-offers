@@ -270,8 +270,8 @@ pub fn check_same_approval(before: &Option<ActionHash>, after: &Option<ActionHas
 // listing names at least one and at most `MAX_MEDIUMS_OF_EXCHANGE`, each with
 // the decision that approved it, in the same order. A gift is named too, as a
 // medium such as Free/Pay it Forward: a proposal takes its terms from the
-// listing, so a listing with no medium would leave nothing to propose. The same limit applies as
-// for the service type: a medium approved and later retired can still be named
+// listing, so a listing with no medium would leave nothing to propose. The
+// same limit applies as for the service type: a medium approved and later retired can still be named
 // by its old approval; honest clients refuse it at the coordinator.
 
 /// The most mediums of exchange one listing names. Each costs validation two

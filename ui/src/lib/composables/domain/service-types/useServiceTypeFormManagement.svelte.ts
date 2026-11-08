@@ -65,9 +65,19 @@ export function useServiceTypeFormManagement(
     });
 
     if (Either.isLeft(result)) {
-      const error = result.left;
-      // A more sophisticated error mapping could be done here
-      state.errors = { form: error._tag };
+      // Say which field falls short, where the form shows it. The schema's own
+      // error tag reached state.errors.form, which the form never displays, so
+      // a short description refused the save with nothing on screen.
+      const errors: Record<string, string> = {};
+      const name = state.name.trim();
+      const description = state.description.trim();
+      if (name.length < 2) errors.name = 'The name needs at least 2 characters.';
+      else if (name.length > 100) errors.name = 'The name can be at most 100 characters.';
+      if (description.length < 10)
+        errors.description = 'The description needs at least 10 characters.';
+      else if (description.length > 500)
+        errors.description = 'The description can be at most 500 characters.';
+      state.errors = Object.keys(errors).length > 0 ? errors : { form: result.left._tag };
       return false;
     }
     state.errors = {};

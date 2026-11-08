@@ -441,8 +441,8 @@ fn deliver(
     // One nudge per entry, since each names a different hash. Best effort by design, so
     // a failure here must not undo the stored message: `?` would abort the call and roll
     // back entries already written, making delivery depend on the nudge it is supposed to
-    // be independent of. In 0.6.1 `send_remote_signal` always returns Ok, so this cannot
-    // bite today; the point is that the code should not rely on that.
+    // be independent of. `send_remote_signal` currently always returns Ok, so this
+    // cannot bite today; the point is that the code should not rely on that.
     if let Err(e) = send_nudge(SendNudgeInput {
       hash: hash.clone(),
       agents: vec![agent.clone()],

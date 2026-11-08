@@ -1,13 +1,9 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import ServiceTypeForm from '$lib/components/service-types/ServiceTypeForm.svelte';
-  import { showToast } from '$lib/utils';
-  import type { UIServiceType } from '$lib/types/ui';
 
-  function handleCreateSuccess(newServiceType: UIServiceType) {
-    // The newServiceType object is available if needed, but for now we just show a toast and navigate.
-    showToast('Service type created successfully', 'success');
-
+  function handleCreateSuccess() {
+    // The form's composable announces the success; this only navigates.
     // Navigate back to the service types list
     goto('/admin/service-types');
   }

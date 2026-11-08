@@ -62,7 +62,7 @@ Rate is not bounded. The transport does not rate-limit remote signals, so a peer
 
 ## 5. Tests
 
-`tests/sweettest/tests/messaging.rs`, in the CI matrix as `Sweettest (messaging)`:
+`tests/sweettest/tests/messaging.rs`, run as `messaging` in the Heavy tests (manual) workflow, on a `run:sweettest` or `run:heavy` label:
 
 - `send_nudge_reaches_recipient`: one agent nudges another, who receives it tagged with the sender.
 - `send_nudge_reaches_every_recipient_in_one_call`: one call nudges two agents, both awaited together against the same deadline.
@@ -106,10 +106,11 @@ What validation cannot prove is that a grant has not been revoked since, so a su
 
 ### 6.4. Reading
 
-`get_inbox`, `get_sent` and `get_message` apply the same filters, on the reading side, because the recipient's own node decides what the recipient sees:
+`get_inbox` and `get_message` apply the same filters, on the reading side, because the recipient's own node decides what the recipient sees. `get_sent` applies none, since it reads only this agent's own sent copies:
 
 - **Blocked authors are dropped.** Blocking is private to the blocker's chain.
 - **Authors who are not accepted *now* are dropped**, since a status can change after sending and a modified client can skip the sender-side check.
+- **A reader who is not accepted, and is not an administrator, sees only administrators' messages.** This mirrors `require_may_write_to` on the sending side, which a modified client can skip: a pending or rejected member hears only from the administrators.
 - **An administrator's technical reports are left out of their personal inbox** and returned by `get_admin_reports` instead, with that administrator's own resolved state.
 
 A message in your own inbox that fails to decrypt comes back as `Unreadable` and is logged: **a fault, or a sender that sealed it wrongly.** An honest sender encrypts to the agent the link names, so the first case is a bug worth seeing; in the second, an accepted member with a modified client planted it, and blocking that sender removes it, because the block filter runs before decryption. `get_message` treats `Unreadable` as ordinary, because for a third party it is.
@@ -118,4 +119,4 @@ A message in your own inbox that fails to decrypt comes back as `Unreadable` and
 
 ### 6.5. Tests
 
-`tests/sweettest/tests/messaging_inbox.rs`, in the CI matrix as `messaging_inbox`. The first cases prove the encryption before anything rests on it (the recipient reads, the sender reads their own copy, a third member holds the ciphertext and cannot read it, either party can be offline), then the access rules (an unaccepted sender is refused, only an administrator may write to a member who is not accepted, a since-rejected author is hidden), blocking, and technical reports. The pure validation rules are unit-tested in `messaging_integrity`.
+`tests/sweettest/tests/messaging_inbox.rs`, run as `messaging_inbox` in the same Heavy tests workflow. The first cases prove the encryption before anything rests on it (the recipient reads, the sender reads their own copy, a third member holds the ciphertext and cannot read it, either party can be offline), then the access rules (an unaccepted sender is refused, only an administrator may write to a member who is not accepted, a since-rejected author is hidden), blocking, and technical reports. The pure validation rules are unit-tested in `messaging_integrity`.

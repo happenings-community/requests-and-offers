@@ -2,7 +2,6 @@
   import { page } from '$app/state';
   import { paths, readCreateListingParams } from '$lib/paths';
   import { goto } from '$app/navigation';
-  import { getToastStore } from '@skeletonlabs/skeleton';
   import offersStore from '$lib/stores/offers.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
@@ -20,9 +19,6 @@
   let isLoading = $state(true);
   let error: string | null = $state(null);
   let preselectedOrganization: UIOrganization | null = $state(null);
-
-  // Toast store for notifications
-  const toastStore = getToastStore();
 
   // Derived values
   const { currentUser } = $derived(usersStore);
@@ -47,11 +43,6 @@
         (record as { signed_action?: { hashed?: { hash?: ActionHash } } })?.signed_action?.hashed
           ?.hash ?? null;
 
-      toastStore.trigger({
-        message: 'Offer created successfully!',
-        background: 'variant-filled-success'
-      });
-
       // Invalidate cache to ensure fresh data on the list page
       offersStore.invalidateCache();
 
@@ -65,11 +56,10 @@
 
       goto(paths.offers());
     } catch (err) {
+      // OfferForm announces the outcome, once: rethrow so it says this failed,
+      // rather than reporting success, and keeps what the member typed.
       console.error('Failed to create offer:', err);
-      toastStore.trigger({
-        message: `Failed to create offer: ${err instanceof Error ? err.message : String(err)}`,
-        background: 'variant-filled-error'
-      });
+      throw err;
     }
   }
 

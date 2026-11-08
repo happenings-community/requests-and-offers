@@ -110,6 +110,7 @@ What validation cannot prove is who a ciphertext was sealed to. It proves the li
 
 - **Blocked authors are dropped.** Blocking is private to the blocker's chain.
 - **Authors who are not accepted *now* are dropped**, since a status can change after sending and a modified client can skip the sender-side check.
+- **A reader who is not accepted, and is not an administrator, sees only administrators' messages.** This mirrors `require_may_write_to` on the sending side, which a modified client can skip: a pending or rejected member hears only from the administrators.
 - **An administrator's technical reports are left out of their personal inbox** and returned by `get_admin_reports` instead, with that administrator's own resolved state.
 
 A message in your own inbox that fails to decrypt comes back as `Unreadable` and is logged: **a fault, or a sender that sealed it wrongly.** An honest sender encrypts to the agent the link names, so the first case is a bug worth seeing; in the second, an accepted member with a modified client planted it, and blocking that sender removes it, because the block filter runs before decryption. `get_message` treats `Unreadable` as ordinary, because for a third party it is.

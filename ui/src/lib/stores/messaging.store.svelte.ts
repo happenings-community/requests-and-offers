@@ -16,7 +16,11 @@ import holochainClientService, {
 } from '$lib/services/HolochainClientService.svelte';
 import { Schema } from 'effect';
 import { MessagingError } from '$lib/errors/messaging.errors';
-import { MessagingSignalSchema, type Message } from '$lib/schemas/messaging.schemas';
+import {
+  MessagingSignalSchema,
+  type InboxEntry,
+  type Message
+} from '$lib/schemas/messaging.schemas';
 import type { UIInterest } from '$lib/types/ui';
 import {
   EMPTY_LOCAL,
@@ -287,6 +291,22 @@ export function createMessagingStore(): MessagingStore {
       return out;
     });
 
+  /**
+   * Every inbox entry this agent has read, by hash, so a poll fetches only what is new.
+   *
+   * A message never changes once written, and the poll runs every fifteen seconds for
+   * as long as the app is open, so `get_inbox` was fetching every message a member had
+   * ever received, every fifteen seconds (Sacha's review of #301, 7 October). Now the
+   * zome is told what is held, lists what should still show, and sends only the rest.
+   * A hash it stops listing (its author is no longer accepted, say) is dropped here, so
+   * the reading-side filters still apply to a message read long ago. Unreadable entries
+   * are held too, so a fault is not re-fetched every poll.
+   *
+   * Keyed by this agent, so a profile change on the same device starts clean.
+   */
+  let held = new Map<string, InboxEntry>();
+  let heldFor: string | null = null;
+
   const loadConversations = (): E.Effect<UIThread[], MessagingError> =>
     withServices((service) =>
       E.gen(function* () {
@@ -302,7 +322,19 @@ export function createMessagingStore(): MessagingStore {
           return [];
         }
 
-        const entries = yield* service.getInbox();
+        const agentKey = myAgentKey();
+        const agentId = agentKey ? encodeHashToBase64(agentKey) : null;
+        if (agentId !== heldFor) {
+          held = new Map();
+          heldFor = agentId;
+        }
+        const delta = yield* service.getInboxDelta(
+          [...held.keys()].map((key) => decodeHashFromBase64(key))
+        );
+        const visible = new Set(delta.visible.map((hash) => encodeHashToBase64(hash)));
+        for (const key of [...held.keys()]) if (!visible.has(key)) held.delete(key);
+        for (const entry of delta.entries) held.set(encodeHashToBase64(entry.hash), entry);
+        const entries = [...held.values()];
         const inbox: Message[] = [];
         const seenFaults: Fault[] = [];
         for (const entry of entries) {

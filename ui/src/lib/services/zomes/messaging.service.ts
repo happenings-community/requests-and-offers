@@ -7,6 +7,7 @@ import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 import type {
   Case,
   FindSentInput,
+  InboxDelta,
   InboxEntry,
   Message,
   MessageRead,
@@ -44,6 +45,8 @@ export interface MessagingService {
 
   /** Personal messages only. Every role message is kept out, for everyone. */
   readonly getInbox: () => E.Effect<InboxEntry[], MessagingError>;
+  /** `getInbox` for a caller that already holds `known`: only the rest is fetched. */
+  readonly getInboxDelta: (known: ActionHash[]) => E.Effect<InboxDelta, MessagingError>;
 
   /** The nudge path: a recipient is told a hash and fetches the message itself. */
   readonly getMessage: (hash: ActionHash) => E.Effect<MessageRead, MessagingError>;
@@ -105,7 +108,11 @@ export const MessagingServiceLive: Layer.Layer<
     const sendMessage = (input: SendMessageInput) =>
       wrapZomeCall<SentMessage[]>('send_message', input, MESSAGING_CONTEXTS.SEND_MESSAGE);
 
-    const getInbox = () => wrapZomeCall<InboxEntry[]>('get_inbox', null, MESSAGING_CONTEXTS.GET_INBOX);
+    const getInbox = () =>
+      wrapZomeCall<InboxEntry[]>('get_inbox', null, MESSAGING_CONTEXTS.GET_INBOX);
+
+    const getInboxDelta = (known: ActionHash[]) =>
+      wrapZomeCall<InboxDelta>('get_inbox_delta', { known }, MESSAGING_CONTEXTS.GET_INBOX);
 
     const getMessage = (hash: ActionHash) =>
       wrapZomeCall<MessageRead>('get_message', hash, MESSAGING_CONTEXTS.GET_MESSAGE);
@@ -119,11 +126,7 @@ export const MessagingServiceLive: Layer.Layer<
       wrapZomeCall<void>('send_receipt', input, MESSAGING_CONTEXTS.SEND_RECEIPT);
 
     const sendRoleMessage = (input: SendRoleMessageInput) =>
-      wrapZomeCall<SentMessage[]>(
-        'send_role_message',
-        input,
-        MESSAGING_CONTEXTS.SEND_ROLE_MESSAGE
-      );
+      wrapZomeCall<SentMessage[]>('send_role_message', input, MESSAGING_CONTEXTS.SEND_ROLE_MESSAGE);
 
     const getRoleInbox = (role: RoleRef) =>
       wrapZomeCall<Case[]>('get_role_inbox', role, MESSAGING_CONTEXTS.GET_ROLE_INBOX);
@@ -139,6 +142,7 @@ export const MessagingServiceLive: Layer.Layer<
       sendMessage,
       sendRoleMessage,
       getInbox,
+      getInboxDelta,
       getMessage,
       getSent,
       findSent,

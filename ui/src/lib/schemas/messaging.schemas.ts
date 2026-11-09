@@ -157,6 +157,16 @@ export const InboxEntrySchema = Schema.Union(
 export type InboxEntry = Schema.Schema.Type<typeof InboxEntrySchema>;
 
 /**
+ * What `get_inbox_delta` returns to a reader that keeps what it has read: every hash it
+ * should show now, and entries only for the hashes it did not already hold.
+ */
+export const InboxDeltaSchema = Schema.Struct({
+  visible: Schema.Array(ActionHashSchema),
+  entries: Schema.Array(InboxEntrySchema)
+});
+export type InboxDelta = Schema.Schema.Type<typeof InboxDeltaSchema>;
+
+/**
  * What `get_message` reports.
  *
  * The four outcomes are kept apart on purpose, and the store treats each differently:

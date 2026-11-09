@@ -17,6 +17,7 @@ const {
   sendMessage,
   findSent,
   getInbox,
+  getInboxDelta,
   getSent,
   userByAgent,
   myInterests,
@@ -34,6 +35,8 @@ const {
     sendMessage: vi.fn(),
     findSent: vi.fn(),
     getInbox: vi.fn(),
+    /** Set to answer `getInboxDelta` directly; otherwise it is derived from `getInbox`. */
+    getInboxDelta: vi.fn(),
     getSent: vi.fn(),
     userByAgent: vi.fn(),
     myInterests: vi.fn(),
@@ -50,6 +53,16 @@ vi.mock('$lib/services/zomes/messaging.service', async () => {
     sendMessage: (...a: unknown[]) => sendMessage(...a),
     findSent: (...a: unknown[]) => findSent(...a),
     getInbox: () => getInbox(),
+    // The real zome answers from what the caller holds. Most cases here need the
+    // whole inbox each time, so by default the delta is everything `getInbox` gives,
+    // all of it visible: the store then holds and shows exactly that.
+    getInboxDelta: (known: unknown[]) =>
+      getInboxDelta.getMockImplementation()
+        ? getInboxDelta(known)
+        : Effect.map(getInbox(), (entries: Array<{ hash: unknown }>) => ({
+            visible: entries.map((e) => e.hash),
+            entries
+          })),
     getSent: () => getSent(),
     sendReceipt: () => Effect.void
   };
@@ -284,6 +297,39 @@ describe('a read that fails during the load (F10)', () => {
     await expect(E.runPromise(store.loadConversations())).rejects.toThrow();
 
     expect(store.error, 'the fault, for the screen').toContain('no answer');
+  });
+});
+
+describe('a poll fetches only what is new', () => {
+  /**
+   * The zome is told what the store holds and sends back only the rest, plus the list
+   * of what should still show. The store keeps the first, and drops anything no longer
+   * listed, so a message from a since-rejected author leaves the screen without ever
+   * being fetched again.
+   *
+   * **To make this go red:** send an empty `known` on every poll, or keep an entry the
+   * zome stopped listing.
+   */
+  it('tells the zome what it holds, keeps it, and drops what the zome stops listing', async () => {
+    const first = fromAnitaWithMark(T_SENT);
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    getInboxDelta
+      .mockImplementationOnce(() => E.succeed({ visible: [first.hash], entries: [first] }))
+      .mockImplementationOnce(() => E.succeed({ visible: [first.hash], entries: [] }))
+      .mockImplementationOnce(() => E.succeed({ visible: [], entries: [] }));
+    const store = await freshStore();
+
+    await E.runPromise(store.loadConversations());
+    expect(store.threads, 'the message is read and shown').toHaveLength(1);
+
+    await E.runPromise(store.loadConversations());
+    expect(getInboxDelta.mock.calls[1][0], 'the second poll says what it holds').toEqual([
+      first.hash
+    ]);
+    expect(store.threads, 'and still shows it, from what it held').toHaveLength(1);
+
+    await E.runPromise(store.loadConversations());
+    expect(store.threads, 'dropped once the zome stops listing it').toHaveLength(0);
   });
 });
 

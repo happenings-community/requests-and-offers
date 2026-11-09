@@ -67,7 +67,7 @@
 
   <!-- Footer Note -->
   <div class="p-4 text-center">
-    <p class="text-surface-500-400-token text-xs">
+    <p class="text-xs text-surface-500 dark:text-surface-300">
       ⚠️ This is a development/testing interface. Use with caution in production environments.
     </p>
   </div>

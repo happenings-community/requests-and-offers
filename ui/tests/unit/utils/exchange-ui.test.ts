@@ -17,6 +17,7 @@ import {
   actionLabel,
   awaitingMe,
   counterpartyOf,
+  proposalCounterparty,
   doneBy,
   exchangeStatusVariant,
   formatWhen,
@@ -25,6 +26,7 @@ import {
   roleOf,
   statusLabel,
   tabOf,
+  inTab,
   termLabel,
   turnOf,
   wroteIt
@@ -185,11 +187,19 @@ describe('exchange-ui', () => {
     });
 
     it('at OneSideDone, asks whoever has not completed, either side', () => {
-      const providerWent = exchange({ status: 'OneSideDone', response: accepted, provider_done: { created_at: 1 } });
+      const providerWent = exchange({
+        status: 'OneSideDone',
+        response: accepted,
+        provider_done: { created_at: 1 }
+      });
       expect(turnOf(providerWent, RECEIVER)).toBe('you');
       expect(turnOf(providerWent, PROVIDER)).toBe('them');
 
-      const receiverWent = exchange({ status: 'OneSideDone', response: accepted, receiver_done: { created_at: 1 } });
+      const receiverWent = exchange({
+        status: 'OneSideDone',
+        response: accepted,
+        receiver_done: { created_at: 1 }
+      });
       expect(turnOf(receiverWent, PROVIDER)).toBe('you');
       expect(turnOf(receiverWent, RECEIVER)).toBe('them');
     });
@@ -226,25 +236,29 @@ describe('exchange-ui', () => {
     });
   });
 
-  describe('tabOf', () => {
-    it('groups each status as EXCHANGE_TABS declares', () => {
+  describe('tabOf and inTab', () => {
+    it('places each live status as EXCHANGE_TABS declares', () => {
       expect(tabOf(exchange({ status: 'Proposed' }))).toBe('proposals');
-      expect(tabOf(exchange({ status: 'Declined', response: declined }))).toBe('proposals');
       expect(tabOf(exchange({ status: 'Agreed', response: accepted }))).toBe('active');
       expect(tabOf(exchange({ status: 'OneSideDone', response: accepted }))).toBe('active');
       expect(tabOf(exchange({ status: 'Complete', response: accepted }))).toBe('completed');
       expect(tabOf(exchange({ status: 'Reviewed', response: accepted }))).toBe('completed');
     });
 
-    it('puts a withdrawal back with proposals, but a cancellation after acceptance stays active', () => {
-      expect(tabOf(exchange({ status: 'Cancelled' }))).toBe('proposals');
-      expect(tabOf(exchange({ status: 'Cancelled', response: accepted }))).toBe('active');
+    it('gives an ended exchange no live tab: declined, withdrawn or cancelled', () => {
+      expect(tabOf(exchange({ status: 'Declined', response: declined }))).toBeNull();
+      expect(tabOf(exchange({ status: 'Cancelled' }))).toBeNull();
+      expect(tabOf(exchange({ status: 'Cancelled', response: accepted }))).toBeNull();
     });
 
-    it('lands every status in exactly one tab', () => {
+    it('puts every status under All, and live ones in exactly one live tab as well', () => {
       for (const status of ALL_STATUSES) {
         const e = exchange({ status, response: accepted });
-        expect(Object.keys(EXCHANGE_TABS), status).toContain(tabOf(e));
+        expect(inTab(e, 'all'), status).toBe(true);
+        const live = (Object.keys(EXCHANGE_TABS) as (keyof typeof EXCHANGE_TABS)[]).filter((t) =>
+          inTab(e, t)
+        );
+        expect(live.length, status).toBe(tabOf(e) ? 1 : 0);
       }
     });
   });
@@ -349,5 +363,32 @@ describe('exchange-ui', () => {
       // action timestamps are microseconds and land fifty millennia out.
       expect(formatWhen(Date.UTC(2026, 8, 14) * 1000)).not.toMatch(/2026/);
     });
+  });
+});
+
+describe('proposalCounterparty', () => {
+  const author = new Uint8Array([1, 1, 1]) as ActionHash;
+  const member = new Uint8Array([2, 2, 2]) as ActionHash;
+
+  it('is the interested member when the listing author proposes', () => {
+    expect(proposalCounterparty(author, member, new Uint8Array([1, 1, 1]) as ActionHash)).toBe(
+      member
+    );
+  });
+
+  it('is the listing author when anyone else proposes', () => {
+    expect(proposalCounterparty(author, member, new Uint8Array([2, 2, 2]) as ActionHash)).toBe(
+      author
+    );
+  });
+
+  it('falls back to the author while the viewer is not known yet', () => {
+    expect(proposalCounterparty(author, member, undefined)).toBe(author);
+  });
+
+  it('is unknown when the author proposes and the interest has no member', () => {
+    expect(
+      proposalCounterparty(author, undefined, new Uint8Array([1, 1, 1]) as ActionHash)
+    ).toBeUndefined();
   });
 });

@@ -6,6 +6,8 @@ import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
 import { ApolloClient, InMemoryCache } from '@apollo/client/core';
 import { SchemaLink } from '@apollo/client/link/schema';
 import { createHolochainSchema } from '@valueflows/vf-graphql-holochain';
+import { decodeHashFromBase64, encodeHashToBase64, type Record as HolochainRecord } from '@holochain/client';
+import { decode } from '@msgpack/msgpack';
 import type {
   Agent,
   ResourceSpecification,
@@ -77,7 +79,8 @@ export function normalizeEconomicEventResponse(raw: GraphQLEconomicEventResponse
     hasPointInTime: raw.hasPointInTime ?? undefined,
     note: raw.note ?? undefined,
     agreedIn: raw.agreedIn ?? undefined,
-    realizationOf: raw.realizationOf?.id
+    realizationOf: raw.realizationOf?.id,
+    fulfills: raw.fulfills?.map((c) => c.id)
   };
 }
 
@@ -162,7 +165,6 @@ import {
 import { CREATE_UNIT_MUTATION, GET_UNITS_QUERY } from '$lib/graphql/mutations/unit.mutations';
 import {
   CREATE_INTENT_MUTATION,
-  PROPOSE_INTENT_MUTATION,
   UPDATE_INTENT_MUTATION,
   DELETE_INTENT_MUTATION
 } from '$lib/graphql/mutations/intent.mutations';
@@ -172,6 +174,10 @@ import {
   UPDATE_COMMITMENT_MUTATION,
   CREATE_ECONOMIC_EVENT_MUTATION
 } from '$lib/graphql/mutations/agreement.mutations';
+import {
+  GET_AGREEMENTS_QUERY,
+  GET_COMMITMENTS_QUERY
+} from '$lib/graphql/queries/agreement.queries';
 import {
   GET_INTENT_QUERY,
   GET_INTENTS_QUERY,
@@ -204,6 +210,8 @@ export type EconomicEventInput = {
   note?: string;
   agreedIn?: string;
   realizationOf?: string;
+  /** The Commitments this event fulfills (VF Fulfillment, stored on the event). */
+  fulfills?: string[];
 };
 
 const AgentSchema = S.Struct({
@@ -256,6 +264,9 @@ export interface HreaService {
     hasBeginning?: string;
     hasEnd?: string;
     unitBased?: boolean;
+    /** Ids of the intents this proposal publishes, and of its reciprocal intents. */
+    publishes?: string[];
+    reciprocal?: string[];
   }) => E.Effect<Proposal, HreaError>;
   readonly updateProposal: (params: {
     id: string;
@@ -282,8 +293,11 @@ export interface HreaService {
   // Agreement, Commitment and EconomicEvent operations
   readonly createAgreement: (params: AgreementInput) => E.Effect<Agreement, HreaError>;
   readonly createCommitment: (params: CommitmentInput) => E.Effect<Commitment, HreaError>;
+  readonly getLatestCommitments: (commitments: readonly Commitment[]) => E.Effect<Commitment[], HreaError>;
   readonly updateCommitment: (params: { revisionId: string; finished: boolean }) => E.Effect<Commitment, HreaError>;
   readonly createEconomicEvent: (params: EconomicEventInput) => E.Effect<EconomicEvent, HreaError>;
+  readonly getAgreements: () => E.Effect<Agreement[], HreaError>;
+  readonly getCommitments: () => E.Effect<Commitment[], HreaError>;
   readonly createIntent: (params: {
     action: string;
     provider?: string;
@@ -291,11 +305,6 @@ export interface HreaService {
     resourceSpecifiedBy?: string;
     resourceQuantity?: { hasNumericalValue: number; hasUnit: string };
   }) => E.Effect<Intent, HreaError>;
-  readonly proposeIntent: (params: {
-    intentId: string;
-    proposalId: string;
-    reciprocal?: boolean;
-  }) => E.Effect<boolean, HreaError>;
   readonly updateIntent: (params: {
     id: string;
     action: string;
@@ -311,6 +320,25 @@ export interface HreaService {
 
 // Context tag for dependency injection
 export class HreaServiceTag extends Context.Tag('HreaService')<HreaServiceTag, HreaService>() {}
+
+/**
+ * A listed commitment with the fields of its latest revision that callers rely
+ * on (`finished`, and the revision to update from), read from the zome's
+ * Record. Keeps the listed commitment when the zome returns nothing.
+ */
+export function latestCommitmentFields(
+  listed: Commitment,
+  record: HolochainRecord | null
+): Commitment {
+  const present = (record?.entry as { Present?: { entry: Uint8Array } } | undefined)?.Present;
+  if (!record || !present) return listed;
+  const entry = decode(present.entry) as { finished?: boolean };
+  return {
+    ...listed,
+    revisionId: encodeHashToBase64(record.signed_action.hashed.hash),
+    finished: entry.finished ?? listed.finished
+  };
+}
 
 export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClientServiceTag> =
   Layer.effect(
@@ -693,6 +721,8 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         hasBeginning?: string;
         hasEnd?: string;
         unitBased?: boolean;
+        publishes?: string[];
+        reciprocal?: string[];
       }): E.Effect<Proposal, HreaError> =>
         pipe(
           initialize(),
@@ -708,9 +738,11 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                       hasBeginning: params.hasBeginning,
                       hasEnd: params.hasEnd,
                       unitBased: params.unitBased,
-                      // hREA 0.4.0-beta: publishes is non-null on create; intents
-                      // are linked afterwards via proposeIntent
-                      publishes: []
+                      // hREA stores publishes and reciprocal on the proposal entry
+                      // itself, so a proposal is created with its intents: this
+                      // adapter has no proposeIntent mutation to link them later.
+                      publishes: params.publishes ?? [],
+                      ...(params.reciprocal ? { reciprocal: params.reciprocal } : {})
                     }
                   }
                 });
@@ -718,6 +750,18 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                 const proposal = result.data?.createProposal?.proposal;
                 if (!proposal) {
                   throw new Error(`${HREA_CONTEXTS.CREATE_PROPOSAL}: No proposal returned`);
+                }
+                // A link that did not take must fail here, not read as success.
+                const missing = (sent: string[] | undefined, got?: Array<{ id: string }> | null) =>
+                  (sent ?? []).filter((id) => !(got ?? []).some((i) => i.id === id));
+                const unlinked = [
+                  ...missing(params.publishes, proposal.publishes),
+                  ...missing(params.reciprocal, proposal.reciprocal)
+                ];
+                if (unlinked.length > 0) {
+                  throw new Error(
+                    `${HREA_CONTEXTS.CREATE_PROPOSAL}: proposal does not publish intent(s) ${unlinked.join(', ')}`
+                  );
                 }
                 return normalizeProposalResponse(proposal);
               },
@@ -997,6 +1041,65 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.CREATE_ECONOMIC_EVENT))
         );
 
+      // List reads, one query per VF type. The store reads every Agreement and
+      // Commitment to find an agreement's mirror again after a reload.
+      const listQuery = <Raw, Out>(
+        query: typeof GET_AGREEMENTS_QUERY,
+        field: string,
+        normalize: (raw: Raw) => Out,
+        context: string
+      ): E.Effect<Out[], HreaError> =>
+        pipe(
+          initialize(),
+          E.flatMap((client) =>
+            E.tryPromise({
+              try: async () => {
+                const result = await client.query({ query, fetchPolicy: 'network-only' });
+                const edges: GraphQLEdge<Raw>[] = result.data?.[field]?.edges ?? [];
+                return edges.map((edge) => normalize(edge.node));
+              },
+              catch: (error) => error
+            })
+          ),
+          E.mapError((error) => HreaError.fromError(error, context))
+        );
+
+      const getAgreements = (): E.Effect<Agreement[], HreaError> =>
+        listQuery(GET_AGREEMENTS_QUERY, 'agreements', normalizeAgreementResponse, HREA_CONTEXTS.GET_AGREEMENTS);
+
+      const getCommitments = (): E.Effect<Commitment[], HreaError> =>
+        listQuery(GET_COMMITMENTS_QUERY, 'commitments', normalizeCommitmentResponse, HREA_CONTEXTS.GET_COMMITMENTS);
+
+      // Workaround for hREA happ-0.5.0-beta.1: update_rea_commitment does not move
+      // its all_commitments link, so getCommitments returns each commitment's
+      // original revision after an update (a cancelled one still reads
+      // finished: false). Read each one's latest revision straight from the hREA
+      // zome, eight at a time: the GraphQL commitment(id) query would not do,
+      // because the adapter caches the list's original revisions as "latest" for
+      // ten seconds. Remove once hREA's update moves the link (issue drafted for
+      // h-REA/hREA, 2026-11-02).
+      const getLatestCommitments = (
+        commitments: readonly Commitment[]
+      ): E.Effect<Commitment[], HreaError> =>
+        E.forEach(
+          commitments,
+          (listed) =>
+            E.tryPromise({
+              try: async () => {
+                const record = (await holochainClient.callZome(
+                  'hrea',
+                  'get_latest_rea_commitment',
+                  decodeHashFromBase64(listed.id),
+                  undefined,
+                  'hrea'
+                )) as HolochainRecord | null;
+                return latestCommitmentFields(listed, record);
+              },
+              catch: (error) => error
+            }),
+          { concurrency: 8 }
+        ).pipe(E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_COMMITMENTS)));
+
       const createIntent = (params: {
         action: string;
         provider?: string;
@@ -1032,33 +1135,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
             })
           ),
           E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.CREATE_INTENT))
-        );
-
-      const proposeIntent = (params: {
-        intentId: string;
-        proposalId: string;
-        reciprocal?: boolean;
-      }): E.Effect<boolean, HreaError> =>
-        pipe(
-          initialize(),
-          E.flatMap((client) =>
-            E.tryPromise({
-              try: async () => {
-                const result = await client.mutate({
-                  mutation: PROPOSE_INTENT_MUTATION,
-                  variables: {
-                    publishedIn: params.proposalId,
-                    publishes: params.intentId,
-                    reciprocal: params.reciprocal ?? false
-                  }
-                });
-                const success = !!result.data?.proposeIntent?.proposedIntent;
-                return success;
-              },
-              catch: (error) => error
-            })
-          ),
-          E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.PROPOSE_INTENT))
         );
 
       const updateIntent = (params: {
@@ -1203,6 +1279,9 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         deleteProposal,
         getProposal,
         getProposals,
+        getAgreements,
+        getCommitments,
+        getLatestCommitments,
         getProposalsByAgent,
         getUnits,
         createUnit,
@@ -1211,7 +1290,6 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         createCommitment,
         updateCommitment,
         createEconomicEvent,
-        proposeIntent,
         updateIntent,
         deleteIntent,
         getIntent,

@@ -483,6 +483,11 @@ pub fn counter_terms_problem(counter: &Agreement, countered: &Agreement) -> Opti
   {
     return Some("a counter keeps both services; only the quantities may change");
   }
+  if !same_unit(&counter.primary, &countered.primary)
+    || !same_unit(&counter.reciprocal, &countered.reciprocal)
+  {
+    return Some("a counter keeps each quantity's unit; only the amount may change");
+  }
   if counter.primary.quantity == countered.primary.quantity
     && counter.reciprocal.quantity == countered.reciprocal.quantity
     && counter.delivery_timeframe.trim() == countered.delivery_timeframe.trim()
@@ -490,6 +495,16 @@ pub fn counter_terms_problem(counter: &Agreement, countered: &Agreement) -> Opti
     return Some("a counter changes a quantity or the timeframe");
   }
   None
+}
+
+/// A quantity on both sides must be in the same unit, so "2 hours" cannot
+/// become "2 days". Adding a quantity where there was none, or removing one,
+/// is a change of quantity and stays allowed.
+fn same_unit(a: &ExchangeTerm, b: &ExchangeTerm) -> bool {
+  match (&a.quantity, &b.quantity) {
+    (Some(x), Some(y)) => x.unit.trim() == y.unit.trim(),
+    _ => true,
+  }
 }
 
 fn same_except_quantity(a: &ExchangeTerm, b: &ExchangeTerm) -> bool {
@@ -882,6 +897,16 @@ mod counter_tests {
     let mut c = proposal();
     c.delivery_timeframe = "  Within 2 weeks ".into();
     assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("changes a quantity"));
+  }
+
+  #[test]
+  fn each_quantity_keeps_its_unit() {
+    let mut c = proposal();
+    c.primary.quantity = Some(Quantity { value: 3.0, unit: "days".into() });
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("unit"));
+    let mut c = proposal();
+    c.reciprocal.quantity = Some(Quantity { value: 5.0, unit: "Pounds".into() });
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("unit"));
   }
 
   #[test]

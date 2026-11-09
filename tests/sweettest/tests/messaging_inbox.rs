@@ -680,6 +680,107 @@ async fn a_message_from_a_since_rejected_author_is_hidden() {
     );
 }
 
+/// What `get_inbox_delta` returns, as the interface reads it.
+#[derive(Serialize, Deserialize, Debug)]
+struct GetInboxDeltaInput {
+    known: Vec<ActionHash>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct InboxDelta {
+    visible: Vec<ActionHash>,
+    entries: Vec<InboxEntry>,
+}
+
+fn hash_of(entry: &InboxEntry) -> ActionHash {
+    match entry {
+        InboxEntry::Read(m) => m.hash.clone(),
+        InboxEntry::Unreadable { hash, .. } => hash.clone(),
+    }
+}
+
+/// A reader that keeps what it has read is told only what is new, and is told when
+/// something it holds should go.
+///
+/// Three reads of one inbox. The first, knowing nothing, returns the message. The
+/// second, knowing its hash, returns no entry but still lists it as visible: the
+/// filters that depend on the author ran on the link, with no fetch. The third, after
+/// the author is rejected, lists nothing, so the reader drops what it held: the
+/// since-rejected rule holds for a cached message too.
+///
+/// **To make this go red:** have `read_inbox` fetch and return known hashes as well
+/// (the second read then returns an entry), or list a known hash as visible without
+/// running the author filters on it (the third read then still lists it).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_reader_that_keeps_what_it_read_is_told_only_what_is_new() {
+    let (conductors, alice, bob, alice_user, bob_user) = two_accepted_members().await;
+
+    let _: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(bob_user, "read me once".to_string()),
+        )
+        .await;
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+
+    let first: InboxDelta = conductors[1]
+        .call(
+            &bob.zome("messaging"),
+            "get_inbox_delta",
+            GetInboxDeltaInput { known: vec![] },
+        )
+        .await;
+    assert_eq!(first.entries.len(), 1, "knowing nothing, Bob is sent the message");
+    let hash = hash_of(&first.entries[0]);
+    assert_eq!(first.visible, vec![hash.clone()], "and it is the one visible message");
+
+    let second: InboxDelta = conductors[1]
+        .call(
+            &bob.zome("messaging"),
+            "get_inbox_delta",
+            GetInboxDeltaInput {
+                known: vec![hash.clone()],
+            },
+        )
+        .await;
+    assert!(
+        second.entries.is_empty(),
+        "knowing the message, Bob is sent nothing; got {:?}",
+        second.entries
+    );
+    assert_eq!(
+        second.visible,
+        vec![hash.clone()],
+        "but it is still listed as visible, from the link alone"
+    );
+
+    reject_entity(
+        &conductors[0],
+        &alice,
+        ENTITY_USERS,
+        alice_user,
+        "testing the cached read-side recheck",
+    )
+    .await;
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+
+    let third: InboxDelta = conductors[1]
+        .call(
+            &bob.zome("messaging"),
+            "get_inbox_delta",
+            GetInboxDeltaInput { known: vec![hash] },
+        )
+        .await;
+    assert!(
+        third.visible.is_empty() && third.entries.is_empty(),
+        "once the author is no longer accepted, a held message is no longer visible; got \
+         visible {:?} entries {:?}",
+        third.visible,
+        third.entries
+    );
+}
+
 // ── Send ids, read marks, listings, and what left the chain ───────────────────
 
 /// A send id and a read mark survive the round trip, and `find_sent` locates the send.

@@ -5,8 +5,9 @@ import type { StatusType } from '$lib/types/holochain';
  *
  * Creating a profile makes the progenitor an administrator, but their own membership still
  * starts as pending, like everyone else's. Until they accept it themselves the app treats them
- * as a new member, and nothing else tells them so. Only the progenitor can be an administrator
- * whose own status is pending, so no other administrator ever sees the hint.
+ * as a new member, and nothing else tells them so. The progenitor is the usual case; an
+ * administrator who promotes a pending member (`add_administrator` checks the caller, not the
+ * member's status) gives them the same hint, and it is as true for them.
  *
  * The hint follows the state rather than a one-off event, so it survives a reload and goes
  * away by itself once the membership is accepted.

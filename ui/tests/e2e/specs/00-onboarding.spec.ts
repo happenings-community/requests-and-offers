@@ -100,6 +100,13 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await page.getByRole('button', { name: 'Open the members page' }).click();
     await expect(page).toHaveURL(/\/admin\/users/, { timeout: 15_000 });
 
+    // The Admin button carries the hint, by its accessible name, while the
+    // administrator's own membership is pending. It goes once they accept it
+    // (asserted below, after the approval).
+    await expect(
+      page.getByRole('link', { name: /Accept your membership to finish setup/ })
+    ).toBeVisible({ timeout: 10_000 });
+
     await gotoApp(page, '/user');
     await expect(page.locator('text=e2e_tester').first()).toBeVisible({ timeout: 10_000 });
   });
@@ -154,6 +161,12 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await expect(page.locator('text=No pending users.')).toBeVisible({ timeout: 10_000 });
     // Wait in the same session: a reload here would cut the write off.
     await agentWritten;
+
+    // The membership is accepted, so the Admin button no longer carries the hint.
+    await expect(
+      page.getByRole('link', { name: /Accept your membership to finish setup/ })
+    ).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.getByRole('link', { name: 'Access administration panel' })).toBeVisible();
   });
 
   test('accepted profile can now create offers', async ({ page }) => {

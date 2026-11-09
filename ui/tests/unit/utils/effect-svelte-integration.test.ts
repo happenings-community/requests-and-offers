@@ -28,8 +28,8 @@ import {
 } from '$lib/utils/effect-svelte-integration';
 
 // Cast to MockedFunction for better typing
-const mockOnMount = onMount as any;
-const mockOnDestroy = onDestroy as any;
+const mockOnMount = vi.mocked(onMount);
+const mockOnDestroy = vi.mocked(onDestroy);
 
 // Mock services for testing
 interface TestService {
@@ -41,7 +41,7 @@ const TestServiceTag = Context.GenericTag<TestService>('TestService');
 
 const TestServiceLive = Layer.succeed(TestServiceTag, {
   getValue: () => E.succeed('test-value'),
-  setValue: (value: string) => E.succeed(undefined)
+  setValue: () => E.succeed(undefined)
 });
 
 describe('Effect-SvelteKit Integration Utilities', () => {
@@ -221,7 +221,7 @@ describe('Effect-SvelteKit Integration Utilities', () => {
       const acquire = E.succeed(mockResource);
       const release = vi.fn(() => E.void);
 
-      const { resource } = useEffectResource(acquire, release);
+      useEffectResource(acquire, release);
 
       expect(mockOnMount).toHaveBeenCalledOnce();
       expect(mockOnDestroy).toHaveBeenCalledOnce();

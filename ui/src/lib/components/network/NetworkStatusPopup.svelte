@@ -15,7 +15,7 @@
 
   // Type guard function to check if Kangaroo API is available
   function hasKangarooAPI(window: Window): window is Window & { __KANGAROO__: KangarooAPI } {
-    return '__KANGAROO__' in window && typeof (window as any).__KANGAROO__ === 'object';
+    return '__KANGAROO__' in window && typeof (window as unknown as { __KANGAROO__?: unknown }).__KANGAROO__ === 'object';
   }
 
   // Props for connection status

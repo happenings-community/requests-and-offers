@@ -1,7 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { getToastStore } from '@skeletonlabs/skeleton';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -19,9 +18,6 @@
   let error: string | null = $state(null);
   let request: UIRequest | null = $state(null);
   let userCoordinatedOrganizations: UIOrganization[] = $state([]);
-
-  // Toast store for notifications
-  const toastStore = getToastStore();
 
   // Derived values
   const { currentUser } = $derived(usersStore);
@@ -93,12 +89,9 @@
 
   // Handle form submission
   async function handleSubmit(updatedRequest: RequestInput) {
+    // RequestForm announces the outcome, once, so this throws rather than toasting.
     if (!request?.original_action_hash || !request?.previous_action_hash) {
-      toastStore.trigger({
-        message: 'Invalid request data for update',
-        background: 'variant-filled-error'
-      });
-      return;
+      throw new Error('Invalid request data for update');
     }
 
     try {
@@ -115,10 +108,7 @@
       goto(`/requests/${requestId}`);
     } catch (err) {
       console.error('Failed to update request:', err);
-      toastStore.trigger({
-        message: `Failed to update request: ${err instanceof Error ? err.message : String(err)}`,
-        background: 'variant-filled-error'
-      });
+      throw err;
     }
   }
 

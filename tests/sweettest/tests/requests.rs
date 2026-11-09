@@ -213,3 +213,74 @@ async fn request_archive_and_delete() {
         .await;
     assert!(after_delete.is_none(), "Deleted request should not be found");
 }
+
+/// Archiving through a revision hash, the hash a client holds once a listing has
+/// been edited, must leave the listing Archived wherever it is read from the root.
+/// Before the fix the archive's update link hung off the revision, so reads from the
+/// root (get_my_listings, get_latest_request_record) still found the edit as newest and
+/// reported the listing Active.
+#[tokio::test(flavor = "multi_thread")]
+async fn request_archived_through_an_edited_revision_reads_archived_from_the_root() {
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
+
+    conductors[0]
+        .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let alice_links: Vec<Link> = conductors[0]
+        .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
+        .await;
+    let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user_hash.clone()).await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let st_record: Record = conductors[0]
+        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Edited then archived"))
+        .await;
+    let st_hash = st_record.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let created: Record = conductors[0]
+        .call(&alice.zome("requests"), "create_request", sample_request("Before the edit", st_hash.clone()))
+        .await;
+    let root = created.signed_action.hashed.hash.clone();
+
+    // An edit, so the listing's latest revision is no longer its root.
+    let edited_input = sample_request("After the edit", st_hash.clone());
+    let edited: Record = conductors[0]
+        .call(
+            &alice.zome("requests"),
+            "update_request",
+            serde_json::json!({
+                "original_action_hash": root,
+                "previous_action_hash": root,
+                "updated_request": edited_input.request,
+                "service_type_hash": st_hash,
+                "medium_of_exchange_hashes": []
+            }),
+        )
+        .await;
+    let revision = edited.signed_action.hashed.hash.clone();
+    assert_ne!(revision, root, "the edit is a new revision");
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Archived through the revision hash, as the interface does.
+    let _: bool = conductors[0]
+        .call(&alice.zome("requests"), "archive_request", revision.clone())
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let latest: Option<Record> = conductors[0]
+        .call(&alice.zome("requests"), "get_latest_request_record", root.clone())
+        .await;
+    let latest: Request = latest.expect("found from the root").entry().to_app_option().unwrap().expect("entry");
+    assert_eq!(latest.status, "Archived", "read from the root, the listing is archived");
+
+    let mine: Vec<Record> = conductors[0]
+        .call(&alice.zome("requests"), "get_my_listings", alice_user_hash)
+        .await;
+    assert_eq!(mine.len(), 1, "one listing of mine");
+    let mine: Request = mine[0].entry().to_app_option().unwrap().expect("entry");
+    assert_eq!(mine.status, "Archived", "get_my_listings reports it archived");
+}

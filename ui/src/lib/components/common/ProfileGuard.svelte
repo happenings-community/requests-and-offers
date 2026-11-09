@@ -1,10 +1,11 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import usersStore from '$lib/stores/users.store.svelte';
   import { canBrowseFor } from '$lib/utils/profile-access';
   import type { Snippet } from 'svelte';
   import { getModalStore } from '@skeletonlabs/skeleton';
-  import ContactAdminsModal from '$lib/components/users/ContactAdminsModal.svelte';
+  import { openContact } from '$lib/components/users/contact';
   import { headingFor, isBlockedState, lineFor, statusLabel } from '$lib/utils/profile-status';
 
   type Props = {
@@ -259,7 +260,7 @@
       // Handle page reload for error states
       window.location.reload();
     } else {
-      modalStore.trigger({ type: 'component', component: { ref: ContactAdminsModal } });
+      openContact(modalStore, { kind: 'membership', from: page.url.pathname });
     }
   }
 

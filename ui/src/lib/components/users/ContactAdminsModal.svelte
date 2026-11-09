@@ -5,11 +5,22 @@
   import { formatUserName } from '$lib/schemas/users.schemas';
   import type { UIUser } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
-  import { contactableAdmins } from '$lib/utils/admin-contacts';
+  import {
+    adminMailto,
+    contactableAdmins,
+    contactNotice,
+    type ContactContext
+  } from '$lib/utils/admin-contacts';
 
-  // How a pending, rejected or suspended member reaches the administrators
-  // while there is no in-app messaging for them (#331): the contact details
-  // each administrator gave on their own profile.
+  // How a member reaches the administrators outside the app: the contact
+  // details each administrator gave on their own profile. Opened through
+  // `openContact`, whose context fills in the email's subject and opening.
+
+  type Props = {
+    context?: ContactContext;
+  };
+
+  const { context = { kind: 'membership' } }: Props = $props();
 
   const modalStore = getModalStore();
 
@@ -17,8 +28,7 @@
   let loaded = $state(false);
   let failed = $state(false);
 
-  const subject = 'My Requests & Offers membership';
-  const mailto = (email: string) => `mailto:${email}?subject=${encodeURIComponent(subject)}`;
+  const mailto = (email: string) => adminMailto(email, context);
   const tel = (phone: string) => `tel:${phone.replace(/[^+\d]/g, '')}`;
 
   onMount(async () => {
@@ -60,6 +70,7 @@
           </li>
         {/each}
       </ul>
+      <p class="text-center text-sm">{contactNotice(context)}</p>
     {/if}
 
     <button class="variant-filled-secondary btn self-center" onclick={() => modalStore.close()}>

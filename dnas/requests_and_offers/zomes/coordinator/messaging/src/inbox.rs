@@ -106,11 +106,69 @@ pub fn get_inbox(_: ()) -> ExternResult<Vec<InboxEntry>> {
   let me = agent_info()?.agent_initial_pubkey;
 
   Ok(
-    read_inbox_entries(&me)?
+    read_inbox(&me, &[])?
+      .entries
       .into_iter()
       .filter(|entry| !matches!(entry, InboxEntry::Read(m) if m.role.is_some()))
       .collect(),
   )
+}
+
+/// What the caller already holds, so `get_inbox_delta` need not fetch it again.
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct GetInboxDeltaInput {
+  /// Action hashes of personal messages the caller has already read through this
+  /// zome, readable or not. A hash this agent's inbox does not link is ignored.
+  pub known: Vec<ActionHash>,
+}
+
+/// The inbox as a change against what the caller holds.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct InboxDelta {
+  /// Every personal message this agent should show now: the known ones that still pass
+  /// the reading filters, and the new ones returned in `entries`. A known hash missing
+  /// from here has stopped passing (its author is no longer accepted, say) and the
+  /// caller drops it.
+  pub visible: Vec<ActionHash>,
+  /// Only the messages not in `known`, read and decrypted as `get_inbox` would.
+  pub entries: Vec<InboxEntry>,
+}
+
+/// `get_inbox` for a caller that keeps what it has read.
+///
+/// A message never changes once written, so a client that polls has no reason to fetch
+/// the same message twice. The interface polls every fifteen seconds for the unopened
+/// count, and `get_inbox` cost one network `get` per message each time, for as long as
+/// the app was open (Sacha's review of #301, 7 October). Here a known message costs
+/// nothing: its author is the `Inbox` link's author, which validation proves wrote it,
+/// so the two reading filters that depend on who wrote it (accepted now; an
+/// administrator, while this agent is not accepted) run on the link alone. Only an
+/// unknown hash is fetched and decrypted.
+///
+/// Role messages are not personal chat and are left out of both lists, as `get_inbox`
+/// leaves them out. A known hash is taken to be a personal message, because this is the
+/// only call that returned it.
+#[hdk_extern]
+pub fn get_inbox_delta(input: GetInboxDeltaInput) -> ExternResult<InboxDelta> {
+  let me = agent_info()?.agent_initial_pubkey;
+  let read = read_inbox(&me, &input.known)?;
+  let mut visible = read.visible;
+  let entries: Vec<InboxEntry> = read
+    .entries
+    .into_iter()
+    .filter(|entry| !matches!(entry, InboxEntry::Read(m) if m.role.is_some()))
+    .collect();
+  // A new role message was fetched and filtered out: it is not visible either.
+  let kept: Vec<ActionHash> = entries.iter().map(hash_of).collect();
+  visible.retain(|hash| input.known.contains(hash) || kept.contains(hash));
+  Ok(InboxDelta { visible, entries })
+}
+
+fn hash_of(entry: &InboxEntry) -> ActionHash {
+  match entry {
+    InboxEntry::Read(m) => m.hash.clone(),
+    InboxEntry::Unreadable { hash, .. } => hash.clone(),
+  }
 }
 
 /// Whether a role message's author is claiming the role, decided only from facts the
@@ -233,6 +291,22 @@ impl AuthorFacts {
 /// two keep only role messages. What is filtered here is the author's role *claim*, so
 /// that no caller can forget to.
 pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntry>> {
+  Ok(read_inbox(me, &[])?.entries)
+}
+
+/// What `read_inbox` found: the hashes that pass the link-level filters, and the
+/// entries read for the hashes not in `known`.
+pub(crate) struct ReadInbox {
+  pub(crate) visible: Vec<ActionHash>,
+  pub(crate) entries: Vec<InboxEntry>,
+}
+
+/// The shared read behind `read_inbox_entries` and `get_inbox_delta`.
+///
+/// Known hashes are checked on the link alone (author accepted; author an
+/// administrator, while this agent is not accepted) and listed in `visible` without a
+/// fetch. The rest are fetched, filtered and decrypted as before.
+pub(crate) fn read_inbox(me: &AgentPubKey, known: &[ActionHash]) -> ExternResult<ReadInbox> {
   let me = me.clone();
 
   let link_type_filter = LinkTypes::Inbox
@@ -247,6 +321,7 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
   )?;
 
   let mut out = Vec::new();
+  let mut visible = Vec::new();
 
   // Both of these were once per message, which meant a full chain scan and two
   // cross-zome calls per message. The interface calls this on every app open, so the
@@ -267,11 +342,11 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
     let Some(hash) = link.target.clone().into_action_hash() else {
       continue;
     };
-    let Some(record) = get(hash.clone(), GetOptions::default())? else {
-      continue;
-    };
 
-    let from = record.action().author().clone();
+    // The link's author wrote the message: `validate_create_inbox_link` proves it. So
+    // the two filters that turn on the author need no fetch, and a known hash is
+    // answered from the link alone.
+    let from = link.author.clone();
 
     if !authors.accepted(&from)? {
       continue;
@@ -280,6 +355,15 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
     if restricted && !is_administrator(&from, &mut administrators)? {
       continue;
     }
+
+    visible.push(hash.clone());
+    if known.contains(&hash) {
+      continue;
+    }
+
+    let Some(record) = get(hash.clone(), GetOptions::default())? else {
+      continue;
+    };
 
     let at = record.action().timestamp();
 
@@ -331,7 +415,10 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
     InboxEntry::Read(m) => m.at,
     InboxEntry::Unreadable { at, .. } => *at,
   });
-  Ok(out)
+  Ok(ReadInbox {
+    visible,
+    entries: out,
+  })
 }
 
 /// What happened when this agent tried to read one message.

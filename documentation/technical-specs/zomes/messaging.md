@@ -117,6 +117,8 @@ A message in your own inbox that fails to decrypt comes back as `Unreadable` and
 
 **Delivery to an offline recipient needs somebody holding the data to be online when they read.** That is what stored on a shared DHT means.
 
+**A reader that keeps what it has read calls `get_inbox_delta`** with the hashes it holds. A message never changes, so a known hash is not fetched again: its author is the `Inbox` link's author (validation proves it), so the author filters run on the link, and the hash is returned in `visible` without a `get`. Only unknown hashes are fetched and decrypted, in `entries`. A known hash missing from `visible` has stopped passing the filters, and the reader drops it. The interface polls this way; `get_inbox` remains for a reader with nothing held.
+
 ### 6.5. Tests
 
 `tests/sweettest/tests/messaging_inbox.rs`, run as `messaging_inbox` in the same Heavy tests workflow. The first cases prove the encryption before anything rests on it (the recipient reads, the sender reads their own copy, a third member holds the ciphertext and cannot read it, either party can be offline), then the access rules (an unaccepted sender is refused, only an administrator may write to a member who is not accepted, a since-rejected author is hidden), blocking, and technical reports. The pure validation rules are unit-tested in `messaging_integrity`.

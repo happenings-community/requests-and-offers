@@ -41,7 +41,9 @@
   let title = $state(offer?.title ?? '');
   let description = $state(offer?.description ?? '');
   let descriptionTextarea: HTMLTextAreaElement | undefined = $state(undefined);
-  let serviceTypeHashes = $state<ActionHash[]>(offer?.service_type_hash ? [offer.service_type_hash] : []);
+  let serviceTypeHashes = $state<ActionHash[]>(
+    offer?.service_type_hash ? [offer.service_type_hash] : []
+  );
 
   // Time preference handling
   let timePreferenceType = $state<'Morning' | 'Afternoon' | 'Evening' | 'NoPreference' | 'Other'>(
@@ -175,7 +177,10 @@
         [serviceTypeHashes.length > 0, 'service type'],
         [selectedMediumOfExchange.length > 0, 'medium of exchange'],
         [timePreferenceType !== undefined, 'time preference'],
-        [timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0, 'your time preference'],
+        [
+          timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0,
+          'your time preference'
+        ],
         [timeZone !== undefined, 'time zone'],
         [interactionType !== undefined, 'interaction type']
       ] as [boolean, string][]
@@ -261,7 +266,8 @@
       // Refuse to save with a link typed but not added. Silently committing it
       // guesses at intent; silently dropping it loses their work.
       if (pendingLink.trim()) {
-        linksWarning = 'A link has been typed but not added. Go back to the Links field and add it, or clear it, before saving.';
+        linksWarning =
+          'A link has been typed but not added. Go back to the Links field and add it, or clear it, before saving.';
         // Skeleton InputChip does not expose its input, so reach it through the label.
         (linksField?.querySelector('input.input-chip-field') as HTMLElement | null)?.focus();
         submitting = false;
@@ -550,7 +556,9 @@
   <!-- Links -->
   <label class="label" bind:this={linksField}>
     <span>Links (optional)</span>
-    <p class="text-sm text-surface-600 dark:text-surface-400">Type a link and press Enter to add it.</p>
+    <p class="text-sm text-surface-600 dark:text-surface-400">
+      Type a link and press Enter to add it.
+    </p>
     <InputChip
       bind:value={links}
       bind:input={pendingLink}
@@ -580,9 +588,7 @@
           {publishedOrganizationName ?? 'No organization'}
         </p>
       {/if}
-      <p class="text-surface-500 text-xs">
-        This cannot be changed after a listing is published.
-      </p>
+      <p class="text-xs text-surface-500">This cannot be changed after a listing is published.</p>
     {:else if isLoadingOrganizations}
       <div class="flex items-center gap-2">
         <span class="loading loading-spinner loading-sm"></span>

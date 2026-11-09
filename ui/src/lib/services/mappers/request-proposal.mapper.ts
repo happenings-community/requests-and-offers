@@ -43,7 +43,7 @@ export interface RequestProposalMappingResult {
  * - Creates a single proposal with descriptive name from request
  * - Creates one service intent per service type requested (receiver=requester)
  * - Creates one payment intent for the medium of exchange (provider=requester)
- * - Links all intents to the proposal via proposeIntent
+ * - The store creates these intents first, then the proposal that publishes them (proposal-links.ts)
  */
 export const createProposalFromRequest = (
   params: RequestProposalMappingParams
@@ -190,8 +190,8 @@ export const validateRequestMappingRequirements = (
       errors.push('Requester agent not found in hREA');
     }
 
-    if (!request.service_type_hashes || request.service_type_hashes.length === 0) {
-      errors.push('Request must have at least one service type');
+    if (!request.service_type_hash) {
+      errors.push('Request must name a service type');
     }
 
     if (serviceTypeResourceSpecs.length === 0) {

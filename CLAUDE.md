@@ -19,9 +19,10 @@ nix develop                    # Required for zomes - enters Nix shell (Holochai
 bun install                    # Install dependencies
 
 # Dev servers
-bun start                      # Development mode (2 agents)
+bun start                      # Development mode (2 agents), plus the conductor inspector page (INSPECTOR_PORT, WEB_OPEN=0)
 AGENTS=3 bun start             # Custom number of agents
 bun start:tauri                # Desktop app with Tauri
+bun start:web                  # Browser tabs, one URL per member, Vite HMR, plus a conductor inspector page (AGENTS=n, WEB_OPEN=0); see documentation/guides/web-dev-mode.md
 
 # Building
 bun build:zomes                # Build Rust zomes (requires Nix)
@@ -159,7 +160,7 @@ All 8 domains follow the 7-layer pattern. Use **Service Types** as the reference
 - **Path aliases**: `$lib` → `src/lib`, `@` → `src` (configured in `ui/vitest.config.ts`)
 - **hREA service tests**: Need module mocks for `@valueflows/vf-graphql-holochain` and `@apollo/client/link/schema`
 - **Sweettest**: run tests the way CI does, one case per process (`cargo test ... --test <target> -- --exact <case>`). The `bun run test:sweettest*` scripts run one case at a time, which is fine for a quick check. A bare `cargo test` at default parallelism fails on setup timeouts that are not bugs, and a setup failure locally (app install, database timeout, conductor start) is environment, not a result: re-run that case alone before concluding. `cargo test` also does **not** repack the DNA, so run `bun run build:happ` after any zome change or you are testing the previous wasm.
-- **E2E suite**: one sandbox conductor + ONE shared agent identity per run; specs are an ordered journey (filename order) and each is standalone-runnable via the idempotent `ensure*` helpers. Selector gotchas (Skeleton tabs are `role="tab"`, three confirm-dialog mechanisms, original-vs-latest record surfaces, `ServiceTypeSelector` filter-first rule) are documented in `ui/tests/e2e/README.md` — read it before writing e2e tests
+- **E2E suite**: one sandbox conductor + ONE shared agent identity per run; specs are an ordered journey (filename order) and each is standalone-runnable via the idempotent `ensure*` helpers. Selector gotchas (Skeleton tabs are `role="tab"`, two confirm-dialog mechanisms, original-vs-latest record surfaces, `ServiceTypeSelector` filter-first rule) are documented in `ui/tests/e2e/README.md` — read it before writing e2e tests
 
 ## Critical Requirements
 

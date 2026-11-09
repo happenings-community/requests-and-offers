@@ -2,10 +2,8 @@ import { vi } from 'vitest';
 import { Layer, Effect as E } from 'effect';
 import type { OffersService } from '$lib/services/zomes/offers.service';
 import type { RequestsService } from '$lib/services/zomes/requests.service';
-import type { ServiceTypesService } from '$lib/services/zomes/serviceTypes.service';
 import { OffersServiceTag } from '$lib/services/zomes/offers.service';
 import { RequestsServiceTag } from '$lib/services/zomes/requests.service';
-import { ServiceTypesServiceTag } from '$lib/services/zomes/serviceTypes.service';
 import { CacheServiceTag, CacheNotFoundError } from '$lib/utils/cache.svelte';
 import type { CacheService, CacheableEntity, EntityCacheService } from '$lib/utils/cache.svelte';
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
@@ -84,7 +82,8 @@ export const createMockHolochainClientServiceLayer = (): Layer.Layer<HolochainCl
       Promise.resolve({
         networkSeed: 'test-network-seed',
         dnaHash: 'test-dna-hash',
-        roleName: 'requests_and_offers'
+        roleName: 'requests_and_offers',
+        integrityZomeNames: []
       })
     ),
     getNetworkPeers: vi.fn(() => Promise.resolve(['peer1', 'peer2', 'peer3'])),

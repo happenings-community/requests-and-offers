@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import { Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import ActionBar from '$lib/components/shared/ActionBar.svelte';
+  import ExternalLink from '$lib/components/shared/ExternalLink.svelte';
   import type { UIOrganization, UIStatus } from '$lib/types/ui';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { AdministrationEntity } from '$lib/types/holochain';
@@ -51,13 +52,6 @@
 
 <article class="hcron-modal">
   {#if organization}
-    {#if isAdminPage}
-      <!-- Admin Actions -->
-      <div class="mb-6">
-        <ActionBar entity={organization} />
-      </div>
-    {/if}
-
     <!-- Header Section -->
     <div class="mb-6 flex flex-col items-center gap-6">
       <div class="shrink-0">
@@ -155,19 +149,22 @@
           <h3 class="h4 mb-3 font-semibold">Links & Resources</h3>
           <div class="space-y-2">
             {#each organization.urls as url}
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
+              <ExternalLink
+                text={url}
                 class="block truncate text-tertiary-500 transition-colors hover:text-tertiary-600 hover:underline"
-              >
-                {url}
-              </a>
+              />
             {/each}
           </div>
         </div>
       {/if}
     </div>
+
+    <!-- Admin actions and the decision come after the whole application (#331) -->
+    {#if isAdminPage}
+      <div class="mt-6 border-t border-surface-500 pt-6">
+        <ActionBar entity={organization} />
+      </div>
+    {/if}
   {:else}
     <div class="py-8 text-center text-surface-500">
       <p>No organization details available</p>
@@ -187,6 +184,15 @@
     >
       View Full Details
     </button>
-    <button class="variant-filled-surface btn" onclick={() => modalStore.close()}> Close </button>
+    <button
+      class="variant-filled-surface btn"
+      onclick={() => {
+        // Let the opener refresh, as backdrop and Escape already do.
+        $modalStore[0]?.response?.(false);
+        modalStore.close();
+      }}
+    >
+      Close
+    </button>
   </div>
 </article>

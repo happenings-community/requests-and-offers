@@ -8,6 +8,7 @@ import { createTestContext } from '../../mocks/services.mock';
 import type { OffersService } from '$lib/services/zomes/offers.service';
 import { OffersServiceTag } from '$lib/services/zomes/offers.service';
 import { CacheServiceLive } from '$lib/utils/cache.svelte';
+import { actionHashToSchemaType } from '$lib/utils/type-bridges';
 import { Effect as E } from 'effect';
 
 // Mock the organizationsStore with a more comprehensive mock that won't try to call Holochain
@@ -76,7 +77,17 @@ describe('Offers Store', () => {
     const effect = pipe(store.createOffer(newOffer));
 
     const result = await runEffect(effect);
-    expect(mockOffersService.createOffer).toHaveBeenCalledWith(newOffer, undefined);
+
+    // The store converts the service type hash to its schema form.
+    const expectedOffer = {
+      ...newOffer,
+      service_type_hash:
+        typeof newOffer.service_type_hash === 'string'
+          ? newOffer.service_type_hash
+          : actionHashToSchemaType(newOffer.service_type_hash)
+    };
+
+    expect(mockOffersService.createOffer).toHaveBeenCalledWith(expectedOffer, undefined);
     expect(result).toBeDefined();
   });
 
@@ -242,6 +253,26 @@ describe('Offers Store', () => {
 
       // Verify the returned data is processed through the same pipeline
       expect(store.offers.length).toBeGreaterThan(0);
+    });
+  });
+
+  // The store's lists are kept in step by createGenericCacheSyncHelper, which takes a
+  // listing out of every list and files it back under the list named by its status.
+  // The lists must be registered under the status values themselves ('Active',
+  // 'Archived'): registered as 'active' and 'archived', nothing ever matched, and every
+  // read that goes through the add path took the listing out of the active list for good.
+  describe('a listing read again stays in the list its status names', () => {
+    it('keeps an active offer in the active list when getMyListings reads it again', async () => {
+      await runEffect(store.getActiveOffers());
+      expect(store.activeOffers.length).toBe(1);
+
+      const me = (await createMockRecord()).signed_action.hashed.hash;
+      await runEffect(store.getMyListings(me));
+
+      expect(store.activeOffers.length, 'reading my listings took it out of the active list').toBe(
+        1
+      );
+      expect(store.offers.length, 'and it is still in the full list').toBe(1);
     });
   });
 });

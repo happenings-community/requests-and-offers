@@ -1,14 +1,16 @@
 <script lang="ts">
+  import { escapeHtml } from '$lib/utils/safe-html';
   import { goto } from '$app/navigation';
   import { FileDropzone, Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import { createMockedOrganizations } from '$lib/utils/mocks';
+  import { loadMocks } from '$lib/utils/load-mocks';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import type { OrganizationInDHT } from '$lib/types/holochain';
   import AlertModal from '$lib/components/shared/dialogs/AlertModal.svelte';
+  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import MarkdownToolbar from '$lib/components/shared/MarkdownToolbar.svelte';
-  import type { AlertModalMeta } from '$lib/types/ui';
+  import type { AlertModalMeta, ConfirmModalMeta } from '$lib/types/ui';
   import type { ActionHash } from '@holochain/client';
   import { encodeHashToBase64 } from '@holochain/client';
   import { runEffect } from '$lib/utils/effect';
@@ -34,6 +36,7 @@
     component: alertModalComponent,
     meta
   });
+  const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
 
   // Form state
   let form: HTMLFormElement | undefined = $state();
@@ -112,6 +115,7 @@
     isLoading = true;
     error = null;
     try {
+      const { createMockedOrganizations } = await loadMocks();
       let org: OrganizationInDHT = (await createMockedOrganizations())[0];
 
       const record = await runEffect(organizationsStore.createOrganization(org));
@@ -126,7 +130,7 @@
       modalStore.trigger(
         alertModal({
           id: 'welcome-and-next-steps',
-          message: welcomeAndNextStepsMessage(organization?.name || ''),
+          message: welcomeAndNextStepsMessage(escapeHtml(organization?.name || '')),
           confirmLabel: 'Ok !'
         })
       );
@@ -148,9 +152,14 @@
       // Confirm deletion
       const confirmed = await new Promise<boolean>((resolve) => {
         modalStore.trigger({
-          type: 'confirm',
-          title: 'Delete Organization',
-          body: `Are you sure you want to delete the organization <b>${formName}</b>? This action cannot be undone.`,
+          type: 'component',
+          component: confirmModalComponent,
+          meta: {
+            id: 'delete-organization',
+            message: `Are you sure you want to delete the organization <b>${escapeHtml(formName)}</b>? This action cannot be undone.`,
+            confirmLabel: 'Delete',
+            cancelLabel: 'Cancel'
+          } as ConfirmModalMeta,
           response: (r: boolean) => resolve(r)
         });
       });
@@ -213,11 +222,13 @@
               organizationData
             )
           );
-          modalStore.trigger({
-            type: 'confirm',
-            body: welcomeAndNextStepsMessage(updatedOrganization?.name || ''),
-            buttonTextConfirm: 'Ok !'
-          });
+          modalStore.trigger(
+            alertModal({
+              id: 'welcome-and-next-steps',
+              message: welcomeAndNextStepsMessage(escapeHtml(updatedOrganization?.name || '')),
+              confirmLabel: 'Ok !'
+            })
+          );
           goto('/organizations');
         }
       }

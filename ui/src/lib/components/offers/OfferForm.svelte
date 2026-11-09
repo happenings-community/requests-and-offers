@@ -14,7 +14,7 @@
   } from '$lib/types/holochain';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
-  import { createMockedOffers } from '$lib/utils/mocks';
+  import { loadMocks } from '$lib/utils/load-mocks';
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import TimeZoneSelect from '$lib/components/shared/TimeZoneSelect.svelte';
   import ServiceTypeSelector from '@/lib/components/service-types/ServiceTypeSelector.svelte';
@@ -41,7 +41,7 @@
   let title = $state(offer?.title ?? '');
   let description = $state(offer?.description ?? '');
   let descriptionTextarea: HTMLTextAreaElement | undefined = $state(undefined);
-  let serviceTypeHashes = $state<ActionHash[]>(offer?.service_type_hashes ?? []);
+  let serviceTypeHashes = $state<ActionHash[]>(offer?.service_type_hash ? [offer.service_type_hash] : []);
 
   // Time preference handling
   let timePreferenceType = $state<'Morning' | 'Afternoon' | 'Evening' | 'NoPreference' | 'Other'>(
@@ -100,8 +100,8 @@
     if (offer && mode === 'edit') {
       // Update service types and mediums of exchange from the offer
       console.log('Updating service types and mediums of exchange from the offer', offer);
-      if (offer.service_type_hashes) {
-        serviceTypeHashes = [...offer.service_type_hashes];
+      if (offer.service_type_hash) {
+        serviceTypeHashes = [offer.service_type_hash];
       }
       if (offer.medium_of_exchange_hashes) {
         selectedMediumOfExchange = [...offer.medium_of_exchange_hashes];
@@ -188,11 +188,12 @@
         });
       }
 
+      const { createMockedOffers } = await loadMocks();
       const mockedOffer = (await createMockedOffers())[0];
       // Convert to OfferInput and use the selected service types
       const offerInput: OfferInput = {
         ...mockedOffer,
-        service_type_hashes: finalServiceTypeHashes,
+        service_type_hash: finalServiceTypeHashes[0],
         medium_of_exchange_hashes: [...selectedMediumOfExchange]
       };
       await onSubmit(offerInput, selectedOrganizationHash);
@@ -240,9 +241,9 @@
     linksWarning = '';
 
     try {
-      // Validate service types before submission
+      // A listing must name its service type
       if (serviceTypeHashes.length === 0) {
-        serviceTypesError = 'At least one service type is required';
+        serviceTypesError = 'Choose a service type';
         submitting = false;
         return;
       }
@@ -277,7 +278,7 @@
         time_zone: timeZone,
         interaction_type: interactionType,
         links: [...links],
-        service_type_hashes: [...serviceTypeHashes],
+        service_type_hash: serviceTypeHashes[0],
         medium_of_exchange_hashes: [...selectedMediumOfExchange],
         status: ListingStatus.Active
       };
@@ -378,7 +379,8 @@
     <ServiceTypeSelector
       selectedServiceTypes={serviceTypeHashes}
       onSelectionChange={(selected) => (serviceTypeHashes = selected)}
-      label="Service Types"
+      label="Service type"
+      single={true}
       placeholder="Search and select service types..."
       required={true}
       name="serviceTypes"

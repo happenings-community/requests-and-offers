@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AppWebsocket } from '@holochain/client';
+
+type MockServiceThis = { client: { callZome: (args: unknown) => Promise<unknown> } | null };
 
 // Mock the Holochain client
 vi.mock('@holochain/client', () => ({
@@ -14,7 +15,7 @@ vi.mock('../../../src/lib/services/HolochainClientService.svelte', () => ({
     appId: 'requests_and_offers',
     client: null,
     isConnected: false,
-    getNetworkSeed: vi.fn(async function (this: any, roleName?: string) {
+    getNetworkSeed: vi.fn(async function (this: MockServiceThis, roleName?: string) {
       if (!this.client) {
         throw new Error('Client not connected');
       }
@@ -25,7 +26,7 @@ vi.mock('../../../src/lib/services/HolochainClientService.svelte', () => ({
         role_name: roleName || 'requests_and_offers'
       });
     }),
-    getNetworkInfo: vi.fn(async function (this: any, roleName?: string) {
+    getNetworkInfo: vi.fn(async function (this: MockServiceThis, roleName?: string) {
       if (!this.client) {
         throw new Error('Client not connected');
       }
@@ -47,13 +48,14 @@ import { HolochainClientMock } from '../../mocks/HolochainClientMock';
 import holochainClientService from '../../../src/lib/services/HolochainClientService.svelte';
 
 describe('HolochainClientService Network Methods', () => {
+  const mutableService = holochainClientService as unknown as { client: unknown; isConnected: boolean };
   const mockClient = new HolochainClientMock();
 
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset the mock service state
-    (holochainClientService as any).client = mockClient as any;
-    (holochainClientService as any).isConnected = true;
+    mutableService.client = mockClient;
+    mutableService.isConnected = true;
   });
 
   describe('getNetworkSeed', () => {
@@ -89,7 +91,7 @@ describe('HolochainClientService Network Methods', () => {
 
     it('should throw error when client is not connected', async () => {
       // Mock disconnected state
-      (holochainClientService as any).client = null;
+      mutableService.client = null;
 
       await expect(holochainClientService.getNetworkSeed()).rejects.toThrow('Client not connected');
       expect(mockClient.callZome).not.toHaveBeenCalled();
@@ -108,7 +110,8 @@ describe('HolochainClientService Network Methods', () => {
       const mockNetworkInfo = {
         networkSeed: 'test-network-seed-123',
         dnaHash: 'test-dna-hash-456',
-        roleName: 'requests_and_offers'
+        roleName: 'requests_and_offers',
+        integrityZomeNames: []
       };
       mockClient.callZome.mockResolvedValue(mockNetworkInfo);
 
@@ -144,7 +147,7 @@ describe('HolochainClientService Network Methods', () => {
 
     it('should throw error when client is not connected', async () => {
       // Mock disconnected state
-      (holochainClientService as any).client = null;
+      mutableService.client = null;
 
       await expect(holochainClientService.getNetworkInfo()).rejects.toThrow('Client not connected');
       expect(mockClient.callZome).not.toHaveBeenCalled();
@@ -161,14 +164,14 @@ describe('HolochainClientService Network Methods', () => {
   describe('Integration behavior', () => {
     it('should handle connection state changes correctly', async () => {
       // Test with connected client
-      (holochainClientService as any).client = mockClient as any;
-      (holochainClientService as any).isConnected = true;
+      mutableService.client = mockClient;
+      mutableService.isConnected = true;
 
       mockClient.callZome.mockResolvedValue('test-seed');
       await holochainClientService.getNetworkSeed();
 
       // Test with disconnected client
-      (holochainClientService as any).client = null;
+      mutableService.client = null;
       await expect(holochainClientService.getNetworkSeed()).rejects.toThrow('Client not connected');
 
       // Verify call was made only once (when connected)

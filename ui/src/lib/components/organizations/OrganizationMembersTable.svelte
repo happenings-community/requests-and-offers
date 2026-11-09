@@ -1,7 +1,10 @@
 <script lang="ts">
   import { Avatar, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+  import type { ModalComponent } from '@skeletonlabs/skeleton';
+  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
+  import { escapeHtml } from '$lib/utils/safe-html';
   import { encodeHashToBase64 } from '@holochain/client';
-  import type { UIOrganization, UIUser } from '$lib/types/ui';
+  import type { ConfirmModalMeta, UIOrganization, UIUser } from '$lib/types/ui';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { getUserPictureUrl } from '$lib/utils';
@@ -32,6 +35,7 @@
   let error = $state<string | null>(null);
 
   const modalStore = getModalStore();
+  const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
   const toastStore = getToastStore();
 
   $effect(() => {
@@ -132,9 +136,14 @@
       // Confirm removal
       const confirmed = await new Promise<boolean>((resolve) => {
         modalStore.trigger({
-          type: 'confirm',
-          title: 'Remove Member',
-          body: `Are you sure you want to remove ${member.name} from the organization? This action cannot be undone.`,
+          type: 'component',
+          component: confirmModalComponent,
+          meta: {
+            id: 'remove-member',
+            message: `Are you sure you want to remove ${escapeHtml(member.name)} from the organization? This action cannot be undone.`,
+            confirmLabel: 'Remove',
+            cancelLabel: 'Cancel'
+          } as ConfirmModalMeta,
           response: (r: boolean) => resolve(r)
         });
       });
@@ -142,9 +151,11 @@
       if (!confirmed) return;
 
       loading = true;
-      await organizationsStore.removeMember(
-        organization.original_action_hash,
-        member.original_action_hash
+      await runEffect(
+        organizationsStore.removeMember(
+          organization.original_action_hash,
+          member.original_action_hash
+        )
       );
 
       toastStore.trigger({

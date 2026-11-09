@@ -9,6 +9,7 @@ For a high-level project overview, see the main [Project Overview](../project-ov
 - **[Getting Started](./getting-started.md)**: Project introduction, prerequisites, and quick start.
 - **[Installation](./installation.md)**: Detailed system and project setup instructions.
 - **[Contributing](./contributing.md)**: Development workflow, feature process, testing, and standards.
+- **[Web Development Mode](./web-dev-mode.md)**: `bun start:web`, the app in browser tabs with one URL per member.
 - **[Project Board Automation](./project-board-automation.md)**: The `Closes` and `Impl` markers, and the workflow that moves `Impl` issues on the board.
 - **[Kangaroo Deployment Process](./kangaroo-deployment-process.md)**: Complete guide for cross-platform desktop app deployment.
 
@@ -42,6 +43,14 @@ Development workflow and guidelines:
 - Feature development process
 - Testing strategy
 - Documentation standards
+
+### [Versioning](./versioning.md)
+
+How the next version number is chosen:
+
+- Minor for breaking DNA changes before 1.0, patch for the rest
+- Breaking changes batched into one network reset
+- Pre-releases and the rule after 1.0
 
 ### [Kangaroo Deployment Process](./kangaroo-deployment-process.md)
 

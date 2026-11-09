@@ -1,4 +1,4 @@
-import { Effect as E, pipe } from 'effect';
+import { Effect as E } from 'effect';
 import { HreaError } from '$lib/errors';
 import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
 import type { UIOffer } from '$lib/types/ui';
@@ -44,7 +44,7 @@ export interface OfferProposalMappingResult {
  * - Creates a single proposal with descriptive name from offer
  * - Creates one service intent per service type offered (provider=offerer)
  * - Creates one payment intent for the medium of exchange (receiver=offerer)
- * - Links all intents to the proposal via proposeIntent
+ * - The store creates these intents first, then the proposal that publishes them (proposal-links.ts)
  */
 export const createProposalFromOffer = (
   params: OfferProposalMappingParams
@@ -167,8 +167,8 @@ export const validateOfferMappingRequirements = (
       errors.push('Offerer agent not found in hREA');
     }
 
-    if (!offer.service_type_hashes || offer.service_type_hashes.length === 0) {
-      errors.push('Offer must have at least one service type');
+    if (!offer.service_type_hash) {
+      errors.push('Offer must name a service type');
     }
 
     if (serviceTypeResourceSpecs.length === 0) {

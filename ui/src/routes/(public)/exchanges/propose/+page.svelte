@@ -12,7 +12,7 @@
   import { runEffect } from '$lib/utils/effect';
   import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
-  import { termLabel, type ExchangeRole } from '$lib/utils/exchange-ui';
+  import { proposalCounterparty, termLabel, type ExchangeRole } from '$lib/utils/exchange-ui';
   import type { ExchangeTerm, ListingType } from '$lib/types/holochain';
   import type { UIOffer, UIRequest, UIUser } from '$lib/types/ui';
 
@@ -38,6 +38,8 @@
 
   let listing = $state<UIOffer | UIRequest | null>(null);
   let creator = $state<UIUser | null>(null);
+  let member = $state<UIUser | null>(null);
+  let memberHash = $state<ActionHash | undefined>(undefined);
   let services = $state<string[]>([]);
   let giverOffers = $state<string[]>([]);
   let mediums = $state<Medium[]>([]);
@@ -61,7 +63,11 @@
     (params.listingType === 'Offer') === iAmAuthor ? 'provider' : 'receiver'
   );
   const isCurrency = $derived(mediums.find((m) => m.name === medium)?.currency ?? false);
-  const otherName = $derived(creator?.name ?? 'them');
+  // The other party: the interested member when the author proposes, the author otherwise.
+  const other = $derived(
+    proposalCounterparty(listing?.creator, memberHash, me) === listing?.creator ? creator : member
+  );
+  const otherName = $derived(other?.name ?? 'them');
 
   const primary = $derived<ExchangeTerm>({
     direction: 'Provide',
@@ -126,13 +132,10 @@
         }
         listing = item;
         if (item.creator) creator = await runEffect(usersStore.getUserByActionHash(item.creator));
-        const names = await Promise.all(
-          (item.service_type_hashes ?? []).map(async (h: ActionHash) => {
-            const st = await runEffect(serviceTypesStore.getServiceType(h));
-            return st?.name ?? null;
-          })
-        );
-        services = names.filter((n): n is string => !!n);
+        const st = item.service_type_hash
+          ? await runEffect(serviceTypesStore.getServiceType(item.service_type_hash))
+          : null;
+        services = st?.name ? [st.name] : [];
         service = services[0] ?? item.title;
         const found = await Promise.all(
           (item.medium_of_exchange_hashes ?? []).map(async (h: ActionHash) => {
@@ -149,7 +152,8 @@
           (i) => params.interest && i.interest_hash.toString() === params.interest.toString()
         );
         const authorHash = item.creator;
-        const memberHash = theInterest?.user;
+        memberHash = theInterest?.user;
+        if (memberHash) member = await runEffect(usersStore.getUserByActionHash(memberHash));
         const authorProvides = listingType === 'Offer';
         const giver = authorProvides ? memberHash : authorHash;
         if (giver) {
@@ -212,7 +216,10 @@
     </header>
 
     <div class="card space-y-2 p-4">
-      <p class="text-xs uppercase tracking-wide text-surface-500">{otherName}'s {params.listingType?.toLowerCase()}</p>
+      <p class="text-xs uppercase tracking-wide text-surface-500">
+        {iAmAuthor ? 'Your' : creator ? `${creator.name}'s` : 'Their'}
+        {params.listingType?.toLowerCase()}
+      </p>
       <p class="font-semibold">{listing.title}</p>
       {#if listing.description}<p class="line-clamp-3 text-sm text-surface-500">{listing.description}</p>{/if}
       <p class="text-sm">
@@ -273,9 +280,9 @@
                 offer, or a different medium of exchange; this proposal cannot be sent until one is
                 chosen.
               </p>
-              {#if creator}
+              {#if other}
                 <ContactButton
-                  user={creator}
+                  user={other}
                   organization={null}
                   listingType={params.listingType === 'Offer' ? 'offer' : 'request'}
                   listingTitle={listing.title}

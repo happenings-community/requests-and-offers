@@ -17,7 +17,6 @@ import { CacheServiceLive } from '$lib/utils/cache.svelte';
 import type { ServiceTypeInDHT } from '$lib/types/holochain';
 import {
   createTestServiceType,
-  createMockRecord,
   createMockServiceTypeRecord
 } from '../unit/test-helpers';
 import { runEffect } from '$lib/utils/effect';
@@ -48,7 +47,8 @@ const createMockHolochainClientService = () => ({
     Promise.resolve({
       networkSeed: 'test-network-seed',
       dnaHash: 'test-dna-hash',
-      roleName: 'requests_and_offers'
+      roleName: 'requests_and_offers',
+      integrityZomeNames: []
     })
   ),
   getNetworkPeers: vi.fn(() => Promise.resolve(['peer1', 'peer2', 'peer3'])),

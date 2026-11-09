@@ -40,7 +40,8 @@ const createMockHolochainClientService = () => ({
     Promise.resolve({
       networkSeed: 'test-network-seed',
       dnaHash: 'test-dna-hash',
-      roleName: 'requests_and_offers'
+      roleName: 'requests_and_offers',
+      integrityZomeNames: []
     })
   ),
   getNetworkPeers: vi.fn(() => Promise.resolve(['peer1', 'peer2', 'peer3'])),
@@ -697,7 +698,7 @@ describe('ServiceTypesService', () => {
       mockHolochainClient.callZome.mockResolvedValue(undefined);
 
       // Act
-      const result = await runServiceEffect(
+      await runServiceEffect(
         E.gen(function* () {
           const service = yield* ServiceTypesServiceTag;
           return yield* service.rejectServiceType(mockActionHash);

@@ -1,30 +1,94 @@
-import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
+import { tick } from 'svelte';
+import NavDropdown from '$lib/components/shared/NavDropdown.svelte';
 
-// #352 review: two things a reader of NavDropdown.svelte can check without
-// mounting it (the suite does not mount components, see ContactModal.test.ts).
-// The keyboard behaviour itself is held by the e2e step in smoke.spec.ts.
-const source = readFileSync(
-  resolve(process.cwd(), 'src/lib/components/shared/NavDropdown.svelte'),
-  'utf8'
-);
-const markup = source.slice(source.indexOf('</script>'));
+/**
+ * The menu's own handlers (#204, and the #352 review): opening from the
+ * keyboard lands on an item, Escape returns to the trigger, leaving by Tab
+ * closes, and a mouse leaving while a keyboard user is inside does not.
+ * `menuKeyTarget` (arrows, Home, End between items) has its own tests.
+ */
 
-describe('NavDropdown (#352 review)', () => {
-  it('names its panel in aria-controls only while the panel exists', () => {
-    // The panel is inside {#if open}, so a closed trigger must not point at an
-    // id that is not in the document.
-    expect(markup).toMatch(/aria-controls=\{open \? id : undefined\}/);
-    expect(markup).not.toMatch(/aria-controls=\{id\}/);
+const ITEMS = [
+  { href: '/a', label: 'Alpha', icon: 'a' },
+  { href: '/b', label: 'Beta', icon: 'b' },
+  { href: '/c', label: 'Gamma', icon: 'c' }
+];
+
+const mount = () => render(NavDropdown, { props: { title: 'Menu', items: ITEMS } });
+const trigger = () => screen.getByRole('button', { name: 'Menu menu' });
+const item = (label: string) => screen.getByRole('menuitem', { name: new RegExp(label) });
+
+beforeEach(cleanup);
+
+describe('NavDropdown', () => {
+  it('is closed at first, and names no panel in aria-controls while closed', () => {
+    mount();
+    expect(trigger().getAttribute('aria-expanded')).toBe('false');
+    expect(trigger().getAttribute('aria-controls')).toBeNull();
+    expect(screen.queryByRole('menu')).toBeNull();
   });
 
-  it('does not close on mouse leave while a menu item has keyboard focus', () => {
-    // onmouseleave goes through a handler that checks the focused element
-    // against the items, rather than closing unconditionally.
-    expect(markup).not.toMatch(/onmouseleave=\{\(\) => \(open = false\)\}/);
-    expect(markup).toMatch(/onmouseleave=\{onMouseLeave\}/);
-    const handler = source.slice(source.indexOf('function onMouseLeave'));
-    expect(handler.slice(0, handler.indexOf('}\n'))).toMatch(/document\.activeElement/);
+  it.each([['Enter'], [' '], ['ArrowDown']])(
+    '%j on the trigger opens the menu and focuses the first item',
+    async (key) => {
+      mount();
+      await fireEvent.keyDown(trigger(), { key });
+      await tick();
+      expect(trigger().getAttribute('aria-expanded')).toBe('true');
+      expect(trigger().getAttribute('aria-controls')).toBe(screen.getByRole('menu').id);
+      expect(document.activeElement).toBe(item('Alpha'));
+    }
+  );
+
+  it('ArrowUp on the trigger opens the menu and focuses the last item', async () => {
+    mount();
+    await fireEvent.keyDown(trigger(), { key: 'ArrowUp' });
+    await tick();
+    expect(document.activeElement).toBe(item('Gamma'));
+  });
+
+  it('Escape on an item closes the menu and returns focus to the trigger', async () => {
+    mount();
+    await fireEvent.keyDown(trigger(), { key: 'Enter' });
+    await tick();
+    await fireEvent.keyDown(item('Alpha'), { key: 'Escape' });
+    await tick();
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  it('focus leaving the menu (Tab past the last item) closes it', async () => {
+    const { container } = mount();
+    const outside = document.createElement('button');
+    container.appendChild(outside);
+    await fireEvent.keyDown(trigger(), { key: 'Enter' });
+    await tick();
+    await fireEvent.focusOut(item('Alpha'), { relatedTarget: outside });
+    await tick();
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('the pointer leaving does not close a menu a keyboard user is inside', async () => {
+    const { container } = mount();
+    const wrapper = container.querySelector('[role="presentation"]')!;
+    await fireEvent.keyDown(trigger(), { key: 'Enter' });
+    await tick();
+    expect(document.activeElement).toBe(item('Alpha'));
+    await fireEvent.mouseLeave(wrapper);
+    await tick();
+    expect(screen.getByRole('menu'), 'still open').toBeTruthy();
+  });
+
+  it('but does close a menu that was only hovered', async () => {
+    const { container } = mount();
+    const wrapper = container.querySelector('[role="presentation"]')!;
+    await fireEvent.mouseEnter(wrapper);
+    await tick();
+    expect(screen.getByRole('menu')).toBeTruthy();
+    await fireEvent.mouseLeave(wrapper);
+    await tick();
+    expect(screen.queryByRole('menu')).toBeNull();
   });
 });

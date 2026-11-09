@@ -171,6 +171,7 @@ export const MESSAGING_STRINGS = {
       withdrawn: 'Withdrawn'
     },
     accept: 'Accept',
+    counter: 'Counter',
     decline: 'Decline',
     withdraw: 'Withdraw',
     declineForm: {

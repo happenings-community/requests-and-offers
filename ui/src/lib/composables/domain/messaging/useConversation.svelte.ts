@@ -199,6 +199,12 @@ export function useConversation(counterpartyB64: string) {
     await runEffect(messagingStore.loadConversations());
   }
 
+  /** The proposer's one move while a proposal waits, as on the exchange page. */
+  async function withdrawProposal(agreement: ActionHash): Promise<void> {
+    await runEffect(exchangesStore.cancel(agreement, 'Withdrawn by the proposer'));
+    await runEffect(messagingStore.loadConversations());
+  }
+
   async function withdrawInterest(interest: ActionHash): Promise<void> {
     await runEffect(exchangesStore.withdrawInterest(interest));
     await runEffect(messagingStore.loadConversations());
@@ -262,6 +268,7 @@ export function useConversation(counterpartyB64: string) {
     send,
     retry,
     respond,
+    withdrawProposal,
     withdrawInterest
   };
 }

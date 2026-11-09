@@ -227,6 +227,7 @@
             name={conversation.name}
             {me}
             onRespond={conversation.respond}
+            onWithdraw={conversation.withdrawProposal}
           />
         {/if}
       {/each}

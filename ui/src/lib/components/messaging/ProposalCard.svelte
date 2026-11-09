@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ActionHash } from '@holochain/client';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
+  import { paths } from '$lib/paths';
   import { termLabel, wroteIt } from '$lib/utils/exchange-ui';
   import { proposalOutcome } from '$lib/utils/messaging-threads';
   import type { UIExchange } from '$lib/types/ui';
@@ -10,8 +11,10 @@
     name: string;
     me: ActionHash | undefined;
     onRespond: (agreement: ActionHash, accepted: boolean, note: string) => Promise<void>;
+    /** The proposer's one move while the other person has not answered. */
+    onWithdraw: (agreement: ActionHash) => Promise<void>;
   };
-  const { exchange, name, me, onRespond }: Props = $props();
+  const { exchange, name, me, onRespond, onWithdraw }: Props = $props();
 
   const fromMe = $derived(wroteIt(exchange, me));
   const initial = $derived(name.trim().charAt(0).toUpperCase() || '?');
@@ -59,6 +62,21 @@
    */
   const reasonGiven = $derived(reason.trim().length > 0);
 
+  /**
+   * Withdrawing is the proposer's side of the same card (Sam, 9 November). Before this,
+   * a proposer who had sent from the conversation had no way back from it short of My
+   * Exchanges: the card showed "Waiting for them" and nothing to press.
+   */
+  async function withdraw() {
+    if (busy) return;
+    busy = true;
+    try {
+      await onWithdraw(exchange.agreement_hash);
+    } finally {
+      busy = false;
+    }
+  }
+
   async function answer(isAccept: boolean) {
     if (busy) return;
     if (!isAccept && !reasonGiven) return;
@@ -77,7 +95,7 @@
   <header class="flex flex-wrap items-center gap-2">
     <span
       aria-hidden="true"
-      class="bg-primary-100 text-primary-800 flex h-7 w-7 flex-none items-center justify-center rounded-full text-xs font-bold"
+      class="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-800"
       >{fromMe ? '\u{1F464}' : initial}</span
     >
     <span class="font-semibold"
@@ -90,10 +108,11 @@
           ? accepted
             ? 'variant-filled-success'
             : 'variant-soft-error'
-          : 'variant-soft-primary'}"
-      >{status}</span
+          : 'variant-soft-primary'}">{status}</span
     >
-    {#if when}<span class="text-surface-500 ml-auto text-sm">{fill(S.proposal.sent, { date: when })}</span>{/if}
+    {#if when}<span class="ml-auto text-sm text-surface-500"
+        >{fill(S.proposal.sent, { date: when })}</span
+      >{/if}
   </header>
 
   <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 pt-3 text-sm">
@@ -112,19 +131,35 @@
   </dl>
 
   {#if answered && !accepted && exchange.response?.note}
-    <p class="text-surface-600 dark:text-surface-300 pt-3 text-sm">
+    <p class="pt-3 text-sm text-surface-600 dark:text-surface-300">
       <span class="font-semibold"
-        >{fromMe ? fill(S.proposal.declinedReason.theirs, { name }) : S.proposal.declinedReason.yours}</span
+        >{fromMe
+          ? fill(S.proposal.declinedReason.theirs, { name })
+          : S.proposal.declinedReason.yours}</span
       >
       {exchange.response.note}
     </p>
-    <p class="text-surface-500 pt-1 text-sm">{S.proposal.hint}</p>
+    <p class="pt-1 text-sm text-surface-500">{S.proposal.hint}</p>
+  {/if}
+
+  {#if !answered && fromMe && outcome !== 'withdrawn'}
+    <div class="flex flex-wrap gap-2 pt-3">
+      <button
+        type="button"
+        class="variant-ghost btn btn-sm"
+        disabled={busy}
+        onclick={withdraw}
+        data-testid="proposal-withdraw">{S.proposal.withdraw}</button
+      >
+    </div>
   {/if}
 
   {#if !answered && !fromMe && outcome !== 'withdrawn'}
     {#if declining}
       <div class="flex flex-col gap-2 pt-3">
-        <label class="text-sm font-semibold" for="decline-reason">{S.proposal.declineForm.label}</label>
+        <label class="text-sm font-semibold" for="decline-reason"
+          >{S.proposal.declineForm.label}</label
+        >
         <textarea
           id="decline-reason"
           class="textarea"
@@ -133,31 +168,44 @@
           placeholder={fill(S.proposal.declineForm.placeholder, { name })}
         ></textarea>
         {#if !reasonGiven}
-          <p class="text-surface-500 text-sm">{fill(S.proposal.declineForm.required, { name })}</p>
+          <p class="text-sm text-surface-500">{fill(S.proposal.declineForm.required, { name })}</p>
         {/if}
         <div class="flex flex-wrap gap-2">
           <button
             type="button"
-            class="btn btn-sm variant-filled-error"
+            class="variant-filled-error btn btn-sm"
             disabled={!reasonGiven || busy}
             onclick={() => answer(false)}
           >
             {S.proposal.declineForm.confirm}
           </button>
-          <button type="button" class="btn btn-sm variant-ghost" onclick={() => (declining = false)}>
+          <button
+            type="button"
+            class="variant-ghost btn btn-sm"
+            onclick={() => (declining = false)}
+          >
             {S.proposal.declineForm.cancel}
           </button>
         </div>
       </div>
     {:else}
+      <!--
+        The receiver's three moves, as on the exchange page (Sam, 9 November). Counter is
+        a link to the counter page, which lands on the new proposal's page when sent.
+      -->
       <div class="flex flex-wrap gap-2 pt-3">
         <button
           type="button"
-          class="btn btn-sm variant-filled-success"
+          class="variant-filled-success btn btn-sm"
           disabled={busy}
           onclick={() => answer(true)}>{S.proposal.accept}</button
         >
-        <button type="button" class="btn btn-sm variant-ghost" onclick={() => (declining = true)}
+        <a
+          class="variant-filled-secondary btn btn-sm"
+          href={paths.exchangeCounter(exchange.agreement_hash)}
+          data-testid="proposal-counter">{S.proposal.counter}</a
+        >
+        <button type="button" class="variant-ghost btn btn-sm" onclick={() => (declining = true)}
           >{S.proposal.decline}</button
         >
       </div>

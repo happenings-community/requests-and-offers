@@ -36,6 +36,7 @@ const proposal = (over: Partial<AgreementInDHT> = {}): AgreementInDHT => ({
   medium: 'Hours (time bank)',
   terms: 'Saturday mornings',
   delivery_timeframe: 'Within 2 weeks',
+  counters: null,
   ...over
 });
 
@@ -110,25 +111,30 @@ describe('counterProblem', () => {
 });
 
 describe('buildCounter', () => {
-  it('copies the proposal and applies only the quantities and timeframe', () => {
-    const p = proposal();
-    const c = buildCounter(p, { primary: 5, reciprocal: 5, timeframe: 'Within a month' });
+  const countered = hash(10);
+
+  it('names the proposal and carries only the quantities and timeframe', () => {
+    const c = buildCounter(countered, proposal(), {
+      primary: 5,
+      reciprocal: 5,
+      timeframe: 'Within a month'
+    });
     expect(c).toEqual({
-      listing: p.listing,
-      listing_type: p.listing_type,
-      interest: p.interest,
-      primary: { ...p.primary, quantity: { value: 5, unit: 'hours' } },
-      reciprocal: { ...p.reciprocal, quantity: { value: 5, unit: 'Hours (time bank)' } },
-      medium: p.medium,
-      terms: 'Saturday mornings',
+      agreement: countered,
+      primary_quantity: { value: 5, unit: 'hours' },
+      reciprocal_quantity: { value: 5, unit: 'Hours (time bank)' },
       delivery_timeframe: 'Within a month'
     });
   });
 
-  it('stores zero or blank as no quantity, which validation accepts', () => {
-    const c = buildCounter(proposal(), { primary: 0, reciprocal: null, timeframe: 'Flexible' });
-    expect(c.primary.quantity).toBeNull();
-    expect(c.reciprocal.quantity).toBeNull();
+  it('sends zero or blank as no quantity, which validation accepts', () => {
+    const c = buildCounter(countered, proposal(), {
+      primary: 0,
+      reciprocal: null,
+      timeframe: 'Flexible'
+    });
+    expect(c.primary_quantity).toBeNull();
+    expect(c.reciprocal_quantity).toBeNull();
   });
 
   it('gives a new quantity a unit when the proposal had none', () => {
@@ -136,14 +142,20 @@ describe('buildCounter', () => {
       primary: { ...proposal().primary, quantity: null },
       reciprocal: { ...proposal().reciprocal, quantity: null }
     });
-    const c = buildCounter(p, { primary: 2, reciprocal: 10, timeframe: p.delivery_timeframe });
-    expect(c.primary.quantity).toEqual({ value: 2, unit: 'hours' });
-    expect(c.reciprocal.quantity).toEqual({ value: 10, unit: 'Hours (time bank)' });
+    const c = buildCounter(countered, p, {
+      primary: 2,
+      reciprocal: 10,
+      timeframe: p.delivery_timeframe
+    });
+    expect(c.primary_quantity).toEqual({ value: 2, unit: 'hours' });
+    expect(c.reciprocal_quantity).toEqual({ value: 10, unit: 'Hours (time bank)' });
   });
 
   it('never puts a quantity on a gift', () => {
     const p = proposal({ reciprocal: gift });
-    expect(buildCounter(p, { ...startingEdits(p), reciprocal: 4 }).reciprocal).toEqual(gift);
+    expect(
+      buildCounter(countered, p, { ...startingEdits(p), reciprocal: 4 }).reciprocal_quantity
+    ).toBeNull();
   });
 });
 

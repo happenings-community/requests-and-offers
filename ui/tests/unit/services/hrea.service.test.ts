@@ -1,4 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { encode } from '@msgpack/msgpack';
 import { Effect as E, Layer, pipe } from 'effect';
 import type { AppWebsocket } from '@holochain/client';
 import {
@@ -493,6 +494,46 @@ describe('HreaService', () => {
         'proposal create failed'
       );
     });
+
+    // The proposal is created with its intents: hREA stores publishes and
+    // reciprocal on the proposal entry, and this adapter has no proposeIntent.
+    it('creates the proposal with its primary and reciprocal intents', async () => {
+      mockMutate.mockResolvedValue({
+        data: {
+          createProposal: {
+            proposal: {
+              ...mockProposalRaw,
+              publishes: [{ id: 'intent-work' }],
+              reciprocal: [{ id: 'intent-pay' }]
+            }
+          }
+        }
+      });
+      await call((s) =>
+        s.createProposal({ name: 'Trade', publishes: ['intent-work'], reciprocal: ['intent-pay'] })
+      );
+      expect(mockMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: {
+            proposal: expect.objectContaining({
+              publishes: ['intent-work'],
+              reciprocal: ['intent-pay']
+            })
+          }
+        })
+      );
+    });
+
+    it('fails when the created proposal does not publish the intents it was given', async () => {
+      mockMutate.mockResolvedValue({
+        data: { createProposal: { proposal: { ...mockProposalRaw, publishes: [], reciprocal: [] } } }
+      });
+      await expect(
+        call((s) =>
+          s.createProposal({ name: 'Trade', publishes: ['intent-work'], reciprocal: ['intent-pay'] })
+        )
+      ).rejects.toThrow('does not publish');
+    });
   });
 
   describe('updateProposal', () => {
@@ -639,49 +680,6 @@ describe('HreaService', () => {
     });
   });
 
-  describe('proposeIntent', () => {
-    it('returns true when the link is created', async () => {
-      mockMutate.mockResolvedValue({
-        data: { proposeIntent: { proposedIntent: { id: 'link-1' } } }
-      });
-      const result = await call((s) =>
-        s.proposeIntent({ intentId: 'intent-1', proposalId: 'prop-1', reciprocal: true })
-      );
-      expect(mockMutate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          variables: { publishedIn: 'prop-1', publishes: 'intent-1', reciprocal: true }
-        })
-      );
-      expect(result).toBe(true);
-    });
-
-    it('defaults reciprocal to false when omitted', async () => {
-      mockMutate.mockResolvedValue({
-        data: { proposeIntent: { proposedIntent: { id: 'link-1' } } }
-      });
-      await call((s) => s.proposeIntent({ intentId: 'intent-1', proposalId: 'prop-1' }));
-      expect(mockMutate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          variables: expect.objectContaining({ reciprocal: false })
-        })
-      );
-    });
-
-    it('returns false when no proposedIntent returned', async () => {
-      mockMutate.mockResolvedValue({ data: { proposeIntent: {} } });
-      expect(
-        await call((s) => s.proposeIntent({ intentId: 'intent-1', proposalId: 'prop-1' }))
-      ).toBe(false);
-    });
-
-    it('wraps errors', async () => {
-      mockMutate.mockRejectedValue(new Error('link failed'));
-      await expect(
-        call((s) => s.proposeIntent({ intentId: 'intent-1', proposalId: 'prop-1' }))
-      ).rejects.toThrow('link failed');
-    });
-  });
-
   describe('updateIntent', () => {
     it('updates and normalizes an intent', async () => {
       mockMutate.mockResolvedValue({ data: { updateIntent: { intent: mockIntentRaw } } });
@@ -715,6 +713,53 @@ describe('HreaService', () => {
     it('returns false when missing', async () => {
       mockMutate.mockResolvedValue({ data: {} });
       expect(await call((s) => s.deleteIntent({ revisionId: 'rev-2' }))).toBe(false);
+    });
+  });
+
+  // hREA's list read returns a commitment's original revision after an update
+  // (update_rea_commitment leaves all_commitments on the Create), so whatever
+  // depends on `finished` reads each commitment's latest revision by id.
+  describe('getLatestCommitments', () => {
+    const listed = {
+      id: 'uhCkkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      revisionId: 'uhCkkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      action: 'work',
+      provider: 'p',
+      receiver: 'r',
+      finished: false
+    };
+    const latestHash = new Uint8Array([132, 41, 36, ...new Array(36).fill(7)]);
+    const record = {
+      signed_action: { hashed: { hash: latestHash } },
+      entry: { Present: { entry_type: 'App', entry: encode({ finished: true, note: 'x' }) } }
+    };
+
+    it('reads each commitment from get_latest_rea_commitment on the hrea role', async () => {
+      mockHolochainClient.callZome.mockResolvedValue(record);
+      const result = await call((s) => s.getLatestCommitments([listed]));
+      expect(mockHolochainClient.callZome).toHaveBeenCalledWith(
+        'hrea',
+        'get_latest_rea_commitment',
+        expect.any(Uint8Array),
+        undefined,
+        'hrea'
+      );
+      expect(result[0].finished).toBe(true);
+      expect(result[0].revisionId).not.toBe(listed.revisionId);
+    });
+
+    it('keeps the listed commitment when the zome returns nothing', async () => {
+      mockHolochainClient.callZome.mockResolvedValue(null);
+      const result = await call((s) => s.getLatestCommitments([listed]));
+      expect(result).toEqual([listed]);
+    });
+
+    it('reads every commitment, one call each', async () => {
+      mockHolochainClient.callZome.mockResolvedValue(record);
+      await call((s) =>
+        s.getLatestCommitments([listed, { ...listed }, { ...listed }])
+      );
+      expect(mockHolochainClient.callZome).toHaveBeenCalledTimes(3);
     });
   });
 

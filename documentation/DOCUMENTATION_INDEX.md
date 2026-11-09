@@ -49,6 +49,7 @@
 - **[Architecture Overview](architecture.md)** - System architecture and design patterns
 - **[Exchange Record](architecture/EXCHANGE_RECORD.md)** - The six-entry append-only exchange record: entry model, derived states, integrity rules
 - **[hREA Integration](architecture/hrea-integration.md)** - Holochain REA framework integration
+- **[Validation and Known Limits](architecture/validation.md)** - What the network enforces, and the gaps still open
 - **[Frontend Refactoring Programme](architecture/frontend-refactoring/README.md)** - Proposed evolution of the frontend: execution, coordination, representation
 
 > The former `architecture/app-runtime.md` entry pointed at a file deleted in `e31c0324`, which removed the `AppServicesTag` application-runtime abstraction. That history is now recorded in [Application runtime](architecture/frontend-refactoring/01-application-runtime.md).

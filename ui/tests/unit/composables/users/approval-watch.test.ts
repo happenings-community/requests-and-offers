@@ -7,7 +7,9 @@ const state = vi.hoisted(() => ({
   },
   latest: null as null | { status_type: string; reason?: string },
   refreshed: 0,
-  refreshFails: false
+  refreshFails: false,
+  // What a successful refresh loads into the current user, when set.
+  onRefresh: null as null | (() => void)
 }));
 
 vi.mock('$lib/stores/users.store.svelte', () => ({
@@ -30,6 +32,7 @@ vi.mock('$lib/stores/administration.store.svelte', () => ({
 vi.mock('$lib/utils/effect', () => ({
   runEffect: async (token: string) => {
     if (token === 'refresh' && state.refreshFails) throw new Error('no answer');
+    if (token === 'refresh') state.onRefresh?.();
     return token === 'status' ? state.latest : null;
   }
 }));
@@ -69,6 +72,7 @@ describe('useApprovalWatch', () => {
     state.latest = null;
     state.refreshed = 0;
     state.refreshFails = false;
+    state.onRefresh = null;
   });
 
   it('calls onAccepted once when the pending member is accepted', async () => {
@@ -155,6 +159,38 @@ describe('useApprovalWatch', () => {
     }
   });
 
+  // #329 again, seen on 2 November: a member who creates their profile in this
+  // page load can have a current user with no status (createUser does not load
+  // it), and the watch skipped every tick, so the approval never showed.
+  it('watches a profile created in this page load, whose status is not loaded yet', async () => {
+    state.currentUser = { original_action_hash: new Uint8Array([1, 2, 3]) };
+    state.onRefresh = () => {
+      state.currentUser = pendingUser();
+    };
+    state.latest = { status_type: 'accepted' };
+    const onAccepted = vi.fn();
+    const watch = useApprovalWatch({ onAccepted });
+    await watch.check();
+    expect(state.refreshed).toBe(1);
+    expect(onAccepted).toHaveBeenCalledTimes(1);
+  });
+
+  it('tries again on the next tick when loading that status fails', async () => {
+    state.currentUser = { original_action_hash: new Uint8Array([1, 2, 3]) };
+    state.refreshFails = true;
+    const onAccepted = vi.fn();
+    const watch = useApprovalWatch({ onAccepted });
+    await watch.check();
+    expect(onAccepted).not.toHaveBeenCalled();
+    state.refreshFails = false;
+    state.onRefresh = () => {
+      state.currentUser = pendingUser();
+    };
+    state.latest = { status_type: 'accepted' };
+    await watch.check();
+    expect(onAccepted).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps waiting while the profile is still loading', async () => {
     vi.useFakeTimers();
     try {
@@ -196,6 +232,7 @@ describe('useApprovalWatch information requests (#331)', () => {
     state.latest = null;
     state.refreshed = 0;
     state.refreshFails = false;
+    state.onRefresh = null;
   });
 
   it('announces a new request once, refreshes the profile, and keeps watching', async () => {

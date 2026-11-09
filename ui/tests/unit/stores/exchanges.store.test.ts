@@ -5,6 +5,7 @@ import type { Record as HcRecord } from '@holochain/client';
 import { createExchangesStore, type ExchangesStore } from '$lib/stores/exchanges.store.svelte';
 import { ExchangesServiceTag, type ExchangesService } from '$lib/services/zomes/exchanges.service';
 import { ExchangeError } from '$lib/errors/exchanges.errors';
+import { storeEventBus } from '$lib/stores/storeEvents';
 import type { AgreementInDHT, ExchangeReadModel, InterestInDHT } from '$lib/types/holochain';
 
 const hash = (n: number) => new Uint8Array([n, n, n, n]);
@@ -31,7 +32,8 @@ const agreement: AgreementInDHT = {
   reciprocal: { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Gift', quantity: null },
   medium: 'Free/Pay it Forward',
   terms: 'Saturday, bring gloves',
-  delivery_timeframe: 'Within 2 weeks'
+  delivery_timeframe: 'Within 2 weeks',
+  counters: null
 };
 
 const interest: InterestInDHT = { listing: hash(1), listing_type: 'Offer', user: hash(3) };
@@ -45,6 +47,7 @@ const model = (over: Partial<ExchangeReadModel> = {}): ExchangeReadModel => ({
   receiver_review: null,
   cancellation: null,
   status: 'Proposed',
+  countered_by: null,
   ...over
 });
 
@@ -60,6 +63,7 @@ function mockService(over: Partial<ExchangesService> = {}): ExchangesService {
     getMyInterests: vi.fn(() => E.succeed([])),
     createAgreement: vi.fn(() => E.succeed(record(agreement, hash(10)))),
     respondToAgreement: vi.fn(() => E.succeed(record({ agreement: hash(10), accepted: true, note: '' }, hash(11)))),
+    counterAgreement: vi.fn(() => E.succeed(record(agreement, hash(12)))),
     completeAgreement: vi.fn(() => E.succeed(record({ agreement: hash(10) }, hash(12)))),
     reviewAgreement: vi.fn(() => E.succeed(record({ agreement: hash(10), rating: 5, on_time: true, as_agreed: true, comment: '' }, hash(13)))),
     cancelAgreement: vi.fn(() => E.succeed(record({ agreement: hash(10), note: '' }, hash(14)))),
@@ -137,5 +141,15 @@ describe('exchanges store', () => {
   it('passes the review fields through to the zome', async () => {
     await E.runPromise(store.review(hash(10), { rating: 4, on_time: true, as_agreed: false, comment: 'fine' }));
     expect(service.reviewAgreement).toHaveBeenCalledWith(hash(10), { rating: 4, on_time: true, as_agreed: false, comment: 'fine' });
+  });
+
+  it('announces a cancellation, so the hREA mirror can end its commitments', async () => {
+    const heard = vi.fn();
+    const off = storeEventBus.on('exchange:cancelled', heard);
+    await E.runPromise(store.cancel(hash(10), 'changed my mind'));
+    off();
+    expect(service.cancelAgreement).toHaveBeenCalledWith(hash(10), 'changed my mind');
+    expect(heard).toHaveBeenCalledTimes(1);
+    expect(heard.mock.calls[0][0].exchange).toBeDefined();
   });
 });

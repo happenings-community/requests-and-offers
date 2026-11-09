@@ -1,8 +1,6 @@
 import type {
-  FullConfig,
   FullResult,
   Reporter,
-  Suite,
   TestCase,
   TestResult
 } from '@playwright/test/reporter';
@@ -39,7 +37,7 @@ class SlackReporter implements Reporter {
     }
   }
 
-  onBegin(config: FullConfig, suite: Suite) {
+  onBegin() {
     this.startTime = Date.now();
     console.log('🚀 Starting E2E tests with real Holochain data...');
   }
@@ -74,7 +72,6 @@ class SlackReporter implements Reporter {
 
     const isSuccess = result.status === 'passed';
     const emoji = isSuccess ? '✅' : '❌';
-    const color = isSuccess ? '#36a64f' : '#ff0000';
 
     const message: SlackMessage = {
       text: `${emoji} E2E Tests ${isSuccess ? 'Passed' : 'Failed'}`,

@@ -104,13 +104,18 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
   test('pending profile cannot browse offers yet', async ({ page }) => {
     await gotoApp(page, '/offers');
 
-    // A pending member gets the same blocked view as a rejected one (#335):
-    // listings open once an administrator approves the profile.
-    await expect(page.getByRole('heading', { name: 'Members only' })).toBeVisible({
-      timeout: 15_000
-    });
+    // A pending member is blocked like a rejected one (#335), and told about
+    // their status rather than about a missing profile (#331): listings open
+    // once an administrator approves the profile.
     await expect(
-      page.locator('text=Your profile is pending approval from administrators.').first()
+      page.getByRole('heading', { name: 'Your application is waiting for approval' })
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page
+        .getByText(
+          "You can't see listings, members or organisations until an administrator approves your profile."
+        )
+        .first()
     ).toBeVisible();
   });
 

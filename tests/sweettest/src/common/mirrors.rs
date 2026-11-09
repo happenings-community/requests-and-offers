@@ -127,6 +127,10 @@ pub struct Request {
     pub service_type_hash: Option<ActionHash>,
     #[serde(default)]
     pub service_type_approval: Option<ActionHash>,
+    #[serde(default)]
+    pub medium_of_exchange_hashes: Vec<ActionHash>,
+    #[serde(default)]
+    pub medium_of_exchange_approvals: Vec<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(Request);
 
@@ -155,6 +159,10 @@ pub struct Offer {
     pub service_type_hash: Option<ActionHash>,
     #[serde(default)]
     pub service_type_approval: Option<ActionHash>,
+    #[serde(default)]
+    pub medium_of_exchange_hashes: Vec<ActionHash>,
+    #[serde(default)]
+    pub medium_of_exchange_approvals: Vec<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(Offer);
 

@@ -9,6 +9,8 @@ use utils::links::{MEDIUM_OF_EXCHANGE_STATUS,
   Tombstone, Writer, MEDIUM_OF_EXCHANGE, OFFER, REQUEST,
 };
 
+use utils::listings::{check_listing_medium_link, OFFERS_INTEGRITY_ZOME, REQUESTS_INTEGRITY_ZOME};
+
 use crate::LinkTypes;
 
 const INDEX: &str = "mediums_of_exchange";
@@ -124,7 +126,30 @@ pub fn validate_create_link(
   match link_type {
     LinkTypes::AllMediumsOfExchange => validate_status_path_link(author, base, target, tag),
     LinkTypes::MediumOfExchangeStatusUpdates => validate_status_update_link(author, base, target, tag),
+    // A listing's links to its mediums: the shape and writer rule, then the
+    // listing's own entry must name the medium at the other end.
+    LinkTypes::RequestToMediumOfExchange => listing_link(link_type, author, base, target, tag, base, target, REQUESTS_INTEGRITY_ZOME),
+    LinkTypes::MediumOfExchangeToRequest => listing_link(link_type, author, base, target, tag, target, base, REQUESTS_INTEGRITY_ZOME),
+    LinkTypes::OfferToMediumOfExchange => listing_link(link_type, author, base, target, tag, base, target, OFFERS_INTEGRITY_ZOME),
+    LinkTypes::MediumOfExchangeToOffer => listing_link(link_type, author, base, target, tag, target, base, OFFERS_INTEGRITY_ZOME),
     other => check_create(&spec(other), author, base, target, tag),
+  }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn listing_link(
+  link_type: &LinkTypes,
+  author: &AgentPubKey,
+  base: &AnyLinkableHash,
+  target: &AnyLinkableHash,
+  tag: &LinkTag,
+  listing: &AnyLinkableHash,
+  medium: &AnyLinkableHash,
+  listing_zome: &str,
+) -> ExternResult<ValidateCallbackResult> {
+  match check_create(&spec(link_type), author, base, target, tag)? {
+    ValidateCallbackResult::Valid => check_listing_medium_link(listing.clone(), medium.clone(), listing_zome),
+    other => Ok(other),
   }
 }
 

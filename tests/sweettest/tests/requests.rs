@@ -38,6 +38,7 @@ async fn basic_request_crud_operations() {
         )
         .await;
     let st_hash = st_record.signed_action.hashed.hash.clone();
+    let fpf = a_medium(&conductors[0], &alice, "PIF", "Free/Pay it Forward").await;
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
@@ -46,7 +47,7 @@ async fn basic_request_crud_operations() {
         .call(
             &alice.zome("requests"),
             "create_request",
-            sample_request("Help with gardening", st_hash.clone()),
+            sample_request("Help with gardening", st_hash.clone(), fpf.clone()),
         )
         .await;
 
@@ -73,7 +74,7 @@ async fn basic_request_crud_operations() {
     assert_eq!(alice_requests.len(), 1, "Alice should have one request");
 
     // Alice updates the request.
-    let mut updated_input = sample_request("Help with gardening (updated)", st_hash.clone());
+    let mut updated_input = sample_request("Help with gardening (updated)", st_hash.clone(), fpf.clone());
     updated_input.request.title = "Help with gardening (updated)".to_string();
     let _: Record = conductors[0]
         .call(
@@ -84,7 +85,7 @@ async fn basic_request_crud_operations() {
                 "previous_action_hash": req_record.signed_action.hashed.hash,
                 "updated_request": updated_input.request,
                 "service_type_hash": st_hash,
-                "medium_of_exchange_hashes": []
+                "medium_of_exchange_hashes": [fpf]
             }),
         )
         .await;
@@ -144,6 +145,7 @@ async fn request_archive_and_delete() {
         )
         .await;
     let st_hash = st_record.signed_action.hashed.hash.clone();
+    let fpf = a_medium(&conductors[0], &alice, "PIF", "Free/Pay it Forward").await;
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
@@ -152,7 +154,7 @@ async fn request_archive_and_delete() {
         .call(
             &alice.zome("requests"),
             "create_request",
-            sample_request("Request to archive", st_hash.clone()),
+            sample_request("Request to archive", st_hash.clone(), fpf.clone()),
         )
         .await;
     let req_hash = req_record.signed_action.hashed.hash.clone();
@@ -161,7 +163,7 @@ async fn request_archive_and_delete() {
     let archived_request = RequestData {
         title: "Request to archive".to_string(),
         status: "Archived".to_string(),
-        ..sample_request("x", st_hash.clone()).request
+        ..sample_request("x", st_hash.clone(), fpf.clone()).request
     };
     let _: Record = conductors[0]
         .call(
@@ -172,7 +174,7 @@ async fn request_archive_and_delete() {
                 "previous_action_hash": req_record.signed_action.hashed.hash,
                 "updated_request": archived_request,
                 "service_type_hash": st_hash,
-                "medium_of_exchange_hashes": []
+                "medium_of_exchange_hashes": [fpf]
             }),
         )
         .await;

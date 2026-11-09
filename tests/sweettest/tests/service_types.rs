@@ -332,11 +332,12 @@ async fn a_listing_names_an_approved_service_type() {
         .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Gardening"))
         .await;
     let st_hash = st.signed_action.hashed.hash.clone();
+    let fpf = a_medium(&conductors[0], &alice, "PIF", "Free/Pay it Forward").await;
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let req: Record = conductors[1]
-        .call(&bob.zome("requests"), "create_request", sample_request("Help in the garden", st_hash.clone()))
+        .call(&bob.zome("requests"), "create_request", sample_request("Help in the garden", st_hash.clone(), fpf.clone()))
         .await;
     let req_hash = req.signed_action.hashed.hash.clone();
 
@@ -368,6 +369,7 @@ async fn a_listing_cannot_name_a_pending_service_type() {
         .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("Pending Service"))
         .await;
     let pending_hash = pending.signed_action.hashed.hash.clone();
+    let fpf = a_medium(&conductors[0], &alice, "PIF", "Free/Pay it Forward").await;
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
@@ -375,7 +377,7 @@ async fn a_listing_cannot_name_a_pending_service_type() {
         .call_fallible::<_, Record>(
             &bob.zome("requests"),
             "create_request",
-            sample_request("Names a pending type", pending_hash),
+            sample_request("Names a pending type", pending_hash, fpf.clone()),
         )
         .await;
     assert!(result.is_err(), "a listing cannot name a pending service type");
@@ -390,6 +392,7 @@ async fn a_listing_cannot_name_a_rejected_service_type() {
         .call(&bob.zome("service_types"), "suggest_service_type", sample_service_type("Rejected Service"))
         .await;
     let rejected_hash = suggestion.signed_action.hashed.hash.clone();
+    let fpf = a_medium(&conductors[0], &alice, "PIF", "Free/Pay it Forward").await;
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
@@ -403,7 +406,7 @@ async fn a_listing_cannot_name_a_rejected_service_type() {
         .call_fallible::<_, Record>(
             &bob.zome("offers"),
             "create_offer",
-            sample_offer("Names a rejected type", rejected_hash),
+            sample_offer("Names a rejected type", rejected_hash, fpf.clone()),
         )
         .await;
     assert!(result.is_err(), "a listing cannot name a rejected service type");
@@ -427,12 +430,13 @@ async fn editing_a_listing_keeps_its_service_type() {
         .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Design"))
         .await;
     let first_hash = first.signed_action.hashed.hash.clone();
+    let fpf = a_medium(&conductors[0], &alice, "PIF", "Free/Pay it Forward").await;
     let second_hash = second.signed_action.hashed.hash.clone();
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let req: Record = conductors[1]
-        .call(&bob.zome("requests"), "create_request", sample_request("Help needed", first_hash.clone()))
+        .call(&bob.zome("requests"), "create_request", sample_request("Help needed", first_hash.clone(), fpf.clone()))
         .await;
     let req_hash = req.signed_action.hashed.hash.clone();
 
@@ -486,16 +490,17 @@ async fn tombstoning_one_listings_links_leaves_others_live() {
         .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Shared Service"))
         .await;
     let st_hash = st.signed_action.hashed.hash.clone();
+    let fpf = a_medium(&conductors[0], &alice, "PIF", "Free/Pay it Forward").await;
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
     let req: Record = conductors[1]
-        .call(&bob.zome("requests"), "create_request", sample_request("Request naming it", st_hash.clone()))
+        .call(&bob.zome("requests"), "create_request", sample_request("Request naming it", st_hash.clone(), fpf.clone()))
         .await;
     let req_hash = req.signed_action.hashed.hash.clone();
 
     let offer: Record = conductors[1]
-        .call(&bob.zome("offers"), "create_offer", sample_offer("Offer naming it", st_hash.clone()))
+        .call(&bob.zome("offers"), "create_offer", sample_offer("Offer naming it", st_hash.clone(), fpf.clone()))
         .await;
 
     await_consistency_s(15, [&alice, &bob]).await.unwrap();

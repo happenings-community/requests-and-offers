@@ -43,7 +43,9 @@
   let title = $state(request?.title ?? '');
   let description = $state(request?.description ?? '');
   let descriptionTextarea: HTMLTextAreaElement | undefined = $state(undefined);
-  let serviceTypeHashes = $state<ActionHash[]>(request?.service_type_hash ? [request.service_type_hash] : []);
+  let serviceTypeHashes = $state<ActionHash[]>(
+    request?.service_type_hash ? [request.service_type_hash] : []
+  );
 
   // Time preference handling
   let timePreferenceType = $state<'Morning' | 'Afternoon' | 'Evening' | 'NoPreference' | 'Other'>(
@@ -111,9 +113,7 @@
     mediumsOfExchangeStore.approvedMediumsOfExchange.some(
       (moe) =>
         moe.name === 'Service Exchange' &&
-        selectedMediumOfExchange.some(
-          (h) => h.toString() === moe.original_action_hash?.toString()
-        )
+        selectedMediumOfExchange.some((h) => h.toString() === moe.original_action_hash?.toString())
     )
   );
   const serviceExchangeGated = $derived(serviceExchangeSelected && myOffersCount === 0);
@@ -211,17 +211,33 @@
   }
 
   // Form validation
-  const isValid = $derived(
-    title.trim().length > 0 &&
-      description.trim().length > 0 &&
-      serviceTypeHashes.length > 0 &&
-      timePreferenceType !== undefined &&
-      (timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0) &&
-      contactPreferenceType !== undefined &&
-      (contactPreferenceType !== 'Other' || contactPreferenceOther.trim().length > 0) &&
-      timeZone !== undefined &&
-      interactionType !== undefined
+  // Each required field and how it is named when missing. The submit button and the
+  // "Still needed" line both read this, so they can never disagree.
+  const stillNeeded = $derived(
+    (
+      [
+        [title.trim().length > 0, 'title'],
+        [description.trim().length > 0, 'description'],
+        [serviceTypeHashes.length > 0, 'service type'],
+        [selectedMediumOfExchange.length > 0, 'medium of exchange'],
+        [timePreferenceType !== undefined, 'time preference'],
+        [
+          timePreferenceType !== 'Other' || timePreferenceOther.trim().length > 0,
+          'your time preference'
+        ],
+        [contactPreferenceType !== undefined, 'contact preference'],
+        [
+          contactPreferenceType !== 'Other' || contactPreferenceOther.trim().length > 0,
+          'your contact preference'
+        ],
+        [timeZone !== undefined, 'time zone'],
+        [interactionType !== undefined, 'interaction type']
+      ] as [boolean, string][]
+    )
+      .filter(([filled]) => !filled)
+      .map(([, name]) => name)
   );
+  const isValid = $derived(stillNeeded.length === 0);
 
   async function mockRequest() {
     submitting = true;
@@ -301,7 +317,8 @@
       // Refuse to save with a link typed but not added. Silently committing it
       // guesses at intent; silently dropping it loses their work.
       if (pendingLink.trim()) {
-        linksWarning = 'A link has been typed but not added. Go back to the Links field and add it, or clear it, before saving.';
+        linksWarning =
+          'A link has been typed but not added. Go back to the Links field and add it, or clear it, before saving.';
         // Skeleton InputChip does not expose its input, so reach it through the label.
         (linksField?.querySelector('input.input-chip-field') as HTMLElement | null)?.focus();
         submitting = false;
@@ -464,25 +481,33 @@
   <div class="card variant-ghost-surface p-4">
     <div class="mb-2 flex items-center justify-between">
       <h3 class="h3">{hasCurrencyMoEs() ? 'Additional Currencies' : 'Medium of Exchange'}</h3>
-      <button
-        type="button"
-        class="variant-ghost-primary btn btn-sm"
-        onclick={openSuggestMediumModal}
-        title="Suggest a new medium of exchange for administrator review"
-      >
-        💡 Suggest New
-      </button>
+      {#if mode !== 'edit'}
+        <button
+          type="button"
+          class="variant-ghost-primary btn btn-sm"
+          onclick={openSuggestMediumModal}
+          title="Suggest a new medium of exchange for administrator review"
+        >
+          💡 Suggest New
+        </button>
+      {/if}
     </div>
     <MediumOfExchangeSelector
       selectedMediums={selectedMediumOfExchange}
       onSelectionChange={handleMediumOfExchangeChange}
       label={hasCurrencyMoEs() ? 'Additional Currencies' : 'Medium of Exchange'}
       placeholder="Select how you'd like to be compensated..."
-      required={false}
+      required={true}
       name="mediumOfExchange"
       id="request-medium-of-exchange"
       mode="multiple"
+      disabled={mode === 'edit'}
     />
+    {#if mode === 'edit'}
+      <p class="text-sm text-surface-600 dark:text-surface-400">
+        A request's mediums of exchange can't be changed. For different ones, publish a new request.
+      </p>
+    {/if}
   </div>
 
   <div class="grid grid-cols-1 gap-4">
@@ -649,13 +674,10 @@
   <!-- Links -->
   <label class="label" bind:this={linksField}>
     <span>Links (optional)</span>
-    <p class="text-sm text-surface-600 dark:text-surface-400">Type a link and press Enter to add it.</p>
-    <InputChip
-      bind:value={links}
-      bind:input={pendingLink}
-      name="links"
-      placeholder="https://"
-    />
+    <p class="text-sm text-surface-600 dark:text-surface-400">
+      Type a link and press Enter to add it.
+    </p>
+    <InputChip bind:value={links} bind:input={pendingLink} name="links" placeholder="https://" />
     {#if linksError}
       <p class="mt-1 text-sm text-error-500">{linksError}</p>
     {/if}
@@ -679,9 +701,7 @@
             {publishedOrganizationName ?? 'No organization'}
           </p>
         {/if}
-        <p class="text-surface-500 text-xs">
-          This cannot be changed after a listing is published.
-        </p>
+        <p class="text-xs text-surface-500">This cannot be changed after a listing is published.</p>
       {:else if isLoadingOrganizations}
         <div class="flex items-center gap-2">
           <span class="loading loading-spinner loading-sm"></span>
@@ -712,6 +732,11 @@
     </p>
   {/if}
 
+  {#if !isValid && !submitting}
+    <p class="text-sm text-surface-600 dark:text-surface-400" data-testid="still-needed">
+      Still needed: {stillNeeded.join(', ')}.
+    </p>
+  {/if}
   <!-- Submit Button -->
   <div class="flex gap-4">
     <button

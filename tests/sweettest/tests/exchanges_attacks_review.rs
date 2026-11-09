@@ -214,10 +214,11 @@ async fn world() -> World {
         )
         .await;
     let service_type = service_type.signed_action.hashed.hash.clone();
+    let fpf = a_medium(&conductors[0], &alice, "PIF", "Free/Pay it Forward").await;
     await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
 
     let offer: Record = conductors[0]
-        .call(&alice.zome("offers"), "create_offer", sample_offer("Web design review", service_type.clone()))
+        .call(&alice.zome("offers"), "create_offer", sample_offer("Web design review", service_type.clone(), fpf.clone()))
         .await;
     let offer = offer.signed_action.hashed.hash.clone();
     await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();

@@ -138,6 +138,7 @@
               person={row.author}
               listingType={row.interest.listing_type === 'Offer' ? 'offer' : 'request'}
               listingTitle={row.title}
+              count
             />
             <a
               class="variant-ghost btn btn-sm"

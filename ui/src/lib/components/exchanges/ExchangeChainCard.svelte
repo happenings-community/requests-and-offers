@@ -99,7 +99,7 @@
     browser picks one for you. Go to chat is a second destination, so it gets its own.
   -->
   <div class="flex flex-wrap items-center gap-2 px-4 pb-3">
-    <ReachPerson person={counterpartyOf(latest, me)} context="exchange" />
+    <ReachPerson person={counterpartyOf(latest, me)} context="exchange" count />
   </div>
 
   {#if earlier.length > 0 || chain.missingEarlier}

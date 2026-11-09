@@ -112,4 +112,13 @@ describe('reaching someone when there is no conversation to offer', () => {
     render(ReachPerson, { props: { person: undefined } });
     expect(getUserByActionHash).not.toHaveBeenCalled();
   });
+
+  it('is full width when the page asks for a block, as on a listing', async () => {
+    getUserByActionHash.mockResolvedValue(REACHABLE);
+    render(ReachPerson, { props: { person: PERSON, block: true } });
+
+    const button = await screen.findByTestId('contact-person');
+    expect(button.className).toContain('w-full');
+    expect(button.className).not.toContain('btn-sm');
+  });
 });

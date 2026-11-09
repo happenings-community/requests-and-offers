@@ -135,7 +135,8 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
   const hash = () => exchange!.agreement_hash;
 
   const accept = () =>
-    act('Agreement accepted', () => runEffect(exchangesStore.respond(hash(), true, note)));
+    // No note on an accept: the box belongs to Decline, and nothing shows an accept's.
+    act('Agreement accepted', () => runEffect(exchangesStore.respond(hash(), true, '')));
 
   const decline = () =>
     act('Agreement declined', () => runEffect(exchangesStore.respond(hash(), false, note)));

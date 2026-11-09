@@ -210,23 +210,36 @@
               {other?.name ?? 'They'} sent this proposal. Accept it to form the agreement, counter with
               your own, or decline.
             </p>
-            <textarea
-              class="textarea"
-              rows="2"
-              bind:value={details.note}
-              placeholder="A note, if declining"
-            ></textarea>
             <div class="flex flex-wrap gap-2">
               <button class="variant-filled-secondary btn" onclick={counter} disabled={busy}
                 >Counter</button
-              >
-              <button class="variant-ghost-surface btn" onclick={decline} disabled={busy}
-                >Decline</button
               >
               <button class="variant-filled-primary btn" onclick={accept} disabled={busy}
                 >Accept and form agreement</button
               >
             </div>
+            <!--
+              The note goes with Decline alone (Sam, 5 November). It sat above all three
+              buttons as "A note, if declining", so a note typed before Accept was written
+              to the record and shown nowhere. A declined exchange shows its note above.
+            -->
+            <details class="mt-2">
+              <summary class="cursor-pointer text-sm text-surface-500"
+                >Decline this proposal</summary
+              >
+              <div class="mt-2 space-y-2">
+                <textarea
+                  class="textarea"
+                  rows="2"
+                  bind:value={details.note}
+                  placeholder="Why, briefly"
+                  data-testid="decline-note"
+                ></textarea>
+                <button class="variant-ghost-error btn btn-sm" onclick={decline} disabled={busy}
+                  >Decline</button
+                >
+              </div>
+            </details>
           {/if}
         {:else if state === 'agreed' || state === 'partlyDone'}
           {#if myDone}

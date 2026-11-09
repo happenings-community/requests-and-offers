@@ -36,13 +36,19 @@
      * so the pop-up leaves out the line that says one does.
      */
     context?: 'interest' | 'exchange';
+    /** Full size and full width, as the listing page's own actions are. */
+    block?: boolean;
+    /** Show how much from this person is unopened, where a count is plugged in. */
+    count?: boolean;
   };
   const {
     person,
     listingType = 'request',
     listingTitle = '',
     organization = null,
-    context = 'interest'
+    context = 'interest',
+    block = false,
+    count = false
   }: Props = $props();
 
   const plugged = getReachPerson();
@@ -110,7 +116,7 @@
 
 {#if person}
   {#if Reach}
-    <Reach {person} />
+    <Reach {person} {block} {count} />
   {:else if looked}
     {#if failed}
       <!--
@@ -135,7 +141,7 @@
     {:else if reachable}
       <button
         type="button"
-        class="variant-ghost btn btn-sm"
+        class="variant-ghost btn {block ? 'w-full' : 'btn-sm'}"
         onclick={openContact}
         data-testid="contact-person"
       >

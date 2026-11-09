@@ -151,6 +151,20 @@
             {S.interest.withdraw}
           </button>
         </div>
+        <!--
+          Only once interest is shown (Sam, 5 November). Showing interest is where an
+          exchange begins, and the record of it is what a conversation and a proposal
+          hang off; a chat opened before it would be a thread with no exchange behind it.
+          Alpha 1 gave out the author's details at the same point. Full width, like the
+          actions above it.
+        -->
+        <ReachPerson
+          person={creator?.original_action_hash}
+          listingType={noun}
+          {listingTitle}
+          {organization}
+          block
+        />
       {:else}
         <button
           class="variant-filled-primary btn w-full"
@@ -161,18 +175,6 @@
           {S.listing.showInterest}
         </button>
       {/if}
-      <!--
-        Beside the actions in both states, because wanting to ask something does not wait
-        for an interest to be recorded.
-      -->
-      <div class="flex flex-wrap items-center justify-center gap-2">
-        <ReachPerson
-          person={creator?.original_action_hash}
-          listingType={noun}
-          {listingTitle}
-          {organization}
-        />
-      </div>
     </div>
   {/if}
 {/if}

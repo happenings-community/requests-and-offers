@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
 import ListingInterest from '$lib/components/exchanges/ListingInterest.svelte';
+import type { UIUser } from '$lib/types/ui';
 
 /**
  * **The listing keeps its door when the read fails** (review of 16 October, F11).
@@ -39,6 +40,14 @@ vi.mock('$lib/utils/effect', () => ({ runEffect: <T>(value: T) => value }));
 vi.mock('$lib/utils/toast', () => ({ showToast: vi.fn() }));
 
 const LISTING = new Uint8Array(Array(39).fill(5));
+const AUTHOR = new Uint8Array(Array(39).fill(9));
+const MY_INTEREST = {
+  interest_hash: new Uint8Array(Array(39).fill(3)),
+  listing: LISTING,
+  listing_type: 'Offer',
+  created_at: Date.now(),
+  user: new Uint8Array(Array(39).fill(1))
+};
 
 const mount = () =>
   render(ListingInterest, {
@@ -46,7 +55,7 @@ const mount = () =>
       listingHash: LISTING,
       listingType: 'Offer',
       listingTitle: 'Garden clearance',
-      creator: null,
+      creator: { original_action_hash: AUTHOR, name: 'Anita Rossi' } as UIUser,
       organization: null,
       isCreator: false
     }
@@ -76,5 +85,34 @@ describe('the listing door when the interests cannot be read', () => {
     expect(await screen.findByTestId('show-interest')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(getInterestsForListing).toHaveBeenCalledTimes(2);
+  });
+});
+
+/**
+ * **Reaching the author comes after showing interest** (Sam, 5 November).
+ *
+ * Showing interest is where an exchange begins, and its record is what a conversation and
+ * a proposal hang off. With nothing plugged in, what this renders is the Contact button;
+ * Go to chat takes the same place when messaging is, so gating the place gates both.
+ *
+ * **To make this go red:** render ReachPerson outside the `mine` branch again.
+ */
+describe('reaching the author', () => {
+  it('is not offered before interest is shown', async () => {
+    getInterestsForListing.mockResolvedValue([]);
+    mount();
+
+    expect(await screen.findByTestId('show-interest')).toBeTruthy();
+    expect(screen.queryByTestId('contact-person')).toBeNull();
+    expect(screen.queryByTestId('contact-unavailable')).toBeNull();
+  });
+
+  it('is offered once it is, full width', async () => {
+    getInterestsForListing.mockResolvedValue([MY_INTEREST]);
+    mount();
+
+    const reach = await screen.findByTestId('contact-unavailable');
+    expect(reach).toBeTruthy();
+    expect(screen.queryByTestId('show-interest')).toBeNull();
   });
 });

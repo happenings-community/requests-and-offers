@@ -23,8 +23,13 @@
    *
    * The wording and the count stayed in the messaging strings through H3 for exactly this
    * step: Go to chat and the count are one thing to say, said here, once.
+   *
+   * **The count sits on the button's corner**, as a number on an app icon does, and only
+   * where `count` asks for it: on My Exchanges, where the member is scanning people. On a
+   * listing or an exchange page it stays off, so the one place that counts unopened
+   * conversations is My Messages (Sam, 6 November).
    */
-  const { person }: ReachPersonProps = $props();
+  const { person, block = false, count = false }: ReachPersonProps = $props();
 
   const unread = $derived(
     messagingStore.threads.find((t) => t.key === threadKeyOf(person))?.unread ?? 0
@@ -47,11 +52,23 @@
   }
 </script>
 
-<a class="variant-ghost btn btn-sm" {href} onclick={press} data-testid="go-to-chat">
+<a
+  class="variant-ghost btn relative {block ? 'w-full' : 'btn-sm'}"
+  {href}
+  onclick={press}
+  data-testid="go-to-chat"
+  aria-label={count && unread > 0
+    ? `${S.exchanges.goToChat}, ${fill(S.hub.unread, { count: unread })}`
+    : undefined}
+>
   {S.exchanges.goToChat}
+  {#if count && unread > 0}
+    <span
+      class="variant-filled-primary badge absolute -right-2 -top-2 min-w-5 rounded-full px-1.5 py-0 text-xs"
+      aria-hidden="true"
+      data-testid="go-to-chat-unread"
+    >
+      {unread}
+    </span>
+  {/if}
 </a>
-{#if unread > 0}
-  <span class="variant-filled-primary badge" data-testid="go-to-chat-unread">
-    {fill(S.hub.unread, { count: unread })}
-  </span>
-{/if}

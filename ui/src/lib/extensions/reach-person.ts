@@ -10,7 +10,7 @@ import type { ActionHash } from '@holochain/client';
  * lets both sides meet here without either reaching the other:
  *
  * - **Messaging supplies** `components/messaging/GoToChat.svelte`, which takes the same
- *   props and adds the unread count.
+ *   props and adds the unread count where it is asked for.
  * - **The root layout plugs it in**, because it is the one place that already sees both
  *   sides, and only while messaging is present (H2).
  * - **The exchange pages render whatever is plugged in**, through
@@ -25,6 +25,18 @@ import type { ActionHash } from '@holochain/client';
 export type ReachPersonProps = {
   /** The other person's `User`, as the conversation and the profile both key on it. */
   person: ActionHash;
+  /**
+   * Fill the row it sits in, at full size, as the listing page's own actions do. Off, it
+   * is a small button beside its neighbours, as on a row of My Exchanges.
+   */
+  block?: boolean;
+  /**
+   * Say how much of this person's is unopened. Only where the member is scanning several
+   * people at once (My Exchanges), since there an unopened message from this one is what
+   * they are looking for. Elsewhere the count belongs to My Messages alone (Sam, 6
+   * November).
+   */
+  count?: boolean;
 };
 
 export type ReachPersonComponent = Component<ReachPersonProps>;

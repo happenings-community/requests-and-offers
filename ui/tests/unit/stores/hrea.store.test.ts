@@ -8,7 +8,7 @@ import {
 import type { HreaService } from '@/lib/services/hrea.service';
 import { HreaServiceTag } from '@/lib/services/hrea.service';
 import { runEffect } from '$lib/utils/effect';
-import type { Agent } from '$lib/types/hrea';
+import type { Agent, Commitment } from '$lib/types/hrea';
 import type { UIOrganization, UIUser, UIServiceType } from '$lib/types/ui';
 import { HreaError } from '$lib/errors';
 import { fakeActionHash } from '@holochain/client';
@@ -125,6 +125,7 @@ describe('HreaStore', () => {
       getAgreements: vi.fn().mockReturnValue(E.succeed([])),
       getCommitments: vi.fn().mockReturnValue(E.succeed([])),
       getEconomicEvents: vi.fn().mockReturnValue(E.succeed([])),
+      getLatestCommitments: vi.fn((cs: readonly Commitment[]) => E.succeed([...cs])),
       getUnits: vi.fn().mockReturnValue(E.succeed([])),
       createUnit: vi.fn((params) =>
         E.succeed({ id: `unit-${params.label}`, label: params.label, symbol: params.symbol })

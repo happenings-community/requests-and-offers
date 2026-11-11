@@ -260,6 +260,7 @@
           keyshortcuts={ADMIN_SHORTCUT_ARIA}
           badgeLabel="waiting to be accepted"
           alignRight={true}
+          hint={showSetupHint ? SELF_ACCEPTANCE_LABEL : undefined}
         />
         {#if showSetupHint}
           <!-- Red stays on the dot: elsewhere in the app red means danger. -->
@@ -271,7 +272,6 @@
             class="pointer-events-none absolute -right-1 -top-1 h-3 w-3 rounded-full bg-error-500 ring-2 ring-primary-500"
             aria-hidden="true"
           ></span>
-          <span class="sr-only">{SELF_ACCEPTANCE_LABEL}</span>
         {/if}
       </div>
     {/if}

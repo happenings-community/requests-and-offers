@@ -27,9 +27,19 @@
     badgeLabel?: string;
     /** aria-keyshortcuts for the trigger, e.g. the Admin menu's Alt+A (#356). */
     keyshortcuts?: string;
+    /** A sentence added to the trigger's name, e.g. the progenitor's setup hint (#361). */
+    hint?: string;
   };
 
-  let { title, items, alignRight = false, avatar, badgeLabel = 'waiting on you', keyshortcuts }: Props = $props();
+  let {
+    title,
+    items,
+    alignRight = false,
+    avatar,
+    badgeLabel = 'waiting on you',
+    keyshortcuts,
+    hint
+  }: Props = $props();
 
   const total = $derived(items.reduce((n, item) => n + (item.badge ?? 0), 0));
   const shown = (n: number) => (n > 9 ? '9+' : String(n));
@@ -114,7 +124,8 @@
     aria-keyshortcuts={keyshortcuts}
     onclick={onTriggerClick}
     onkeydown={onTriggerKey}
-    aria-label={total > 0 ? `${title} menu, ${total} ${badgeLabel}` : `${title} menu`}
+    aria-label={(total > 0 ? `${title} menu, ${total} ${badgeLabel}` : `${title} menu`) +
+      (hint ? `. ${hint}` : '')}
   >
     {#if avatar}
       <img

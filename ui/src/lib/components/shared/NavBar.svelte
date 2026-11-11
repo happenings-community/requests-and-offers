@@ -18,6 +18,8 @@
   import { runEffect } from '$lib/utils/effect';
   import { ADMIN_SHORTCUT_ARIA } from '$lib/utils/admin-shortcut';
   import { onMount, untrack } from 'svelte';
+  import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
+  import { storeEventBus } from '$lib/stores/storeEvents';
   import {
     getConnectionStatusContext,
     type ConnectionStatus
@@ -54,6 +56,9 @@
   const currentUser = $derived(usersStore.currentUser);
   const myPicture = $derived(currentUser ? getUserPictureUrl(currentUser) : undefined);
   const agentIsAdministrator = $derived(administrationStore.agentIsAdministrator);
+  const showSetupHint = $derived(
+    needsSelfAcceptance(agentIsAdministrator, currentUser?.status?.status_type)
+  );
   const drawerStore = getDrawerStore();
   const drawerSettings: DrawerSettings = {
     id: 'menu-drawer',
@@ -89,7 +94,18 @@
     };
     refresh();
     const interval = setInterval(refresh, 15000);
-    return () => clearInterval(interval);
+
+    // Accepting yourself on the members page updates the admin list but not your own profile
+    // in the users store, so the setup hint would stay until a reload. While it shows,
+    // re-read your profile whenever a member's status changes.
+    const stopListening = storeEventBus.on('user:status:updated', () => {
+      if (showSetupHint) runEffect(usersStore.refreshCurrentUser()).catch(() => {});
+    });
+
+    return () => {
+      clearInterval(interval);
+      stopListening();
+    };
   });
 
   // The Admin menu (#359), with who is waiting to be accepted. Read from the
@@ -235,7 +251,9 @@
 
     <!-- Admin Access -->
     {#if agentIsAdministrator}
-      <div class="text-white">
+      <!-- #411's Admin menu, with #361's hint for a progenitor who has not yet accepted
+           their own membership: the dot and pulse sit on the menu button. -->
+      <div class="relative text-white">
         <NavDropdown
           title="Admin"
           items={adminItems}
@@ -243,6 +261,18 @@
           badgeLabel="waiting to be accepted"
           alignRight={true}
         />
+        {#if showSetupHint}
+          <!-- Red stays on the dot: elsewhere in the app red means danger. -->
+          <span
+            class="pointer-events-none absolute inset-0 rounded-token ring-2 ring-white motion-safe:animate-pulse"
+            aria-hidden="true"
+          ></span>
+          <span
+            class="pointer-events-none absolute -right-1 -top-1 h-3 w-3 rounded-full bg-error-500 ring-2 ring-primary-500"
+            aria-hidden="true"
+          ></span>
+          <span class="sr-only">{SELF_ACCEPTANCE_LABEL}</span>
+        {/if}
       </div>
     {/if}
 

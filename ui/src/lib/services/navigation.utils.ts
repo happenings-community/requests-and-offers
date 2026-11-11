@@ -54,6 +54,7 @@ const EXACT_PAIRS: Record<string, string> = {
   '/admin/administrators':               '/',
   '/admin/mediums-of-exchange':          '/',
   '/admin/mediums-of-exchange/create':   '/',
+  '/admin/hrea':                         '/',
   '/admin/hrea-test':                    '/',
 };
 

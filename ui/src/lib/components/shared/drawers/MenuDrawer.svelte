@@ -5,6 +5,7 @@
   import { getUserPictureUrl } from '$lib/utils';
   import { myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
   import { adminMenuItems, adminWaiting } from '$lib/navigation/admin-menu';
+  import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
 
   const drawerStore = getDrawerStore();
   const { currentUser } = $derived(usersStore);
@@ -12,6 +13,9 @@
   // The same items as the nav bar's Admin menu (#359), counts included.
   const adminItems = $derived(
     adminMenuItems(adminWaiting(administrationStore.allUsers, administrationStore.allOrganizations))
+  );
+  const showSetupHint = $derived(
+    needsSelfAcceptance(agentIsAdministrator, currentUser?.status?.status_type)
   );
 
   function closeDrawer() {
@@ -176,6 +180,12 @@
             </a>
           {/each}
         </div>
+        {#if showSetupHint}
+          <p class="flex items-center gap-2 px-3 text-sm">
+            <span class="h-3 w-3 rounded-full bg-error-500" aria-hidden="true"></span>
+            {SELF_ACCEPTANCE_LABEL}
+          </p>
+        {/if}
       </div>
     {/if}
   </div>

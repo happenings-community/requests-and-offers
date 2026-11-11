@@ -34,7 +34,7 @@
     <hr class="!border-surface-600" />
 
     <NavGroup title="Developer">
-      <MenuLink href={paths.adminHreaTest()}>hREA Test</MenuLink>
+      <MenuLink href={paths.adminHrea()}>hREA · ValueFlows</MenuLink>
       <MenuLink href={paths.adminUsersStatusHistory()}>Users Status History</MenuLink>
     </NavGroup>
   </div>

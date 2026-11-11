@@ -19,6 +19,11 @@
   import { shouldShowMockButtons } from '$lib/services/devFeatures.service';
   import { goto } from '$app/navigation';
   import { recheckAdminStatusNow } from '$lib/services/adminStatus.service.svelte';
+  import usersStore from '$lib/stores/users.store.svelte';
+  import administrationStore from '$lib/stores/administration.store.svelte';
+  import { runEffect } from '$lib/utils/effect';
+  import { ADMIN_SHORTCUT_HINT } from '$lib/utils/admin-shortcut';
+  import { needsSelfAcceptance } from '$lib/utils/progenitor-hint';
   import weaveStore from '$lib/stores/weave.store.svelte';
   import MarkdownField from '$lib/components/shared/MarkdownField.svelte';
   import { paths } from '$lib/paths';
@@ -86,6 +91,52 @@
     </p>
   </div>`;
 
+  // The progenitor is the network's first administrator, so the standard next steps, which
+  // say an administrator will be in touch, are wrong for them.
+  const progenitorWelcomeMessage = `
+  <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="w-28" />
+  <h2 class="text-center text-xl font-semibold">You're the first administrator</h2>
+  <div class="space-y-4">
+    <div class="rounded-lg border-l-4 border-blue-500 p-4">
+      <h3 class="text-tertiary-500 text-lg font-bold">One step left</h3>
+      <p class="mt-2 text-left">
+        Accept your own membership. Until you do, your status is pending and the app treats you
+        as a new member.
+      </p>
+    </div>
+    <p class="text-sm">Tip: ${ADMIN_SHORTCUT_HINT}.</p>
+  </div>`;
+
+  function welcomeModal(name: string): ModalSettings {
+    const status = usersStore.currentUser?.status?.status_type;
+    if (needsSelfAcceptance(administrationStore.agentIsAdministrator, status)) {
+      return alertModal({
+        id: 'progenitor-welcome',
+        message: progenitorWelcomeMessage,
+        confirmLabel: 'Open the members page',
+        confirmHref: '/admin/users'
+      });
+    }
+    return alertModal({
+      id: 'welcome-and-next-steps',
+      message: welcomeAndNextStepsMessage(escapeHtml(name)),
+      confirmLabel: 'Ok !'
+    });
+  }
+
+  // Creating a profile can make this agent an administrator, and the store keeps the new
+  // profile without its status. The Admin button and the first-run hint need both, so read
+  // them again now rather than waiting for the next background check. Failures are logged:
+  // the background checks still catch up.
+  async function refreshAfterCreate() {
+    await recheckAdminStatusNow();
+    try {
+      await runEffect(usersStore.refreshCurrentUser());
+    } catch (err) {
+      console.warn('Re-reading the new profile failed:', err);
+    }
+  }
+
   // Initialize picture if editing
   $effect(() => {
     if (mode === 'edit' && user?.picture) {
@@ -124,16 +175,10 @@
       let userData: UserInDHT = (await createMockedUsers())[0];
 
       await onSubmit(userData);
-      await recheckAdminStatusNow();
+      await refreshAfterCreate();
       isLoading = false;
 
-      modalStore.trigger(
-        alertModal({
-          id: 'welcome-and-next-steps',
-          message: welcomeAndNextStepsMessage(escapeHtml(formatUserName(userData.name))),
-          confirmLabel: 'Ok !'
-        })
-      );
+      modalStore.trigger(welcomeModal(formatUserName(userData.name)));
 
       goto(paths.myProfile());
     } catch (err) {
@@ -168,8 +213,7 @@
       const userInput: UserInDHT = formInputToDHT(formInput);
 
       await onSubmit(userInput);
-      // Creating a profile can make this agent an admin; show the Admin button at once (#206).
-      if (mode === 'create') await recheckAdminStatusNow();
+      if (mode === 'create') await refreshAfterCreate();
 
       // Persist migration banner acknowledgment so it doesn't return on subsequent edits.
       if (mode === 'edit' && migrationConfirmed && migrationAckKey) {
@@ -177,13 +221,7 @@
       }
 
       if (mode === 'create') {
-        modalStore.trigger(
-          alertModal({
-            id: 'welcome-and-next-steps',
-            message: welcomeAndNextStepsMessage(escapeHtml(formatUserName(userInput.name))),
-            confirmLabel: 'Ok !'
-          })
-        );
+        modalStore.trigger(welcomeModal(formatUserName(userInput.name)));
       }
 
       goto(paths.myProfile());

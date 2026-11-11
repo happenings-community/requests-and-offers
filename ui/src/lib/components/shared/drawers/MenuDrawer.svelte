@@ -5,10 +5,14 @@
   import messagingPresence from '$lib/services/messagingPresence.svelte';
   import { getUnreadCount } from '$lib/extensions/unread-count';
   import { paths } from '$lib/paths';
+  import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
 
   const drawerStore = getDrawerStore();
   const { currentUser } = $derived(usersStore);
   const { agentIsAdministrator } = $derived(administrationStore);
+  const showSetupHint = $derived(
+    needsSelfAcceptance(agentIsAdministrator, currentUser?.status?.status_type)
+  );
 
   // The same entry the nav bar's Profile menu has, asked for the same way: whether this
   // network has messaging comes from the one presence module, and the count from the
@@ -192,6 +196,10 @@
         >
           <span class="text-lg">⚙️</span>
           <span>Admin Panel</span>
+          {#if showSetupHint}
+            <span class="ml-auto h-3 w-3 rounded-full bg-error-500" aria-hidden="true"></span>
+            <span class="sr-only">{SELF_ACCEPTANCE_LABEL}</span>
+          {/if}
         </a>
       </div>
     {/if}

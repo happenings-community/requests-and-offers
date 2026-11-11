@@ -40,7 +40,8 @@ export type ZomeName =
   | 'messaging'
   | 'misc'
   | 'hrea_economic_event'
-  | 'hrea_observation';
+  | 'hrea_observation'
+  | 'hrea';
 export type RoleName = 'requests_and_offers' | 'hrea';
 
 export interface NetworkInfo {

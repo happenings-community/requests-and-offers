@@ -215,7 +215,7 @@ export const paths = {
   adminMediumsOfExchange: () => '/admin/mediums-of-exchange',
   adminMediumOfExchangeEdit: (id: IdLike) => `/admin/mediums-of-exchange/${h(id)}/edit`,
   adminMediumOfExchangeCreate: () => '/admin/mediums-of-exchange/create',
-  adminHreaTest: () => '/admin/hrea-test'
+  adminHrea: () => '/admin/hrea'
 } as const;
 
 // ---------------------------------------------------------------------------

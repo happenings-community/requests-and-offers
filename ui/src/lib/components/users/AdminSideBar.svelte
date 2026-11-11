@@ -33,7 +33,7 @@
     <hr class="!border-surface-600" />
 
     <NavGroup title="Developer">
-      <MenuLink href="/admin/hrea-test">hREA Test</MenuLink>
+      <MenuLink href="/admin/hrea">hREA · ValueFlows</MenuLink>
       <MenuLink href="/admin/users/status-history">Users Status History</MenuLink>
     </NavGroup>
   </div>

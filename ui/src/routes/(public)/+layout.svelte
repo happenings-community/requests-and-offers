@@ -17,6 +17,7 @@
   <ProfileGuard
     title="Members only"
     description="Listings, members and organisations are open to approved members."
+    blockedAction="see listings, members or organisations"
   >
     {@render children()}
   </ProfileGuard>

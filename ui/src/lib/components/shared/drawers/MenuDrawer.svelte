@@ -4,10 +4,14 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { getUserPictureUrl } from '$lib/utils';
   import { myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
+  import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
 
   const drawerStore = getDrawerStore();
   const { currentUser } = $derived(usersStore);
   const { agentIsAdministrator } = $derived(administrationStore);
+  const showSetupHint = $derived(
+    needsSelfAcceptance(agentIsAdministrator, currentUser?.status?.status_type)
+  );
 
   function closeDrawer() {
     drawerStore.close();
@@ -160,6 +164,10 @@
         >
           <span class="text-lg">⚙️</span>
           <span>Admin Panel</span>
+          {#if showSetupHint}
+            <span class="ml-auto h-3 w-3 rounded-full bg-error-500" aria-hidden="true"></span>
+            <span class="sr-only">{SELF_ACCEPTANCE_LABEL}</span>
+          {/if}
         </a>
       </div>
     {/if}

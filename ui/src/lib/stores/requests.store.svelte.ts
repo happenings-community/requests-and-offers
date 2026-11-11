@@ -291,10 +291,12 @@ export const createRequestsStore = (): E.Effect<
     };
 
     // 2. CACHE SYNCHRONIZATION - Using createGenericCacheSyncHelper
+    // Keyed by the status values themselves: the helper files a listing back under
+    // entityArrays[listing.status], and ListingStatus is 'Active' / 'Archived'.
     const { syncCacheToState } = createGenericCacheSyncHelper({
       all: requests,
-      active: activeRequests,
-      archived: archivedRequests,
+      Active: activeRequests,
+      Archived: archivedRequests,
       searchResults: searchResults
     });
 

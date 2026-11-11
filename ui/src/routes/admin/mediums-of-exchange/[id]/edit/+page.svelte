@@ -71,7 +71,7 @@
     <div>
       <h1 class="h1 text-3xl font-bold">Edit Medium of Exchange</h1>
       <p class="mt-2 text-surface-600 dark:text-surface-300">
-        Modify the details of this currency or payment method.
+        Modify the details of this medium of exchange.
       </p>
     </div>
     <button class="variant-soft btn" onclick={() => handleCancel()}> Back to List </button>

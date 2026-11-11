@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { paths } from '../../../../src/lib/paths';
 
 // U14: the hREA dashboard is the admin's hREA entry, integrated rather than
 // bolted on. The suite does not mount components (see markdown-wiring.test.ts),
@@ -45,8 +46,10 @@ describe('admin hREA entry', () => {
 
   it('is what the admin sidebar links to', () => {
     const nav = read('src/lib/components/users/AdminSideBar.svelte');
-    expect(nav).toMatch(/<MenuLink href="\/admin\/hrea">/);
-    expect(nav).not.toMatch(/hrea-test/);
+    // The sidebar builds its links from paths.ts (#308), so check both halves.
+    expect(nav).toMatch(/<MenuLink href=\{paths\.adminHrea\(\)\}>/);
+    expect(paths.adminHrea()).toBe('/admin/hrea');
+    expect(nav).not.toMatch(/hrea-test|adminHreaTest/);
   });
 
   it('reads its numbers from hREA through the store, never from the prototype mock', () => {

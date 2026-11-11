@@ -1,7 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { getToastStore } from '@skeletonlabs/skeleton';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
@@ -19,9 +18,6 @@
   let error: string | null = $state(null);
   let preselectedOrganization: UIOrganization | null = $state(null);
 
-  // Toast store for notifications
-  const toastStore = getToastStore();
-
   // Derived values
   const { currentUser } = $derived(usersStore);
   const { acceptedOrganizations } = $derived(organizationsStore);
@@ -34,22 +30,16 @@
     try {
       await runEffect(requestsStore.createRequest(request, organizationHash));
 
-      toastStore.trigger({
-        message: 'Request created successfully!',
-        background: 'variant-filled-success'
-      });
-
       // Invalidate cache to ensure fresh data on the list page
       requestsStore.invalidateCache();
 
       // Navigate to the requests list
       goto('/requests');
     } catch (err) {
+      // RequestForm announces the outcome, once: rethrow so it says this failed,
+      // rather than reporting success, and keeps what the member typed.
       console.error('Failed to create request:', err);
-      toastStore.trigger({
-        message: `Failed to create request: ${err instanceof Error ? err.message : String(err)}`,
-        background: 'variant-filled-error'
-      });
+      throw err;
     }
   }
 
@@ -109,6 +99,7 @@
   allowCreating={true}
   title="Profile Required to Create Requests"
   description="You need an approved profile to create requests for help from the community."
+  blockedAction="create requests"
   redirectToProfile={true}
 >
   <PrerequisitesGuard

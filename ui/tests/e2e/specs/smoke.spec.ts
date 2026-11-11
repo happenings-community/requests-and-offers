@@ -1,6 +1,11 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import type { AppWebsocket } from '@holochain/client';
-import { gotoApp, createTestClient, closeTestClient, ensureAcceptedUser } from '../utils/e2e-helpers.js';
+import {
+  gotoApp,
+  createTestClient,
+  closeTestClient,
+  ensureAcceptedUser
+} from '../utils/e2e-helpers.js';
 
 // ============================================================================
 // SMOKE
@@ -115,4 +120,62 @@ test.describe.serial('smoke — every core route mounts against the live conduct
       await expectRouteMounted(page, landmark);
     });
   }
+});
+
+// ============================================================================
+// NAV MENUS FROM THE KEYBOARD (#204, #352)
+//
+// NavDropdown's own handlers cannot be exercised by the unit suite, which does
+// not mount components; menu-keys.test.ts covers only the pure key→target
+// function. This step drives the Community menu, which every visitor sees, in
+// a real browser: open and focus from the trigger, move between items, Escape
+// back to the trigger, Tab out, and a nudged mouse not closing a menu a
+// keyboard user is inside.
+// ============================================================================
+
+test.describe('@smoke nav menus work from the keyboard', () => {
+  test('Community menu: open, move, Escape, Tab, and survive a mouse leave', async ({ page }) => {
+    await gotoApp(page, '/');
+
+    const trigger = page.getByRole('button', { name: 'Community menu' });
+    const menu = page.getByRole('menu', { name: 'Community menu' });
+    const items = menu.getByRole('menuitem');
+
+    // Enter opens and focuses the first item.
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+    await expect(menu).toBeVisible();
+    await expect(items.first()).toBeFocused();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+
+    // Arrows and End/Home move; ArrowUp from the first wraps to the last.
+    await page.keyboard.press('ArrowDown');
+    await expect(items.nth(1)).toBeFocused();
+    await page.keyboard.press('End');
+    await expect(items.last()).toBeFocused();
+    await page.keyboard.press('Home');
+    await expect(items.first()).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(items.last()).toBeFocused();
+
+    // A mouse that crosses the trigger and leaves again does not close a menu
+    // the keyboard is inside, and focus stays where it was.
+    const box = (await trigger.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height + 400);
+    await expect(menu).toBeVisible();
+    await expect(items.last()).toBeFocused();
+
+    // Escape closes and returns focus to the trigger.
+    await page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    // Space opens too; Tab out of the menu closes it.
+    await page.keyboard.press('Space');
+    await expect(items.first()).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(menu).toBeHidden();
+  });
 });

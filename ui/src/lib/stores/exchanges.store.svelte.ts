@@ -201,7 +201,10 @@ export const createExchangesStore = (): E.Effect<ExchangesStore, never, Exchange
       afterWrite(agreement, service.reviewAgreement(agreement, input));
 
     const cancel = (agreement: ActionHash, note: string) =>
-      afterWrite(agreement, service.cancelAgreement(agreement, note));
+      pipe(
+        afterWrite(agreement, service.cancelAgreement(agreement, note)),
+        E.tap((exchange) => E.sync(() => storeEventBus.emit('exchange:cancelled', { exchange })))
+      );
 
     return {
       get exchanges() {

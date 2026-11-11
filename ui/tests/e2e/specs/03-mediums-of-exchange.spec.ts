@@ -67,7 +67,7 @@ test.describe.serial('03 — mediums of exchange: lifecycle and suggestion', () 
     });
     // Exchange type is a radio-card group; "Specific Currency" is the default.
     await page.getByPlaceholder('e.g., USD, EUR, BTC, HOURS').fill('E2EJC');
-    await page.getByPlaceholder('e.g., US Dollar, Bitcoin, Ithaca HOURS').fill(MOE_NAME);
+    await page.getByPlaceholder('e.g., Pound Sterling, Euro, Time-bank hour').fill(MOE_NAME);
     await page.getByRole('button', { name: 'Create Medium of Exchange' }).click();
 
     await expect(page).toHaveURL(/\/admin\/mediums-of-exchange(\?|$)/, { timeout: 15_000 });

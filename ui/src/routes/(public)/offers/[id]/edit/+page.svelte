@@ -1,7 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { getToastStore } from '@skeletonlabs/skeleton';
   import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
   import offersStore from '$lib/stores/offers.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -19,9 +18,6 @@
   let error: string | null = $state(null);
   let offer: UIOffer | null = $state(null);
   let userCoordinatedOrganizations: UIOrganization[] = $state([]);
-
-  // Toast store for notifications
-  const toastStore = getToastStore();
 
   // Derived values
   const { currentUser } = $derived(usersStore);
@@ -93,12 +89,9 @@
 
   // Handle form submission
   async function handleSubmit(updatedOffer: OfferInput, organizationHash?: ActionHash) {
+    // OfferForm announces the outcome, once, so this throws rather than toasting.
     if (!offer?.original_action_hash || !offer?.previous_action_hash) {
-      toastStore.trigger({
-        message: 'Invalid offer data for update',
-        background: 'variant-filled-error'
-      });
-      return;
+      throw new Error('Invalid offer data for update');
     }
 
     try {
@@ -110,19 +103,11 @@
         )
       );
 
-      toastStore.trigger({
-        message: 'Offer updated successfully!',
-        background: 'variant-filled-success'
-      });
-
       // Navigate back to the offer detail page
       goto(`/offers/${offerId}`);
     } catch (err) {
       console.error('Failed to update offer:', err);
-      toastStore.trigger({
-        message: `Failed to update offer: ${err instanceof Error ? err.message : String(err)}`,
-        background: 'variant-filled-error'
-      });
+      throw err;
     }
   }
 

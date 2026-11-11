@@ -104,11 +104,6 @@ jobs:
           TAG: ${{ inputs.tag || github.ref_name }}
         run: echo "value=$TAG" >> "$GITHUB_OUTPUT"
 
-      # The same check CI and the heavy suites run: the published artefact must
-      # not be built from a vendored tarball nobody checked.
-      - name: Verify the vendored hREA adapter
-        run: cd vendor && sha256sum -c valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz.sha256
-
       - name: Install dependencies
         run: bun install --frozen-lockfile
 

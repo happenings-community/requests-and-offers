@@ -9,6 +9,7 @@
   import NavDropdown from '$lib/components/shared/NavDropdown.svelte';
   import { getUserPictureUrl } from '$lib/utils';
   import { myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
+  import { adminMenuItems, adminWaiting } from '$lib/navigation/admin-menu';
   import NetworkStatusPopup from '$lib/components/network/NetworkStatusPopup.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -16,9 +17,9 @@
   import { turnOf } from '$lib/utils/exchange-ui';
   import { runEffect } from '$lib/utils/effect';
   import { ADMIN_SHORTCUT_ARIA } from '$lib/utils/admin-shortcut';
+  import { onMount, untrack } from 'svelte';
   import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
   import { storeEventBus } from '$lib/stores/storeEvents';
-  import { onMount } from 'svelte';
   import {
     getConnectionStatusContext,
     type ConnectionStatus
@@ -107,6 +108,28 @@
     };
   });
 
+  // The Admin menu (#359), with who is waiting to be accepted. Read from the
+  // store's lists, which the admin pages fill too; refreshed while the member
+  // is an administrator, once a minute, so a new application shows without a
+  // visit to the dashboard. The refresh is the background kind: no loading
+  // flag, and its answer is dropped if the administrator wrote a status while
+  // it was on its way, so a tick never undoes a suspend on screen (#340).
+  const adminItems = $derived(
+    adminMenuItems(adminWaiting(administrationStore.allUsers, administrationStore.allOrganizations))
+  );
+
+  $effect(() => {
+    if (!agentIsAdministrator) return;
+    const refresh = () => {
+      runEffect(administrationStore.refreshLists()).catch(() => {});
+    };
+    // The fetches write the lists this component reads; untrack keeps that
+    // write from re-running the effect that started it.
+    untrack(refresh);
+    const interval = setInterval(refresh, 60000);
+    return () => clearInterval(interval);
+  });
+
   const communityItems = [
     {
       href: '/users',
@@ -119,7 +142,7 @@
       label: 'Organizations',
       icon: '🏢',
       description: 'Explore organizations and teams'
-    },
+    }
   ];
 
   const resourceItems = [
@@ -176,7 +199,9 @@
   <div class="flex items-center">
     <a href="/" class="flex items-center gap-3 transition-opacity hover:opacity-80">
       <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="h-12 w-12" />
-      <span class="hidden whitespace-nowrap text-lg font-bold text-white sm:block">Requests & Offers</span>
+      <span class="hidden whitespace-nowrap text-lg font-bold text-white sm:block"
+        >Requests & Offers</span
+      >
     </a>
   </div>
 
@@ -226,15 +251,17 @@
 
     <!-- Admin Access -->
     {#if agentIsAdministrator}
-      <a
-        href="/admin"
-        class="variant-ringed-secondary btn relative border-2 px-4 py-2 text-sm text-white transition-colors hover:variant-filled-secondary"
-        aria-label={showSetupHint
-          ? `Access administration panel. ${SELF_ACCEPTANCE_LABEL}`
-          : 'Access administration panel'}
-        aria-keyshortcuts={ADMIN_SHORTCUT_ARIA}
-      >
-        ⚙️ Admin
+      <!-- #411's Admin menu, with #361's hint for a progenitor who has not yet accepted
+           their own membership: the dot and pulse sit on the menu button. -->
+      <div class="relative text-white">
+        <NavDropdown
+          title="Admin"
+          items={adminItems}
+          keyshortcuts={ADMIN_SHORTCUT_ARIA}
+          badgeLabel="waiting to be accepted"
+          alignRight={true}
+          hint={showSetupHint ? SELF_ACCEPTANCE_LABEL : undefined}
+        />
         {#if showSetupHint}
           <!-- Red stays on the dot: elsewhere in the app red means danger. -->
           <span
@@ -242,11 +269,11 @@
             aria-hidden="true"
           ></span>
           <span
-            class="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-error-500 ring-2 ring-primary-500"
+            class="pointer-events-none absolute -right-1 -top-1 h-3 w-3 rounded-full bg-error-500 ring-2 ring-primary-500"
             aria-hidden="true"
           ></span>
         {/if}
-      </a>
+      </div>
     {/if}
 
     <!-- The member's own menu: their picture and name, top right -->

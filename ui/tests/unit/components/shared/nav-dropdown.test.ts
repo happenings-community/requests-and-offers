@@ -23,6 +23,22 @@ const item = (label: string) => screen.getByRole('menuitem', { name: new RegExp(
 beforeEach(cleanup);
 
 describe('NavDropdown', () => {
+  it('adds a hint to the trigger name, after any count (#361 on #411)', () => {
+    render(NavDropdown, {
+      props: {
+        title: 'Admin',
+        items: [{ ...ITEMS[0], badge: 1 }],
+        badgeLabel: 'waiting to be accepted',
+        hint: 'Accept your membership to finish setup'
+      }
+    });
+    expect(
+      screen.getByRole('button', {
+        name: 'Admin menu, 1 waiting to be accepted. Accept your membership to finish setup'
+      })
+    ).toBeTruthy();
+  });
+
   it('is closed at first, and names no panel in aria-controls while closed', () => {
     mount();
     expect(trigger().getAttribute('aria-expanded')).toBe('false');

@@ -31,6 +31,7 @@ import type { StatusInDHT, StatusType } from '$lib/types/holochain';
 import { AdministrationEntity } from '$lib/types/holochain';
 import usersStore from '$lib/stores/users.store.svelte';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
+import { createWriteGuard } from '$lib/utils/store-helpers/write-guard';
 
 // ============================================================================
 // CONSTANTS
@@ -148,6 +149,13 @@ export type AdministrationStore = {
     organization: UIOrganization
   ) => E.Effect<HolochainRecord, AdministrationError>;
   refreshAll: () => E.Effect<void, AdministrationError>;
+  /**
+   * Re-reads the user and organization lists in the background: no loading
+   * flag, and the answer is dropped if a status was written while it was on
+   * its way, so a poll never shows the state from before that write (#340's
+   * rule, applied to these lists).
+   */
+  refreshLists: () => E.Effect<void, AdministrationError>;
   invalidateCache: () => void;
   getAllRevisionsForStatus: (
     entity: UIUser | UIOrganization
@@ -723,87 +731,103 @@ export const createAdministrationStore = (): E.Effect<
         )
       )(setters);
 
-    const fetchAllUsers = (): E.Effect<UIUser[], AdministrationError> =>
-      userEntityFetcher(
-        () =>
-          pipe(
-            administrationService.getAllUsersLinks(),
-            E.flatMap((links) =>
-              E.all(
-                links.map((link) =>
-                  pipe(
-                    usersStore.getLatestUser(link.target),
-                    E.flatMap((user) => {
-                      if (!user) return E.succeed(null);
-                      return pipe(
-                        getLatestStatusForEntity(link.target, AdministrationEntity.Users),
-                        E.map((status) => ({ ...user, status: status || undefined }) as UIUser),
-                        E.catchAll(() => {
-                          // Return user without status rather than null if status fetch fails
-                          return E.succeed({ ...user, status: undefined } as UIUser);
-                        })
-                      );
-                    }),
-                    E.catchAll(() => E.succeed(null))
-                  )
-                )
+    /** Every user with their latest status, read from the DHT. */
+    const readAllUsers = (): E.Effect<UIUser[], AdministrationError> =>
+      pipe(
+        administrationService.getAllUsersLinks(),
+        E.flatMap((links) =>
+          E.all(
+            links.map((link) =>
+              pipe(
+                usersStore.getLatestUser(link.target),
+                E.flatMap((user) => {
+                  if (!user) return E.succeed(null);
+                  return pipe(
+                    getLatestStatusForEntity(link.target, AdministrationEntity.Users),
+                    E.map((status) => ({ ...user, status: status || undefined }) as UIUser),
+                    E.catchAll(() => {
+                      // Return user without status rather than null if status fetch fails
+                      return E.succeed({ ...user, status: undefined } as UIUser);
+                    })
+                  );
+                }),
+                E.catchAll(() => E.succeed(null))
               )
-            ),
-            E.map((users) => users.filter((u): u is UIUser => u !== null)),
-            E.catchAll((error) =>
-              E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.FETCH_USERS))
             )
-          ),
-        {
-          targetArray: allUsers,
-          errorContext: ERROR_CONTEXTS.FETCH_USERS,
-          setters
-        }
+          )
+        ),
+        E.map((users) => users.filter((u): u is UIUser => u !== null)),
+        E.catchAll((error) =>
+          E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.FETCH_USERS))
+        )
+      );
+
+    const fetchAllUsers = (): E.Effect<UIUser[], AdministrationError> =>
+      userEntityFetcher(readAllUsers, {
+        targetArray: allUsers,
+        errorContext: ERROR_CONTEXTS.FETCH_USERS,
+        setters
+      });
+
+    /** Every organization with its latest status, read from the DHT. */
+    const readAllOrganizations = (): E.Effect<UIOrganization[], AdministrationError> =>
+      pipe(
+        administrationService.getAllOrganizationsLinks(),
+        E.flatMap((links) =>
+          E.all(
+            links.map((link) =>
+              pipe(
+                organizationsStore.getLatestOrganization(link.target),
+                E.flatMap((organization) => {
+                  if (!organization) return E.succeed(null);
+                  return pipe(
+                    getLatestStatusForEntity(link.target, AdministrationEntity.Organizations),
+                    E.map(
+                      (status) =>
+                        ({ ...organization, status: status || undefined }) as UIOrganization
+                    ),
+                    E.catchAll(() => {
+                      // Return organization without status rather than null if status fetch fails
+                      return E.succeed({
+                        ...organization,
+                        status: undefined
+                      } as UIOrganization);
+                    })
+                  );
+                }),
+                E.catchAll(() => E.succeed(null))
+              )
+            )
+          )
+        ),
+        E.map((organizations) => organizations.filter((o): o is UIOrganization => o !== null)),
+        E.catchAll((error) =>
+          E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.FETCH_ORGANIZATIONS))
+        )
       );
 
     const fetchAllOrganizations = (): E.Effect<UIOrganization[], AdministrationError> =>
-      organizationEntityFetcher(
-        () =>
-          pipe(
-            administrationService.getAllOrganizationsLinks(),
-            E.flatMap((links) =>
-              E.all(
-                links.map((link) =>
-                  pipe(
-                    organizationsStore.getLatestOrganization(link.target),
-                    E.flatMap((organization) => {
-                      if (!organization) return E.succeed(null);
-                      return pipe(
-                        getLatestStatusForEntity(link.target, AdministrationEntity.Organizations),
-                        E.map(
-                          (status) =>
-                            ({ ...organization, status: status || undefined }) as UIOrganization
-                        ),
-                        E.catchAll(() => {
-                          // Return organization without status rather than null if status fetch fails
-                          return E.succeed({
-                            ...organization,
-                            status: undefined
-                          } as UIOrganization);
-                        })
-                      );
-                    }),
-                    E.catchAll(() => E.succeed(null))
-                  )
-                )
-              )
-            ),
-            E.map((organizations) => organizations.filter((o): o is UIOrganization => o !== null)),
-            E.catchAll((error) =>
-              E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.FETCH_ORGANIZATIONS))
-            )
-          ),
-        {
-          targetArray: allOrganizations,
-          errorContext: ERROR_CONTEXTS.FETCH_ORGANIZATIONS,
-          setters
-        }
+      organizationEntityFetcher(readAllOrganizations, {
+        targetArray: allOrganizations,
+        errorContext: ERROR_CONTEXTS.FETCH_ORGANIZATIONS,
+        setters
+      });
+
+    // A background re-read that started before this member's status write is
+    // thrown away: it would replace the lists with the state from before it.
+    const listsGuard = createWriteGuard();
+
+    const refreshLists = (): E.Effect<void, AdministrationError> => {
+      const keep = listsGuard.begin();
+      return pipe(
+        E.all([readAllUsers(), readAllOrganizations()]),
+        E.map(([users, organizations]) => {
+          if (!keep()) return;
+          allUsers.splice(0, allUsers.length, ...users);
+          allOrganizations.splice(0, allOrganizations.length, ...organizations);
+        })
       );
+    };
 
     const registerNetworkAdministrator = (
       entity_original_action_hash: ActionHash,
@@ -1057,6 +1081,7 @@ export const createAdministrationStore = (): E.Effect<
                   totalUsers: newAllUsers.length
                 });
 
+                listsGuard.wrote();
                 allUsers.splice(0, allUsers.length, ...newAllUsers);
                 emitUserStatusUpdated(updatedUser, 'updateUserStatus');
               }
@@ -1105,6 +1130,7 @@ export const createAdministrationStore = (): E.Effect<
                 };
                 const newAllOrganizations = [...allOrganizations];
                 newAllOrganizations[orgIndex] = updatedOrganization;
+                listsGuard.wrote();
                 allOrganizations.splice(0, allOrganizations.length, ...newAllOrganizations);
                 emitOrganizationStatusUpdated(updatedOrganization, 'updateOrganizationStatus');
               }
@@ -1721,6 +1747,7 @@ export const createAdministrationStore = (): E.Effect<
       suspendOrganization,
       unsuspendOrganization,
       refreshAll,
+      refreshLists,
       invalidateCache,
       getAllRevisionsForStatus,
       getEntityStatusHistory,

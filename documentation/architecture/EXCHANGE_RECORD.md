@@ -140,6 +140,7 @@ The companion design's table, with this record's entries beside it. Each row is 
 | Response, accepted | the Commitments become binding |
 | Completion, per party | EconomicEvent, one per party |
 | each Completion | its EconomicEvent fulfills that side's Commitment (`fulfills` on the event, hREA's form of a Fulfillment) and realizes the Agreement (`realizationOf`) |
+| Cancellation, after acceptance | each Commitment not yet finished is marked finished; with no fulfilling event, that reads as ended unfulfilled. Decline and withdrawal come before acceptance, when hREA holds nothing for the exchange |
 | Review | custom review zome, as the companion design has it |
 | primary and reciprocal terms | Intent pair on the Proposal |
 

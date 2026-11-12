@@ -15,6 +15,7 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 
 - **Holochain**: The hApp moves to Holochain 0.7 and hREA `happ-0.5.0-beta.1` (`a2c5fd40`, #295, closes #192)
 - **hREA**: The GraphQL adapter `0.700.0-rc.0` is vendored as a release tarball until npm serves it (`3282e649`, #317, closes #316), and `hrea.dna` is pinned by sha256 so a pin bump reaches existing clones (`e15b0e2a`, #290, closes #223)
+- **hREA**: The GraphQL adapter is installed from npm and the vendored tarball is gone (`04aeee0d`, #455)
 
 ### Features
 
@@ -31,6 +32,9 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Exchanges**: The interest dialog says "Get in touch", invites an introduction before a proposal, and closes with × (`d481f448`, #419, closes #368)
 - **hREA**: Each completion's EconomicEvent fulfills its side's Commitment, so hREA records which promise a delivery kept (`04692616`, #439)
 - **Development**: `bun start:web` runs the app in browser tabs, one URL per member, with Vite's hot reload (`1047000b`, #423); a reload on any route keeps the member's connection (`baf1d05c`, #430); `bun start` and `bun start:web` also open a graph inspector of every member's conductor (`583dac09`, #434)
+- **hREA**: A cancelled exchange ends its hREA Commitments (`984944a6`, #444)
+- **Administration**: An hREA dashboard audits the mirror against R&O (`73416bff`, #421)
+- **Administration**: The progenitor is told to accept their own membership (`480a2fd9`, #361, closes #358)
 
 ### Security
 
@@ -38,6 +42,7 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **UI**: HTML in pop-up messages is sanitised (`e7bfd653`, #355, closes #211), and every toast is escaped before Skeleton renders it as HTML (`81875c28`, #418)
 - **UI**: A typed link opens only when it is a web address (`9ce13eac`, #382), inside rendered markdown too (`551f157f`, #312)
 - **Build**: Faker and the mock data stay out of the production build (`cae758a7`, #365, part of #363)
+- **Users**: Validation decides who may write `UserAgents` and `MyUser` links: only a User's author links agents to it, only to their own key, and `MyUser` runs from the author's key to the author's User (`11bcf7a4`, #473)
 
 ### Bug Fixes
 
@@ -55,6 +60,12 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **UI**: Alt+A no longer fires while typing, and the Admin button shows at once (`0627f26b`, #356, closes #206)
 - **UI**: The network status shows the iroh relay, not the tx5 signal server (`f8687cdc`, #283)
 - **UI**: The users and organizations lists take the page width, and the service type headers line up (`1e4736e8`, #389, part of #387)
+- **Requests and Offers**: A listing stays in the list its status names, and archiving acts at the chain root (`7c45fb11`, #457)
+- **UI**: A save is announced once, by its form, and a failed one says so (`b7acda37`, #459)
+- **Mediums of Exchange**: The store keeps the type the DHT holds, so a currency is no longer shown as Base (`109b7aa0`, #453)
+- **Mediums of Exchange**: The wording says a base is a kind of exchange and a currency a unit people pay in, with no payment methods (`a5a9f15d`, #467); the listing forms always call the section Medium of Exchange (`8e950b8d`, #471)
+- **Users**: A blocked member is told about their status, not about a missing profile (`a47b8d8d`, #392)
+- **UI**: The loading screen gives an honest first-start wait (`9b2f5946`, #469)
 
 ### Performance
 
@@ -71,6 +82,7 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Architecture**: What validation enforces, and the known limits (`7333eedd`, #401)
 - **Contributing**: The review rules are written down (`d852be25`, #293, closes #225)
 - **Release**: The announcement is gated on a launched packaged build (`162ca5e4`, #271); a discussion form for release feedback (`d110f10b`, #294); the Homebrew cask is installed by full name for tap trust (`14666074`, #267); production checks: never on a Friday, the built app run before the tag, two peers checked before announcing (`f71f5aa4`, #447, part of #276)
+- **Zome errors**: Zome errors come from `utils/src/errors.rs`, written down as a rule in `CLAUDE.md` (`23825ddc`, #472)
 - **Installation**: The Kangaroo desktop app does not set the progenitor key, so a new desktop network runs in development mode and its first profile becomes admin (`8ad45332`, #445)
 - **Development**: The inspector's adapter contract, packaging options and a Nondominium trial (`15d069e8`, #446); the guides follow what `bun start` and `bun start:web` now launch, and the ports they take (`ff26c178`, #449)
 
@@ -81,7 +93,7 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Sweettest**: The scripts are fixed and `link_canonicalisation` runs in CI (`c9967fd4`, #298, closes #297)
 - **Exchanges**: The derived state and the exchange UI predicates are pinned by tests (`8ce42848`, #258)
 - **Lint**: ESLint errors cleared in the files no open pull request touches (`922aeb07`, #450); the contrast test also reads Skeleton token pairs (`ab1a9419`, #448)
-- **E2E**: The test conductor runs on its own network (`9b2d8b24`, #372); the onboarding connection probes can go red (`5ad458df`, #314, closes #252); the organisation is re-read after the update toast (`5fcdc272`, #275, closes #274)
+- **E2E**: The test conductor runs on its own network (`9b2d8b24`, #372); the onboarding connection probes can go red (`5ad458df`, #314, closes #252); the organisation is re-read after the update toast (`5fcdc272`, #275, closes #274); the offer form test accepts either Medium of Exchange heading (`5fed7656`, #470)
 
 ## [0.6.0-alpha.1] - 2026-09-14
 

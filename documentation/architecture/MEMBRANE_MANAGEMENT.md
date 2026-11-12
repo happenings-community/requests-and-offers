@@ -137,7 +137,7 @@ Agent-centric by design. The applicant holds their own record; the community hol
 
 ## In-DHT data model *[scaffold]*
 
-*Grounded in a read of the live `administration` zome on `dev` (the `Status` integrity entry, the link registry, the `add_administrator` gate, the single-field `DnaProperties`) and of the pinned toolchain (`hdi 0.7.0` / `holochain_integrity_types 0.6.0`) — not on prior summaries.* This is the structural realisation of *Data & ownership*: what the membrane writes to the DHT, what stays off it, and who may read what. The in-DHT work is **additive** — one new entry, a few new link types, one new DNA property, one new permission audit entry — and reshapes nothing that already exists.
+*Grounded in a read of the live `administration` zome on `dev` (the `Status` integrity entry, the link registry, the `add_administrator` gate, the single-field `DnaProperties`) and of the pinned toolchain (`hdi 0.8.0` / `holochain_integrity_types 0.7.0`) — not on prior summaries.* This is the structural realisation of *Data & ownership*: what the membrane writes to the DHT, what stays off it, and who may read what. The in-DHT work is **additive** — one new entry, a few new link types, one new DNA property, one new permission audit entry — and reshapes nothing that already exists.
 
 A note on vocabulary, because two of the obvious words are taken. Holochain's `CapGrant` occupies "capability" *in the zome-author surface*, and `Warrant` means "a claim that an agent produced invalid data" in the validation layer. So this design says **permission** (not capability), **cause** (not warrant), and avoids bare "grant" and "record" as type names.
 

@@ -2,7 +2,7 @@
 
 This section provides detailed specifications for each Holochain zome within the DNA.
 
-For a higher-level overview of the system's technical foundation, see the main [Technical Specifications](../technical-specs.md).
+For a higher-level overview of the system's technical foundation, see the main [Technical Specifications](../../technical-specs.md).
 
 ## Zomes
 

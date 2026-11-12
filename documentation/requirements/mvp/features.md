@@ -1,19 +1,21 @@
 # MVP Features
 
+> **Out of date:** Search by keyword and filter by tags are not delivered: tags were replaced by Technical and Non-Technical service types. Tracked in [#480](https://github.com/happenings-community/requests-and-offers/issues/480).
+
 This document outlines the features included in the MVP version of the Requests and Offers application.
 
 ## Core Features (Delivered)
 
 ### 1. Request Management
 
-- Create new requests with title, description, tags
+- Create new requests with title, description, service types
 - View request details
 - Archive own requests
 - Delete own requests
 
 ### 2. Offer Management
 
-- Create new offers with title, description, tags
+- Create new offers with title, description, service types
 - View offer details
 - Archive own offers
 - Delete own offers

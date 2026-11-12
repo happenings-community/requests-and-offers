@@ -1,5 +1,7 @@
 # Backend Zome Functions API
 
+> **Out of date:** Most functions listed here do not match the coordinator zomes on `dev`; the reference is being rebuilt. Tracked in [#478](https://github.com/happenings-community/requests-and-offers/issues/478).
+
 Complete reference for all Holochain zome functions across all domains.
 
 ## Zome Function Architecture
@@ -198,7 +200,7 @@ Removes a member from an organization.
 **DNA**: `requests_and_offers`  
 **Zome**: `administration`
 
-For the full administration design including the progenitor bootstrap mechanism see [The Progenitor Pattern](../../../progenitor.md) and [Administration Zome Specification](../zomes/administration.md).
+For the full administration design including the progenitor bootstrap mechanism see [The Progenitor Pattern](../../../progenitor.md) and [Administration Zome Specification](../../zomes/administration.md).
 
 ### Functions
 

@@ -21,6 +21,7 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **hREA**: Listings, exchanges and their completion are mirrored into hREA end to end (`30a7b7b6`, #255); the exchange record stays as it is for alpha 2, with no migration (`a83fda1b`, #402, closes #250)
 - **Requests and Offers**: A listing names exactly one service type, and needs an approved service type before it can be published. Several services in one exchange belong on the agreement, as separate commitments. Not yet enforced in validation; tracked in #257 (`4992fb30`, #256)
 - **Exchanges**: Either party may mark their part done first (`de9f2410`, #259)
+- **Exchanges**: A quantity is an exact decimal string (`"12.50"`), not a float, in the zome and in the UI; validation refuses malformed values and a counter compares amounts as numbers. This changes the `Agreement` entry format, inside the alpha 2 network reset; hREA still receives a number, converted at one place until h-REA/hREA#382 lands
 - **Exchanges**: A counter-proposal changes only quantities and timeframe (`d81bc7d3`, #341, closes #332)
 - **Exchanges**: A counter records the proposal it answers and the decline that closed it, as the next action on its author's chain, enforced by validation; an `AgreementCounters` link lets the rounds be read forwards (`dea6bf01`, #343, part of #333)
 - **Exchanges**: My Exchanges shows a negotiation as one card, with Group by and an All card (`89ca159a`, #345, closes #333)

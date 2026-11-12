@@ -334,7 +334,11 @@ What is implemented:
   transfer), linked via `proposeIntent`.
 - Accepted exchanges mirror as an Agreement plus primary and reciprocal
   Commitments, with structured quantities backed by seeded hREA Units
-  (hours, days, each).
+  (hours, days, each). An exchange quantity is an exact decimal string in
+  R&O; `measureOf()` in `agreement-commitment.mapper.ts` converts it to a
+  number at that one place, because hREA stores `has_numerical_value` as an
+  f64 until
+  [h-REA/hREA#382](https://github.com/h-REA/hREA/issues/382) lands.
 - Each party's completion records an EconomicEvent (`realizationOf` the
   agreement) and marks their Commitment `finished`. Both sides verified
   on two peers.

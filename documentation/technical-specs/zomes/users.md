@@ -165,12 +165,26 @@ pub fn validate_delete_user(
 - Prevents profile deletion
 - Returns Invalid result
 
+#### Identity Link Validation
+
+`UserAgents` and `MyUser` decide who a member is: `get_user_agents` reads `UserAgents`, and `send_message` encrypts a copy of every message to each key it returns, while `get_agent_user` reads `MyUser`.
+The integrity zome therefore checks both links, so a modified client cannot write them for someone else.
+
+- A `UserAgents` link must start at a User record, and only that User's author may create it ("only a User's author may link agents to it").
+- A `MyUser` link must start at its author's own agent key ("a MyUser link must start at its author's own key").
+- A `MyUser` link must point to a User record its author wrote ("a MyUser link must point to a User its author wrote").
+- Either link may be deleted only by the agent who created it ("only the author of a link may delete it").
+
+Tested in `tests/sweettest/tests/users_link_attacks.rs`, which writes the forged links through the test-only `users_probe` zome.
+Adding these rules changed the DNA hash.
+
 ### 5. Access Control
 
 - Profile creation limited to one per agent
 - Profile updates restricted to profile owner
 - Profile queries available to all users
 - Profile deletion not allowed
+- `UserAgents` and `MyUser` links written only by the User's own author (see Identity Link Validation)
 
 ### 6. Integration Points
 

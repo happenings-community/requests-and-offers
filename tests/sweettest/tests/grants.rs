@@ -2147,3 +2147,92 @@ async fn several_keys_are_removed_in_one_call_the_callers_own_last() {
         "Bob is left administering the network"
     );
 }
+
+/// An `Inbox` link is its author's record of their own message, through
+/// `validate` and not only as pure functions.
+///
+/// The four link rules of `messaging_integrity` are unit-tested as `check_*`
+/// functions; this drives each through the network with a forged link, so a
+/// rule computed in `validate` and not returned would show. Everyone is an
+/// accepted member, so the grant rule is not what refuses anything here.
+///
+/// **To make it go red:** in `messaging_integrity/src/lib.rs`, the `Inbox`
+/// arms of `validate`, return `Valid` before the check a row names: that
+/// row's link, or the tombstone, is written.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_inbox_link_is_its_authors_record_of_their_own_message() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let users = everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let messaging = zome_index(&conductors[2], &mallory, "messaging_integrity").await;
+    let me = mallory.agent_pubkey().clone();
+    let alice_key = alice.agent_pubkey().clone();
+
+    // Bob writes to Alice, and Mallory to Bob, through the app.
+    let from_bob: Vec<SentMessage> = conductors[1]
+        .call(
+            &bob.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: users[0].clone(),
+                content: "for Alice only".to_string(),
+            },
+        )
+        .await;
+    let from_mallory: Vec<SentMessage> = conductors[2]
+        .call(
+            &mallory.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: users[1].clone(),
+                content: "hello Bob".to_string(),
+            },
+        )
+        .await;
+    await_consistency_s(30, [alice, bob, &mallory]).await.unwrap();
+    let bobs_message = from_bob
+        .iter()
+        .find(|sent| sent.agent == alice_key)
+        .expect("Bob's message has a copy for Alice")
+        .hash
+        .clone();
+    let mallorys_message = from_mallory[0].hash.clone();
+
+    let link = |base: AnyLinkableHash, target: AnyLinkableHash, tag: Vec<u8>| {
+        forge_link(&conductors[2], &mallory, base, target, messaging, INBOX_LINK, tag)
+    };
+
+    // An interloper cannot link somebody else's message into an inbox.
+    refused(
+        &link(me.clone().into(), bobs_message.clone().into(), Vec::new()).await,
+        "must be authored by the author of the message it points to",
+        "linking Bob's message into another inbox",
+    );
+    // Her own message, but a tag that could carry a label.
+    refused(
+        &link(alice_key.clone().into(), mallorys_message.into(), vec![1]).await,
+        "tag must be empty",
+        "an Inbox link with a tag",
+    );
+    // A target that is not a message at all.
+    refused(
+        &link(alice_key.clone().into(), users[0].clone().into(), Vec::new()).await,
+        "target must be an EncryptedMessage",
+        "an Inbox link to a User record",
+    );
+
+    // And nobody but its author takes a link out of an inbox.
+    let inbox = links_of(&conductors[2], &mallory, alice_key.into(), messaging, INBOX_LINK).await;
+    let bobs_link = inbox
+        .iter()
+        .find(|l| l.target == bobs_message.clone().into())
+        .expect("Bob's Inbox link to Alice is held by Mallory's node")
+        .create_link_hash
+        .clone();
+    let removed = forge_delete_link(&conductors[2], &mallory, bobs_link).await;
+    refused(
+        &removed,
+        "Only the author of an Inbox link may delete it",
+        "tombstoning Bob's Inbox link",
+    );
+}

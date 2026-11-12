@@ -40,6 +40,7 @@ It describes `dev`. A PR that changes what validation enforces updates this page
 ## Limits that remain once these land
 
 - **A listing posted for an organisation** proves membership by naming a member link. Validation cannot see a later end of that membership, as it cannot see a later revoked grant, so a removed member's earlier listings stay valid; readers and the interface follow the end.
+- **A message carries its author's member grant,** and validation cannot see a later revocation of it. A suspended or rejected member with a modified client can keep writing messages the network stores and gossips; no reader shows them, because the inbox drops authors who are not accepted now (`messaging.md` 6.2 and 6.4).
 - **Catalogue state is ordered by time.** A service type's or medium's state is its latest decision by timestamp. A reader that has not yet received the newest decision reads the one before, and a decision made on a clock that runs behind loses to the one before it. #400 removes the missed fetch and the tie, not the clock.
 
 ## What already holds

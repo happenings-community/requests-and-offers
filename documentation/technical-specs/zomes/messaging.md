@@ -92,7 +92,11 @@ Refused: a message that does not carry a member grant held by its author, the sa
 
 Agent-activity ops skip validation, as in every other integrity zome since #280: no rule here applies to them.
 
-What validation cannot prove is that a grant has not been revoked since, so a suspended member's message is caught on read, where `get_inbox` drops authors who are not accepted now. Nor can it prove who a ciphertext was sealed to. It proves the link's author wrote the message, not that the message was encrypted to the link's base.
+What validation cannot prove is that a grant has not been revoked since, so a suspended member's message is caught on read, where `get_inbox` drops authors who are not accepted now. Until then their node can still store and gossip what a modified client writes.
+
+**The grant rule holds on a network with a progenitor key, which alpha 2 is not.** With no key in the DNA properties, validation accepts any root (`administration.md`, *The root*), so a modified client can write itself a root admin grant, a member grant resting on it, and then messages that pass this rule: two extra writes. The read side still drops them, because `read_inbox_entries` filters on accepted status, not on grants.
+
+Nor can validation prove who a ciphertext was sealed to. It proves the link's author wrote the message, not that the message was encrypted to the link's base.
 
 **An author's delete is a withdrawal from later reads, not an unsend.** No extern deletes a message, so today only a modified client can. `get` on a deleted action returns nothing ("Deleted actions are a tombstone set", `holochain_cascade` 0.7.0, `src/lib.rs:328-334`), so once a delete reaches the authorities the message drops out of `get_inbox` and `get_message` returns `NotFound`. A reader who has already decrypted it keeps it, and nothing is erased: the op stays held, as ciphertext. A real "withdraw a message" is #482.
 

@@ -299,13 +299,11 @@ fn deliver(
 
   // The integrity zome refuses a message without the sender's member grant. Every caller
   // has already passed `require_accepted_member`, which gives the clearer error, so a
-  // missing grant here means acceptance and grant have come apart: say so rather than
-  // let the write fail on a validation message.
-  let grant = can_i(Ability::Participate, None)?.ok_or_else(|| {
-    wasm_error!(WasmErrorInner::Guest(
-      "Your membership has no member grant yet, so you cannot send messages".to_string()
-    ))
-  })?;
+  // missing grant here is most often propagation: acceptance writes the grant and the
+  // accepted link in one call on the administrator's chain, `can` reads the grant index
+  // from the network, and just after acceptance one can reach this member before the
+  // other. Hence "yet". Say so rather than let the write fail on a validation message.
+  let grant = can_i(Ability::Participate, None)?.ok_or(MessagingError::NoMemberGrantYet)?;
 
   let plaintext = XSalsa20Poly1305Data::from(
     ExternIO::encode(body)

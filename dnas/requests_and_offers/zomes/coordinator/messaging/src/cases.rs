@@ -122,13 +122,14 @@ pub struct Case {
 /// single field, and a second `HandOverAccept` finds no offer pending. So a reader that
 /// somehow sees two copies of one event computes the same state as one that sees one.
 pub(crate) fn assemble_cases(messages: Vec<(Message, CaseRef)>) -> ExternResult<Vec<Case>> {
-  // Oldest first, so the fold sees events in the order they happened. The time is each
-  // author's own action timestamp, so two holders' clocks decide the order of their
-  // events; that limit is stated in messaging.md. Ties break on the message hash, so
-  // every reader folds the same events in the same order and reaches the same state,
-  // whatever order its links came back in.
+  // Oldest first, by the action timestamp of this reader's own copy. `deliver` writes one
+  // entry per recipient agent, so every reader holds a different copy of each event, with
+  // its own timestamp and hash: two holders acting within moments of each other can be
+  // folded in a different order by different readers. Nothing every copy shares can order
+  // them yet; messaging.md 6.6 states the limit, and #483 tracks the fix (one send time
+  // carried inside the ciphertext).
   let mut messages = messages;
-  messages.sort_by_key(|(m, _)| (m.at, m.hash.clone()));
+  messages.sort_by_key(|(m, _)| m.at);
 
   let mut cases: Vec<Case> = Vec::new();
   let mut users = AuthorFacts::new();

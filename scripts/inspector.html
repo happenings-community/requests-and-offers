@@ -118,7 +118,8 @@
           <button id="group" class="on" title="Show each type of more than 6 records as one counted node; click it to open it">Group large types</button>
           <button id="unlinked" class="on" title="Keep the records nothing links to or from in the strip above the graph, not on it">Hide unlinked</button>
           <span class="spacer"></span>
-          <button id="fit" title="Fit the graph to the view (F)">Fit</button>
+          <button id="fit" title="Fit the graph to the view (F); turns Auto-fit back on">Fit</button>
+          <button id="autofit" class="on" aria-pressed="true" title="Refit after every layout, refresh that adds or removes records, group opened or closed, and resize. Panning or zooming by hand turns it off; F turns it on again.">Auto-fit</button>
           <button id="zoomsel" title="Zoom to the selected record (Z)">Zoom to selection</button>
           <button id="relayout">Re-layout</button>
           <span class="meta" id="counts"></span>
@@ -134,12 +135,13 @@
               <li><svg width="16" height="16"><rect x="2" y="2" width="12" height="12" rx="3" fill="currentColor" opacity=".6"/></svg>record, coloured by type</li>
               <li><svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="var(--accent)" stroke="var(--gold)" stroke-width="2"/></svg>agent</li>
               <li><svg width="16" height="16"><rect x="1" y="1" width="14" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="2 1"/></svg>group of one type: click to open</li>
+              <li><svg width="16" height="16"><rect x="1" y="1" width="14" height="14" rx="3" fill="currentColor" fill-opacity=".08" stroke="currentColor" stroke-opacity=".55"/></svg>frame: every record of one type</li>
               <li><svg width="16" height="16"><rect x="2" y="2" width="12" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="3"/></svg>updated (vN revisions)</li>
               <li><svg width="16" height="16"><rect x="2" y="2" width="12" height="12" rx="3" fill="var(--ghost)" stroke="var(--err)" stroke-dasharray="3 2" stroke-width="2"/></svg>deleted</li>
               <li><svg width="28" height="10"><line x1="1" y1="5" x2="27" y2="5" stroke="var(--muted)" stroke-width="2"/></svg>entry field (clause_of, fulfills…)</li>
               <li><svg width="28" height="10"><line x1="1" y1="5" x2="27" y2="5" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>link</li>
               <li><svg width="28" height="10"><line x1="1" y1="5" x2="27" y2="5" stroke="var(--ghost)" stroke-width="1.5"/></svg>deleted link</li>
-              <li class="keys">Double-click: focus a record and its neighbours · ← → step through them · Enter: focus · Backspace: back · Esc: clear · F: fit · Z: zoom</li>
+              <li class="keys">Double-click: focus a record and its neighbours · ← → step through them · Enter: focus · Backspace: back · Esc: clear · F: fit, and Auto-fit on · Z: zoom · wheel or pinch: zoom at the cursor; any zoom or pan turns Auto-fit off</li>
             </ul>
           </details>
         </div>
@@ -191,7 +193,21 @@
         { selector: 'node:selected', style: { 'border-width': 3, 'border-color': css('--gold') } },
         { selector: 'edge', style: { width: 1.5, 'line-color': css('--muted'), 'target-arrow-color': css('--muted'), 'target-arrow-shape': 'triangle', 'arrow-scale': 0.7, 'curve-style': 'bezier' } }
       ];
-      const net = cytoscape({ container: $('net'), style: netStyle(), wheelSensitivity: 0.3, boxSelectionEnabled: false, autoungrabify: false });
+      // Wheel and trackpad zoom, proportional to the movement and centred on the cursor (V.wheelZoom).
+      // Caught on the way down, before Cytoscape's own wheel handler, which steps unevenly on trackpads.
+      function naturalWheel(c, container, onManual) {
+        container.parentElement.addEventListener('wheel', (e) => {
+          if (!(e.target instanceof Node) || !container.contains(e.target) || e.target.closest?.('#legend')) return;
+          e.preventDefault(); e.stopPropagation();
+          const r = container.getBoundingClientRect();
+          // A sideways trackpad swipe pans; everything else zooms.
+          if (!e.ctrlKey && Math.abs(e.deltaX) > Math.abs(e.deltaY)) c.panBy({ x: -e.deltaX, y: 0 });
+          else c.zoom({ level: V.wheelZoom(c.zoom(), e), renderedPosition: { x: e.clientX - r.left, y: e.clientY - r.top } });
+          onManual?.();
+        }, { capture: true, passive: false });
+      }
+      const net = cytoscape({ container: $('net'), style: netStyle(), minZoom: V.VIEW.minZoom, maxZoom: V.VIEW.maxZoom, boxSelectionEnabled: false, autoungrabify: false });
+      naturalWheel(net, $('net'));
       net.on('tap', 'node', (e) => selectCell(e.target.id()));
 
       function renderNetwork() {
@@ -233,6 +249,8 @@
         { selector: 'node[kind = "group"]', style: { width: 34, height: 34, 'border-width': 3, 'border-style': 'dashed', 'border-color': css('--ink'), 'font-weight': 600, 'font-size': 11, 'text-wrap': 'wrap', 'text-max-width': 200 } },
         { selector: 'node[revs > 1]', style: { 'border-width': 3, 'border-style': 'double', 'border-color': css('--ink') } },
         { selector: 'node[?deleted]', style: { 'background-color': css('--ghost'), opacity: 0.55, 'border-style': 'dashed', 'border-width': 2, 'border-color': css('--err') } },
+        // One frame per entry type: the records of a type stay together inside it. It takes no clicks.
+        { selector: 'node[kind = "cluster"]', style: { shape: 'round-rectangle', 'background-color': (n) => colourOf(n.data('entryType')), 'background-opacity': 0.07, 'border-width': 1, 'border-color': (n) => colourOf(n.data('entryType')), 'border-opacity': 0.55, padding: 10, label: 'data(label)', 'text-valign': 'top', 'text-halign': 'center', 'text-margin-y': -3, 'font-size': 10.5, 'font-weight': 600, color: css('--muted'), 'text-wrap': 'none', 'min-zoomed-font-size': 6, events: 'no' } },
         { selector: 'node.new', style: { opacity: 0 } },
         { selector: 'node:selected', style: { 'overlay-color': css('--gold'), 'overlay-opacity': 0.35, 'overlay-padding': 6 } },
         { selector: 'edge', style: { width: 1.2, 'line-color': css('--line'), 'target-arrow-color': css('--line'), 'target-arrow-shape': 'triangle', 'arrow-scale': 0.7, 'curve-style': 'bezier', 'font-size': 9, color: css('--muted'), 'text-rotation': 'autorotate', 'text-background-color': css('--bg'), 'text-background-opacity': 0.85, 'text-background-padding': 1 } },
@@ -246,9 +264,41 @@
         { selector: '.match', style: { 'overlay-color': css('--sky'), 'overlay-opacity': 0.3, 'overlay-padding': 5 } },
         { selector: '.hidden', style: { display: 'none' } }
       ];
-      const cy = cytoscape({ container: $('graph'), style: graphStyle(), wheelSensitivity: 0.3, minZoom: 0.1, maxZoom: 3 });
+      const cy = cytoscape({ container: $('graph'), style: graphStyle(), minZoom: V.VIEW.minZoom, maxZoom: V.VIEW.maxZoom });
+      const records = () => cy.nodes().not('[kind = "cluster"]');
+
+      // ---- Auto-fit -----------------------------------------------------
+      // On by default. What refits and what turns it off: V.autoFit, tested in scripts/tests/inspector-view.test.ts.
+      let autoFitOn = true;
+      function fitNow(animate = true) {
+        if (records().empty()) return;
+        const bb = cy.elements().boundingBox();
+        const view = V.fitView({ x1: bb.x1, y1: bb.y1, w: bb.w, h: bb.h }, cy.width(), cy.height());
+        cy.stop();
+        if (animate) cy.animate(view, { duration: 250, easing: 'ease-out' }); else cy.viewport(view);
+      }
+      function autoFit(trigger, { animate = true } = {}) {
+        const r = V.autoFit(autoFitOn, trigger);
+        autoFitOn = r.on;
+        $('autofit').classList.toggle('on', autoFitOn);
+        $('autofit').setAttribute('aria-pressed', String(autoFitOn));
+        $('autofit').textContent = autoFitOn ? 'Auto-fit' : 'Auto-fit off';
+        if (trigger === 'manual') cy.stop();
+        if (r.fit) fitNow(animate);
+      }
+      const fit = () => autoFit('fit');
+      naturalWheel(cy, $('graph'), () => autoFit('manual'));
+      // A drag on the background (or a touch pinch) is the reader moving the view.
+      cy.on('dragpan pinchzoom scrollzoom', () => autoFit('manual'));
+      // The window or a panel changed size: refit, once per frame at most.
+      let resizeFrame = 0;
+      new ResizeObserver(() => {
+        cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(() => { cy.resize(); autoFit('resize', { animate: false }); });
+      }).observe($('graph'));
+
       cy.on('tap', 'node, edge', (e) => {
-        if (e.target.isNode() && e.target.data('kind') === 'group') { state.expanded.add(e.target.data('entryType')); renderGraph('relayout'); return; }
+        if (e.target.isNode() && e.target.data('kind') === 'group') { state.expanded.add(e.target.data('entryType')); renderGraph('expand'); return; }
         select(e.target.id());
       });
       cy.on('dbltap', 'node', (e) => { if (e.target.data('kind') !== 'group') pushFocus(e.target.id()); });
@@ -280,56 +330,79 @@
         const base = n.label ? `${n.entryType}: ${n.label}` : n.entryType;
         return n.revisions.length > 1 ? `${base} (v${n.revisions.length})` : base;
       };
-      const nodeData = (n) => ({ id: n.id, kind: n.kind, entryType: n.entryType, label: n.kind === 'group' ? `${n.entryType}\n×${n.count}` : nodeLabel(n), full: nodeLabel(n), revs: n.revisions?.length ?? 0, deleted: !!n.deleted, author: n.author ?? '', count: n.count ?? 0 });
+      const nodeData = (n) => ({ id: n.id, kind: n.kind, entryType: n.entryType, label: n.kind === 'group' ? `${n.entryType}\n×${n.count}` : nodeLabel(n), full: nodeLabel(n), revs: n.revisions?.length ?? 0, deleted: !!n.deleted, author: n.author ?? '', count: n.count ?? 0, createdAt: n.createdAt ?? '' });
       const edgeData = (e) => ({ ...e, label: e.count > 1 ? `${e.label} ×${e.count}` : e.label });
 
       function renderGraph(mode) {
         const g = roleGraph();
         if (!g) return;
+        // fresh: a new DNA or the first load; relayout: a filter changed; expand: a group opened or closed;
+        // anything else is a Live refresh, which moves records only if it added or removed some.
         const fresh = mode === true || mode === 'fresh';
+        const relayout = fresh || mode === 'relayout' || mode === 'expand';
         typeColour.clear();
         [...new Set(g.nodes.filter((n) => n.kind === 'entry').map((n) => n.entryType))].sort().forEach((t, i) => typeColour.set(t, PALETTE[i % PALETTE.length]));
         const v = viewGraph();
         if (fresh) { cy.elements().remove(); state.seenNodes = new Set(); state.focus = []; }
         const wanted = new Set([...v.nodes.map((n) => n.id), ...v.edges.map((e) => e.id)]);
-        cy.elements().filter((el) => !wanted.has(el.id())).remove();
-        const added = [];
+        // Frames are left to layout(): removing a frame would remove the records inside it.
+        const gone = cy.elements().filter((el) => !wanted.has(el.id()) && el.data('kind') !== 'cluster');
+        let changed = gone.nonempty();
+        gone.remove();
         for (const n of v.nodes) {
           const el = cy.$id(n.id);
           if (el.nonempty()) { el.data(nodeData(n)); continue; }
-          const saved = state.positions.get(`${state.role}|${n.id}`);
-          added.push(cy.add({ group: 'nodes', data: nodeData(n), position: saved ?? { x: 0, y: 0 }, classes: fresh || mode === 'relayout' || state.seenNodes.has(n.id) ? '' : 'new' }));
+          cy.add({ group: 'nodes', data: nodeData(n), position: { x: 0, y: 0 }, classes: relayout || state.seenNodes.has(n.id) ? '' : 'new' });
+          changed = true;
         }
         for (const e of v.edges) {
           const el = cy.$id(e.id);
           if (el.nonempty()) { el.data(edgeData(e)); continue; }
           cy.add({ group: 'edges', data: edgeData(e) });
+          changed = true;
         }
         cy.style(graphStyle());
-        const unplaced = added.filter((n) => !state.positions.has(`${state.role}|${n.id()}`));
-        if (fresh || mode === 'relayout') layout(cy.elements());
-        else if (unplaced.length) {
-          // New records join beside what they point at, then fade in; the rest stays put.
-          for (const n of unplaced) {
-            const near = n.neighborhood('node').filter((m) => !unplaced.includes(m));
-            const c = near.nonempty() ? near.boundingBox() : cy.extent();
-            n.position({ x: (c.x1 + c.x2) / 2 + (Math.random() - 0.5) * 80, y: (c.y1 + c.y2) / 2 + (Math.random() - 0.5) * 80 });
-            state.positions.set(`${state.role}|${n.id()}`, { ...n.position() });
-          }
-          setTimeout(() => cy.$('.new').removeClass('new'), 30);
-        }
+        if (relayout || changed) layout({ animate: !fresh, trigger: mode === 'expand' ? 'expand' : relayout ? 'layout' : 'structure' });
+        // New records land in their place in their type's frame, then fade in.
+        if (!relayout) setTimeout(() => cy.$('.new').removeClass('new'), 30);
         v.nodes.forEach((n) => state.seenNodes.add(n.id));
         renderTypes(); renderCrumbs(); applyFilters();
         if (state.selected && cy.$id(state.selected).nonempty()) cy.$id(state.selected).select();
         renderDetail();
       }
 
-      function fit() { cy.fit(undefined, 30); if (cy.zoom() > 1.1) { cy.zoom(1.1); cy.center(); } }
-
-      function layout(eles) {
-        const l = eles.layout({ name: 'cose', animate: false, nodeDimensionsIncludeLabels: true, nodeRepulsion: () => 120000, idealEdgeLength: () => 90, edgeElasticity: () => 80, nodeOverlap: 30, numIter: 2500, padding: 30, randomize: true, componentSpacing: 80, gravity: 0.4 });
-        l.one('layoutstop', () => { cy.nodes().forEach((n) => state.positions.set(`${state.role}|${n.id()}`, { ...n.position() })); fit(); });
-        l.run();
+      // Every record placed by V.clusteredLayout: one frame per entry type, a grid inside it, the same
+      // positions for the same graph. A record the reader dragged keeps his place until Re-layout.
+      function layout({ animate = false, trigger = 'layout' } = {}) {
+        const nodes = records();
+        const graph = {
+          nodes: nodes.map((n) => ({ id: n.id(), kind: n.data('kind'), entryType: n.data('entryType'), label: n.data('label'), createdAt: n.data('createdAt') })),
+          edges: cy.edges().map((e) => ({ id: e.id(), source: e.source().id(), target: e.target().id(), label: e.data('label'), via: e.data('via'), deleted: !!e.data('deleted') }))
+        };
+        const { positions, clusters } = V.clusteredLayout(graph);
+        const parentOf = new Map(clusters.flatMap((c) => c.ids.map((id) => [id, c.parent])));
+        cy.batch(() => {
+          for (const c of clusters) {
+            if (!c.parent) continue;
+            const label = `${c.entryType} · ${c.ids.length}`;
+            if (cy.$id(c.parent).empty()) cy.add({ group: 'nodes', data: { id: c.parent, kind: 'cluster', entryType: c.entryType, label }, selectable: false, grabbable: false });
+            else cy.$id(c.parent).data('label', label);
+          }
+          // Records move into or out of a frame before an empty frame goes.
+          nodes.forEach((n) => { const p = parentOf.get(n.id()) ?? null; if ((n.data('parent') ?? null) !== p) n.move({ parent: p }); });
+          cy.nodes('[kind = "cluster"]').filter((c) => c.children().empty()).remove();
+        });
+        let moving = false;
+        nodes.forEach((n) => {
+          const to = state.positions.get(`${state.role}|${n.id()}`) ?? positions.get(n.id());
+          if (!to) return;
+          const from = n.position();
+          if (from.x === to.x && from.y === to.y) return;
+          if (animate && !n.hasClass('new')) { n.animate({ position: to }, { duration: 250, easing: 'ease-out' }); moving = true; }
+          else n.position(to);
+        });
+        // Fit once the records are where they are going, so the box is the final one.
+        if (moving) setTimeout(() => autoFit(trigger), 260); else autoFit(trigger, { animate });
       }
 
       function renderTypes() {
@@ -343,7 +416,7 @@
       }
       $('types').onclick = (e) => {
         const regroup = e.target.closest('[data-regroup]');
-        if (regroup) { state.expanded.delete(regroup.dataset.regroup); renderGraph('relayout'); return; }
+        if (regroup) { state.expanded.delete(regroup.dataset.regroup); renderGraph('expand'); return; }
         const chip = e.target.closest('.chip');
         if (!chip) return;
         const t = chip.dataset.type;
@@ -376,7 +449,7 @@
         const focus = state.focus.length ? V.focusSet(v.edges, state.focus[state.focus.length - 1], 1) : null;
         cy.batch(() => {
           cy.elements().removeClass('faded match outfocus');
-          cy.nodes().forEach((el) => {
+          records().forEach((el) => {
             const n = byId.get(el.id());
             if (focus && !focus.has(el.id())) { el.addClass('outfocus'); return; }
             const authorOut = state.author && n && n.kind === 'entry' && n.author !== state.author && !n.revisions.some((r) => r.author === state.author);
@@ -388,13 +461,15 @@
             else if (e.source().hasClass('faded') || e.target().hasClass('faded')) e.addClass('faded');
           });
           if (state.selected) cy.$id(state.selected).removeClass('faded');
+          // A frame dims with its records when none of them is in the focus.
+          if (focus) cy.nodes('[kind = "cluster"]').forEach((c) => { if (c.children().not('.outfocus').empty()) c.addClass('outfocus'); });
         });
         refreshLabels(); renderTray();
-        const shown = cy.nodes().filter((n) => n.data('kind') !== 'group').length;
+        const shown = records().filter((n) => n.data('kind') !== 'group').length;
         const grouped = cy.nodes('[kind = "group"]').reduce((a, n) => a + (n.data('count') ?? 0), 0);
         const unlinked = state.hideUnlinked ? g.nodes.length - (shown + grouped) - g.nodes.filter((n) => state.hiddenTypes.has(n.entryType)).length : 0;
         $('counts').textContent = `${g.nodes.length} records: ${shown + grouped} on the graph${grouped ? ` (${grouped} in groups)` : ''}${unlinked > 0 ? `, ${unlinked} unlinked above` : ''} · ${cy.edges().length} edges` + (q ? ` · ${cy.$('.match').length} match` : '');
-        $('empty').style.display = cy.nodes().length ? 'none' : 'flex';
+        $('empty').style.display = records().length ? 'none' : 'flex';
         $('empty').textContent = g.nodes.length ? 'Every type is off the graph: click a type above to bring it back.' : 'No records in this DNA yet. Create a profile in a member tab and they appear here.';
       }
 
@@ -428,7 +503,8 @@
         select(id);
         renderCrumbs();
         const set = V.focusSet(cy.edges().map((e) => ({ source: e.source().id(), target: e.target().id() })), id, 1);
-        const eles = cy.nodes().filter((n) => set.has(n.id()));
+        const eles = records().filter((n) => set.has(n.id()));
+        autoFit('manual');
         cy.fit(eles, 80);
         if (cy.zoom() > 1.2) { cy.zoom(1.2); cy.center(eles); }
       }
@@ -456,7 +532,7 @@
         const next = order[(i + dir + order.length) % order.length];
         select(next, { centre: true, keepAnchor: true });
       }
-      function zoomToSelection() { const el = state.selected && cy.$id(state.selected); if (el && el.nonempty()) cy.animate({ center: { eles: el }, zoom: Math.max(cy.zoom(), 1.4) }, { duration: 300 }); }
+      function zoomToSelection() { const el = state.selected && cy.$id(state.selected); if (el && el.nonempty()) { autoFit('manual'); cy.animate({ center: { eles: el }, zoom: Math.max(cy.zoom(), 1.4) }, { duration: 300 }); } }
       document.addEventListener('keydown', (e) => {
         if ((e.target instanceof Element && e.target.closest('input, select, textarea, button, summary')) || e.ctrlKey || e.metaKey || e.altKey) return;
         const keys = {
@@ -477,7 +553,7 @@
         if (id) {
           const el = cy.$id(id);
           el.select();
-          if (centre && el.isNode()) cy.animate({ center: { eles: el }, zoom: Math.max(cy.zoom(), 1.1) }, { duration: 300 });
+          if (centre && el.isNode()) { autoFit('manual'); cy.animate({ center: { eles: el }, zoom: Math.max(cy.zoom(), 1.1) }, { duration: 300 }); }
         }
         applyFilters(); renderDetail(); renderChain();
       }
@@ -574,15 +650,16 @@
       $('search').oninput = (e) => {
         state.search = e.target.value; applyFilters();
         const hits = cy.$('.match');
-        if (hits.nonempty()) cy.animate({ fit: { eles: hits, padding: 80 }, zoom: undefined }, { duration: 250 });
+        if (hits.nonempty()) { autoFit('manual'); cy.animate({ fit: { eles: hits, padding: 80 } }, { duration: 250 }); }
       };
       $('search').onkeydown = (e) => { if (e.key === 'Enter') { const m = cy.$('.match').first(); if (m.nonempty()) select(m.id(), { centre: true }); } };
       $('labels').onclick = (e) => { state.edgeLabels = !state.edgeLabels; e.target.classList.toggle('on', state.edgeLabels); refreshLabels(); };
       $('group').onclick = (e) => { state.grouping = !state.grouping; state.expanded.clear(); e.target.classList.toggle('on', state.grouping); renderGraph('relayout'); };
       $('unlinked').onclick = (e) => { state.hideUnlinked = !state.hideUnlinked; e.target.classList.toggle('on', state.hideUnlinked); renderGraph('relayout'); };
       $('fit').onclick = fit;
+      $('autofit').onclick = () => autoFit('toggle');
       $('zoomsel').onclick = zoomToSelection;
-      $('relayout').onclick = () => { for (const k of [...state.positions.keys()]) if (k.startsWith(`${state.role}|`)) state.positions.delete(k); layout(cy.elements()); };
+      $('relayout').onclick = () => { for (const k of [...state.positions.keys()]) if (k.startsWith(`${state.role}|`)) state.positions.delete(k); layout({ animate: true }); };
 
       function renderControls() {
         const roles = Object.keys(state.data.roles).sort();

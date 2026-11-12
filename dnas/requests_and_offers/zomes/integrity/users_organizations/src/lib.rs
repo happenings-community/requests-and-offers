@@ -207,6 +207,11 @@ fn validate_create_identity_link(
       if !is_user_authored_by(base, author)? {
         return invalid("only a User's author may link agents to it");
       }
+      // A second device of the same member needs a rule of its own (a proof
+      // from the first key); until then a User has exactly its author's key.
+      if target.clone().into_agent_pub_key().as_ref() != Some(author) {
+        return invalid("a UserAgents link must point to its author's own key");
+      }
     }
     LinkTypes::MyUser => {
       if base.clone().into_agent_pub_key().as_ref() != Some(author) {

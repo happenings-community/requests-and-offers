@@ -171,6 +171,7 @@ pub fn validate_delete_user(
 The integrity zome therefore checks both links, so a modified client cannot write them for someone else.
 
 - A `UserAgents` link must start at a User record, and only that User's author may create it ("only a User's author may link agents to it").
+- A `UserAgents` link must point to its author's own key ("a UserAgents link must point to its author's own key"), so a User has exactly one agent: its author. A second device for the same member needs a rule of its own later (for instance a proof signed by the first key); until then it cannot be linked.
 - A `MyUser` link must start at its author's own agent key ("a MyUser link must start at its author's own key").
 - A `MyUser` link must point to a User record its author wrote ("a MyUser link must point to a User its author wrote").
 - Either link may be deleted only by the agent who created it ("only the author of a link may delete it").

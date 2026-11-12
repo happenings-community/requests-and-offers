@@ -141,6 +141,26 @@ async fn only_a_users_author_may_link_agents_to_it() {
     assert_eq!(agents, vec![w.alice.agent_pubkey().clone()]);
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn a_users_agents_are_only_its_authors_own_key() {
+    let w = world().await;
+    let alice_key = w.alice.agent_pubkey().clone();
+    let bob_key = w.bob.agent_pubkey().clone();
+
+    // Alice links Bob's key to her own User: get_user_agents would answer a
+    // key that is not hers, and a message to Alice would also go to Bob.
+    let forged = w.user_agents_link(0, &w.alice_user, &bob_key).await;
+    refused(
+        forged,
+        "a UserAgents link must point to its author's own key",
+        "Alice linking Bob's key to her User",
+    );
+
+    w.user_agents_link(0, &w.alice_user, &alice_key)
+        .await
+        .expect("Alice linking her own User to her own key must be accepted");
+}
+
 // ---------------------------------------------------------------------------
 // MyUser
 // ---------------------------------------------------------------------------

@@ -270,21 +270,22 @@
       // ---- Auto-fit -----------------------------------------------------
       // On by default. What refits and what turns it off: V.autoFit, tested in scripts/tests/inspector-view.test.ts.
       let autoFitOn = true;
-      function fitNow(animate = true) {
-        if (records().empty()) return;
-        const bb = cy.elements().boundingBox();
+      // Fits `eles` (everything by default) into the pane, through V.fitView.
+      function fitNow(animate = true, eles = cy.elements()) {
+        if (records().empty() || eles.empty()) return;
+        const bb = eles.boundingBox();
         const view = V.fitView({ x1: bb.x1, y1: bb.y1, w: bb.w, h: bb.h }, cy.width(), cy.height());
         cy.stop();
         if (animate) cy.animate(view, { duration: 250, easing: 'ease-out' }); else cy.viewport(view);
       }
-      function autoFit(trigger, { animate = true } = {}) {
+      function autoFit(trigger, { animate = true, eles } = {}) {
         const r = V.autoFit(autoFitOn, trigger);
         autoFitOn = r.on;
         $('autofit').classList.toggle('on', autoFitOn);
         $('autofit').setAttribute('aria-pressed', String(autoFitOn));
         $('autofit').textContent = autoFitOn ? 'Auto-fit' : 'Auto-fit off';
         if (trigger === 'manual') cy.stop();
-        if (r.fit) fitNow(animate);
+        if (r.fit) fitNow(animate, eles);
       }
       const fit = () => autoFit('fit');
       naturalWheel(cy, $('graph'), () => autoFit('manual'));
@@ -362,7 +363,7 @@
           changed = true;
         }
         cy.style(graphStyle());
-        if (relayout || changed) layout({ animate: !fresh, trigger: mode === 'expand' ? 'expand' : relayout ? 'layout' : 'structure' });
+        if (relayout || changed) layout({ animate: !fresh, trigger: fresh ? 'dna' : mode === 'expand' ? 'expand' : relayout ? 'filter' : 'structure' });
         // New records land in their place in their type's frame, then fade in.
         if (!relayout) setTimeout(() => cy.$('.new').removeClass('new'), 30);
         v.nodes.forEach((n) => state.seenNodes.add(n.id));
@@ -392,17 +393,21 @@
           nodes.forEach((n) => { const p = parentOf.get(n.id()) ?? null; if ((n.data('parent') ?? null) !== p) n.move({ parent: p }); });
           cy.nodes('[kind = "cluster"]').filter((c) => c.children().empty()).remove();
         });
-        let moving = false;
+        // Only a record already on the graph glides to its new place; one just added starts there.
+        const moves = [];
         nodes.forEach((n) => {
           const to = state.positions.get(`${state.role}|${n.id()}`) ?? positions.get(n.id());
           if (!to) return;
+          const placed = n.scratch('placed');
+          n.scratch('placed', true);
           const from = n.position();
           if (from.x === to.x && from.y === to.y) return;
-          if (animate && !n.hasClass('new')) { n.animate({ position: to }, { duration: 250, easing: 'ease-out' }); moving = true; }
+          if (animate && placed && !n.hasClass('new')) moves.push(n.animation({ position: to }, { duration: 250, easing: 'ease-out' }).play().promise());
           else n.position(to);
         });
-        // Fit once the records are where they are going, so the box is the final one.
-        if (moving) setTimeout(() => autoFit(trigger), 260); else autoFit(trigger, { animate });
+        // Fit once every record has arrived, so the box measured is the final one.
+        // A record removed mid-glide never completes its animation, so the wait is capped.
+        if (moves.length) Promise.race([Promise.all(moves), new Promise((r) => setTimeout(r, 400))]).then(() => autoFit(trigger)); else autoFit(trigger, { animate });
       }
 
       function renderTypes() {
@@ -646,11 +651,13 @@
         const cell = state.data.network.nodes.find((n) => n.agentKey === state.author && n.role === state.role);
         state.selectedCell = cell?.id ?? null; net.$(':selected').unselect(); if (cell) net.$id(cell.id).select();
         applyFilters(); renderChain();
+        autoFit('author');
       };
       $('search').oninput = (e) => {
         state.search = e.target.value; applyFilters();
         const hits = cy.$('.match');
-        if (hits.nonempty()) { autoFit('manual'); cy.animate({ fit: { eles: hits, padding: 80 } }, { duration: 250 }); }
+        // With Auto-fit on, the view follows the matches, and everything again once the search is empty.
+        autoFit('search', { eles: hits.nonempty() ? hits : undefined });
       };
       $('search').onkeydown = (e) => { if (e.key === 'Enter') { const m = cy.$('.match').first(); if (m.nonempty()) select(m.id(), { centre: true }); } };
       $('labels').onclick = (e) => { state.edgeLabels = !state.edgeLabels; e.target.classList.toggle('on', state.edgeLabels); refreshLabels(); };

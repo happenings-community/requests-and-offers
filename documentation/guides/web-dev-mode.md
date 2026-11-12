@@ -65,7 +65,7 @@ Working it:
 | ← → | the next or previous neighbour of the record you started from |
 | Enter, Backspace | focus the selected record; one step back |
 | Esc, F, Z | clear focus and selection; fit the graph and turn Auto-fit back on; zoom to the selection |
-| Auto-fit (beside Fit) | on by default: the view refits after a layout, a refresh that adds or removes records, a group opened or closed, a resize; any pan or zoom of yours turns it off ("Auto-fit off") |
+| Auto-fit (beside Fit) | on by default: the view refits whenever what is on the graph changes (DNA, type chips, Hide unlinked, Group large types, author, a refresh that adds or removes records, a group opened or closed) and on a resize; a search fits its matches; any pan or zoom of yours turns it off ("Auto-fit off") |
 | Wheel, trackpad, pinch | zoom centred on the cursor, in proportion to the movement; drag the background to pan |
 
 Records are laid out in one framed block per entry type, a grid inside each, so nodes never overlap and types never mix; the blocks that point at each other sit side by side. The layout is the same for the same records, so it refreshes every three seconds (Live) without reshuffling, keeping the selection; a new record fades in at the end of its type's block. Re-layout forgets the records you dragged. It is read-only: it lists and dumps through the admin API, and never grants, installs or changes anything.

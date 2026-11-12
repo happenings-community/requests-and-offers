@@ -202,6 +202,42 @@ describe('the clustered layout', () => {
   });
 });
 
+describe('packing the blocks', () => {
+  // The live hREA DNA of the #474 browser check: two agents and five units, nothing linked.
+  const node = (id: string, entryType: string): Graph['nodes'][number] => ({ id, kind: entryType === 'Agent' ? 'agent' : 'entry', entryType, label: id, createdAt: id });
+  const agentsAndUnits: Graph = {
+    nodes: [node('a1', 'Agent'), node('a2', 'Agent'), ...['u1', 'u2', 'u3', 'u4', 'u5'].map((id) => node(id, 'Unit'))],
+    edges: []
+  };
+  const bounds = (clusters: ReturnType<typeof clusteredLayout>['clusters']) => ({
+    width: Math.max(...clusters.map((c) => c.x + c.width)),
+    height: Math.max(...clusters.map((c) => c.y + c.height))
+  });
+
+  it('puts two blocks side by side, not one above the other', () => {
+    const [a, b] = clusteredLayout(agentsAndUnits).clusters;
+    expect(a.y).toBe(b.y);
+    expect(b.x).toBe(a.x + a.width + LAYOUT.gap);
+  });
+
+  it('picks the row width whose overall shape is closest to the pane, among every width the blocks allow', () => {
+    for (const graph of [agentsAndUnits, hrea as unknown as Graph]) {
+      const { clusters } = clusteredLayout(graph);
+      const misfit = (w: number, h: number) => Math.abs(Math.log(w / h / LAYOUT.aspect));
+      const got = bounds(clusters);
+      // Stacking every block is always one of the candidates, so the result is never worse than it.
+      const stacked = { width: Math.max(...clusters.map((c) => c.width)), height: clusters.reduce((a, c) => a + c.height, 0) + LAYOUT.gap * (clusters.length - 1) };
+      expect(misfit(got.width, got.height)).toBeLessThanOrEqual(misfit(stacked.width, stacked.height) + 1e-9);
+    }
+  });
+
+  it('keeps one block where it is: a lone type sits at the origin', () => {
+    const { clusters } = clusteredLayout({ nodes: [node('u1', 'Unit'), node('u2', 'Unit')], edges: [] });
+    expect(clusters).toHaveLength(1);
+    expect([clusters[0].x, clusters[0].y]).toEqual([0, 0]);
+  });
+});
+
 describe('fitting the view', () => {
   it('centres the box and fits it inside the padding', () => {
     const box = { x1: -500, y1: 200, w: 2000, h: 600 };
@@ -251,9 +287,10 @@ describe('wheel and trackpad zoom', () => {
 });
 
 describe('auto-fit', () => {
-  const refits: FitTrigger[] = ['layout', 'structure', 'expand', 'resize'];
+  // Everything that changes what is on the graph, or the room it has.
+  const refits: FitTrigger[] = ['layout', 'dna', 'filter', 'author', 'search', 'structure', 'expand', 'resize'];
 
-  it('refits on a layout, a refresh that changes the records, a group opened or closed, and a resize, while on', () => {
+  it('refits on a layout, a DNA switch, a filter, the author, a search, a refresh that changes the records, a group opened or closed, and a resize, while on', () => {
     for (const t of refits) expect(autoFit(true, t)).toEqual({ on: true, fit: true });
   });
 
@@ -282,5 +319,14 @@ describe('auto-fit', () => {
     expect(run('resize')).toBe(false);
     expect(run('fit')).toBe(true);
     expect(run('expand')).toBe(true);
+  });
+
+  it('refits when the reader switches DNA and then shows the unlinked records (the #474 browser check)', () => {
+    let on = true;
+    const run = (t: FitTrigger) => { const r = autoFit(on, t); on = r.on; return r.fit; };
+    expect(run('dna')).toBe(true);
+    expect(run('filter')).toBe(true);
+    expect(run('search')).toBe(true);
+    expect(on).toBe(true);
   });
 });

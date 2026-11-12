@@ -209,19 +209,39 @@ export function clusteredLayout(graph: Graph, opts: Partial<typeof LAYOUT> = {})
       height: rows * o.cellHeight + (framed ? o.header + 2 * o.padding : 0)
     };
   });
-  const area = blocks.reduce((a, b) => a + (b.width + o.gap) * (b.height + o.gap), 0);
-  const rowWidth = Math.max(...blocks.map((b) => b.width), Math.sqrt(area * o.aspect));
+  // Pack the blocks into rows at each width the blocks themselves allow (the first one, two, three...
+  // side by side), and keep the packing whose overall shape is closest to the pane's aspect.
+  type Packed = { at: Point[]; width: number; height: number };
+  const pack = (rowWidth: number): Packed => {
+    const at: Point[] = [];
+    let x = 0;
+    let y = 0;
+    let rowHeight = 0;
+    let width = 0;
+    for (const b of blocks) {
+      if (x > 0 && x + b.width > rowWidth) {
+        x = 0;
+        y += rowHeight + o.gap;
+        rowHeight = 0;
+      }
+      at.push({ x, y });
+      width = Math.max(width, x + b.width);
+      x += b.width + o.gap;
+      rowHeight = Math.max(rowHeight, b.height);
+    }
+    return { at, width, height: y + rowHeight };
+  };
+  const misfit = (p: Packed) => (p.height > 0 ? Math.abs(Math.log(p.width / p.height / o.aspect)) : 0);
+  let best = pack(0);
+  for (let k = 1, w = 0; k <= blocks.length; k++) {
+    w += (k > 1 ? o.gap : 0) + blocks[k - 1].width;
+    const p = pack(w);
+    if (misfit(p) < misfit(best) - 1e-9) best = p;
+  }
   const positions = new Map<string, Point>();
   const clusters: Cluster[] = [];
-  let x = 0;
-  let y = 0;
-  let rowHeight = 0;
-  for (const b of blocks) {
-    if (x > 0 && x + b.width > rowWidth) {
-      x = 0;
-      y += rowHeight + o.gap;
-      rowHeight = 0;
-    }
+  blocks.forEach((b, j) => {
+    const { x, y } = best.at[j];
     b.nodes.forEach((n, i) => {
       positions.set(n.id, {
         x: x + b.inner + (i % b.cols) * o.cellWidth + o.cellWidth / 2,
@@ -237,9 +257,7 @@ export function clusteredLayout(graph: Graph, opts: Partial<typeof LAYOUT> = {})
       width: b.width,
       height: b.height
     });
-    x += b.width + o.gap;
-    rowHeight = Math.max(rowHeight, b.height);
-  }
+  });
   return { positions, clusters };
 }
 
@@ -287,13 +305,27 @@ export function wheelZoom(
 
 /**
  * What wakes the auto-fit, and what puts it to sleep.
- * - `layout`, `structure` (a refresh added or removed records), `expand`
- *   (a group opened or closed) and `resize` refit only while it is on.
+ * - These refit only while it is on: `layout` (Re-layout), `dna` (another DNA,
+ *   or the first load), `filter` (a type chip, Hide unlinked, Group large types),
+ *   `author` (the author filter), `search` (the page fits the matches, or
+ *   everything once the search is cleared), `structure` (a refresh added or
+ *   removed records), `expand` (a group opened or closed) and `resize`.
  * - `manual`: the reader panned, zoomed, focused or centred on a record. It turns
  *   off, so the view never moves under him.
  * - `fit` (F, the Fit button, Esc) fits and turns it back on; `toggle` flips it.
  */
-export type FitTrigger = 'layout' | 'structure' | 'expand' | 'resize' | 'manual' | 'fit' | 'toggle';
+export type FitTrigger =
+  | 'layout'
+  | 'dna'
+  | 'filter'
+  | 'author'
+  | 'search'
+  | 'structure'
+  | 'expand'
+  | 'resize'
+  | 'manual'
+  | 'fit'
+  | 'toggle';
 
 export function autoFit(on: boolean, trigger: FitTrigger): { on: boolean; fit: boolean } {
   switch (trigger) {

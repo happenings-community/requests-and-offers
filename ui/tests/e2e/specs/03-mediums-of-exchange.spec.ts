@@ -135,9 +135,11 @@ test.describe.serial('03 — mediums of exchange: lifecycle and suggestion', () 
     });
     // Wait for the Medium of Exchange section to hydrate before clicking —
     // a click during hydration is swallowed and the modal never opens.
-    await expect(page.getByRole('heading', { name: 'Medium of Exchange' })).toBeVisible({
-      timeout: 15_000
-    });
+    // The heading reads "Additional Currencies" once an approved currency
+    // exists (the first test in this file creates one), so accept either.
+    await expect(
+      page.getByRole('heading', { name: /^(Medium of Exchange|Additional Currencies)$/ })
+    ).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: /Suggest New/ }).click();
 
     // The dialog's accessible name is "Suggest New Medium of Exchange" but

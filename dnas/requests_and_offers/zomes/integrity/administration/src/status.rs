@@ -3,6 +3,7 @@ use std::str::FromStr;
 use chrono::Duration;
 use hdi::prelude::*;
 use utils::errors::CommonError;
+use utils::errors::{invalid, StatusValidationError};
 
 /// Canonical set of status type discriminants used to validate `Status.status_type` strings.
 ///
@@ -29,7 +30,7 @@ impl FromStr for StatusType {
       "archived" => Ok(Self::Archived),
       "suspended indefinitely" => Ok(Self::SuspendedIndefinitely),
       "suspended temporarily" => Ok(Self::SuspendedTemporarily),
-      _ => Err(format!("Invalid status type: {}", s)),
+      _ => Err(StatusValidationError::InvalidStatusType(s.to_string()).to_string()),
     }
   }
 }
@@ -186,28 +187,21 @@ impl Status {
 /// 4. `"suspended indefinitely"` must NOT have a `suspended_until` timestamp.
 pub fn validate_status(status: Status) -> ExternResult<ValidateCallbackResult> {
   if StatusType::from_str(&status.status_type).is_err() {
-    return Ok(ValidateCallbackResult::Invalid(format!(
-      "Invalid status type: {}",
-      status.status_type
-    )));
+    return invalid(StatusValidationError::InvalidStatusType(
+      status.status_type.to_string(),
+    ));
   }
 
   if status.status_type.starts_with("suspended") && status.reason.is_none() {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "Suspended status must have a reason",
-    )));
+    return invalid(StatusValidationError::SuspendedWithoutReason);
   }
 
   if status.status_type == "suspended temporarily" && status.suspended_until.is_none() {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "Temporarily suspended status must have a timestamp",
-    )));
+    return invalid(StatusValidationError::TemporarySuspensionWithoutTimestamp);
   }
 
   if status.status_type == "suspended indefinitely" && status.suspended_until.is_some() {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "Indefinitely suspended status must not have a timestamp",
-    )));
+    return invalid(StatusValidationError::IndefiniteSuspensionWithTimestamp);
   }
 
   Ok(ValidateCallbackResult::Valid)
@@ -222,9 +216,7 @@ pub fn validate_delete_status(
   _original_action: TypedAction<EntryCreationData>,
   _original_status: Status,
 ) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Invalid(String::from(
-    "Status cannot be deleted",
-  )))
+  invalid(StatusValidationError::DeleteRefused)
 }
 
 /// Validates a `StatusUpdates` link creation by asserting both base and target resolve to
@@ -269,7 +261,5 @@ pub fn validate_delete_link_status_updates(
   _target: AnyLinkableHash,
   _tag: LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Invalid(String::from(
-    "StatusUpdates links cannot be deleted",
-  )))
+  invalid(StatusValidationError::UpdatesLinkDeleteRefused)
 }

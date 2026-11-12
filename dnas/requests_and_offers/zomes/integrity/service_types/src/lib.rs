@@ -1,4 +1,5 @@
 use hdi::prelude::*;
+use utils::errors::{invalid, CommonValidationError, ServiceTypeValidationError};
 
 mod service_type;
 pub use service_type::*;
@@ -84,9 +85,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           match TypedAction::<EntryCreationData>::try_from(original_record.action().clone()) {
             Ok(original_action) => original_action,
             Err(_) => {
-              return Ok(ValidateCallbackResult::Invalid(
-                "Original action for a delete must be a Create or Update action".to_string(),
-              ));
+              return invalid(CommonValidationError::DeleteOfNonCreation);
             }
           };
         let app_entry_type = match original_action.entry_type() {
@@ -99,9 +98,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           Some(entry) => entry,
           None => {
             if original_action.entry_type().visibility().is_public() {
-              return Ok(ValidateCallbackResult::Invalid(
-                "Original record for a delete of a public entry must contain an entry".to_string(),
-              ));
+              return invalid(CommonValidationError::DeletedPublicEntryMissing);
             } else {
               return Ok(ValidateCallbackResult::Valid);
             }
@@ -114,9 +111,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         )? {
           Some(app_entry) => app_entry,
           None => {
-            return Ok(ValidateCallbackResult::Invalid(
-              "Original app entry must be one of the defined entry types for this zome".to_string(),
-            ));
+            return invalid(CommonValidationError::UnknownAppEntry);
           }
         };
         match original_app_entry {
@@ -134,14 +129,10 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
 pub fn validate_service_type(service_type: ServiceType) -> ExternResult<ValidateCallbackResult> {
   if service_type.name.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "ServiceType name cannot be empty".to_string(),
-    ));
+    return invalid(ServiceTypeValidationError::NameEmpty);
   }
   if service_type.description.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "ServiceType description cannot be empty".to_string(),
-    ));
+    return invalid(ServiceTypeValidationError::DescriptionEmpty);
   }
 
   Ok(ValidateCallbackResult::Valid)

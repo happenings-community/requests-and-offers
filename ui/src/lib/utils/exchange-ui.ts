@@ -1,6 +1,7 @@
 import type { ActionHash } from '@holochain/client';
 import type { ExchangeStatus, ExchangeTerm } from '$lib/types/holochain';
 import type { UIExchange } from '$lib/types/ui';
+import { isOne } from '$lib/utils/decimal';
 
 export const EXCHANGE_STATUS_LABEL: Record<ExchangeStatus, string> = {
   Proposed: 'Proposed',
@@ -61,8 +62,9 @@ export function termLabel(term: ExchangeTerm): string {
   if (!term.quantity) return term.resource_conforms_to;
   if (term.resource_kind === 'Currency')
     return `${term.quantity.value} ${term.resource_conforms_to}`;
-  const unit =
-    term.quantity.value === 1 ? term.quantity.unit.replace(/s$/, '') : term.quantity.unit;
+  const unit = isOne(term.quantity.value)
+    ? term.quantity.unit.replace(/s$/, '')
+    : term.quantity.unit;
   return `${term.quantity.value} ${unit} of ${term.resource_conforms_to}`;
 }
 

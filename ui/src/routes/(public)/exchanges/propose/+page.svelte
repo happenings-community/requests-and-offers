@@ -13,6 +13,7 @@
   import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { proposalCounterparty, termLabel, type ExchangeRole } from '$lib/utils/exchange-ui';
+  import { decimalProblem, isZeroDecimal, parseTypedDecimal } from '$lib/utils/decimal';
   import type { ExchangeTerm, ListingType } from '$lib/types/holochain';
   import type { UIOffer, UIRequest, UIUser } from '$lib/types/ui';
 
@@ -48,9 +49,10 @@
 
   let service = $state('');
   let medium = $state('');
-  let hours = $state<number | undefined>(undefined);
+  // Amounts are typed as text and stay text: an exact decimal never passes through a float.
+  let hours = $state('');
   let returnService = $state('');
-  let amount = $state<number | undefined>(undefined);
+  let amount = $state('');
   let terms = $state('');
   let timeframe = $state('Within 2 weeks');
 
@@ -69,11 +71,20 @@
   );
   const otherName = $derived(other?.name ?? 'them');
 
+  const hoursTyped = $derived(parseTypedDecimal(hours));
+  const amountTyped = $derived(parseTypedDecimal(amount));
+  // Blank hours mean no estimate; an amount is required for a currency.
+  const hoursValid = $derived(hoursTyped === null || decimalProblem(hoursTyped) === null);
+  const amountValid = $derived(amountTyped === null || decimalProblem(amountTyped) === null);
+
   const primary = $derived<ExchangeTerm>({
     direction: 'Provide',
     resource_conforms_to: service,
     resource_kind: 'Service',
-    quantity: hours ? { value: hours, unit: 'hours' } : null
+    quantity:
+      hoursTyped !== null && hoursValid && !isZeroDecimal(hoursTyped)
+        ? { value: hoursTyped, unit: 'hours' }
+        : null
   });
   const reciprocal = $derived<ExchangeTerm>(
     isCurrency
@@ -81,7 +92,7 @@
           direction: 'Receive',
           resource_conforms_to: medium,
           resource_kind: 'Currency',
-          quantity: amount != null ? { value: amount, unit: medium } : null
+          quantity: amountTyped !== null && amountValid ? { value: amountTyped, unit: medium } : null
         }
       : medium === 'Service Exchange'
         ? { direction: 'Receive', resource_conforms_to: returnService === '__none__' ? '' : returnService, resource_kind: 'Service', quantity: null }
@@ -103,7 +114,8 @@
       !(medium === 'Service Exchange' && !returnService) &&
       !(medium === 'Service Exchange' && giverOffers.length === 0) &&
       !noneSuit &&
-      !(isCurrency && amount == null)
+      hoursValid &&
+      (!isCurrency || (amountTyped !== null && amountValid && !isZeroDecimal(amountTyped)))
   );
 
   function fail(e: unknown) {
@@ -256,14 +268,16 @@
         </label>
         <label class="label">
           <span>{myRole === 'provider' ? 'Hours offered' : 'Hours requested'}</span>
-          <input class="input" type="number" min="0" step="0.5" bind:value={hours} placeholder="e.g. 3" />
+          <input class="input" type="text" inputmode="decimal" autocomplete="off" bind:value={hours} placeholder="e.g. 3" />
+          {#if !hoursValid}<span class="text-sm text-error-500" role="alert">Hours {decimalProblem(hoursTyped ?? '')}.</span>{/if}
         </label>
       </div>
 
       {#if isCurrency}
         <label class="label">
           <span>Amount in {medium}</span>
-          <input class="input" type="number" min="0" step="0.5" bind:value={amount} placeholder="e.g. 50" />
+          <input class="input" type="text" inputmode="decimal" autocomplete="off" bind:value={amount} placeholder="e.g. 50" />
+          {#if !amountValid}<span class="text-sm text-error-500" role="alert">The amount {decimalProblem(amountTyped ?? '')}.</span>{/if}
         </label>
       {:else if medium === 'Service Exchange'}
         <label class="label">

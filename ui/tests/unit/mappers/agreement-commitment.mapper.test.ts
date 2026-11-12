@@ -29,8 +29,8 @@ const exchange = (overrides: Partial<UIExchange['agreement']> = {}): UIExchange 
       counterparty: hash(4),
       provider: hash(5),
       receiver: hash(6),
-      primary: { direction: 'Provide', resource_conforms_to: 'Bike repair', resource_kind: 'Service', quantity: { value: 2, unit: 'hours' } },
-      reciprocal: { direction: 'Receive', resource_conforms_to: 'Time bank', resource_kind: 'Currency', quantity: { value: 2, unit: 'hours' } },
+      primary: { direction: 'Provide', resource_conforms_to: 'Bike repair', resource_kind: 'Service', quantity: { value: '2', unit: 'hours' } },
+      reciprocal: { direction: 'Receive', resource_conforms_to: 'Time bank', resource_kind: 'Currency', quantity: { value: '2', unit: 'hours' } },
       medium: 'Time bank',
       terms: 'Bring the bike round on Saturday',
       delivery_timeframe: '2026-09-20',
@@ -112,7 +112,7 @@ describe('mapCompletionToEvent', () => {
         direction: 'Provide',
         resource_conforms_to: 'Bike repair',
         resource_kind: 'Service',
-        quantity: { value: 1, unit: 'furlongs' }
+        quantity: { value: '1', unit: 'furlongs' }
       }
     });
     expect(mapCompletionToEvent(odd, 'provider', parties, specs, 'hrea-agr', 1)!.resourceQuantity).toBeUndefined();

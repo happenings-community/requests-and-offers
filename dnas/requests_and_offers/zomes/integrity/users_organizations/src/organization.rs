@@ -1,6 +1,7 @@
 use email_address::EmailAddress;
 use hdi::prelude::*;
 use utils::{
+  errors::{invalid, OrganizationValidationError},
   grants::{chain_root, check_act, grant_from_tag, Ability},
   is_image,
 };
@@ -112,23 +113,17 @@ pub fn validate_create_link_organization_membership(
 
 pub fn validate_organization(organization: Organization) -> ExternResult<ValidateCallbackResult> {
   if organization.full_legal_name.trim().is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "Full legal name must not be empty",
-    )));
+    return invalid(OrganizationValidationError::LegalNameEmpty);
   }
 
   if let Some(bytes) = organization.logo {
     if !is_image(bytes) {
-      return Ok(ValidateCallbackResult::Invalid(String::from(
-        "Organization logo must be a valid image",
-      )));
+      return invalid(OrganizationValidationError::LogoInvalid);
     }
   }
 
   if !EmailAddress::is_valid(&organization.email) {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "Email is not valid",
-    )));
+    return invalid(OrganizationValidationError::EmailInvalid);
   }
 
   Ok(ValidateCallbackResult::Valid)
@@ -167,7 +162,5 @@ pub fn validate_delete_link_organization_updates(
   _target: AnyLinkableHash,
   _tag: LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Invalid(String::from(
-    "OrganizationUpdates links cannot be deleted",
-  )))
+  invalid(OrganizationValidationError::UpdatesLinkDeleteRefused)
 }

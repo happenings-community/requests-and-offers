@@ -1,5 +1,6 @@
 use hdi::prelude::*;
 use utils::{
+  errors::{invalid, OfferValidationError},
   grants::{check_act, check_author_or_act, Ability},
   InteractionType, TimePreference, TimeZone,
 };
@@ -47,23 +48,17 @@ fn default_listing_status() -> ListingStatus {
 pub fn validate_offer(offer: Offer) -> ExternResult<ValidateCallbackResult> {
   // Validate title
   if offer.title.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Offer title cannot be empty".to_string(),
-    ));
+    return invalid(OfferValidationError::TitleEmpty);
   }
 
   // Validate description
   if offer.description.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Offer description cannot be empty".to_string(),
-    ));
+    return invalid(OfferValidationError::DescriptionEmpty);
   }
 
   // Validate description length (1000 character limit)
   if offer.description.len() > 1000 {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Offer description cannot exceed 1000 characters".to_string(),
-    ));
+    return invalid(OfferValidationError::DescriptionTooLong);
   }
 
   Ok(ValidateCallbackResult::Valid)

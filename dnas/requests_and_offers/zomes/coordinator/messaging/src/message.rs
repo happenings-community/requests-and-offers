@@ -160,10 +160,13 @@ pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
 pub fn send_role_message(input: SendRoleMessageInput) -> ExternResult<Vec<SentMessage>> {
   require_content_within_bound(&input.content)?;
   if input.case_id.len() > MAX_CASE_ID_BYTES {
-    return Err(wasm_error!(WasmErrorInner::Guest(format!(
-      "Case ID is {} bytes, over the {MAX_CASE_ID_BYTES} byte limit",
-      input.case_id.len()
-    ))));
+    return Err(
+      MessagingError::CaseIdTooLong {
+        bytes: input.case_id.len(),
+        limit: MAX_CASE_ID_BYTES,
+      }
+      .into(),
+    );
   }
   require_enabled(&input.role)?;
 
@@ -188,9 +191,7 @@ pub fn send_role_message(input: SendRoleMessageInput) -> ExternResult<Vec<SentMe
 
   let holders = role_holders(&input.role, &[])?;
   if holders.is_empty() {
-    return Err(wasm_error!(WasmErrorInner::Guest(
-      "That role has no holders, so there is nowhere to deliver to".to_string()
-    )));
+    return Err(MessagingError::RoleHasNoHolders.into());
   }
 
   // Holders, the sender, and on a reply the member who opened the case. The sender is
@@ -226,10 +227,13 @@ pub fn send_role_message(input: SendRoleMessageInput) -> ExternResult<Vec<SentMe
 /// validation cannot trust that this check ran.
 fn require_content_within_bound(content: &str) -> ExternResult<()> {
   if content.len() > MAX_CONTENT_BYTES {
-    return Err(wasm_error!(WasmErrorInner::Guest(format!(
-      "Message content is {} bytes, over the {MAX_CONTENT_BYTES} byte limit",
-      content.len()
-    ))));
+    return Err(
+      MessagingError::ContentTooLong {
+        bytes: content.len(),
+        limit: MAX_CONTENT_BYTES,
+      }
+      .into(),
+    );
   }
   Ok(())
 }
@@ -262,11 +266,7 @@ fn require_may_write_to(
     if !check_if_entity_is_accepted("users".to_string(), user.clone())?
       && !check_if_agent_is_administrator(me.clone())?
     {
-      return Err(wasm_error!(WasmErrorInner::Guest(
-        "That member is not accepted yet, and only a network administrator can write to \
-         them"
-          .to_string()
-      )));
+      return Err(MessagingError::RecipientNotAccepted.into());
     }
   }
   Ok(())
@@ -298,7 +298,7 @@ fn deliver(
 
   let plaintext = XSalsa20Poly1305Data::from(
     ExternIO::encode(body)
-      .map_err(|e| wasm_error!(WasmErrorInner::Guest(format!("Could not encode message: {e:?}"))))?
+      .map_err(|e| MessagingError::Encode(format!("{e:?}")))?
       .into_vec(),
   );
 
@@ -311,9 +311,7 @@ fn deliver(
     }
   }
   if agents.is_empty() {
-    return Err(wasm_error!(WasmErrorInner::Guest(
-      DEVICES_NOT_FOUND.to_string()
-    )));
+    return Err(MessagingError::DevicesNotFound(DEVICES_NOT_FOUND.to_string()).into());
   }
 
   let mut sent = Vec::with_capacity(agents.len());

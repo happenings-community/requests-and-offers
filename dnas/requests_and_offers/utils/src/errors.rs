@@ -140,19 +140,8 @@ pub enum MessagingError {
   #[error("Message content is {bytes} bytes, over the {limit} byte limit")]
   ContentTooLong { bytes: usize, limit: usize },
 
-  #[error("Conversation ID is {bytes} bytes, over the {limit} byte limit")]
-  ConversationIdTooLong { bytes: usize, limit: usize },
-
-  #[error(
-    "A technical report can only be sent to a network administrator, and that member is not one"
-  )]
-  ReportRecipientNotAdministrator,
-
   #[error("That member is not accepted yet, and only a network administrator can write to them")]
   RecipientNotAccepted,
-
-  #[error("That member has no agent keys, so there is nowhere to deliver to")]
-  RecipientHasNoAgents,
 
   #[error("Could not encode message: {0}")]
   Encode(String),
@@ -163,9 +152,29 @@ pub enum MessagingError {
   #[error("Your member profile is not accepted yet, so you cannot send messages")]
   SenderNotAccepted,
 
-  /// The argument completes the sentence: "Only a network administrator can {0}".
-  #[error("Only a network administrator can {0}")]
-  AdministratorOnly(String),
+  #[error("Case ID is {bytes} bytes, over the {limit} byte limit")]
+  CaseIdTooLong { bytes: usize, limit: usize },
+
+  #[error("A permission name is {bytes} bytes, over the {limit} byte limit")]
+  PermissionNameTooLong { bytes: usize, limit: usize },
+
+  /// The argument names the role: "admin", a permission's name, or "organisation coordinator".
+  #[error(
+    "The {0} role is not enabled yet. Alpha 2 switches on the admin role first; stewards and named permissions arrive with the roles brief, and organisation coordinators with the organisations brief."
+  )]
+  RoleNotEnabled(String),
+
+  /// The argument completes the sentence: "Only a holder of that role can {0}".
+  #[error("Only a holder of that role can {0}")]
+  HolderOnly(String),
+
+  #[error("That role has no holders, so there is nowhere to deliver to")]
+  RoleHasNoHolders,
+
+  /// Carries `messaging::message::DEVICES_NOT_FOUND`, which the coordinator keeps beside
+  /// the reasoning for its wording.
+  #[error("{0}")]
+  DevicesNotFound(String),
 }
 
 impl From<CommonError> for WasmError {

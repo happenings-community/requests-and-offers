@@ -1,4 +1,5 @@
 use hdk::prelude::*;
+use utils::errors::MessagingError;
 
 use crate::external_calls::{check_if_agent_is_administrator, get_all_administrators_links};
 
@@ -56,11 +57,7 @@ fn not_enabled_yet(role: &RoleRef) -> WasmError {
     RoleRef::Permission { name } => name.as_str(),
     RoleRef::OrgCoordinator { .. } => "organisation coordinator",
   };
-  wasm_error!(WasmErrorInner::Guest(format!(
-    "The {which} role is not enabled yet. Alpha 2 switches on the admin role first; \
-     stewards and named permissions arrive with the roles brief, and organisation \
-     coordinators with the organisations brief."
-  )))
+  MessagingError::RoleNotEnabled(which.to_string()).into()
 }
 
 /// Refuse a role this brief has not switched on, and bound what it carries.
@@ -70,12 +67,13 @@ fn not_enabled_yet(role: &RoleRef) -> WasmError {
 pub fn require_enabled(role: &RoleRef) -> ExternResult<()> {
   match role {
     RoleRef::Admin => Ok(()),
-    RoleRef::Permission { name } if name.len() > MAX_PERMISSION_BYTES => {
-      Err(wasm_error!(WasmErrorInner::Guest(format!(
-        "A permission name is {} bytes, over the {MAX_PERMISSION_BYTES} byte limit",
-        name.len()
-      ))))
-    }
+    RoleRef::Permission { name } if name.len() > MAX_PERMISSION_BYTES => Err(
+      MessagingError::PermissionNameTooLong {
+        bytes: name.len(),
+        limit: MAX_PERMISSION_BYTES,
+      }
+      .into(),
+    ),
     other => Err(not_enabled_yet(other)),
   }
 }
@@ -129,9 +127,7 @@ pub fn holds_role(agent: &AgentPubKey, role: &RoleRef) -> ExternResult<bool> {
 /// Refuse a caller who does not hold `role`, naming what they tried to do.
 pub fn require_holder(agent: &AgentPubKey, role: &RoleRef, what: &str) -> ExternResult<()> {
   if !holds_role(agent, role)? {
-    return Err(wasm_error!(WasmErrorInner::Guest(format!(
-      "Only a holder of that role can {what}"
-    ))));
+    return Err(MessagingError::HolderOnly(what.to_string()).into());
   }
   Ok(())
 }

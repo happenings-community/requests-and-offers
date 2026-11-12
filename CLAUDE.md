@@ -146,6 +146,19 @@ Key helpers used across all stores:
 - **Events**: `createStatusAwareEventEmitters`
 - **Fetching**: `createEntityFetcher`
 
+### Zome errors (`utils/src/errors.rs`)
+
+**Rule for every zome function, human or agent written:** a zome returns errors from `dnas/requests_and_offers/utils/src/errors.rs`, never a message built by hand with `wasm_error!(WasmErrorInner::Guest(...))`.
+`CommonError` covers the generic cases (`EntryNotFound`, `RecordNotFound`, `LinkNotFound`, `EntryOperationFailed`, `InvalidData`, ...), and each domain has its own `thiserror` enum (`UsersError`, `OrganizationsError`, `AdministrationError`, `StatusError`, `ServiceTypeError`), each with an `impl From<...> for WasmError`, so `?` converts it.
+A domain without an enum gets one there, with its `From` impl, in the PR that needs it.
+```rust
+use utils::errors::CommonError;
+
+let record = get(hash.clone(), GetOptions::default())?
+  .ok_or(CommonError::RecordNotFound("the just created request".to_string()))?;
+```
+Older code on dev still builds errors by hand in places; it migrates when it is touched, and a review flags any new one.
+
 ## Domains
 
 All 8 domains follow the 7-layer pattern. Use **Service Types** as the reference template:

@@ -95,6 +95,7 @@ jobs:
           - misc
           - link_canonicalisation
           - users
+          - users_link_attacks
           - organizations
           - service_types
           - service_types_status

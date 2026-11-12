@@ -67,3 +67,13 @@ pub fn check_if_entity_is_accepted(original_action_hash: EntityActionHash) -> Ex
     original_action_hash,
   )
 }
+
+/// An organisation's `OrganizationMembers` links, for the membership an offer posted
+/// on its behalf carries.
+pub fn get_organization_members_links(organization: ActionHash) -> ExternResult<Vec<Link>> {
+  external_local_call(
+    "get_organization_members_links",
+    "users_organizations",
+    organization,
+  )
+}

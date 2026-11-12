@@ -45,13 +45,10 @@ fn validate_entry(
   update: Option<&ActionHash>,
 ) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
-    EntryTypes::Offer(offer) => {
-      let grant = offer.grant.clone();
-      match validate_offer(offer)? {
-        ValidateCallbackResult::Valid => validate_offer_grant(&grant, author, update),
-        other => Ok(other),
-      }
-    }
+    EntryTypes::Offer(offer) => match validate_offer(offer.clone())? {
+      ValidateCallbackResult::Valid => validate_offer_write(&offer, author, update),
+      other => Ok(other),
+    },
   }
 }
 
@@ -172,6 +169,9 @@ mod record_op_tests {
       links: vec![],
       status: ListingStatus::Active,
       grant: None,
+      organization: None,
+      membership: None,
+      removal_reason: None,
     }
     .try_into()
     .unwrap()

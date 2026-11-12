@@ -34,8 +34,8 @@ export interface UseCounterProposalOptions {
 export function useCounterProposal(options: UseCounterProposalOptions) {
   const details = useExchangeDetails(options);
 
-  let primary = $state<number | null | undefined>(null);
-  let reciprocal = $state<number | null | undefined>(null);
+  let primary = $state<string | null | undefined>(null);
+  let reciprocal = $state<string | null | undefined>(null);
   let timeframe = $state('');
   let seeded = $state(false);
   let sending = $state(false);
@@ -136,13 +136,13 @@ export function useCounterProposal(options: UseCounterProposalOptions) {
     get primary() {
       return primary;
     },
-    set primary(value: number | null | undefined) {
+    set primary(value: string | null | undefined) {
       primary = value;
     },
     get reciprocal() {
       return reciprocal;
     },
-    set reciprocal(value: number | null | undefined) {
+    set reciprocal(value: string | null | undefined) {
       reciprocal = value;
     },
     get timeframe() {

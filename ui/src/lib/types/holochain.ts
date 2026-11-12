@@ -150,8 +150,14 @@ export type ListingType = 'Request' | 'Offer';
 export type ExchangeDirection = 'Provide' | 'Receive';
 export type ResourceKind = 'Service' | 'Currency' | 'Gift' | 'Tbd';
 
+/**
+ * An amount in a unit. `value` is a decimal string such as "12.50", never a
+ * float: see `$lib/utils/decimal` for the accepted spelling and the exact
+ * comparison, and `decimal_problem` in the exchanges integrity zome for the rule
+ * that validates it.
+ */
 export type ExchangeQuantity = {
-  value: number;
+  value: string;
   unit: string;
 };
 
@@ -239,8 +245,8 @@ export type ExchangeReadModel = {
 /** The payload of `counter_agreement`: the proposal and the three things a counter may change. */
 export type CounterAgreementInput = {
   agreement: ActionHash;
-  primary_quantity: { value: number; unit: string } | null;
-  reciprocal_quantity: { value: number; unit: string } | null;
+  primary_quantity: ExchangeQuantity | null;
+  reciprocal_quantity: ExchangeQuantity | null;
   delivery_timeframe: string;
 };
 

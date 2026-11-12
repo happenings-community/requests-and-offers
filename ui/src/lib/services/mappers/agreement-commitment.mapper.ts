@@ -1,6 +1,10 @@
 import type { UIExchange } from '$lib/types/ui';
 import type { ExchangeTerm, ResourceKind } from '$lib/types/holochain';
-import type { AgreementInput, CommitmentInput, EconomicEventInput } from '$lib/services/hrea.service';
+import type {
+  AgreementInput,
+  CommitmentInput,
+  EconomicEventInput
+} from '$lib/services/hrea.service';
 
 /**
  * Pure mapping from an accepted R&O exchange to hREA inputs. Everything here
@@ -118,7 +122,12 @@ export function measureOf(
 ): { hasNumericalValue: number; hasUnit: string } | undefined {
   if (!term.quantity) return undefined;
   const unitId = unitRegistry[term.quantity.unit];
-  return unitId ? { hasNumericalValue: term.quantity.value, hasUnit: unitId } : undefined;
+  // The one place an exchange quantity becomes a float. hREA stores
+  // `has_numerical_value` as f64 and R&O's hREA schema is `Schema.Number`, so the
+  // exact decimal string is converted here and nowhere else, until hREA stores
+  // decimals itself: https://github.com/h-REA/hREA/issues/382. The zome caps a
+  // quantity at 15 significant digits, which an f64 round-trips.
+  return unitId ? { hasNumericalValue: Number(term.quantity.value), hasUnit: unitId } : undefined;
 }
 
 /** Prose fallback, only for labels with no seeded Unit. */
@@ -167,7 +176,11 @@ export function mapAgreementToHrea(
     // ever sent once R&O captures actual dates.
     finished: false,
     note:
-      [a.terms, a.delivery_timeframe && `Timeframe: ${a.delivery_timeframe}`, quantityText(a.primary)]
+      [
+        a.terms,
+        a.delivery_timeframe && `Timeframe: ${a.delivery_timeframe}`,
+        quantityText(a.primary)
+      ]
         .filter(Boolean)
         .join(' | ') || undefined,
     agreedIn: ref

@@ -1,5 +1,12 @@
 import type { ActionHash } from '@holochain/client';
 import type { AgreementInDHT, CounterAgreementInput, ExchangeTerm } from '$lib/types/holochain';
+import {
+  decimalProblem,
+  decimalsEqual,
+  isOne,
+  isZeroDecimal,
+  parseTypedDecimal
+} from '$lib/utils/decimal';
 
 /**
  * A counter-proposal: the proposal it answers, with only the quantities and the
@@ -20,10 +27,14 @@ export const COUNTER_TIMEFRAMES = [
   'Flexible'
 ] as const;
 
-/** What a member has typed. A blank number input reads as null or undefined. */
+/**
+ * What a member has typed, as text. Amounts are exact decimals, so they stay
+ * strings from the input to the zome call and never pass through a float.
+ * A blank input reads as an empty string, null or undefined.
+ */
 export interface CounterEdits {
-  primary: number | null | undefined;
-  reciprocal: number | null | undefined;
+  primary: string | null | undefined;
+  reciprocal: string | null | undefined;
   timeframe: string;
 }
 
@@ -41,10 +52,24 @@ export function reciprocalFigure(term: ExchangeTerm): 'hours' | 'amount' | null 
   return null;
 }
 
-/** Zero and blank mean the same thing: no quantity. */
-export function normaliseQuantity(value: number | null | undefined): number | null {
-  if (value === null || value === undefined || Number.isNaN(value) || value === 0) return null;
-  return value;
+/**
+ * Zero (in any spelling) and blank mean the same thing: no quantity.
+ *
+ * Anything else comes back trimmed and with a decimal comma read as a dot, even
+ * when it is not a well-formed amount, so `counterProblem` can say what is wrong.
+ */
+export function normaliseQuantity(value: string | null | undefined): string | null {
+  const typed = parseTypedDecimal(value);
+  if (typed === null) return null;
+  if (decimalProblem(typed) === null && isZeroDecimal(typed)) return null;
+  return typed;
+}
+
+/** Two normalised quantities are the same amount; a malformed one equals nothing but itself. */
+function sameQuantity(a: string | null, b: string | null): boolean {
+  if (a === null || b === null) return a === b;
+  if (decimalProblem(a) !== null || decimalProblem(b) !== null) return a === b;
+  return decimalsEqual(a, b);
 }
 
 export function startingEdits(agreement: AgreementInDHT): CounterEdits {
@@ -69,7 +94,7 @@ function unitFor(term: ExchangeTerm, figure: 'hours' | 'amount'): string {
 function withQuantity(
   term: ExchangeTerm,
   figure: 'hours' | 'amount' | null,
-  value: number | null | undefined
+  value: string | null | undefined
 ): ExchangeTerm {
   if (!figure) return term;
   const v = normaliseQuantity(value);
@@ -79,12 +104,20 @@ function withQuantity(
 /** The fields the member has changed, comparing zero and blank as equal. */
 export function changedFields(agreement: AgreementInDHT, edits: CounterEdits): CounterField[] {
   const changed: CounterField[] = [];
-  if (normaliseQuantity(edits.primary) !== normaliseQuantity(agreement.primary.quantity?.value)) {
+  if (
+    !sameQuantity(
+      normaliseQuantity(edits.primary),
+      normaliseQuantity(agreement.primary.quantity?.value)
+    )
+  ) {
     changed.push('primary');
   }
   if (
     reciprocalFigure(agreement.reciprocal) &&
-    normaliseQuantity(edits.reciprocal) !== normaliseQuantity(agreement.reciprocal.quantity?.value)
+    !sameQuantity(
+      normaliseQuantity(edits.reciprocal),
+      normaliseQuantity(agreement.reciprocal.quantity?.value)
+    )
   ) {
     changed.push('reciprocal');
   }
@@ -92,11 +125,16 @@ export function changedFields(agreement: AgreementInDHT, edits: CounterEdits): C
   return changed;
 }
 
-function negativeProblem(value: number | null | undefined, what: string): string | null {
-  if (value === null || value === undefined) return null;
-  if (!Number.isFinite(value)) return `${what} must be a number.`;
-  if (value < 0) return `${what} can't be negative. Use 0 or leave it blank for none.`;
-  return null;
+/** What stops a typed amount from being sent, in the member's words; null when it is fine or blank. */
+function amountProblem(value: string | null | undefined, what: string): string | null {
+  const typed = normaliseQuantity(value);
+  if (typed === null) return null;
+  if (decimalProblem(typed) === null) return null;
+  // A minus sign in front of an otherwise good number is a negative, not a typo.
+  if (typed.startsWith('-') && decimalProblem(typed.slice(1)) === null) {
+    return `${what} can't be negative. Use 0 or leave it blank for none.`;
+  }
+  return `${what} ${decimalProblem(typed)}.`;
 }
 
 export const NOTHING_CHANGED =
@@ -106,9 +144,9 @@ export const NOTHING_CHANGED =
 export function counterProblem(agreement: AgreementInDHT, edits: CounterEdits): string | null {
   const figure = reciprocalFigure(agreement.reciprocal);
   return (
-    negativeProblem(edits.primary, 'Hours') ??
+    amountProblem(edits.primary, 'Hours') ??
     (figure
-      ? negativeProblem(edits.reciprocal, figure === 'amount' ? 'The amount' : 'Return hours')
+      ? amountProblem(edits.reciprocal, figure === 'amount' ? 'The amount' : 'Return hours')
       : null) ??
     (changedFields(agreement, edits).length === 0 ? NOTHING_CHANGED : null)
   );
@@ -137,12 +175,12 @@ export function buildCounter(
 
 /** A quantity as the form shows what it was. */
 export function describeQuantity(
-  value: number | null | undefined,
+  value: string | null | undefined,
   figure: 'hours' | 'amount',
   unit = ''
 ): string {
   const v = normaliseQuantity(value);
   if (v === null) return figure === 'amount' ? 'No amount' : 'No time estimate';
   if (figure === 'amount') return `${v} ${unit}`.trim();
-  return `${v} ${v === 1 ? 'hour' : 'hours'}`;
+  return `${v} ${isOne(v) ? 'hour' : 'hours'}`;
 }

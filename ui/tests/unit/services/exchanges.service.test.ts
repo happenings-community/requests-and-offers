@@ -47,13 +47,13 @@ const valid: CreateAgreementInput = {
     direction: 'Provide',
     resource_conforms_to: 'Gardening',
     resource_kind: 'Service',
-    quantity: { value: 2, unit: 'hours' }
+    quantity: { value: '2', unit: 'hours' }
   },
   reciprocal: {
     direction: 'Receive',
     resource_conforms_to: 'CAD',
     resource_kind: 'Currency',
-    quantity: { value: 60, unit: 'CAD' }
+    quantity: { value: '60', unit: 'CAD' }
   },
   medium: 'CAD',
   terms: 'Saturday morning',
@@ -119,7 +119,7 @@ describe('exchanges service validation', () => {
     const message = await refusal(
       service.createAgreement({
         ...valid,
-        primary: { ...valid.primary, quantity: { value: 0, unit: 'hours' } }
+        primary: { ...valid.primary, quantity: { value: '0', unit: 'hours' } }
       })
     );
     expect(message).toContain('greater than zero');
@@ -134,7 +134,7 @@ describe('exchanges service validation', () => {
           direction: 'Receive',
           resource_conforms_to: '',
           resource_kind: 'Gift',
-          quantity: { value: 1, unit: 'hours' }
+          quantity: { value: '1', unit: 'hours' }
         }
       })
     );

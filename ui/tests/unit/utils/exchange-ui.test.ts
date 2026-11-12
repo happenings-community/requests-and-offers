@@ -54,7 +54,7 @@ const term = (over: Partial<ExchangeTerm> = {}): ExchangeTerm => ({
   direction: 'Provide',
   resource_conforms_to: 'Web design',
   resource_kind: 'Service',
-  quantity: { value: 3, unit: 'hours' },
+  quantity: { value: '3', unit: 'hours' },
   ...over
 });
 
@@ -299,19 +299,19 @@ describe('exchange-ui', () => {
       const t = term({
         resource_kind: 'Currency',
         resource_conforms_to: 'CAD',
-        quantity: { value: 40, unit: 'dollars' }
+        quantity: { value: '40', unit: 'dollars' }
       });
       expect(termLabel(t)).toBe('40 CAD');
     });
 
     it('prints a service term as quantity, unit, resource', () => {
-      expect(termLabel(term({ quantity: { value: 3, unit: 'hours' } }))).toBe(
+      expect(termLabel(term({ quantity: { value: '3', unit: 'hours' } }))).toBe(
         '3 hours of Web design'
       );
     });
 
     it('singularises the unit when the quantity is one', () => {
-      expect(termLabel(term({ quantity: { value: 1, unit: 'hours' } }))).toBe(
+      expect(termLabel(term({ quantity: { value: '1', unit: 'hours' } }))).toBe(
         '1 hour of Web design'
       );
     });

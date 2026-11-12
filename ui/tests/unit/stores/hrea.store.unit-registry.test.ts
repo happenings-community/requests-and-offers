@@ -30,7 +30,7 @@ const hoursTerm = {
   direction: 'Provide',
   resource_conforms_to: 'Mentoring',
   resource_kind: 'Service',
-  quantity: { value: 2, unit: 'hours' }
+  quantity: { value: '2', unit: 'hours' }
 } as ExchangeTerm;
 
 const hash = (n: number) => new Uint8Array([n, n, n]) as unknown as UIExchange['agreement_hash'];

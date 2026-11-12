@@ -19,7 +19,7 @@ const round = (
     status?: UIExchange['status'];
     other?: Uint8Array;
     to?: Uint8Array;
-    hours?: number | null;
+    hours?: string | null;
     timeframe?: string;
   } = {}
 ): UIExchange => {
@@ -39,7 +39,7 @@ const round = (
         direction: 'Provide',
         resource_conforms_to: 'Gardening',
         resource_kind: 'Service',
-        quantity: opts.hours === null ? null : { value: opts.hours ?? 2, unit: 'hours' }
+        quantity: opts.hours === null ? null : { value: opts.hours ?? '2', unit: 'hours' }
       },
       reciprocal: {
         direction: 'Receive',
@@ -176,8 +176,8 @@ const counterOf = (g: { sample: { latest: UIExchange } }) => g.sample.latest.agr
 
 describe('roundChanges', () => {
   it('names what changed from the round before', () => {
-    const a = round(10, 100, { hours: 3 });
-    const b = round(11, 200, { counters: 10, hours: 5, timeframe: 'Flexible' });
+    const a = round(10, 100, { hours: '3' });
+    const b = round(11, 200, { counters: 10, hours: '5', timeframe: 'Flexible' });
     expect(roundChanges(a, b)).toEqual([
       { field: 'primary', from: '3 hours', to: '5 hours' },
       { field: 'timeframe', from: 'Within 2 weeks', to: 'Flexible' }
@@ -185,11 +185,11 @@ describe('roundChanges', () => {
   });
 
   it('shows a quantity removed as none, and nothing for a first proposal', () => {
-    const a = round(10, 100, { hours: 3 });
+    const a = round(10, 100, { hours: '3' });
     const b = round(11, 200, { counters: 10, hours: null });
     expect(roundChanges(a, b)).toEqual([{ field: 'primary', from: '3 hours', to: 'none' }]);
-    const one = round(12, 300, { counters: 11, hours: 1 });
-    expect(roundChanges(b, one)).toEqual([{ field: 'primary', from: 'none', to: '1 hour' }]);
+    const one = round(12, 300, { counters: 11, hours: '1.0' });
+    expect(roundChanges(b, one)).toEqual([{ field: 'primary', from: 'none', to: '1.0 hour' }]);
     expect(roundChanges(undefined, a)).toEqual([]);
   });
 });

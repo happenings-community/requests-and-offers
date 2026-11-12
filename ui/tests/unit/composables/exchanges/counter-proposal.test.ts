@@ -55,7 +55,7 @@ vi.mock('$lib/utils/effect', () => ({
               direction: 'Provide',
               resource_conforms_to: 'Gardening',
               resource_kind: 'Service',
-              quantity: { value: 3, unit: 'hours' }
+              quantity: { value: '3', unit: 'hours' }
             },
             reciprocal: {
               direction: 'Receive',
@@ -109,7 +109,7 @@ describe('useCounterProposal (#332, #333)', () => {
   it('opens with the proposal as it stands, and nothing to send yet', async () => {
     const counter = await loaded();
     expect(counter.canCounter).toBe(true);
-    expect(counter.primary).toBe(3);
+    expect(counter.primary).toBe('3');
     expect(counter.timeframe).toBe('Within 2 weeks');
     expect(counter.figure).toBeNull();
     expect(counter.problem).not.toBeNull();
@@ -125,7 +125,7 @@ describe('useCounterProposal (#332, #333)', () => {
     expect(Array.from(sent.agreement)).toEqual(Array.from(hash(10)));
     expect({ ...sent, agreement: undefined }).toEqual({
       agreement: undefined,
-      primary_quantity: { value: 3, unit: 'hours' },
+      primary_quantity: { value: '3', unit: 'hours' },
       reciprocal_quantity: null,
       delivery_timeframe: 'Flexible'
     });
@@ -136,7 +136,7 @@ describe('useCounterProposal (#332, #333)', () => {
   it('reports a refused counter and goes nowhere', async () => {
     state.failCounter = true;
     const counter = await loaded();
-    counter.primary = 5;
+    counter.primary = '5';
     expect(await counter.send()).toBeNull();
     expect(showToast.mock.calls[0][0]).toContain('counter refused');
   });

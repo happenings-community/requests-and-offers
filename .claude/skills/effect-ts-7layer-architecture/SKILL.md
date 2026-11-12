@@ -99,7 +99,7 @@ export default store;
 
 ## Validation
 
-Run `npx tsx .claude/skills/effect-ts-7layer-architecture/validation/architecture-check.ts ServiceType` to validate a domain's architectural compliance.
+Run `bunx tsx .claude/skills/effect-ts-7layer-architecture/validation/architecture-check.ts ServiceType` to validate a domain's architectural compliance.
 
 ## 9 Store Helper Functions
 

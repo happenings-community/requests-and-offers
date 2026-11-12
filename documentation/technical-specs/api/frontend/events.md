@@ -40,7 +40,7 @@ const eventEmitters = createEventEmitters<UIServiceType>("serviceTypes");
 const createEntity = (input: CreateServiceTypeInput) =>
   withLoadingState(
     Effect.gen(function* () {
-      const service = yield* ServiceTypeService;
+      const service = yield* ServiceTypesService;
       const newEntity = yield* service.createServiceType(input);
       handleNewRecord(newEntity);
       eventEmitters.entityCreated(newEntity); // Event emission

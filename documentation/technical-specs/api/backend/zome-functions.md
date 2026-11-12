@@ -198,7 +198,7 @@ Removes a member from an organization.
 **DNA**: `requests_and_offers`  
 **Zome**: `administration`
 
-For the full administration design including the progenitor bootstrap mechanism see [The Progenitor Pattern](../../../progenitor.md) and [Administration Zome Specification](../zomes/administration.md).
+For the full administration design including the progenitor bootstrap mechanism see [The Progenitor Pattern](../../../progenitor.md) and [Administration Zome Specification](../../zomes/administration.md).
 
 ### Functions
 

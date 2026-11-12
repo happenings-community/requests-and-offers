@@ -6,14 +6,14 @@ This document outlines the features included in the MVP version of the Requests 
 
 ### 1. Request Management
 
-- Create new requests with title, description, tags
+- Create new requests with title, description, service types
 - View request details
 - Archive own requests
 - Delete own requests
 
 ### 2. Offer Management
 
-- Create new offers with title, description, tags
+- Create new offers with title, description, service types
 - View offer details
 - Archive own offers
 - Delete own offers

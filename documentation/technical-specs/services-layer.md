@@ -35,7 +35,7 @@ All services follow a standardized 7-layer pattern for consistency and maintaina
 Clearly defines the contract for each service:
 
 ```typescript
-export interface ServiceTypeService {
+export interface ServiceTypesService {
   readonly createServiceType: (
     input: ServiceTypeInput,
   ) => E.Effect<Record, ServiceTypeError>;
@@ -61,8 +61,8 @@ export interface ServiceTypeService {
 Enables clean dependency injection using Effect-TS Context.GenericTag:
 
 ```typescript
-export const ServiceTypeService =
-  Context.GenericTag<ServiceTypeService>("ServiceTypeService");
+export const ServiceTypesService =
+  Context.GenericTag<ServiceTypesService>("ServiceTypesService");
 ```
 
 ### 3. Error Type Definition
@@ -158,7 +158,7 @@ export const makeServiceTypeService = Effect.gen(function* () {
           SERVICE_TYPE_CONTEXTS.CREATE_SERVICE_TYPE,
         ),
       ),
-      Effect.withSpan("ServiceTypeService.createServiceType"),
+      Effect.withSpan("ServiceTypesService.createServiceType"),
     );
 
   const getAllServiceTypes = () =>
@@ -177,7 +177,7 @@ export const makeServiceTypeService = Effect.gen(function* () {
           SERVICE_TYPE_CONTEXTS.GET_ALL_SERVICE_TYPES,
         ),
       ),
-      Effect.withSpan("ServiceTypeService.getAllServiceTypes"),
+      Effect.withSpan("ServiceTypesService.getAllServiceTypes"),
     );
 
   return {
@@ -193,8 +193,8 @@ export const makeServiceTypeService = Effect.gen(function* () {
 Layer for dependency injection:
 
 ```typescript
-export const ServiceTypeServiceLive = Layer.effect(
-  ServiceTypeService,
+export const ServiceTypesServiceLive = Layer.effect(
+  ServiceTypesService,
   makeServiceTypeService,
 ).pipe(Layer.provide(HolochainClientServiceLive));
 ```
@@ -204,7 +204,7 @@ export const ServiceTypeServiceLive = Layer.effect(
 Comprehensive testing with mock implementations:
 
 ```typescript
-describe("ServiceTypeService", () => {
+describe("ServiceTypesService", () => {
   const mockClient = {
     callZomeEffect: vi.fn(),
   } as unknown as HolochainClientService;
@@ -302,10 +302,10 @@ Services are consumed by stores using the Effect TS dependency injection system:
 export const createServiceTypeStore = (): E.Effect<
   ServiceTypeStore,
   never,
-  ServiceTypeServiceTag
+  ServiceTypesServiceTag
 > =>
   E.gen(function* () {
-    const service = yield* Context.get(ServiceTypeServiceTag);
+    const service = yield* Context.get(ServiceTypesServiceTag);
 
     // Use service methods to implement store functionality
   });

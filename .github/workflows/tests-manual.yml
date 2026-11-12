@@ -111,6 +111,7 @@ jobs:
           - administration_profile_status_consistency
           - administration_successive_profile_updates
           - messaging
+          - grants
     steps:
       - uses: actions/checkout@v5
         with:

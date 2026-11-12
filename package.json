@@ -16,7 +16,7 @@
     "test:sweettest": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest -- --test-threads=1",
     "test:sweettest:verbose": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest -- --nocapture --test-threads=1",
     "test:sweettest:misc": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test misc -- --test-threads=1",
-    "test:sweettest:users": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test users -- --test-threads=1",
+    "test:sweettest:users": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test users --test users_link_attacks -- --test-threads=1",
     "test:sweettest:administration": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test administration_administrator_management --test administration_progenitor --test administration_status_management --test administration_profile_status_consistency --test administration_successive_profile_updates -- --test-threads=1",
     "test:sweettest:organizations": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test organizations -- --test-threads=1",
     "test:sweettest:service-types": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p requests_and_offers_sweettest --test service_types -- --test-threads=1",

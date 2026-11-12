@@ -8475,6 +8475,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "users_probe"
+version = "0.1.0"
+dependencies = [
+ "hdk",
+ "serde",
+ "users_organizations_integrity",
+]
+
+[[package]]
 name = "utf-8"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

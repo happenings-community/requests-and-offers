@@ -1,5 +1,6 @@
 use hdk::prelude::*;
 use messaging_integrity::{EncryptedMessage, EntryTypes, LinkTypes};
+use utils::errors::{CommonError, MessagingError};
 
 use crate::cases::{CaseEvent, CaseKind, CaseRef, MAX_CASE_ID_BYTES};
 use crate::external_calls::{
@@ -367,21 +368,19 @@ fn deliver(
 pub fn require_accepted_member(agent: AgentPubKey) -> ExternResult<ActionHash> {
   let links = get_agent_user(agent)?;
   let Some(link) = links.first() else {
-    return Err(wasm_error!(WasmErrorInner::Guest(
-      "You need a member profile before you can send messages".to_string()
-    )));
+    return Err(MessagingError::SenderHasNoProfile.into());
   };
 
-  let user_hash = link.target.clone().into_action_hash().ok_or_else(|| {
-    wasm_error!(WasmErrorInner::Guest(
-      "A user link did not point at an action hash".to_string()
-    ))
-  })?;
+  let user_hash = link
+    .target
+    .clone()
+    .into_action_hash()
+    .ok_or(CommonError::InvalidData(
+      "A user link did not point at an action hash".to_string(),
+    ))?;
 
   if !check_if_entity_is_accepted("users".to_string(), user_hash.clone())? {
-    return Err(wasm_error!(WasmErrorInner::Guest(
-      "Your member profile is not accepted yet, so you cannot send messages".to_string()
-    )));
+    return Err(MessagingError::SenderNotAccepted.into());
   }
 
   Ok(user_hash)

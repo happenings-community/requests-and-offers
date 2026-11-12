@@ -1,5 +1,6 @@
 use hdk::prelude::*;
 use messaging_integrity::{EntryTypes, LinkTypes, ReadMarker};
+use utils::errors::CommonError;
 
 use crate::blocks::{get_blocks, is_blocked};
 use crate::cases::CaseRef;
@@ -224,7 +225,7 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
 
   let link_type_filter = LinkTypes::Inbox
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   // Network rather than Local: a message may have been written by a peer since this
   // agent last gossiped, and an inbox that only reports what is already local would
   // silently miss it.

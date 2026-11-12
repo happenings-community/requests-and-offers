@@ -1,5 +1,7 @@
 # Moss/Weave Integration
 
+> **Out of date:** The version table in section 10 predates the move to Holochain 0.7. Tracked in [#481](https://github.com/happenings-community/requests-and-offers/issues/481).
+
 This document describes how Requests & Offers integrates with the Weave/Moss ecosystem as a Moss Tool. It covers architecture, design decisions, and development setup.
 
 ## Overview

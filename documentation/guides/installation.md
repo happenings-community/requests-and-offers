@@ -49,6 +49,8 @@ This will also download the hREA suite as part of the postinstall script.
 
 #### Environment Configuration
 
+> **Out of date:** `bun start:test` and `bun start:prod` do not exist, and the env files are `.env.example` and `.env.production`. Tracked in [#481](https://github.com/happenings-community/requests-and-offers/issues/481).
+
 The project uses environment variables to control development features. Three environment files are configured:
 
 - **`.env.development`** - Full development features enabled

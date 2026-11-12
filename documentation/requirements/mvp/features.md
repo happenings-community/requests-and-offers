@@ -1,5 +1,7 @@
 # MVP Features
 
+> **Out of date:** Search by keyword and filter by tags are not delivered: tags were replaced by Technical and Non-Technical service types. Tracked in [#480](https://github.com/happenings-community/requests-and-offers/issues/480).
+
 This document outlines the features included in the MVP version of the Requests and Offers application.
 
 ## Core Features (Delivered)

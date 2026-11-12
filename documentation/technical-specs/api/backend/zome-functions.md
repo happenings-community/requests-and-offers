@@ -1,5 +1,7 @@
 # Backend Zome Functions API
 
+> **Out of date:** Most functions listed here do not match the coordinator zomes on `dev`; the reference is being rebuilt. Tracked in [#478](https://github.com/happenings-community/requests-and-offers/issues/478).
+
 Complete reference for all Holochain zome functions across all domains.
 
 ## Zome Function Architecture

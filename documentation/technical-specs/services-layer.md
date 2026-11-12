@@ -1,5 +1,7 @@
 # Services Layer Documentation
 
+> **Out of date:** The store-construction example names types that no longer exist. Tracked in [#479](https://github.com/happenings-community/requests-and-offers/issues/479).
+
 This document provides a comprehensive overview of the services layer in the Requests and Offers application, which
 handles all communication with the Holochain backend.
 

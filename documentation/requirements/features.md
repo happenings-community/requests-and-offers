@@ -1,5 +1,7 @@
 # Detailed Feature Specifications
 
+> **Out of date:** The tag-based discovery sections (4.1 to 4.4) and the messaging status (7.1) do not match what `dev` ships. Tracked in [#480](https://github.com/happenings-community/requests-and-offers/issues/480).
+
 ## 1. User Management
 
 ### 1.1 User Profile

@@ -14,9 +14,9 @@ use crate::{send_nudge, SendNudgeInput};
 /// **It never means the member has none.** A member cannot create a profile or a listing
 /// without an agent key, so the list is never genuinely empty. What an empty lookup means
 /// is that *this* device could not find them: `get_user_agents` reads links with
-/// `GetStrategy::Network`, which `holochain_zome_types` 0.6 documents at
-/// `src/entry.rs:91-104` as falling back to locally cached metadata, so with no network
-/// and a cold cache it returns nothing at all.
+/// `GetStrategy::Network`, which `holochain_integrity_types` 0.7.0 documents at
+/// `src/get_strategy.rs:9-10` as falling back to locally cached metadata, so with no
+/// network and a cold cache it returns nothing at all.
 ///
 /// The old wording, "That member has no agent keys", reported that as the recipient's
 /// fault. It is a condition of this device, it passes on its own, and the caller should

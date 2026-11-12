@@ -786,9 +786,9 @@ async fn claiming_completing_reopening_and_handing_over() {
 /// and from Carol's own area, without anything being deleted or rewritten.
 ///
 /// **How to make this go red:** in
-/// `coordinator/messaging/src/inbox.rs`, make `role_claim_stands` return `Ok(true)`
-/// before it reads the direction. Bob's reply then survives his removal and both counts
-/// below are one too high.
+/// `coordinator/messaging/src/inbox.rs`, make `claims_the_role` return `false`, so no
+/// message is read as claiming the role and `holds_role` is never asked. Bob's reply then
+/// survives his removal and both counts below are one too high.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_removed_admins_role_messages_are_withheld() {
     let (conductors, alice, bob, carol, _alice_user, bob_user, carol_user) =

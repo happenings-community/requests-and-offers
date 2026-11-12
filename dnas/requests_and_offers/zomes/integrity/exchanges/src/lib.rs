@@ -28,10 +28,67 @@ pub enum ResourceKind {
   Tbd,
 }
 
+/// An amount of something, in a unit.
+///
+/// `value` is a decimal string, never a binary float, so "0.1" plus "0.2" is
+/// exactly "0.3" and a currency amount cannot drift. The accepted spelling is
+/// fixed by `decimal_problem`: ASCII digits and at most one dot, up to
+/// `MAX_INTEGER_DIGITS` before it and `MAX_FRACTION_DIGITS` after, no sign, no
+/// exponent, no leading zero except "0.x". Trailing zeros are kept as written
+/// ("12.50"), so two spellings of one amount exist and must be compared with
+/// `same_amount`, never with `==` on the string.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Quantity {
-  pub value: f64,
+  pub value: String,
   pub unit: String,
+}
+
+/// Nine integer digits and six fraction digits are fifteen significant digits
+/// at most, which an f64 holds exactly enough to survive the one conversion at
+/// the hREA boundary (hREA stores `has_numerical_value` as f64, h-REA/hREA#382).
+pub const MAX_INTEGER_DIGITS: usize = 9;
+pub const MAX_FRACTION_DIGITS: usize = 6;
+
+/// What is wrong with an amount's spelling, if anything.
+pub fn decimal_problem(value: &str) -> Option<&'static str> {
+  const MALFORMED: &str = "a quantity is a plain decimal like 12.50: digits and at most one dot, no sign, no exponent, no leading zeros, up to 9 digits before the dot and 6 after";
+  let (int, frac) = match value.split_once('.') {
+    Some((i, f)) => (i, Some(f)),
+    None => (value, None),
+  };
+  let digits = |s: &str| s.bytes().all(|b| b.is_ascii_digit());
+  if int.is_empty() || int.len() > MAX_INTEGER_DIGITS || !digits(int) {
+    return Some(MALFORMED);
+  }
+  if int.len() > 1 && int.starts_with('0') {
+    return Some(MALFORMED);
+  }
+  if let Some(f) = frac {
+    if f.is_empty() || f.len() > MAX_FRACTION_DIGITS || !digits(f) {
+      return Some(MALFORMED);
+    }
+  }
+  None
+}
+
+/// True when a well-formed amount is above zero.
+pub fn is_positive(value: &str) -> bool {
+  value.bytes().any(|b| b.is_ascii_digit() && b != b'0')
+}
+
+/// The amount with its trailing fraction zeros dropped: "1.50" and "1.5" both
+/// become "1.5", "10.0" becomes "10". Only meaningful for a well-formed value.
+fn amount_key(value: &str) -> &str {
+  if value.contains('.') {
+    value.trim_end_matches('0').trim_end_matches('.')
+  } else {
+    value
+  }
+}
+
+/// Two well-formed amounts are equal as numbers, whatever their trailing zeros.
+pub fn same_amount(a: &str, b: &str) -> bool {
+  amount_key(a) == amount_key(b)
 }
 
 /// One side of the pair. Mirrors an hREA intent: a transfer, in a direction,
@@ -240,7 +297,10 @@ fn validate_term(term: &ExchangeTerm, side: &str) -> Option<String> {
     }
   }
   if let Some(q) = &term.quantity {
-    if !(q.value.is_finite() && q.value > 0.0) || q.unit.is_empty() {
+    if let Some(problem) = decimal_problem(&q.value) {
+      return Some(format!("{side} term quantity is not a decimal: {problem}"));
+    }
+    if !is_positive(&q.value) || q.unit.is_empty() {
       return Some(format!("{side} term quantity must be positive with a unit"));
     }
   }
@@ -422,13 +482,23 @@ pub fn counter_terms_problem(counter: &Agreement, countered: &Agreement) -> Opti
   {
     return Some("a counter keeps each quantity's unit; only the amount may change");
   }
-  if counter.primary.quantity == countered.primary.quantity
-    && counter.reciprocal.quantity == countered.reciprocal.quantity
+  if same_quantity(&counter.primary.quantity, &countered.primary.quantity)
+    && same_quantity(&counter.reciprocal.quantity, &countered.reciprocal.quantity)
     && counter.delivery_timeframe.trim() == countered.delivery_timeframe.trim()
   {
     return Some("a counter changes a quantity or the timeframe");
   }
   None
+}
+
+/// Quantities are equal when both are absent, or both present with the same
+/// amount (compared as numbers) and the same unit.
+fn same_quantity(a: &Option<Quantity>, b: &Option<Quantity>) -> bool {
+  match (a, b) {
+    (None, None) => true,
+    (Some(x), Some(y)) => same_amount(&x.value, &y.value) && x.unit == y.unit,
+    _ => false,
+  }
 }
 
 /// A quantity on both sides must be in the same unit, so "2 hours" cannot
@@ -736,13 +806,13 @@ mod counter_tests {
         direction: Direction::Provide,
         resource_conforms_to: "Gardening".into(),
         resource_kind: ResourceKind::Service,
-        quantity: Some(Quantity { value: 3.0, unit: "hours".into() }),
+        quantity: Some(Quantity { value: "3".into(), unit: "hours".into() }),
       },
       reciprocal: ExchangeTerm {
         direction: Direction::Receive,
         resource_conforms_to: "Time bank hours".into(),
         resource_kind: ResourceKind::Currency,
-        quantity: Some(Quantity { value: 3.0, unit: "Time bank hours".into() }),
+        quantity: Some(Quantity { value: "3".into(), unit: "Time bank hours".into() }),
       },
       medium: "Time bank hours".into(),
       terms: "".into(),
@@ -754,7 +824,7 @@ mod counter_tests {
   #[test]
   fn a_changed_quantity_or_timeframe_is_a_counter() {
     let mut c = proposal();
-    c.primary.quantity = Some(Quantity { value: 5.0, unit: "hours".into() });
+    c.primary.quantity = Some(Quantity { value: "5".into(), unit: "hours".into() });
     assert_eq!(counter_terms_problem(&c, &proposal()), None);
     let mut c = proposal();
     c.reciprocal.quantity = None;
@@ -814,7 +884,7 @@ mod counter_tests {
     let mut original = proposal();
     original.primary.quantity = None;
     let mut c = original.clone();
-    c.primary.quantity = Some(Quantity { value: 1.0, unit: "hours".into() });
+    c.primary.quantity = Some(Quantity { value: "1".into(), unit: "hours".into() });
     assert_eq!(counter_terms_problem(&c, &original), None);
   }
 
@@ -836,10 +906,10 @@ mod counter_tests {
   #[test]
   fn each_quantity_keeps_its_unit() {
     let mut c = proposal();
-    c.primary.quantity = Some(Quantity { value: 3.0, unit: "days".into() });
+    c.primary.quantity = Some(Quantity { value: "3".into(), unit: "days".into() });
     assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("unit"));
     let mut c = proposal();
-    c.reciprocal.quantity = Some(Quantity { value: 5.0, unit: "Pounds".into() });
+    c.reciprocal.quantity = Some(Quantity { value: "5".into(), unit: "Pounds".into() });
     assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("unit"));
   }
 
@@ -853,5 +923,78 @@ mod counter_tests {
     c.delivery_timeframe = "Flexible".into();
     c.reciprocal.resource_kind = ResourceKind::Gift;
     assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("both services"));
+  }
+
+  #[test]
+  fn the_same_amount_written_differently_is_not_a_change() {
+    let mut c = proposal();
+    c.delivery_timeframe = "  Within 2 weeks ".into();
+    c.primary.quantity = Some(Quantity { value: "3.00".into(), unit: "hours".into() });
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("changes a quantity"));
+    let mut original = proposal();
+    original.primary.quantity = Some(Quantity { value: "1.5".into(), unit: "hours".into() });
+    let mut c = original.clone();
+    c.primary.quantity = Some(Quantity { value: "1.50".into(), unit: "hours".into() });
+    assert!(counter_terms_problem(&c, &original).unwrap().contains("changes a quantity"));
+    c.primary.quantity = Some(Quantity { value: "1.51".into(), unit: "hours".into() });
+    assert_eq!(counter_terms_problem(&c, &original), None);
+  }
+}
+
+#[cfg(test)]
+mod decimal_tests {
+  use super::*;
+
+  #[test]
+  fn canonical_decimals_are_accepted() {
+    for ok in ["1", "12", "0.5", "0.05", "1.5", "12.50", "999999999", "999999999.999999", "100", "10.0"] {
+      assert_eq!(decimal_problem(ok), None, "{ok} should be accepted");
+    }
+  }
+
+  #[test]
+  fn malformed_decimals_are_refused() {
+    for bad in [
+      "", " ", "1 ", " 1", "-1", "+1", "1e3", "1E3", "NaN", "inf", "Infinity", ".5", "5.", ".", "1.2.3",
+      "1,5", "01", "00", "00.5", "0x10", "1_000", "١٢", "1.5\n", "9999999999", "1.1234567",
+      "12345678901234567890",
+    ] {
+      assert!(decimal_problem(bad).is_some(), "{bad:?} should be refused");
+    }
+  }
+
+  #[test]
+  fn zero_is_well_formed_but_not_positive() {
+    for zero in ["0", "0.0", "0.000000"] {
+      assert_eq!(decimal_problem(zero), None);
+      assert!(!is_positive(zero), "{zero} is not positive");
+    }
+    for pos in ["0.000001", "1", "10.0"] {
+      assert!(is_positive(pos), "{pos} is positive");
+    }
+  }
+
+  #[test]
+  fn amounts_compare_by_value_not_spelling() {
+    assert!(same_amount("1.5", "1.50"));
+    assert!(same_amount("10", "10.000"));
+    assert!(same_amount("0", "0.0"));
+    assert!(!same_amount("1.5", "1.51"));
+    assert!(!same_amount("10", "1.0"));
+    assert!(!same_amount("100", "10"));
+  }
+
+  #[test]
+  fn a_term_quantity_must_be_positive_canonical_and_have_a_unit() {
+    let term = |value: &str, unit: &str| ExchangeTerm {
+      direction: Direction::Provide,
+      resource_conforms_to: "Gardening".into(),
+      resource_kind: ResourceKind::Service,
+      quantity: Some(Quantity { value: value.into(), unit: unit.into() }),
+    };
+    assert_eq!(validate_term(&term("2.50", "hours"), "primary"), None);
+    assert!(validate_term(&term("0", "hours"), "primary").unwrap().contains("positive"));
+    assert!(validate_term(&term("1e3", "hours"), "primary").unwrap().contains("decimal"));
+    assert!(validate_term(&term("2", ""), "primary").unwrap().contains("unit"));
   }
 }

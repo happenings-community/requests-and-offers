@@ -22,7 +22,7 @@ use serde_json::json;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 struct Quantity {
-    value: f64,
+    value: String,
     unit: String,
 }
 
@@ -122,13 +122,13 @@ impl World {
                         "direction": "Provide",
                         "resource_conforms_to": "Web design",
                         "resource_kind": "Service",
-                        "quantity": { "value": 2.0, "unit": "h" }
+                        "quantity": { "value": "2", "unit": "h" }
                     },
                     "reciprocal": {
                         "direction": "Receive",
                         "resource_conforms_to": "Time bank hours",
                         "resource_kind": "Currency",
-                        "quantity": { "value": 2.0, "unit": "Time bank hours" }
+                        "quantity": { "value": "2", "unit": "Time bank hours" }
                     },
                     "medium": "Time bank hours",
                     "terms": "Two hours over a call.",
@@ -413,8 +413,8 @@ async fn a_negotiation_cannot_be_forked() {
             "counter_agreement",
             json!({
                 "agreement": p,
-                "primary_quantity": { "value": 3.0, "unit": "h" },
-                "reciprocal_quantity": { "value": 2.0, "unit": "Time bank hours" },
+                "primary_quantity": { "value": "3", "unit": "h" },
+                "reciprocal_quantity": { "value": "2", "unit": "Time bank hours" },
                 "delivery_timeframe": "Within 2 weeks"
             }),
         )
@@ -518,10 +518,10 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
             a.reciprocal.quantity = None;
         })),
         ("the primary unit", "keeps each quantity's unit", Box::new(|a| {
-            a.primary.quantity = Some(Quantity { value: 2.0, unit: "days".into() });
+            a.primary.quantity = Some(Quantity { value: "2".into(), unit: "days".into() });
         })),
         ("the return unit", "keeps each quantity's unit", Box::new(|a| {
-            a.reciprocal.quantity = Some(Quantity { value: 2.0, unit: "Pounds".into() });
+            a.reciprocal.quantity = Some(Quantity { value: "2".into(), unit: "Pounds".into() });
         })),
         ("the primary direction", "", Box::new(|a| a.primary.direction = "Receive".into())),
         ("nothing at all", "changes a quantity or the timeframe", Box::new(|a| {
@@ -547,11 +547,11 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
     let permitted: Vec<(&str, Box<dyn Fn(&mut Agreement)>)> = vec![
         ("the primary quantity", Box::new(|a| {
             a.delivery_timeframe = "Within 2 weeks".into();
-            a.primary.quantity = Some(Quantity { value: 5.0, unit: "h".into() });
+            a.primary.quantity = Some(Quantity { value: "5".into(), unit: "h".into() });
         })),
         ("the return quantity", Box::new(|a| {
             a.delivery_timeframe = "Within 2 weeks".into();
-            a.reciprocal.quantity = Some(Quantity { value: 9.0, unit: "Time bank hours".into() });
+            a.reciprocal.quantity = Some(Quantity { value: "9".into(), unit: "Time bank hours".into() });
         })),
         ("removing the return quantity", Box::new(|a| {
             a.delivery_timeframe = "Within 2 weeks".into();

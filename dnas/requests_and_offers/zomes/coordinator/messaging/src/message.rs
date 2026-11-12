@@ -1,5 +1,6 @@
 use hdk::prelude::*;
 use messaging_integrity::{EncryptedMessage, EntryTypes, LinkTypes};
+use utils::errors::{CommonError, MessagingError};
 
 use crate::external_calls::{
   check_if_agent_is_administrator, check_if_entity_is_accepted, check_if_entity_is_administrator,
@@ -93,16 +94,22 @@ pub struct SentMessage {
 #[hdk_extern]
 pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
   if input.content.len() > MAX_CONTENT_BYTES {
-    return Err(wasm_error!(WasmErrorInner::Guest(format!(
-      "Message content is {} bytes, over the {MAX_CONTENT_BYTES} byte limit",
-      input.content.len()
-    ))));
+    return Err(
+      MessagingError::ContentTooLong {
+        bytes: input.content.len(),
+        limit: MAX_CONTENT_BYTES,
+      }
+      .into(),
+    );
   }
   if input.conversation_id.len() > MAX_CONVERSATION_ID_BYTES {
-    return Err(wasm_error!(WasmErrorInner::Guest(format!(
-      "Conversation ID is {} bytes, over the {MAX_CONVERSATION_ID_BYTES} byte limit",
-      input.conversation_id.len()
-    ))));
+    return Err(
+      MessagingError::ConversationIdTooLong {
+        bytes: input.conversation_id.len(),
+        limit: MAX_CONVERSATION_ID_BYTES,
+      }
+      .into(),
+    );
   }
 
   let me = agent_info()?.agent_initial_pubkey;
@@ -115,11 +122,7 @@ pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
   if input.kind == MessageKind::AdminReport
     && !check_if_entity_is_administrator(input.to_user.clone())?
   {
-    return Err(wasm_error!(WasmErrorInner::Guest(
-      "A technical report can only be sent to a network administrator, and that member \
-       is not one"
-        .to_string()
-    )));
+    return Err(MessagingError::ReportRecipientNotAdministrator.into());
   }
 
   // You must be accepted to send a message, but not to receive one. A member waiting
@@ -131,18 +134,12 @@ pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
   if !check_if_entity_is_accepted("users".to_string(), input.to_user.clone())?
     && !check_if_agent_is_administrator(me.clone())?
   {
-    return Err(wasm_error!(WasmErrorInner::Guest(
-      "That member is not accepted yet, and only a network administrator can write to \
-       them"
-        .to_string()
-    )));
+    return Err(MessagingError::RecipientNotAccepted.into());
   }
 
   let recipients = get_user_agents(input.to_user.clone())?;
   if recipients.is_empty() {
-    return Err(wasm_error!(WasmErrorInner::Guest(
-      "That member has no agent keys, so there is nowhere to deliver to".to_string()
-    )));
+    return Err(MessagingError::RecipientHasNoAgents.into());
   }
 
   let body = MessageBody {
@@ -152,7 +149,7 @@ pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
   };
   let plaintext = XSalsa20Poly1305Data::from(
     ExternIO::encode(&body)
-      .map_err(|e| wasm_error!(WasmErrorInner::Guest(format!("Could not encode message: {e:?}"))))?
+      .map_err(|e| MessagingError::Encode(format!("{e:?}")))?
       .into_vec(),
   );
 
@@ -208,21 +205,19 @@ pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
 pub fn require_accepted_member(agent: AgentPubKey) -> ExternResult<ActionHash> {
   let links = get_agent_user(agent)?;
   let Some(link) = links.first() else {
-    return Err(wasm_error!(WasmErrorInner::Guest(
-      "You need a member profile before you can send messages".to_string()
-    )));
+    return Err(MessagingError::SenderHasNoProfile.into());
   };
 
-  let user_hash = link.target.clone().into_action_hash().ok_or_else(|| {
-    wasm_error!(WasmErrorInner::Guest(
-      "A user link did not point at an action hash".to_string()
-    ))
-  })?;
+  let user_hash = link
+    .target
+    .clone()
+    .into_action_hash()
+    .ok_or(CommonError::InvalidData(
+      "A user link did not point at an action hash".to_string(),
+    ))?;
 
   if !check_if_entity_is_accepted("users".to_string(), user_hash.clone())? {
-    return Err(wasm_error!(WasmErrorInner::Guest(
-      "Your member profile is not accepted yet, so you cannot send messages".to_string()
-    )));
+    return Err(MessagingError::SenderNotAccepted.into());
   }
 
   Ok(user_hash)

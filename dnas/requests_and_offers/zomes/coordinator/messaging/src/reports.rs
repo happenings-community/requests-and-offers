@@ -1,5 +1,6 @@
 use hdk::prelude::*;
 use messaging_integrity::{EntryTypes, ReportResolution};
+use utils::errors::MessagingError;
 
 use crate::external_calls::check_if_agent_is_administrator;
 use crate::inbox::{read_inbox_entries, InboxEntry, Message};
@@ -104,9 +105,7 @@ fn write_resolution(report: ActionHash, resolved: bool) -> ExternResult<()> {
 /// Refuse anyone who is not a network administrator, naming what they tried to do.
 fn require_network_administrator(agent: &AgentPubKey, what: &str) -> ExternResult<()> {
   if !check_if_agent_is_administrator(agent.clone())? {
-    return Err(wasm_error!(WasmErrorInner::Guest(format!(
-      "Only a network administrator can {what}"
-    ))));
+    return Err(MessagingError::AdministratorOnly(what.to_string()).into());
   }
   Ok(())
 }

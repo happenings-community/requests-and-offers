@@ -133,6 +133,41 @@ pub enum ServiceTypeError {
   AlreadyApproved,
 }
 
+/// Errors the messaging coordinator returns to a caller. The texts are what a member
+/// sees, and the Sweettests match on parts of them, so change a text only on purpose.
+#[derive(Debug, Error)]
+pub enum MessagingError {
+  #[error("Message content is {bytes} bytes, over the {limit} byte limit")]
+  ContentTooLong { bytes: usize, limit: usize },
+
+  #[error("Conversation ID is {bytes} bytes, over the {limit} byte limit")]
+  ConversationIdTooLong { bytes: usize, limit: usize },
+
+  #[error(
+    "A technical report can only be sent to a network administrator, and that member is not one"
+  )]
+  ReportRecipientNotAdministrator,
+
+  #[error("That member is not accepted yet, and only a network administrator can write to them")]
+  RecipientNotAccepted,
+
+  #[error("That member has no agent keys, so there is nowhere to deliver to")]
+  RecipientHasNoAgents,
+
+  #[error("Could not encode message: {0}")]
+  Encode(String),
+
+  #[error("You need a member profile before you can send messages")]
+  SenderHasNoProfile,
+
+  #[error("Your member profile is not accepted yet, so you cannot send messages")]
+  SenderNotAccepted,
+
+  /// The argument completes the sentence: "Only a network administrator can {0}".
+  #[error("Only a network administrator can {0}")]
+  AdministratorOnly(String),
+}
+
 impl From<CommonError> for WasmError {
   fn from(err: CommonError) -> Self {
     match err {
@@ -184,6 +219,12 @@ impl From<AdministrationError> for WasmError {
 
 impl From<StatusError> for WasmError {
   fn from(err: StatusError) -> Self {
+    wasm_error!(WasmErrorInner::Guest(err.to_string()))
+  }
+}
+
+impl From<MessagingError> for WasmError {
+  fn from(err: MessagingError) -> Self {
     wasm_error!(WasmErrorInner::Guest(err.to_string()))
   }
 }

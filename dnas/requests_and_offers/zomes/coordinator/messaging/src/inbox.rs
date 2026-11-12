@@ -208,18 +208,6 @@ impl AuthorFacts {
   }
 }
 
-/// Every message addressed to `me` that survives the read-side filters, oldest first.
-///
-/// Split out of `get_inbox` so that `get_role_inbox` and `get_my_role_correspondence`
-/// run the *same* filters rather than copies that have to be kept in step. The cost is
-/// that each of them decrypts messages it then discards; the alternative is three
-/// block-and-acceptance implementations that can drift apart, which is the more
-/// expensive mistake.
-///
-/// Role messages are **not** filtered out here. This is the shared read, and the three
-/// callers want different slices of it: `get_inbox` drops every role message, the other
-/// two keep only role messages. What is filtered here is the author's role *claim*, so
-/// that no caller can forget to.
 /// The reading-side twin of `require_may_write_to`: while `me` is neither accepted nor
 /// an administrator, only an administrator may reach them.
 ///
@@ -242,6 +230,18 @@ fn is_administrator(
   Ok(is)
 }
 
+/// Every message addressed to `me` that survives the read-side filters, oldest first.
+///
+/// Split out of `get_inbox` so that `get_role_inbox` and `get_my_role_correspondence`
+/// run the *same* filters rather than copies that have to be kept in step. The cost is
+/// that each of them decrypts messages it then discards; the alternative is three
+/// block-and-acceptance implementations that can drift apart, which is the more
+/// expensive mistake.
+///
+/// Role messages are **not** filtered out here. This is the shared read, and the three
+/// callers want different slices of it: `get_inbox` drops every role message, the other
+/// two keep only role messages. What is filtered here is the author's role *claim*, so
+/// that no caller can forget to.
 pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntry>> {
   let me = me.clone();
 
@@ -354,8 +354,9 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
 pub enum MessageRead {
   /// Not on this agent's shard, or no such action.
   NotFound,
-  /// Held, and deliberately not shown: the author is blocked, or is not an accepted
-  /// member now.
+  /// Held, and deliberately not shown: the author is blocked or is not an accepted member
+  /// now, the reader is not accepted and the author is not an administrator, or the
+  /// message claims a role its author does not hold now.
   Withheld,
   /// Held, and this agent cannot decrypt it. The normal case for a copy encrypted to
   /// somebody else, including another of this member's own agents.

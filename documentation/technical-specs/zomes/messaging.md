@@ -110,7 +110,7 @@ Errors come from `MessagingError` in `utils/src/errors.rs`, as for every zome.
 
 ### 6.4. Reading
 
-`get_inbox` and `get_message` apply the same filters, on the reading side, because the recipient's own node decides what the recipient sees. `get_sent` applies none, since it reads only this agent's own sent copies:
+`get_inbox` and `get_message` apply the same filters to every message, on the reading side, because the recipient's own node decides what the recipient sees; `get_inbox` then also leaves out role messages, which `get_message` returns like any other. `get_sent` applies none, since it reads only this agent's own sent copies:
 
 - **Blocked authors are dropped.** Blocking is private to the blocker's chain.
 - **Authors who are not accepted *now* are dropped**, since a status can change after sending and a modified client can skip the sender-side check.
@@ -126,7 +126,7 @@ A message in your own inbox that fails to decrypt comes back as `Unreadable` and
 
 A member writes to a role, not to a person, and every holder of the role receives it. Holders reply as the role, and the member reads the replies in one place. Messages about the same matter form a **case**.
 
-**Roles.** `RoleRef` names `Admin`, a named `Permission` (#241, for stewards) or the coordinators of one organisation (`OrgCoordinator`). **Only `Admin` is switched on in alpha 2**; the other two are shaped so that later work adds them without changing the message body, and are refused with `RoleNotEnabled` until then.
+**Roles.** `RoleRef` names `Admin`, a named `Permission` (#241, for stewards) or the coordinators of one organisation (`OrgCoordinator`). **Only `Admin` is switched on in alpha 2**; the other two are shaped so that later work adds them without changing the message body, and are refused with `RoleNotEnabled` until then. A named permission over `MAX_PERMISSION_BYTES` (64) is refused first, with `PermissionNameTooLong`.
 
 `send_role_message { role, content, case_id, kind, opener, event }`:
 
@@ -150,7 +150,7 @@ A member writes to a role, not to a person, and every holder of the role receive
 | `Complete { outcome }` | closes the case as `Resolved` or `Dismissed` |
 | `Reopen` | opens a closed case again |
 
-The fold is idempotent for repeated copies of one event, since a send fans out one entry per agent. Events are ordered by their action timestamps, ties broken by the message hash, so every reader reaches the same state.
+The fold is idempotent for repeated copies of one event, since a send fans out one entry per agent. Events are ordered by the action timestamp of the reader's own copy, which is not the same for every reader (section 6.6).
 
 `get_role_inbox(role)` returns the cases addressed to the caller as a holder, and is refused unless the caller holds the role now. `get_my_role_correspondence()` returns the cases the caller opened, grouped by role; it needs no role, because these are the member's own cases.
 
@@ -158,11 +158,11 @@ The fold is idempotent for repeated copies of one event, since a send fans out o
 
 None of these lets anybody read or write what they should not. They are about how a case behaves, and are recorded here so that nobody relies on behaviour cases do not have. #483 tracks them for alpha 3.
 
-- **Event order rests on each author's clock.** Two holders' timestamps decide which of their events came first; a holder with a wrong clock can put a `Complete` before a `Reopen` that followed it.
+- **Readers do not share an event order.** Each reader orders a case by the timestamps of its own copies, and a send writes a separate copy, with its own timestamp, for every recipient agent. So two holders acting within moments of each other can be folded in a different order by different readers, and reach different states; and a holder with a wrong clock can put a `Complete` before a `Reopen` that followed it.
 - **The latest hand-over offer wins.** A second offer replaces the first, and an accept of the earlier one is then ignored without a trace.
 - **Case history is re-read every time, against today's roles and statuses.** Withholding a removed administrator's messages also withholds their events, so a case they completed reads as open again and their claims disappear; rejecting a member withholds the message that opened their case.
 - **A holder added later sees no earlier case.** Each copy is encrypted to the agents that held the role when it was sent.
-- **A send that reaches only some holders still succeeds.** `deliver` fails only when no agent of any recipient can be found; a holder who cannot be resolved just now is skipped, and the sender gets fewer `SentMessage`s with no error.
+- **A send that reaches only some holders still succeeds.** `deliver` fails only when no agent of any recipient can be found; a holder who cannot be resolved just now is skipped, and the sender gets fewer `SentMessage`s with no error. Because the sender's own agents are always recipients, a role message that reaches no holder at all succeeds too, with only the sender's copy written.
 
 ### 6.7. Tests
 
@@ -170,6 +170,6 @@ None of these lets anybody read or write what they should not. They are about ho
 
 `messaging_inbox` proves the encryption before anything rests on it (the recipient reads, the sender reads their own copy, a third member holds the ciphertext and cannot read it, either party can be offline), then the access rules (an unaccepted sender is refused, only an administrator may write to a member who is not accepted, a reader who is not accepted hears only from administrators on both read paths, a since-rejected author is hidden) and blocking.
 
-`messaging_roles` proves that a case reaches every holder and the reply comes back, that a holder may reply to an opener who is no longer accepted, claiming, completing, reopening and handing over, that a removed administrator's role messages are withheld, that a reused case ID from another member opens a separate case, and that the role calls refuse a non-holder and the roles not yet built.
+`messaging_roles` proves that a case reaches every holder and the reply comes back, that a holder may reply to an opener who is no longer accepted, claiming, completing, reopening and handing over, that a removed administrator's role messages are withheld (from the role inbox, the member's own area and `get_message`), that a reused case ID from another member opens a separate case, and that the role calls refuse a non-holder and the roles not yet built.
 
 The pure validation rules are unit-tested in `messaging_integrity`.

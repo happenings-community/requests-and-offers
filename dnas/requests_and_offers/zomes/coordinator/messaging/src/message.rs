@@ -22,11 +22,11 @@ use crate::{send_nudge, SendNudgeInput};
 /// fault. It is a condition of this device, it passes on its own, and the caller should
 /// wait and try again rather than tell the member something untrue. The interface matches
 /// on this string to hold the message in its outbox, so **changing the text means
-/// changing it there too** (`ui/src/lib/utils/messaging-threads.ts`).
+/// changing it there too** (`ui/src/lib/utils/messaging-threads.ts`, added by #308).
 /// **One line, no continuation.** A `\` continuation here once collapsed into four
 /// spaces inside the sentence, which both test suites happily matched while the real
-/// string did not. The UI test reads this literal straight out of this file, so it stays
-/// on one line and stays easy to extract.
+/// string did not. #308's UI test reads this literal straight out of this file, so it
+/// stays on one line and stays easy to extract.
 pub const DEVICES_NOT_FOUND: &str = "Could not reach that member's devices just now. The message has not been sent; try again in a moment.";
 
 /// Largest plaintext this zome will encrypt and send.

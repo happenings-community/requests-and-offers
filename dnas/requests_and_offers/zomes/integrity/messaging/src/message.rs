@@ -45,7 +45,8 @@ pub struct ReadMarker {
 /// coordinator enforces rather than picked for roundness.
 ///
 /// The plaintext is a msgpack map of `content` (up to 16 KiB, matching
-/// `MAX_CONTENT_BYTES`) and, on a role message, a role reference, a direction and a
+/// `MAX_CONTENT_BYTES`) and, on a role message, a role reference (a named permission
+/// of up to `MAX_PERMISSION_BYTES`, 64, or an organisation's hash), a direction and a
 /// case reference: a `case_id` of up to `MAX_CASE_ID_BYTES`, the opener's `User`
 /// hash, a kind and an event, the largest of which carries one more `ActionHash`.
 /// Allowing for msgpack's field names and length prefixes that is a little under

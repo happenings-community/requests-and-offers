@@ -93,8 +93,9 @@ pub fn role_holders(role: &RoleRef, exclude: &[ActionHash]) -> ExternResult<Vec<
 
   let links = match role {
     RoleRef::Admin => get_all_administrators_links("network".to_string())?,
-    // `require_enabled` has already refused these.
-    _ => unreachable!("require_enabled admits only Admin"),
+    // `require_enabled` has already refused these; an error rather than a panic, so a
+    // later change to it cannot crash the zome.
+    other => return Err(not_enabled_yet(other)),
   };
 
   let mut holders = Vec::new();

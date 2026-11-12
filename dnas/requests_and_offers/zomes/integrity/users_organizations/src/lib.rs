@@ -145,14 +145,12 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         action.author(),
       );
     }
+    // the links that say who a member is are never tombstoned, by anyone (documentation/architecture/validation.md)
     FlatOp::Link(OpLink::DeleteLink {
-      original_action,
       link_type: LinkTypes::UserAgents | LinkTypes::MyUser,
-      action,
+      ..
     }) => {
-      if original_action.author() != action.author() {
-        return invalid("only the author of a link may delete it");
-      }
+      return invalid("UserAgents and MyUser links are never deleted");
     }
     _ => (),
   }
@@ -171,6 +169,11 @@ fn is_user_authored_by(hash: &AnyLinkableHash, author: &AgentPubKey) -> ExternRe
     return Ok(false);
   };
   let record = must_get_valid_record(action_hash)?;
+  // only a User's original create: integrity does not tie an update's author to the original's,
+  // so a revision written by someone else must never count as that member's User
+  if !matches!(record.action().data, ActionData::Create(_)) {
+    return Ok(false);
+  }
   let Ok(creation) = TypedAction::<EntryCreationData>::try_from(record.action().clone()) else {
     return Ok(false);
   };

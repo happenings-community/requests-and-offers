@@ -21,14 +21,14 @@ use serde::Serialize;
 
 #[derive(Serialize, Debug)]
 struct ProbeUserAgentsLink {
-    user: ActionHash,
+    user: AnyLinkableHash,
     agent: AgentPubKey,
 }
 
 #[derive(Serialize, Debug)]
 struct ProbeMyUserLink {
     agent: AgentPubKey,
-    user: ActionHash,
+    user: AnyLinkableHash,
 }
 
 fn refused<T: std::fmt::Debug>(result: Result<T, String>, reason: &str, what: &str) {
@@ -82,7 +82,7 @@ impl World {
             .call_fallible::<_, ActionHash>(
                 &cell.zome("users_probe"),
                 "probe_create_user_agents_link",
-                ProbeUserAgentsLink { user: user.clone(), agent: agent.clone() },
+                ProbeUserAgentsLink { user: user.clone().into(), agent: agent.clone() },
             )
             .await
             .map_err(|e| format!("{e:?}"))
@@ -99,7 +99,7 @@ impl World {
             .call_fallible::<_, ActionHash>(
                 &cell.zome("users_probe"),
                 "probe_create_my_user_link",
-                ProbeMyUserLink { agent: agent.clone(), user: user.clone() },
+                ProbeMyUserLink { agent: agent.clone(), user: user.clone().into() },
             )
             .await
             .map_err(|e| format!("{e:?}"))
@@ -194,11 +194,69 @@ async fn a_my_user_link_starts_at_its_authors_key_and_ends_at_its_authors_user()
 }
 
 // ---------------------------------------------------------------------------
-// Deletes
+// Anchors: only a User's original create
+// ---------------------------------------------------------------------------
+
+impl World {
+    async fn raw_user_agents_link(&self, who: usize, base: AnyLinkableHash, agent: &AgentPubKey) -> Result<ActionHash, String> {
+        let cell = if who == 0 { &self.alice } else { &self.bob };
+        self.conductors[who]
+            .call_fallible::<_, ActionHash>(&cell.zome("users_probe"), "probe_create_user_agents_link", ProbeUserAgentsLink { user: base, agent: agent.clone() })
+            .await
+            .map_err(|e| format!("{e:?}"))
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_revision_of_another_members_user_is_no_anchor() {
+    let w = world().await;
+    let bob_key = w.bob.agent_pubkey().clone();
+    // Bob writes an update of Alice's User: integrity lets anyone update a User, so the record exists
+    let revision: ActionHash = w.conductors[1]
+        .call(&w.bob.zome("users_probe"), "probe_update_user", w.alice_user.clone())
+        .await;
+    refused(
+        w.user_agents_link(1, &revision, &bob_key).await,
+        "only a User's author may link agents to it",
+        "Bob anchoring UserAgents on his revision of Alice's User",
+    );
+    refused(
+        w.my_user_link(1, &bob_key, &revision).await,
+        "a MyUser link must point to a User its author wrote",
+        "Bob pointing MyUser at his revision of Alice's User",
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_entry_hash_or_an_organization_is_no_anchor() {
+    let w = world().await;
+    let bob_key = w.bob.agent_pubkey().clone();
+    // the entry hash of Bob's own User, not its create action
+    let rec: Option<Record> = w.conductors[1]
+        .call(&w.bob.zome("users_organizations"), "get_latest_user_record", w.bob_user.clone())
+        .await;
+    let entry_hash = rec.expect("Bob's User").action().entry_hash().expect("an entry").clone();
+    refused(
+        w.raw_user_agents_link(1, entry_hash.into(), &bob_key).await,
+        "only a User's author may link agents to it",
+        "Bob anchoring UserAgents on an entry hash",
+    );
+    let org: Record = w.conductors[1]
+        .call(&w.bob.zome("users_organizations"), "create_organization", sample_organization("Bob's"))
+        .await;
+    refused(
+        w.raw_user_agents_link(1, org.action_address().clone().into(), &bob_key).await,
+        "only a User's author may link agents to it",
+        "Bob anchoring UserAgents on his Organization",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Deletes: never, as the validation doctrine says of these links
 // ---------------------------------------------------------------------------
 
 #[tokio::test(flavor = "multi_thread")]
-async fn only_the_author_of_a_user_link_may_delete_it() {
+async fn a_user_link_is_never_deleted() {
     let w = world().await;
     let alice_key = w.alice.agent_pubkey().clone();
 
@@ -212,17 +270,12 @@ async fn only_the_author_of_a_user_link_may_delete_it() {
         .expect("Alice linking her key to her User");
     await_consistency_s(15, [&w.alice, &w.bob]).await.unwrap();
 
-    refused(
-        w.delete(1, &agents_link).await,
-        "only the author of a link may delete it",
-        "Bob deleting Alice's UserAgents link",
-    );
-    refused(
-        w.delete(1, &my_user_link).await,
-        "only the author of a link may delete it",
-        "Bob deleting Alice's MyUser link",
-    );
-
-    w.delete(0, &agents_link).await.expect("Alice deleting her own UserAgents link");
-    w.delete(0, &my_user_link).await.expect("Alice deleting her own MyUser link");
+    for (who, link, what) in [
+        (1, &agents_link, "Bob deleting Alice's UserAgents link"),
+        (1, &my_user_link, "Bob deleting Alice's MyUser link"),
+        (0, &agents_link, "Alice deleting her own UserAgents link"),
+        (0, &my_user_link, "Alice deleting her own MyUser link"),
+    ] {
+        refused(w.delete(who, link).await, "UserAgents and MyUser links are never deleted", what);
+    }
 }

@@ -220,6 +220,28 @@ impl AuthorFacts {
 /// callers want different slices of it: `get_inbox` drops every role message, the other
 /// two keep only role messages. What is filtered here is the author's role *claim*, so
 /// that no caller can forget to.
+/// The reading-side twin of `require_may_write_to`: while `me` is neither accepted nor
+/// an administrator, only an administrator may reach them.
+///
+/// Both read paths call this, `read_inbox_entries` and `get_message`, so the rule cannot
+/// hold on one and not the other (Sacha's review of #304: the nudge path skipped it).
+fn reader_is_restricted(me: &AgentPubKey, authors: &mut AuthorFacts) -> ExternResult<bool> {
+  Ok(!authors.accepted(me)? && !check_if_agent_is_administrator(me.clone())?)
+}
+
+/// Whether `agent` is an administrator, asked once per agent per inbox read.
+fn is_administrator(
+  agent: &AgentPubKey,
+  seen: &mut Vec<(AgentPubKey, bool)>,
+) -> ExternResult<bool> {
+  if let Some((_, is)) = seen.iter().find(|(a, _)| a == agent) {
+    return Ok(*is);
+  }
+  let is = check_if_agent_is_administrator(agent.clone())?;
+  seen.push((agent.clone(), is));
+  Ok(is)
+}
+
 pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntry>> {
   let me = me.clone();
 
@@ -246,10 +268,8 @@ pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntr
   // two admins costs two.
   let mut role_claims: Vec<(AgentPubKey, RoleRef, bool)> = Vec::new();
 
-  // The reading-side twin of `require_may_write_to`: while this agent is not accepted,
-  // and is not an administrator, only an administrator may reach them. Read once per
-  // call, and each author's administrator status once.
-  let restricted = !authors.accepted(&me)? && !check_if_agent_is_administrator(me.clone())?;
+  // Read once per call, and each author's administrator status once.
+  let restricted = reader_is_restricted(&me, &mut authors)?;
   let mut administrators: Vec<(AgentPubKey, bool)> = Vec::new();
 
   for link in links {
@@ -361,6 +381,9 @@ pub fn get_message(hash: ActionHash) -> ExternResult<MessageRead> {
 
   let mut authors = AuthorFacts::new();
   if is_blocked(&from)? || !authors.accepted(&from)? {
+    return Ok(MessageRead::Withheld);
+  }
+  if reader_is_restricted(&me, &mut authors)? && !check_if_agent_is_administrator(from.clone())? {
     return Ok(MessageRead::Withheld);
   }
 
@@ -622,17 +645,4 @@ mod tests {
       "a role message with no case has no opener to match against"
     );
   }
-}
-
-/// Whether `agent` is an administrator, asked once per agent per inbox read.
-fn is_administrator(
-  agent: &AgentPubKey,
-  seen: &mut Vec<(AgentPubKey, bool)>,
-) -> ExternResult<bool> {
-  if let Some((_, is)) = seen.iter().find(|(a, _)| a == agent) {
-    return Ok(*is);
-  }
-  let is = check_if_agent_is_administrator(agent.clone())?;
-  seen.push((agent.clone(), is));
-  Ok(is)
 }

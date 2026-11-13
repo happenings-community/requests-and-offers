@@ -19,6 +19,8 @@ const {
   getInbox,
   getInboxDelta,
   getSent,
+  sendReceipt,
+  peers,
   userByAgent,
   myInterests,
   signalHandlers
@@ -38,6 +40,9 @@ const {
     /** Set to answer `getInboxDelta` directly; otherwise it is derived from `getInbox`. */
     getInboxDelta: vi.fn(),
     getSent: vi.fn(),
+    sendReceipt: vi.fn(),
+    /** How many peers the conductor can reach; a test sets 0 for "offline". */
+    peers: { reachable: 1 },
     userByAgent: vi.fn(),
     myInterests: vi.fn(),
     /** Whatever `listen()` subscribed, so a test can deliver a signal. */
@@ -65,7 +70,10 @@ vi.mock('$lib/services/zomes/messaging.service', async () => {
             skipped: []
           })),
     getSent: () => getSent(),
-    sendReceipt: () => Effect.void
+    sendReceipt: (...a: unknown[]) => {
+      sendReceipt(...a);
+      return Effect.void;
+    }
   };
   return { MessagingServiceTag, MessagingServiceLive: Layer.succeed(MessagingServiceTag, service) };
 });
@@ -77,7 +85,7 @@ vi.mock('$lib/services/HolochainClientService.svelte', async () => {
     isConnected: true,
     // The app's own agent, as the real client gives it.
     client: { myPubKey: hashes.MY_AGENT },
-    getNetworkPeerStatus: () => Promise.resolve({ reachable: 1, known: 1 }),
+    getNetworkPeerStatus: () => Promise.resolve({ reachable: peers.reachable, known: 1 }),
     onZomeSignal: (_zome: string, handler: (payload: unknown) => void) => {
       signalHandlers.push(handler);
       return () => {};
@@ -144,6 +152,7 @@ beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
   signalHandlers.length = 0;
+  peers.reachable = 1;
   findSent.mockReturnValue(E.succeed(null));
   getInbox.mockReturnValue(E.succeed([]));
   getSent.mockReturnValue(E.succeed([]));
@@ -523,5 +532,196 @@ describe('the first read and the ones after', () => {
     await expect(E.runPromise(store.loadConversations())).rejects.toThrow();
 
     expect(store.everLoaded, 'a failed read is still a finished one').toBe(true);
+  });
+});
+
+describe('an outbox this device already holds', () => {
+  const BELA = new Uint8Array(Array(39).fill(9));
+  const KEY = localKey(encodeHashToBase64(MY_AGENT));
+  const held = (id: string, to: Uint8Array, queuedAt: number) => ({
+    id,
+    to: encodeHashToBase64(to),
+    content: `message ${id}`,
+    queuedAt,
+    state: 'waiting'
+  });
+  const stored = () =>
+    (JSON.parse(localStorage.getItem(KEY) ?? '{}') as { outbox?: Array<{ id: string }> }).outbox ??
+    [];
+
+  /**
+   * The outbox in memory starts empty and was filled only at the end of a successful
+   * read of the conversations. If that read failed, a stored message was never retried.
+   */
+  it('is retried even when the conversations cannot be read', async () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ schemaVersion: 2, outbox: [held('old-1', ANITA, T_SENT)] })
+    );
+    const store = await freshStore();
+    getInbox.mockReturnValue(E.fail(new Error('get_inbox_delta: no answer')));
+    await expect(E.runPromise(store.loadConversations())).rejects.toThrow();
+    sendMessage.mockReturnValue(E.succeed([]));
+
+    await E.runPromise(store.flushOutbox());
+
+    expect(findSent.mock.calls[0]?.[0], 'the chain was asked about it').toMatchObject({
+      sendId: 'old-1'
+    });
+    expect(sendMessage, 'and it was sent').toHaveBeenCalledTimes(1);
+    expect(stored(), 'and cleared').toHaveLength(0);
+  });
+
+  /** And the next held send wrote the in-memory list, the new message alone, over it. */
+  it('is not overwritten by the next message to be held', async () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ schemaVersion: 2, outbox: [held('old-1', ANITA, T_SENT)] })
+    );
+    const store = await freshStore();
+    sendMessage.mockReturnValue(E.fail(devicesNotFound));
+
+    await E.runPromise(store.send(ANITA, 'a new one'));
+
+    expect(
+      stored().map((item) => item.id),
+      'the earlier message is still held, ahead of the new one'
+    ).toEqual(['old-1', store.outbox[1].id]);
+  });
+
+  /** One person being unreachable used to hold back every message to everyone. */
+  it('one person out of reach does not hold back a message to somebody else', async () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        schemaVersion: 2,
+        outbox: [
+          held('to-anita-1', ANITA, T_SENT),
+          held('to-anita-2', ANITA, T_SENT + 1),
+          held('to-bela', BELA, T_SENT + 2)
+        ]
+      })
+    );
+    const store = await freshStore();
+    sendMessage.mockImplementation((input: { sendId: string }) =>
+      input.sendId === 'to-bela' ? E.succeed([]) : E.fail(devicesNotFound)
+    );
+
+    await E.runPromise(store.flushOutbox());
+
+    const tried = sendMessage.mock.calls.map(([input]) => (input as { sendId: string }).sendId);
+    expect(tried, 'her second waits behind her first; his goes').toEqual(['to-anita-1', 'to-bela']);
+    expect(
+      store.outbox.map((item) => item.id),
+      'only hers are still held'
+    ).toEqual(['to-anita-1', 'to-anita-2']);
+  });
+
+  /** The timer, the `online` event and "send again" can all ask at the same moment. */
+  it('two runs asked for at once send a message once', async () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ schemaVersion: 2, outbox: [held('old-1', ANITA, T_SENT)] })
+    );
+    const store = await freshStore();
+    // A send that takes a moment, as a real one does: the second run is asked for while
+    // the first is still waiting on the conductor.
+    sendMessage.mockReturnValue(E.sleep('20 millis').pipe(E.as([])));
+
+    const first = E.runPromise(store.flushOutbox());
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const second = E.runPromise(store.flushOutbox());
+    await Promise.all([first, second]);
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('nothing is tried while the conductor can reach nobody', async () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ schemaVersion: 2, outbox: [held('old-1', ANITA, T_SENT)] })
+    );
+    const store = await freshStore();
+    peers.reachable = 0;
+
+    await E.runPromise(store.flushOutbox());
+
+    expect(findSent, 'not even the question').not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(store.outbox, 'still held').toHaveLength(1);
+  });
+
+  it('a refused message is sent again when the member says so', async () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        schemaVersion: 2,
+        outbox: [{ ...held('old-1', ANITA, T_SENT), state: 'refused', reason: 'Not yet accepted' }]
+      })
+    );
+    const store = await freshStore();
+    sendMessage.mockReturnValue(E.succeed([]));
+
+    await E.runPromise(store.flushOutbox());
+    expect(sendMessage, 'left alone until asked').not.toHaveBeenCalled();
+
+    await E.runPromise(store.retryUnsent('old-1'));
+
+    expect(sendMessage, "sent on the member's word").toHaveBeenCalledTimes(1);
+    expect(store.outbox).toHaveLength(0);
+  });
+});
+
+describe('receipts going out', () => {
+  /** One of Anita's to me, with no mark of hers. */
+  const fromAnita = (atMs: number, hash = hashes.ME) => ({
+    type: 'Read',
+    hash,
+    from: ANITA_AGENT,
+    to: MY_AGENT,
+    at: micros(atMs),
+    content: 'hello'
+  });
+
+  it('opening a conversation tells the other person how far it was read, once', async () => {
+    getInbox.mockReturnValue(E.succeed([fromAnita(T_SENT)]));
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    const store = await freshStore();
+    await E.runPromise(store.loadConversations());
+
+    store.markThreadRead(ANITA);
+    await vi.waitFor(() => expect(sendReceipt).toHaveBeenCalledTimes(1));
+    expect(sendReceipt.mock.calls[0][0]).toMatchObject({ toUser: ANITA, readUpTo: micros(T_SENT) });
+
+    // Nothing new to have read: nothing more is said.
+    store.markThreadRead(ANITA);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(sendReceipt, 'only when the mark advances').toHaveBeenCalledTimes(1);
+  });
+
+  it('says nothing when this conversation does not send receipts', async () => {
+    getInbox.mockReturnValue(E.succeed([fromAnita(T_SENT)]));
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    const store = await freshStore();
+    await E.runPromise(store.loadConversations());
+    store.setReceiptsOverall(false);
+
+    store.markThreadRead(ANITA);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(sendReceipt).not.toHaveBeenCalled();
+  });
+
+  it('the next message carries the same mark in its body', async () => {
+    getInbox.mockReturnValue(E.succeed([fromAnita(T_SENT)]));
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    const store = await freshStore();
+    await E.runPromise(store.loadConversations());
+    store.markThreadRead(ANITA);
+    sendMessage.mockReturnValue(E.succeed([]));
+
+    await E.runPromise(store.send(ANITA, 'see you at ten'));
+
+    expect(sendMessage.mock.calls[0][0]).toMatchObject({ readUpTo: micros(T_SENT) });
   });
 });

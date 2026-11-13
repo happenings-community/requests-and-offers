@@ -1,6 +1,5 @@
 <script lang="ts">
   import { paths } from '$lib/paths';
-  import { encodeHashToBase64 } from '@holochain/client';
   import type { UIRequest } from '$lib/types/ui';
   import { formatDate } from '$lib/utils';
   import { stripMarkdown } from '$lib/utils/markdown';

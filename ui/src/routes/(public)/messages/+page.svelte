@@ -112,7 +112,16 @@
         <ConversationRow {thread} name={messages.nameOf(thread)} onArchive={messages.setArchived} />
       {/each}
 
-      {#if messages.shown.length === 0 && !(showFaults && messages.faults.length > 0)}
+      {#if messages.error && messages.threads.length === 0}
+        <!-- A read that failed is not an empty inbox: say nothing about "no conversations". -->
+        <button
+          type="button"
+          class="variant-ghost-surface btn self-start"
+          onclick={() => messages.initialize()}
+        >
+          {C.tryAgain}
+        </button>
+      {:else if messages.shown.length === 0 && !(showFaults && messages.faults.length > 0)}
         {#if messages.threads.length === 0}
           <div class="card flex flex-col gap-2 p-8 text-center">
             <h2 class="h4">{S.messages.empty.title}</h2>

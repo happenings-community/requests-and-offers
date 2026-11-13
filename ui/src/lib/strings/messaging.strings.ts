@@ -333,6 +333,8 @@ export const MESSAGING_STRINGS = {
     youOffline:
       "You're offline. Your message will be sent automatically when you're connected again.",
     waitingToSend: 'Waiting to send',
+    /** A typed address or old link to Messages, on a network that has none. */
+    notOnThisNetwork: 'This network does not have messaging.',
     /** On a message still in the outbox: take it back, or clear one that was refused. */
     discardUnsent: 'Discard',
     /** On a refused message: the member may have fixed what the refusal named. */

@@ -192,6 +192,27 @@ export function createMessagingStore(): MessagingStore {
     return ok;
   };
 
+  /**
+   * Bring in whatever outbox this device already holds.
+   *
+   * **Before anything reads or writes the outbox, not after the first successful read
+   * of the conversations.** The list in memory starts empty and used to be filled only at
+   * the end of that read. If any of its five calls failed, the stored messages were never
+   * retried, and the next held send wrote the in-memory list (the new message alone) over
+   * them: a member's unsent message gone without a trace. Everything that touches the
+   * outbox calls this first. Items already in memory are kept, so a message that storage
+   * refused to keep is not dropped by adopting what storage has.
+   */
+  let outboxAdopted = false;
+  const adoptOutbox = (): void => {
+    if (outboxAdopted) return;
+    const key = myAgentKey();
+    if (!key) return;
+    outboxAdopted = true;
+    const held = new Set(outbox.map((item) => item.id));
+    outbox = [...readFor(key).outbox.filter((item) => !held.has(item.id)), ...outbox];
+  };
+
   const withServices = <A>(
     body: (
       service: MessagingService,
@@ -377,7 +398,10 @@ export function createMessagingStore(): MessagingStore {
         // write this screen did not see, reaches the screen with the next poll.
         const local = (mirror = readFor(myAgentKey()));
         const archivedKeys = new Set<ThreadKey>(local.archived);
-        outbox = local.outbox;
+        // What storage holds, plus anything held in memory that storage refused to keep.
+        outboxAdopted = true;
+        const stored = new Set(local.outbox.map((item) => item.id));
+        outbox = [...local.outbox, ...outbox.filter((item) => !stored.has(item.id))];
 
         // **Where blocking is applied to what was read.** Everything below reads from
         // this list, so the personal threads, the role inbox and a member's own
@@ -468,6 +492,7 @@ export function createMessagingStore(): MessagingStore {
       queuedAt: Date.now(),
       state: 'waiting'
     };
+    adoptOutbox();
     outbox = [...outbox, item];
     write({ outbox });
   };
@@ -556,8 +581,25 @@ export function createMessagingStore(): MessagingStore {
    * (`find_sent`) before anything is sent again. If that question itself cannot be
    * answered the item is handed to the member as "may not have sent", not retried blind.
    */
+  /**
+   * The run in flight, if there is one. The timer, the browser's `online` event and a
+   * member pressing "send again" can all ask at once, and two runs over the same item
+   * each found it unsent and each sent it. A caller that arrives during a run waits for
+   * that run instead of starting another.
+   */
+  let flushing: Promise<void> | null = null;
+
   const flushOutbox = (): E.Effect<void, never> =>
+    E.promise(() => {
+      flushing ??= E.runPromise(flushOnce()).finally(() => {
+        flushing = null;
+      });
+      return flushing;
+    });
+
+  const flushOnce = (): E.Effect<void, never> =>
     E.gen(function* () {
+      adoptOutbox();
       if (!outbox.some((item) => item.state === 'waiting')) return;
 
       const reachable = yield* E.promise(() =>
@@ -572,7 +614,14 @@ export function createMessagingStore(): MessagingStore {
         .filter((item) => item.state === 'waiting')
         .sort((a, b) => a.queuedAt - b.queuedAt);
 
+      // Whoever a message could not reach, or could not be resolved for, in this run.
+      // The rest of *their* messages wait, so a conversation stays in order, but nobody
+      // else's do: one person being offline used to hold back every message to everyone.
+      const stalled = new Set<ThreadKey>();
+
       for (const item of waiting) {
+        if (stalled.has(item.to)) continue;
+
         // The item names its own recipient: the thread key is the counterparty's `User`
         // hash in base64. Looking the thread up instead meant a message to somebody with
         // no thread loaded yet was skipped for ever, silently.
@@ -606,7 +655,8 @@ export function createMessagingStore(): MessagingStore {
             q.id === item.id ? { ...q, state: 'mayNotHaveSent' as const } : q
           );
           write({ outbox });
-          break;
+          stalled.add(item.to);
+          continue;
         }
 
         const failure = yield* withServices((service) =>
@@ -635,9 +685,10 @@ export function createMessagingStore(): MessagingStore {
 
         if (failure.kind === 'devicesNotFound' || failure.kind === 'noAnswer') {
           // Either still unreachable, or still silent. Both stay `waiting`: the next run
-          // asks the chain again before sending anything, so nothing is sent twice. Stop
-          // here, because the rest would meet the same conditions.
-          break;
+          // asks the chain again before sending anything, so nothing is sent twice. The
+          // rest of this person's messages wait behind it.
+          stalled.add(item.to);
+          continue;
         }
 
         // A refusal: the zome answered and said no. Nothing was written, and trying the
@@ -647,7 +698,7 @@ export function createMessagingStore(): MessagingStore {
           q.id === item.id ? { ...q, state: 'refused' as const, reason: failure.reason } : q
         );
         write({ outbox });
-        break;
+        stalled.add(item.to);
       }
     });
 
@@ -717,6 +768,7 @@ export function createMessagingStore(): MessagingStore {
   const startRetrying = (): (() => void) => {
     if (typeof setInterval === 'undefined') return () => {};
     const handle = setInterval(() => {
+      adoptOutbox();
       if (outbox.some((item) => item.state === 'waiting')) void E.runPromise(flushOutbox());
     }, RETRY_INTERVAL_MS);
     return () => clearInterval(handle);
@@ -842,6 +894,7 @@ export function createMessagingStore(): MessagingStore {
    */
   const retryUnsent = (id: string): E.Effect<void, never> =>
     E.gen(function* () {
+      adoptOutbox();
       outbox = outbox.map((q) =>
         q.id === id ? { ...q, state: 'waiting' as const, reason: undefined } : q
       );
@@ -858,6 +911,7 @@ export function createMessagingStore(): MessagingStore {
    * unsend it; it only stops this device trying again.
    */
   const discardUnsent = (id: string): void => {
+    adoptOutbox();
     outbox = outbox.filter((q) => q.id !== id);
     write({ outbox });
   };

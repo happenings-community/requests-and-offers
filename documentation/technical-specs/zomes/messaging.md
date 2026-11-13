@@ -217,7 +217,7 @@ The zome stores, delivers and reads. Everything a member would call "my messages
 
 ### 7.2. Reading
 
-The root layout reads the conversations every 15 seconds while a member is signed in, and on every nudge. Each read calls `get_inbox_delta` with the hashes it already holds and the role messages it was told to skip, so only what is new is fetched and decrypted. A read that fails is shown as a fault with its reason, never as an empty list.
+The root layout reads the conversations every 15 seconds while a member is signed in, and on every nudge. Each read calls `get_inbox_delta` with the hashes it already holds and the role messages it was told to skip, so only what is new is fetched and decrypted. A read that fails is shown with its reason and a way to try again, never as an empty list.
 
 ### 7.3. Sending, and the outbox
 
@@ -229,11 +229,11 @@ A send that the zome accepts is done. Otherwise:
 | No answer at all: a timeout, or the connection going | holds it as **waiting**, with its send id |
 | The zome refused | shows the zome's reason; the draft stays in the composer |
 
-The outbox is retried every 30 seconds and when the browser reports it is online again, oldest first, and only while the conductor has a reachable peer. Before anything is sent a second time the chain is asked for its send id (`find_sent`): found means it went, and it is dropped. If that question cannot be answered the item becomes **may not have sent** and waits for the member to say send again. A refusal on a retry makes it **refused**, with the reason. A member can discard any item, and send a refused one again.
+The outbox is read from the device as soon as the member's key is known, whether or not the conversations could be read. It is retried every 30 seconds and when the browser reports it is online again, oldest first, one run at a time. A run is skipped when the conductor reports no reachable peer (if that question fails, the run goes ahead). A message that cannot go holds back the later ones to the same person, so a conversation stays in order, and nobody else's. Before anything is sent a second time the chain is asked for its send id (`find_sent`): found means it went, and it is dropped. If that question cannot be answered the item becomes **may not have sent** and waits for the member to say send again. A refusal on a retry makes it **refused**, with the reason. A member can discard an item in any of the three states, and send a refused one again.
 
 ### 7.4. What is kept on the device
 
-In the browser's local storage, under the member's agent key, and nowhere else: archived conversations, the outbox, how far the member has read each conversation, how far each other person says they have read, the receipt settings (overall, and per conversation: inherit, on or off), the block list and its history. None of it is on the chain and none of it syncs between a member's devices.
+In the browser's local storage, under the member's agent key, and nowhere else: archived conversations, the outbox, how far the member has read each conversation, how far each other person says they have read, the receipt settings (overall, and per conversation: inherit, on or off), the block list and its history, and whether the member has seen the first-contact notice. None of it is on the chain and none of it syncs between a member's devices.
 
 ### 7.5. Blocking
 
@@ -250,9 +250,9 @@ When a conversation's read mark advances and that conversation sends receipts, t
 
 ### 7.7. A network without messaging
 
-Whether a network has messaging is read from the DNA: it does when `messaging_integrity` is among its integrity zomes (`ui/src/lib/services/messagingPresence.svelte.ts`). Without it the interface shows no Messages entry, no "message this person" action and no unread count, and makes no messaging call. `VITE_MESSAGING_DISABLED=true` forces that mode for testing.
+Whether a network has messaging is read from the DNA: it does when `messaging_integrity` is among its integrity zomes (`ui/src/lib/services/messagingPresence.svelte.ts`). Without it the interface shows no Messages entry, no "message this person" action and no unread count, and the `/messages` pages render nothing but a notice if opened by address, so no messaging call is made. `VITE_MESSAGING_DISABLED=true` forces that mode for testing.
 
 ### 7.8. Tests
 
-`ui/tests/unit/stores/messaging.store.test.ts` (the outbox and its three states, the send that is not repeated, blocks on reads and on signals, receipts, the delta read), `ui/tests/unit/services/messaging.service.test.ts` (each call's function name and payload). There is no e2e case for messaging.
+`ui/tests/unit/stores/messaging.store.test.ts` (the outbox and its three states, the send that is not repeated, a stored outbox surviving a failed read, blocks on reads and on signals, receipts in and out, the delta read), `ui/tests/unit/services/messaging.service.test.ts` (each call's function name and payload), `ui/tests/unit/routes/messages-pages.test.ts` (the pages mounted on the real store: the address followed, the open conversation kept read, names, discard, a failed read, a network without messaging). There is no e2e case for messaging, and no test sends a message through the composer.
 

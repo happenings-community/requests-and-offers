@@ -3,7 +3,6 @@
   import type { ModalComponent } from '@skeletonlabs/skeleton';
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import { escapeHtml } from '$lib/utils/safe-html';
-  import { encodeHashToBase64 } from '@holochain/client';
   import type { ConfirmModalMeta, UIOrganization, UIUser } from '$lib/types/ui';
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';

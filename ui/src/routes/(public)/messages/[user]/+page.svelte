@@ -283,6 +283,13 @@
                 >
                   {S.general.mayNotHaveSent}
                 </button>
+                <button
+                  type="button"
+                  class="pl-2 underline"
+                  onclick={() => conversation.discard(item.id)}
+                >
+                  {S.general.discardUnsent}
+                </button>
               {:else}
                 <span class="text-error-700 dark:text-error-300"
                   >{fill(S.conversation.sendFailed, { reason: item.reason ?? '' })}</span

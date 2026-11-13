@@ -400,6 +400,8 @@ const INTEREST: u8 = 0;
 /// `UserUpdates` and `OrganizationUpdates` in `users_organizations_integrity::LinkTypes`.
 const USER_UPDATES_LINK: u8 = 0;
 const ORGANIZATION_UPDATES_LINK: u8 = 6;
+/// `OrganizationMembers`, after `OrganizationCoordinators`.
+const ORGANIZATION_MEMBERS_LINK: u8 = 9;
 const SERVICE_TYPE: u8 = 0;
 /// After `Status`: `utils::grants::ROLE_GRANT_ENTRY_INDEX`.
 const ROLE_GRANT: u8 = 1;
@@ -674,6 +676,32 @@ async fn approval_makes_the_creator_coordinator_and_only_of_that_organisation() 
     );
     refused(&forged_link, "changing an organisation's coordinators is a role act", "a coordinator link with another organisation's grant");
 
+    // The member link runs the same rule.
+    let forged_member = forge_link(
+        &conductors[2],
+        &mallory,
+        org.clone().into(),
+        users[2].clone().into(),
+        users_organizations,
+        ORGANIZATION_MEMBERS_LINK,
+        her_grant.get_raw_39().to_vec(),
+    )
+    .await;
+    refused(&forged_member, "changing an organisation's members is a role act", "a member link with another organisation's grant");
+
+    // A coordinator link starts at an organisation.
+    let from_a_user = forge_link(
+        &conductors[2],
+        &mallory,
+        users[2].clone().into(),
+        users[2].clone().into(),
+        users_organizations,
+        ORGANIZATION_COORDINATORS_LINK,
+        her_grant.get_raw_39().to_vec(),
+    )
+    .await;
+    refused(&from_a_user, "a link to an organisation's coordinators starts at the organisation", "a coordinator link that starts at a user");
+
     // Her grant is good for her own organisation, and a coordinator link there
     // still has to point at a user.
     let not_a_user = reason(
@@ -718,8 +746,8 @@ async fn approval_makes_the_creator_coordinator_and_only_of_that_organisation() 
 /// forged write that shows it, so the two listing types cannot drift apart.
 ///
 /// **To make this go red:** make `validate_offer_grant` in
-/// `offers_integrity/src/offer.rs` return `Valid` for a create. Both forgeries
-/// are then written.
+/// `offers_integrity/src/offer.rs` return `Valid` for a create (both forged
+/// creates are then written) or for an update (the forged edit is).
 #[tokio::test(flavor = "multi_thread")]
 async fn an_offer_carries_the_member_grant_its_author_holds() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
@@ -742,6 +770,22 @@ async fn an_offer_carries_the_member_grant_its_author_holds() {
         .call(&alice.zome("offers"), "get_offer", hash)
         .await;
     assert!(read.is_some(), "Alice should read the offer Mallory wrote with her grant");
+
+    // And an offer is changed by its author or an administrator, as a request is.
+    let st = a_service_type(&conductors[0], alice, "Gardening").await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let bobs_offer: Record = conductors[1]
+        .call(&bob.zome("offers"), "create_offer", sample_offer("Bob's offer", st))
+        .await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let forged = forge_update(
+        &conductors[2],
+        &mallory,
+        bobs_offer.action_address(),
+        an_offer("Mallory's edit", None),
+    )
+    .await;
+    refused(&forged, "needs a grant for Administer", "an edit of an offer by a member who is not its author");
 }
 
 /// An interest carries the member grant its author holds: showing interest in
@@ -808,10 +852,15 @@ async fn an_interest_carries_the_member_grant_its_author_holds() {
 /// coordinator; Mallory removes Bob. Alice suspends the organisation and
 /// accepts it again. Bob is still not a coordinator; Mallory still is.
 ///
+/// Between the two, Bob's edit of it through the app is refused: from the
+/// first approval on, an edit rests on a grant, the creator's included.
+///
 /// **To make this go red:** in `approve_organization`
 /// (`coordinator/administration/src/status.rs`), ask `live_grants_of` for a
 /// coordinator grant in place of `was_ever_granted`. Bob's revoked grant is
-/// then not counted, and the second approval makes him coordinator again.
+/// then not counted, and the second approval makes him coordinator again. Or,
+/// in `update_organization`, let the creator through whether or not the
+/// organisation has a coordinator: Bob's edit is then written.
 #[tokio::test(flavor = "multi_thread")]
 async fn approval_makes_the_creator_coordinator_once() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
@@ -864,6 +913,31 @@ async fn approval_makes_the_creator_coordinator_once() {
             .is_none(),
         "a removed coordinator holds no live grant for the organisation"
     );
+
+    // Its creator, no longer a coordinator, no longer edits it.
+    let edit_by_its_creator: Result<Record, String> = reason(
+        conductors[1]
+            .call_fallible(
+                &bob.zome("users_organizations"),
+                "update_organization",
+                serde_json::json!({
+                    "original_action_hash": org,
+                    "previous_action_hash": org,
+                    "updated_organization": sample_organization("Bob's, again"),
+                }),
+            )
+            .await,
+    );
+    match edit_by_its_creator {
+        Ok(record) => panic!(
+            "an edit by a creator who is no longer a coordinator should be refused, but was written as {}",
+            record.action_address()
+        ),
+        Err(text) => assert!(
+            text.contains("Not a coordinator"),
+            "an edit by a creator who is no longer a coordinator should be refused as not a coordinator; got {text}"
+        ),
+    }
 
     // Suspended. Its creator, no longer a coordinator, cannot delete it.
     set_organization_status(
@@ -1001,33 +1075,45 @@ async fn an_organisation_is_deleted_by_a_coordinator_alone_and_by_nobody_outside
     }
 }
 
-/// The links that join a record to its updates are never deleted, and join
-/// records of their own type only.
+/// The link from a record to one of its updates is what readers follow to the
+/// latest revision. It is never deleted, and it is only ever the real update's
+/// author pointing the record's original at that update.
 ///
-/// Bob's organisation is approved and edited once, so it has an update link.
-/// Mallory's delete of that link is refused; so are an `OrganizationUpdates`
-/// link from the organisation to a user, and a `UserUpdates` link from a user
-/// to the organisation.
+/// Bob's organisation is approved and edited once, and Bob edits his profile
+/// once, so each has an update link. Mallory, past the coordinator:
+///
+/// - deletes each update link: refused;
+/// - points Bob's organisation at a user, and at an organisation of her own
+///   (a create, not an update): refused;
+/// - points it at an update of her own organisation: refused, another chain;
+/// - points it at Bob's real update, as a newer link: refused, not hers;
+/// - points her own user at Bob's organisation: refused.
 ///
 /// **To make this go red:** in `users_organizations_integrity/src/lib.rs`,
-/// remove the `OrganizationUpdates` arm under `OpLink::DeleteLink` (the delete
-/// is then written), or the two update-link arms under `OpLink::CreateLink`
-/// (the two links are).
+/// remove an update-link arm under `OpLink::DeleteLink` (that delete is then
+/// written), or return `Valid` at the top of `validate_update_link` (every
+/// forged link is).
 #[tokio::test(flavor = "multi_thread")]
-async fn an_update_link_is_never_deleted_and_joins_records_of_its_own_type() {
+async fn an_update_link_is_never_deleted_and_points_at_a_real_update_by_its_author() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
     let (alice, bob) = (&cells[0], &cells[1]);
     let users = everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
     let users_organizations = zome_index(&conductors[2], &mallory, "users_organizations_integrity").await;
 
+    // Bob's organisation, approved, edited once.
     let created: Record = conductors[1]
         .call(&bob.zome("users_organizations"), "create_organization", sample_organization("Bob's"))
         .await;
     let org = created.action_address().clone();
+    // Mallory's own, edited once while it is still her proposal.
+    let hers: Record = conductors[2]
+        .call(&mallory.zome("users_organizations"), "create_organization", sample_organization("Mallory's"))
+        .await;
+    let hers = hers.action_address().clone();
     await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
     accept_entity(&conductors[0], alice, ENTITY_ORGANIZATIONS, org.clone()).await;
     await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
-    let _: Record = conductors[1]
+    let bobs_update: Record = conductors[1]
         .call(
             &bob.zome("users_organizations"),
             "update_organization",
@@ -1038,38 +1124,85 @@ async fn an_update_link_is_never_deleted_and_joins_records_of_its_own_type() {
             }),
         )
         .await;
+    let bobs_update = bobs_update.action_address().clone();
+    let her_update: Record = conductors[2]
+        .call(
+            &mallory.zome("users_organizations"),
+            "update_organization",
+            serde_json::json!({
+                "original_action_hash": hers,
+                "previous_action_hash": hers,
+                "updated_organization": sample_organization("Mallory's, renamed"),
+            }),
+        )
+        .await;
+    let her_update = her_update.action_address().clone();
+    // Bob edits his profile once.
+    let _: Record = conductors[1]
+        .call(
+            &bob.zome("users_organizations"),
+            "update_user",
+            serde_json::json!({
+                "original_action_hash": users[1],
+                "previous_action_hash": users[1],
+                "updated_user": sample_user("Bob, renamed"),
+            }),
+        )
+        .await;
     await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
 
-    let update_links = links_of(
-        &conductors[2],
-        &mallory,
-        org.clone().into(),
-        users_organizations,
-        ORGANIZATION_UPDATES_LINK,
-    )
-    .await;
-    assert_eq!(update_links.len(), 1, "one edit, one update link");
-    let deleted = forge_delete_link(&conductors[2], &mallory, update_links[0].create_link_hash.clone()).await;
-    refused(
-        &deleted,
-        "OrganizationUpdates links cannot be deleted",
-        "a delete of an organisation's update link",
-    );
+    // Neither update link is deleted.
+    for (base, link_type, expected, what) in [
+        (
+            &org,
+            ORGANIZATION_UPDATES_LINK,
+            "OrganizationUpdates links cannot be deleted",
+            "a delete of an organisation's update link",
+        ),
+        (
+            &users[1],
+            USER_UPDATES_LINK,
+            "UserUpdates links cannot be deleted",
+            "a delete of a user's update link",
+        ),
+    ] {
+        let links = links_of(&conductors[2], &mallory, base.clone().into(), users_organizations, link_type).await;
+        assert_eq!(links.len(), 1, "one edit, one update link ({what})");
+        let deleted = forge_delete_link(&conductors[2], &mallory, links[0].create_link_hash.clone()).await;
+        refused(&deleted, expected, what);
+    }
 
-    let to_a_user = forge_link(
-        &conductors[2],
-        &mallory,
-        org.clone().into(),
-        users[2].clone().into(),
-        users_organizations,
-        ORGANIZATION_UPDATES_LINK,
-        vec![],
-    )
-    .await;
+    // Forged update links from Bob's organisation.
+    let from_bobs = |target: ActionHash| {
+        forge_link(
+            &conductors[2],
+            &mallory,
+            org.clone().into(),
+            target.into(),
+            users_organizations,
+            ORGANIZATION_UPDATES_LINK,
+            vec![],
+        )
+    };
     refused(
-        &to_a_user,
-        "an OrganizationUpdates link joins two Organization records",
+        &from_bobs(users[2].clone()).await,
+        "an OrganizationUpdates link points at an update of an Organization",
         "an organisation update link that points at a user",
+    );
+    refused(
+        &from_bobs(hers.clone()).await,
+        "an OrganizationUpdates link points at an update of an Organization",
+        "an organisation update link that points at another organisation's create",
+    );
+    refused(
+        &from_bobs(her_update).await,
+        "an OrganizationUpdates link points at an update of the record it starts at",
+        "an organisation update link that points at an update of another organisation",
+    );
+    refused(
+        &from_bobs(bobs_update).await,
+        "an OrganizationUpdates link is written by the author of the update it points at",
+        "a second link to Bob's update, written by Mallory",
     );
 
     let to_an_organisation = forge_link(
@@ -1084,7 +1217,7 @@ async fn an_update_link_is_never_deleted_and_joins_records_of_its_own_type() {
     .await;
     refused(
         &to_an_organisation,
-        "a UserUpdates link joins two User records",
+        "a UserUpdates link points at an update of a User",
         "a user update link that points at an organisation",
     );
 }

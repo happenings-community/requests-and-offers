@@ -96,21 +96,21 @@ pub fn validate_delete_user(
   )))
 }
 
-/// A `UserUpdates` link joins two `User` records, by their declared entry type.
+/// A `UserUpdates` link runs from a User's original record to an update in its
+/// chain, and is written by that update's author (`validate_update_link`).
 pub fn validate_create_link_user_updates(
-  _action: TypedAction<CreateLinkData>,
-  base_address: AnyLinkableHash,
-  target_address: AnyLinkableHash,
-  _tag: LinkTag,
+  link_author: &AgentPubKey,
+  base_address: &AnyLinkableHash,
+  target_address: &AnyLinkableHash,
 ) -> ExternResult<ValidateCallbackResult> {
-  for end in [&base_address, &target_address] {
-    if !matches!(crate::entry_at(end)?, Some((_, crate::EntryTypes::User(_)))) {
-      return Ok(ValidateCallbackResult::Invalid(String::from(
-        "a UserUpdates link joins two User records",
-      )));
-    }
-  }
-  Ok(ValidateCallbackResult::Valid)
+  crate::validate_update_link(
+    link_author,
+    base_address,
+    target_address,
+    |entry| matches!(entry, crate::EntryTypes::User(_)),
+    "a UserUpdates",
+    "a User",
+  )
 }
 
 pub fn validate_delete_link_user_updates(

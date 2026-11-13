@@ -31,6 +31,10 @@ pub fn create_organization(organization: Organization) -> ExternResult<Record> {
     return Err(UsersError::UserProfileRequired.into());
   }
 
+  // A new organisation rests on no grant, whatever the client sent.
+  let mut organization = organization;
+  organization.grant = None;
+
   let organization_hash = create_entry(&EntryTypes::Organization(organization.clone()))?;
   let record = get(organization_hash.clone(), GetOptions::default())?
     .ok_or(CommonError::EntryNotFound("organization".to_string()))?;
@@ -734,16 +738,20 @@ pub fn update_organization(input: UpdateOrganizationInput) -> ExternResult<Recor
   // both need the Create, and a write must not proceed on a guess.
   let original = find_original_action_hash(input.original_action_hash.0.clone())?;
 
-  // The creator edits their own organisation, pending or approved, with no grant;
-  // anyone else carries a coordinator grant for it or an admin grant. The grant field
-  // is set here, never taken from the client.
+  // Its creator edits a proposal with no grant, while it has no coordinator: approval
+  // gives it its first and the last cannot be removed, so that is until it is first
+  // approved. From then on every edit, the creator's included, carries a coordinator
+  // grant for it or an admin grant, so a creator who has stood down or been removed
+  // no longer edits it. The grant field is set here, never taken from the client.
   let creator = get(original.0.clone(), GetOptions::default())?
     .ok_or(CommonError::EntryNotFound("organization".to_string()))?
     .action()
     .author()
     .clone();
   let mut updated_organization = input.updated_organization;
-  updated_organization.grant = if creator == agent_info()?.agent_initial_pubkey {
+  updated_organization.grant = if creator == agent_info()?.agent_initial_pubkey
+    && get_organization_coordinators_links(original.0.clone())?.is_empty()
+  {
     None
   } else {
     Some(require_coordinate(&original.0)?)

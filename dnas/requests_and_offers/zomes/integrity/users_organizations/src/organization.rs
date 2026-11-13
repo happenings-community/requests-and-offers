@@ -17,8 +17,8 @@ pub struct Organization {
   pub location: String,
   /// The grant an update rests on: a coordinator grant for this
   /// organisation, or an admin grant, held by the author. Absent on creation, and on an
-  /// update by the organisation's creator, who may edit their application while it is
-  /// pending and needs no grant for it.
+  /// update by the organisation's creator while it has no coordinator: they may edit
+  /// their proposal before it is approved and need no grant for it.
   #[serde(default)]
   pub grant: Option<ActionHash>,
 }
@@ -26,6 +26,11 @@ pub struct Organization {
 /// The field rules, and, on an update, the role rule: the organisation's creator, or a
 /// coordinator grant for this organisation, or an admin grant. The scope is the root of
 /// the organisation's chain, which is the hash its coordinator grants name.
+///
+/// The creator passes at any time. The app lets them edit without a grant only while
+/// the organisation has no coordinator, which validation cannot see (it reads no
+/// links), so a creator since removed as coordinator, with a modified client, can
+/// still write an edit that is valid. Stated in `validation.md`.
 pub fn validate_organization_write(
   organization: Organization,
   author: &AgentPubKey,
@@ -137,22 +142,22 @@ pub fn validate_delete_organization(
   Ok(ValidateCallbackResult::Valid)
 }
 
-/// An `OrganizationUpdates` link joins two `Organization` records, by their
-/// declared entry type.
+/// An `OrganizationUpdates` link runs from an Organization's original record to an
+/// update in its chain, and is written by that update's author
+/// (`validate_update_link`).
 pub fn validate_create_link_organization_updates(
-  _action: TypedAction<CreateLinkData>,
-  base_address: AnyLinkableHash,
-  target_address: AnyLinkableHash,
-  _tag: LinkTag,
+  link_author: &AgentPubKey,
+  base_address: &AnyLinkableHash,
+  target_address: &AnyLinkableHash,
 ) -> ExternResult<ValidateCallbackResult> {
-  for end in [&base_address, &target_address] {
-    if !matches!(crate::entry_at(end)?, Some((_, crate::EntryTypes::Organization(_)))) {
-      return Ok(ValidateCallbackResult::Invalid(String::from(
-        "an OrganizationUpdates link joins two Organization records",
-      )));
-    }
-  }
-  Ok(ValidateCallbackResult::Valid)
+  crate::validate_update_link(
+    link_author,
+    base_address,
+    target_address,
+    |entry| matches!(entry, crate::EntryTypes::Organization(_)),
+    "an OrganizationUpdates",
+    "an Organization",
+  )
 }
 
 pub fn validate_delete_link_organization_updates(

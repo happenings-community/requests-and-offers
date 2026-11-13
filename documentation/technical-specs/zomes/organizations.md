@@ -40,8 +40,8 @@ pub struct Organization {
 
     /// The grant an update rests on, held by its author: a coordinator grant for
     /// this organisation, or an admin grant. Absent on creation and on an update
-    /// by the organisation's creator. Set by the coordinator zome, never taken
-    /// from the client.
+    /// by the organisation's creator before it is first approved. Set by the
+    /// coordinator zome, never taken from the client.
     #[serde(default)]
     pub grant: Option<ActionHash>,
 }
@@ -87,7 +87,7 @@ pub fn update_organization(input: UpdateOrganizationInput) -> ExternResult<Recor
 ```
 
 - Updates existing organization profile
-- Its creator edits it with no grant, pending or approved. Anyone else needs a coordinator grant for it or an admin grant, which the zome writes into the update's `grant` field
+- Its creator edits a proposal with no grant, while it has no coordinator: that is, until it is first approved. From then on every edit, the creator's included, needs a coordinator grant for it or an admin grant, which the zome writes into the update's `grant` field. A creator who has stood down or been removed as coordinator no longer edits it
 - Creates update links
 - Returns updated organization record
 
@@ -102,7 +102,7 @@ pub fn delete_organization(organization_original_action_hash: ActionHash) -> Ext
   - a coordinator of the organisation, on their own grant. One is enough: an organisation may run with a single coordinator, and the last one cannot leave, so this is their way out
   - its creator, while it has no coordinator, which means a proposal never approved
 - An administrator's or a steward's grant does not cover it (`Ability::Dissolve`)
-- Removes all associated links (members, coordinators, contacts, status, the creator's own pointer)
+- Removes its member, coordinator, contact and status links, its entry in the list of all organisations, and the caller's own `UserOrganizations` pointer to it. Its update links stay: they are never tombstoned
 - Revokes every coordinator grant for the organisation, the caller's own last
 - Returns the hash of the delete action
 
@@ -261,19 +261,22 @@ A coordinator is whoever holds a live `org_coordinator` grant scoped to the orga
 
 | Op | Rule |
 |---|---|
+| Create `Organization` | the field rules only; the `grant` field is not read, and the app writes it empty |
 | Update `Organization` | the author is the organisation's creator, or the `grant` field names a coordinator grant for this organisation or an admin grant, held by the author. Run on the entry op, the record op and the op the original's authorities receive |
 | Create `OrganizationMembers` / `OrganizationCoordinators` | from an organisation to a user, by declared entry type; the tag carries a grant held by the link's author: a coordinator grant for this organisation, or a network grant that may change a status (admin, or steward with the stewarding module) |
-| Create `UserUpdates` / `OrganizationUpdates` | both ends are records of that type, by declared entry type |
+| Create `UserUpdates` / `OrganizationUpdates` | starts at the record's original `Create`; points at an `Update` of the same type in that record's chain; written by that update's author. Readers take the newest such link as the latest revision, so nobody can point a record at an entry of their own, or back at an old revision |
 | Delete `UserUpdates` / `OrganizationUpdates` | refused |
 
 **What it does not**, each listed in `documentation/architecture/validation.md`:
 
 - The network-grant branch of the membership rule is there for approval, and the rule cannot tell an approval from any other moment. An administrator or a steward may write a membership link at any time; the app does so only on approval.
 - A tombstone of an organisation, or of a membership link, is unchecked. Who may delete an organisation, and the last-coordinator rule, are the app's checks.
+- The organisation's creator passes the edit rule at any time. The app stops a creator who is no longer a coordinator; validation reads no links and cannot.
+- A `User` update is not checked for its author, so the `UserUpdates` rule holds an attacker to an update they wrote themselves, and no further. The app's `update_user` refuses anyone but the author.
 - Revocation is read-side, as for every grant: a removed coordinator with a modified client can still write an edit that validates. An honest client asks `can` and does not show it as theirs to make.
 - An administrator can give themselves a coordinator grant for any organisation, and with it delete the organisation. Doing so leaves the grant as a record of who did it.
 
-**Tests.** `tests/sweettest/tests/grants.rs`: `approval_makes_the_creator_coordinator_and_only_of_that_organisation`, `approval_makes_the_creator_coordinator_once`, `an_organisation_is_deleted_by_a_coordinator_alone_and_by_nobody_outside_it`, `an_update_link_is_never_deleted_and_joins_records_of_its_own_type`. Each names, in its doc comment, the change that turns it red. The update op the original's authorities receive is a unit test in `users_organizations_integrity` (`record_op_tests`).
+**Tests.** `tests/sweettest/tests/grants.rs`: `approval_makes_the_creator_coordinator_and_only_of_that_organisation`, `approval_makes_the_creator_coordinator_once`, `an_organisation_is_deleted_by_a_coordinator_alone_and_by_nobody_outside_it`, `an_update_link_is_never_deleted_and_points_at_a_real_update_by_its_author`. Each names, in its doc comment, the change that turns it red. Not covered by any test: a steward's approval, which is the only caller that reaches the status-grant branch of the membership rule (an administrator's grant already covers the coordinator branch). The update op the original's authorities receive is a unit test in `users_organizations_integrity` (`record_op_tests`).
 
 ### 6. Contact Management
 

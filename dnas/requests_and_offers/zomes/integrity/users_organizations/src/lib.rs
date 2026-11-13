@@ -187,22 +187,19 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           "coordinators",
         );
       }
-      // The update-chain rules, routed as they are (#234): both ends of the
-      // link are records of this type.
+      // The update-chain rules (`validate_update_link`).
       LinkTypes::UserUpdates => {
         return validate_create_link_user_updates(
-          action.clone(),
-          action.base_address.clone(),
-          action.target_address.clone(),
-          action.tag.clone(),
+          action.author(),
+          &action.base_address,
+          &action.target_address,
         );
       }
       LinkTypes::OrganizationUpdates => {
         return validate_create_link_organization_updates(
-          action.clone(),
-          action.base_address.clone(),
-          action.target_address.clone(),
-          action.tag.clone(),
+          action.author(),
+          &action.base_address,
+          &action.target_address,
         );
       }
       // The two links that say who a member is (#473).
@@ -281,6 +278,59 @@ pub(crate) fn entry_at(hash: &AnyLinkableHash) -> ExternResult<Option<(Record, E
     entry,
   )?;
   Ok(kind.map(|kind| (record, kind)))
+}
+
+/// The rule for a link from a record to one of its updates (`UserUpdates`,
+/// `OrganizationUpdates`). Readers take the newest such link as the record's
+/// latest revision, so the link has to be as good as the update it names:
+///
+/// - it starts at the record's `Create`, of the kind `is_kind` accepts;
+/// - it points at an `Update` of the same kind, in the chain that `Create` roots;
+/// - it is written by that update's author.
+///
+/// The update itself has passed its own rule, so for an organisation that is its
+/// creator or a grant holder. Without the last two, anyone could point a record
+/// at an entry of their own, or back at an old revision.
+pub(crate) fn validate_update_link(
+  link_author: &AgentPubKey,
+  base: &AnyLinkableHash,
+  target: &AnyLinkableHash,
+  is_kind: fn(&EntryTypes) -> bool,
+  name: &str,
+  kind: &str,
+) -> ExternResult<ValidateCallbackResult> {
+  match entry_at(base)? {
+    Some((record, entry)) if is_kind(&entry) && matches!(record.action().data, ActionData::Create(_)) => {}
+    _ => {
+      return invalid(&format!(
+        "{name} link starts at the original record of {kind}"
+      ))
+    }
+  }
+  let update = match entry_at(target)? {
+    Some((record, entry)) if is_kind(&entry) && matches!(record.action().data, ActionData::Update(_)) => {
+      record
+    }
+    _ => return invalid(&format!("{name} link points at an update of {kind}")),
+  };
+  let Some(target_hash) = target.clone().into_action_hash() else {
+    return invalid(&format!("{name} link points at an update of {kind}"));
+  };
+  match utils::grants::chain_root(&target_hash)? {
+    Ok((root, _)) if AnyLinkableHash::from(root.clone()) == *base => {}
+    Ok(_) => {
+      return invalid(&format!(
+        "{name} link points at an update of the record it starts at"
+      ))
+    }
+    Err(reason) => return invalid(&reason),
+  }
+  if update.action().author() != link_author {
+    return invalid(&format!(
+      "{name} link is written by the author of the update it points at"
+    ));
+  }
+  Ok(ValidateCallbackResult::Valid)
 }
 
 fn is_user_authored_by(hash: &AnyLinkableHash, author: &AgentPubKey) -> ExternResult<bool> {

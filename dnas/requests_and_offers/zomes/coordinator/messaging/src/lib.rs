@@ -27,8 +27,6 @@ pub struct SendNudgeInput {
 /// something at that moment.) That is exactly why a read receipt is one rather than an entry —
 /// an entry would publish its action, and the action's timestamp and type would say who
 /// read whose message and when, to anyone watching.
-///
-/// Added on top of the signal zome rather than into it, since that is in review.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum RemotePayload {

@@ -107,8 +107,9 @@ pub(crate) struct MessageBody {
   ///
   /// **Used only to match copies of the same message, never trusted for anything else.**
   /// One send becomes one entry per recipient agent, and a retry after a lost answer can
-  /// add another, so every reader collapses by this and keeps the earliest. Keeping the
-  /// earliest is what stops a sender reusing an id to replace something already sent.
+  /// add another, so a reader that shows messages collapses by this and keeps the earliest.
+  /// Keeping the earliest is what stops a sender reusing an id to replace something
+  /// already sent. That is the interface's job; nothing in this zome collapses.
   ///
   /// `#[serde(default)]` so a body written before send ids existed still decodes, with an
   /// empty id; those fall back to the older collapse rule.

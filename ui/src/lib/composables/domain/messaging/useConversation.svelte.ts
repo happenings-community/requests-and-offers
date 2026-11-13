@@ -25,7 +25,13 @@ import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
  * The ordering rules are pure, in `utils/messaging-threads.ts`. What is here is the
  * screen's own state and the calls that change something.
  */
-export function useConversation(counterpartyB64: string) {
+export function useConversation(address: string | (() => string)) {
+  /**
+   * The address as it is now. A page passes a getter, because SvelteKit keeps the same
+   * component when only the `[user]` part of the URL changes: read once, the page went on
+   * showing, and sending to, whoever it was first opened on.
+   */
+  const counterpartyB64 = $derived(typeof address === 'function' ? address() : address);
   /**
    * The address, read as `paths` reads one, or `null` when it is not a hash at all.
    *
@@ -46,6 +52,8 @@ export function useConversation(counterpartyB64: string) {
   let myUser = $state<ActionHash | undefined>(undefined);
   let draft = $state('');
   let sendError = $state<string | null>(null);
+  /** Why a card action (share, accept, decline, withdraw) was refused, when one was. */
+  let actionError = $state<string | null>(null);
   let sending = $state(false);
   /** True once this screen's own read has finished. Until then, nothing is an answer. */
   let loaded = $state(false);
@@ -93,8 +101,15 @@ export function useConversation(counterpartyB64: string) {
    * The reason is kept for the page, which offers this same call again.
    */
   async function initialize(): Promise<void> {
+    // Everything this screen holds about a person is cleared first, so a change of
+    // address never shows the last person's name, draft or errors on the next one.
+    loaded = false;
     loadError = null;
     missing = null;
+    sendError = null;
+    actionError = null;
+    name = C.someone;
+    draft = '';
     if (!decoded) {
       missing = 'address';
       return;
@@ -139,6 +154,30 @@ export function useConversation(counterpartyB64: string) {
   }
 
   const retry = (id: string) => runEffect(messagingStore.retryUnsent(id));
+  const discard = (id: string) => messagingStore.discardUnsent(id);
+
+  /**
+   * Keep the open conversation read as it grows.
+   *
+   * Opening marks it read, but the poll and nudges add messages while it is open, and
+   * those stayed unread (counted in the nav badge, no receipt sent) until the member left
+   * and came back. The page calls this whenever the timeline changes; the store does
+   * nothing unless the mark actually advances.
+   */
+  const markRead = () => {
+    if (loaded && decoded) messagingStore.markThreadRead(counterparty);
+  };
+
+  /** One card action: the same refresh after, and the reason kept if it was refused. */
+  async function act(action: () => Promise<unknown>): Promise<void> {
+    actionError = null;
+    try {
+      await action();
+      await runEffect(messagingStore.loadConversations());
+    } catch (e) {
+      actionError = reasonOf(e);
+    }
+  }
 
   /**
    * What one of my messages is doing: sending, sent, or read.
@@ -188,27 +227,19 @@ export function useConversation(counterpartyB64: string) {
    * is what keeps a listing a card rather than becoming context on something somebody
    * wrote.
    */
-  async function shareListing(listing: ActionHash): Promise<void> {
-    await runEffect(messagingStore.send(counterparty, '', listing));
-    await runEffect(messagingStore.loadConversations());
-  }
+  const shareListing = (listing: ActionHash): Promise<void> =>
+    act(() => runEffect(messagingStore.send(counterparty, '', listing)));
 
   /** Accept or decline a proposal. A decline must carry a reason; the form enforces it. */
-  async function respond(agreement: ActionHash, accepted: boolean, note: string): Promise<void> {
-    await runEffect(exchangesStore.respond(agreement, accepted, note));
-    await runEffect(messagingStore.loadConversations());
-  }
+  const respond = (agreement: ActionHash, accepted: boolean, note: string): Promise<void> =>
+    act(() => runEffect(exchangesStore.respond(agreement, accepted, note)));
 
   /** The proposer's one move while a proposal waits, as on the exchange page. */
-  async function withdrawProposal(agreement: ActionHash): Promise<void> {
-    await runEffect(exchangesStore.cancel(agreement, 'Withdrawn by the proposer'));
-    await runEffect(messagingStore.loadConversations());
-  }
+  const withdrawProposal = (agreement: ActionHash): Promise<void> =>
+    act(() => runEffect(exchangesStore.cancel(agreement, 'Withdrawn by the proposer')));
 
-  async function withdrawInterest(interest: ActionHash): Promise<void> {
-    await runEffect(exchangesStore.withdrawInterest(interest));
-    await runEffect(messagingStore.loadConversations());
-  }
+  const withdrawInterest = (interest: ActionHash): Promise<void> =>
+    act(() => runEffect(exchangesStore.withdrawInterest(interest)));
 
   return {
     get counterparty() {
@@ -252,6 +283,9 @@ export function useConversation(counterpartyB64: string) {
     get sendError() {
       return sendError;
     },
+    get actionError() {
+      return actionError;
+    },
     get loading() {
       return messagingStore.loading;
     },
@@ -267,6 +301,8 @@ export function useConversation(counterpartyB64: string) {
     initialize,
     send,
     retry,
+    discard,
+    markRead,
     respond,
     withdrawProposal,
     withdrawInterest

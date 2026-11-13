@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { encodeHashToBase64, type ActionHash } from '@holochain/client';
+  import type { ActionHash } from '@holochain/client';
+  import { paths } from '$lib/paths';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import offersStore from '$lib/stores/offers.store.svelte';
   import { runEffect } from '$lib/utils/effect';
@@ -104,7 +105,7 @@
     {#if kind}
       <a
         class="variant-ghost btn btn-sm"
-        href="/{kind === 'Offer' ? 'offers' : 'requests'}/{encodeHashToBase64(listing)}"
+        href={kind === 'Offer' ? paths.offerDetail(listing) : paths.requestDetail(listing)}
         >{E.interest.view}</a
       >
       <!-- Show interest hides itself for the author, so the sharer sees only View. -->

@@ -1,3 +1,5 @@
+import type { Schema } from 'effect';
+import type { TimestampSchema } from '$lib/schemas/holochain.schemas';
 import { encodeHashToBase64, type ActionHash, type AgentPubKey } from '@holochain/client';
 import type { Message } from '$lib/schemas/messaging.schemas';
 import type { ReceiptSetting } from '$lib/utils/messaging-local';
@@ -301,7 +303,17 @@ export type ThreadFilter = 'all' | 'unopened' | 'offers' | 'requests' | 'exchang
  * Holochain timestamps are microseconds. Everything in this module is milliseconds, so
  * that one conversion happens here rather than at each comparison.
  */
+type Timestamp = Schema.Schema.Type<typeof TimestampSchema>;
+
 export const toMillis = (micros: number): number => Math.floor(micros / 1000);
+
+/**
+ * The other way, for what is sent: the zome's timestamps are whole microseconds.
+ *
+ * The one place a screen's milliseconds become the branded `Timestamp` the input schemas
+ * ask for, so the payloads themselves are checked by the compiler rather than cast.
+ */
+export const toMicros = (millis: number): Timestamp => Math.round(millis * 1000) as Timestamp;
 
 const sameHash = (a: ActionHash, b: ActionHash) => encodeHashToBase64(a) === encodeHashToBase64(b);
 

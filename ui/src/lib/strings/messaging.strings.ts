@@ -85,6 +85,10 @@ export const MESSAGING_STRINGS = {
     encrypted: 'Encrypted between you and {name}.',
     send: 'Send',
     sendFailed: "Your message wasn't sent: {reason}",
+    /** A card action (share, accept, decline, withdraw) the network refused. */
+    actionFailed: "That didn't go through: {reason}",
+    /** Names the list of messages and cards for a screen reader. */
+    timelineLabel: 'Conversation',
     /**
      * Shown only near the composer, and only when the end is in sight. A counter sitting
      * there from the first character turns writing a message into filling a form.
@@ -329,6 +333,10 @@ export const MESSAGING_STRINGS = {
     youOffline:
       "You're offline. Your message will be sent automatically when you're connected again.",
     waitingToSend: 'Waiting to send',
+    /** On a message still in the outbox: take it back, or clear one that was refused. */
+    discardUnsent: 'Discard',
+    /** On a refused message: the member may have fixed what the refusal named. */
+    sendAgain: 'Send again',
     /**
      * **Not in the wording file yet** (Sam, 4 October), so it wants Anita's eye with the
      * rest.

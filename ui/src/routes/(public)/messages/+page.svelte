@@ -15,6 +15,14 @@
     messages.initialize();
   });
 
+  // Names follow the list: a conversation that arrives by poll or nudge is named then,
+  // not the next time this page is opened.
+  $effect(() => {
+    void messages.threads.length;
+    void messages.faults.length;
+    messages.resolveShown();
+  });
+
   /**
    * Faults sit with the conversations rather than in their own section, because they are
    * something that arrived for you and wants attention, which is what this list is. They

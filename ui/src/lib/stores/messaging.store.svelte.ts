@@ -44,6 +44,7 @@ import {
   unarchivedByNewMessages,
   isPersonal,
   threadKeyOf,
+  toMicros,
   toMillis,
   type Fault,
   type ThreadKey,
@@ -135,6 +136,8 @@ export type MessagingStore = {
   listen: () => () => void;
   /** Try one message again, because the member asked. */
   retryUnsent: (id: string) => E.Effect<void, never>;
+  /** Drop one message from the outbox, because the member asked. */
+  discardUnsent: (id: string) => void;
 };
 
 /** Exported for the unit tests, which want a store that has loaded nothing yet. */
@@ -347,7 +350,7 @@ export function createMessagingStore(): MessagingStore {
         const inbox: Message[] = [];
         const seenFaults: Fault[] = [];
         for (const entry of entries) {
-          if (entry.type === 'Read') inbox.push(entry as unknown as Message);
+          if (entry.type === 'Read') inbox.push(entry);
           else seenFaults.push({ hash: entry.hash, from: entry.from, at: toMillis(entry.at) });
         }
 
@@ -360,6 +363,7 @@ export function createMessagingStore(): MessagingStore {
 
         const agentToUserMap = yield* resolveAgents([
           ...inbox.map((m) => m.from),
+          ...seenFaults.map((f) => f.from),
           ...sent.filter(isPersonal).map((m) => m.to)
         ]);
         const agentToUser = (agent: AgentPubKey) => agentToUserMap.get(encodeHashToBase64(agent));
@@ -370,11 +374,18 @@ export function createMessagingStore(): MessagingStore {
         const archivedKeys = new Set<ThreadKey>(local.archived);
         outbox = local.outbox;
 
-        // **The one place blocking is applied.** Everything below reads from this list,
-        // so the personal threads, the role inbox and a member's own correspondence all
-        // get the same answer without the rule being written three times.
+        // **Where blocking is applied to what was read.** Everything below reads from
+        // this list, so the personal threads, the role inbox and a member's own
+        // correspondence all get the same answer without the rule being written three
+        // times. A message from a blocked person that could not be read is dropped by
+        // the same rule: a fault row names its sender, and a blocked person is not shown.
+        // (Signals are the other place: `listen` asks `isBlockedAgent`.)
         const blocked = new Set(local.blocked);
         const visibleInbox = applyBlocks(inbox, agentToUser, blocked);
+        const visibleFaults = seenFaults.filter((fault) => {
+          const person = agentToUser(fault.from);
+          return !(person && blocked.has(threadKeyOf(person)));
+        });
 
         threads = buildThreads({
           me,
@@ -386,7 +397,7 @@ export function createMessagingStore(): MessagingStore {
           readUpTo: local.readUpTo,
           archivedKeys
         });
-        faults = seenFaults;
+        faults = visibleFaults;
 
         // **The mark that rides in a message body.** A reader's `read_up_to` reaches this
         // agent in the body of their next message as well as by signal, which is what
@@ -472,7 +483,9 @@ export function createMessagingStore(): MessagingStore {
    * websocket to the local conductor stays up when the internet drops (Sam, 5 October), so
    * it would have said "connected" in exactly the case the outbox exists for.
    *
-   * Every other failure is a real refusal and reaches the member with the zome's reason.
+   * A call that got no answer at all is also held, with its send id, so the next run can
+   * ask the chain whether it went. Every other failure is a real refusal and reaches the
+   * member with the zome's reason.
    */
   const send = (
     counterparty: ActionHash,
@@ -489,33 +502,31 @@ export function createMessagingStore(): MessagingStore {
       overall: local.receipts,
       myReadUpTo: local.readUpTo[key] ?? 0
     });
-    const readUpTo = plan.readUpTo === undefined ? undefined : ((plan.readUpTo * 1000) as never);
+    const readUpTo = plan.readUpTo === undefined ? undefined : toMicros(plan.readUpTo);
     return withServices((service) =>
-      service
-        .sendMessage({ toUser: counterparty, content, sendId, listing, readUpTo } as never)
-        .pipe(
-          E.asVoid,
-          E.catchAll((e) => {
-            // Classify the *cause*, never the wrapper. `MessagingError.fromError` prefixes
-            // its context onto the message, and flattens anything that is not an `Error`
-            // with `String(...)`, which turns a plain-object error from another copy of
-            // the client into "[object Object]". The cause is the thing that was actually
-            // thrown, and `classifySendFailure` reads its fields rather than its class.
-            const failure = classifySendFailure(causeOf(e));
-            // Nothing was written, so it is safe to hold and retry.
-            if (failure.kind === 'devicesNotFound') {
-              queue(counterparty, content, sendId, listing);
-              return E.void;
-            }
-            // No answer: we do not know, and we do not guess. It goes to the outbox with
-            // its send id, and the next flush asks the chain whether it went.
-            if (failure.kind === 'noAnswer') {
-              queue(counterparty, content, sendId, listing);
-              return E.void;
-            }
-            return E.fail(e);
-          })
-        )
+      service.sendMessage({ toUser: counterparty, content, sendId, listing, readUpTo }).pipe(
+        E.asVoid,
+        E.catchAll((e) => {
+          // Classify the *cause*, never the wrapper. `MessagingError.fromError` prefixes
+          // its context onto the message, and flattens anything that is not an `Error`
+          // with `String(...)`, which turns a plain-object error from another copy of
+          // the client into "[object Object]". The cause is the thing that was actually
+          // thrown, and `classifySendFailure` reads its fields rather than its class.
+          const failure = classifySendFailure(causeOf(e));
+          // Nothing was written, so it is safe to hold and retry.
+          if (failure.kind === 'devicesNotFound') {
+            queue(counterparty, content, sendId, listing);
+            return E.void;
+          }
+          // No answer: we do not know, and we do not guess. It goes to the outbox with
+          // its send id, and the next flush asks the chain whether it went.
+          if (failure.kind === 'noAnswer') {
+            queue(counterparty, content, sendId, listing);
+            return E.void;
+          }
+          return E.fail(e);
+        })
+      )
     );
   };
 
@@ -533,10 +544,10 @@ export function createMessagingStore(): MessagingStore {
    * skipping on: if the connection has gone again the rest would fail too, and sending
    * later items first would reorder the conversation.
    *
-   * The gap that remains, stated rather than hidden: if a send succeeds at the conductor
-   * but we never learn it, the retry sends a second copy. Closing that needs an
-   * identifier inside the message body so a duplicate can be recognised on read, which is
-   * a zome change and the same one the per-agent copies want.
+   * **A send whose answer was lost is not sent twice.** Each item carries its send id,
+   * which the zome keeps inside the message body, and the chain is asked for that id
+   * (`find_sent`) before anything is sent again. If that question itself cannot be
+   * answered the item is handed to the member as "may not have sent", not retried blind.
    */
   const flushOutbox = (): E.Effect<void, never> =>
     E.gen(function* () {
@@ -569,7 +580,7 @@ export function createMessagingStore(): MessagingStore {
         // safe. Bounded by when the item was queued, so the check does not get slower as
         // a member's history grows.
         const already = yield* withServices((service) =>
-          service.findSent({ sendId: item.id, since: (item.queuedAt * 1000) as never })
+          service.findSent({ sendId: item.id, since: toMicros(item.queuedAt) })
         ).pipe(
           E.map((hash) => ({ ok: true as const, hash })),
           E.catchAll(() => E.succeed({ ok: false as const, hash: null }))
@@ -598,7 +609,7 @@ export function createMessagingStore(): MessagingStore {
               content: item.content,
               sendId: item.id,
               listing: item.listing ? decodeHashFromBase64(item.listing) : undefined
-            } as never)
+            })
             .pipe(E.asVoid)
         ).pipe(
           E.as(null),
@@ -658,25 +669,31 @@ export function createMessagingStore(): MessagingStore {
       }
       const signal = decoded.right;
 
-      if (signal.type === 'Nudge') {
-        void E.runPromise(loadConversations().pipe(E.catchAll(() => E.void)));
-        return;
-      }
+      // **A blocked person's signals do nothing.** The sender is an agent and a block is
+      // on a person, so the sender is resolved first. A nudge from someone blocked does
+      // not trigger a read (which would also tell a watcher this device is awake), and
+      // their receipt is not recorded. A sender who cannot be resolved is not known to
+      // be blocked: their nudge still triggers a read, since a nudge only says "look",
+      // and what the read returns goes through the block list anyway.
+      void E.runPromise(
+        usersStore.getUserByAgentPubKey(signal.from).pipe(
+          E.catchAll(() => E.succeed(null)),
+          E.flatMap((user) => {
+            const person = user?.original_action_hash;
+            if (person && isBlocked(person)) return E.void;
 
-      if (signal.type === 'Receipt') {
-        // The sender is an agent; a thread is a person. Resolve before recording, and
-        // drop it if we cannot, since a receipt we cannot attribute is worth nothing.
-        void E.runPromise(
-          usersStore.getUserByAgentPubKey(signal.from).pipe(
-            E.map((user) => {
-              if (user?.original_action_hash) {
-                receiveReceipt(user.original_action_hash, toMillis(signal.readUpTo));
-              }
-            }),
-            E.catchAll(() => E.void)
-          )
-        );
-      }
+            if (signal.type === 'Nudge') {
+              return loadConversations().pipe(
+                E.asVoid,
+                E.catchAll(() => E.void)
+              );
+            }
+            // A receipt we cannot attribute is worth nothing.
+            if (person) receiveReceipt(person, toMillis(signal.readUpTo));
+            return E.void;
+          })
+        )
+      );
     });
 
   /**
@@ -740,7 +757,7 @@ export function createMessagingStore(): MessagingStore {
     }
     void E.runPromise(
       withServices((service) =>
-        service.sendReceipt({ toUser: counterparty, readUpTo: (newest * 1000) as never })
+        service.sendReceipt({ toUser: counterparty, readUpTo: toMicros(newest) })
       ).pipe(E.catchAll(() => E.void))
       // A receipt that cannot be delivered is dropped without an error by design, so
       // there is nothing to report and nothing to retry: the same mark rides in the body
@@ -826,6 +843,19 @@ export function createMessagingStore(): MessagingStore {
     });
 
   /**
+   * Drop one message from the outbox for good, because the member asked.
+   *
+   * Nothing leaves the outbox by itself except a send that went: a refused message stayed
+   * on this device and on screen with no way to clear it, and a waiting one could not be
+   * taken back. If it had in fact been sent and the answer lost, discarding does not
+   * unsend it; it only stops this device trying again.
+   */
+  const discardUnsent = (id: string): void => {
+    outbox = outbox.filter((q) => q.id !== id);
+    write({ outbox });
+  };
+
+  /**
    * Block or unblock a person.
    *
    * **Local, and by person.** It was a private entry on the chain, which hid who was
@@ -904,7 +934,8 @@ export function createMessagingStore(): MessagingStore {
     flushOutbox,
     startRetrying,
     listen,
-    retryUnsent
+    retryUnsent,
+    discardUnsent
   };
 }
 

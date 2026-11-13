@@ -75,10 +75,32 @@ export function useMessages() {
     }
   }
 
+  /**
+   * Read the conversations. A failed read is the store's to report (`error`), so it is
+   * caught here: this is called from an effect, where a rejection has nowhere to go.
+   */
   async function initialize(): Promise<void> {
-    const loaded = await runEffect(messagingStore.loadConversations());
-    await resolveNames(loaded ?? []);
-    await resolveFaultNames(messagingStore.faults);
+    try {
+      await runEffect(messagingStore.loadConversations());
+    } catch {
+      // `messagingStore.error` carries the reason and the page shows it.
+    }
+  }
+
+  /**
+   * Name whoever is on screen, whenever the list changes.
+   *
+   * Names were resolved once, after the first read, so a conversation that first appeared
+   * through the poll or a nudge stayed "Someone" until the page was opened again. The
+   * page calls this from an effect that reads both lists.
+   */
+  async function resolveShown(): Promise<void> {
+    try {
+      await resolveNames(messagingStore.threads);
+      await resolveFaultNames(messagingStore.faults);
+    } catch {
+      // A name that will not resolve keeps its placeholder.
+    }
   }
 
   const setFilter = (next: ThreadFilter) => {
@@ -113,6 +135,7 @@ export function useMessages() {
       return unreadTotal;
     },
     initialize,
+    resolveShown,
     setFilter,
     setArchived,
     nameOf,

@@ -5,8 +5,9 @@ import { ActionHashSchema, AgentPubKeySchema, TimestampSchema } from './holochai
  * Messaging schemas.
  *
  * These mirror the `messaging` coordinator zome in
- * `dnas/requests_and_offers/zomes/coordinator/messaging/`, as it stands at `c334baef`
- * (#304, role messages and cases). Where the zome's casing is inconsistent this file
+ * `dnas/requests_and_offers/zomes/coordinator/messaging/`, as it stands in #364 (message
+ * state). `tests/unit/services/messaging.service.test.ts` holds the function names and
+ * payloads to it. Where the zome's casing is inconsistent this file
  * follows the zome rather than tidying it, because the wire format is the contract and a
  * tidier name here would simply fail at runtime.
  *
@@ -235,6 +236,8 @@ export class SendRoleMessageInput extends Schema.Class<SendRoleMessageInput>(
 )({
   role: RoleRefSchema,
   content: Schema.String,
+  /** As on a personal message; the zome reads `sendId` and bounds it at 64 bytes. */
+  sendId: Schema.optional(Schema.String),
   caseId: Schema.String,
   kind: CaseKindSchema,
   opener: Schema.optional(ActionHashSchema),

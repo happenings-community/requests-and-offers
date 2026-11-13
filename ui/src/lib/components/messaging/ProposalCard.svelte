@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ActionHash } from '@holochain/client';
+  import { encodeHashToBase64, type ActionHash } from '@holochain/client';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import { paths } from '$lib/paths';
   import { termLabel, wroteIt } from '$lib/utils/exchange-ui';
@@ -61,6 +61,9 @@
    * whitespace is not a way past it.
    */
   const reasonGiven = $derived(reason.trim().length > 0);
+
+  /** One id per card: two proposals in a conversation are two forms. */
+  const declineReasonId = $derived(`decline-reason-${encodeHashToBase64(exchange.agreement_hash)}`);
 
   /**
    * Withdrawing is the proposer's side of the same card (Sam, 9 November). Before this,
@@ -157,11 +160,11 @@
   {#if !answered && !fromMe && outcome !== 'withdrawn'}
     {#if declining}
       <div class="flex flex-col gap-2 pt-3">
-        <label class="text-sm font-semibold" for="decline-reason"
+        <label class="text-sm font-semibold" for={declineReasonId}
           >{S.proposal.declineForm.label}</label
         >
         <textarea
-          id="decline-reason"
+          id={declineReasonId}
           class="textarea"
           rows="3"
           bind:value={reason}

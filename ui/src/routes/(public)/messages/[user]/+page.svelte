@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { page } from '$app/stores';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import { useConversation } from '$lib/composables/domain/messaging/useConversation.svelte';
@@ -28,7 +29,7 @@
 
   // The route is `[user]`, so SvelteKit always has it here; the fallback keeps the type
   // honest rather than asserting non-null.
-  const conversation = useConversation($page.params.user ?? '');
+  const conversation = useConversation(() => $page.params.user ?? '');
   const me = $derived(usersStore.currentUser?.original_action_hash);
 
   /**
@@ -52,6 +53,13 @@
   // this conversation is left, which is what a message waiting to send needs.
   $effect(() => {
     conversation.initialize();
+  });
+
+  // Whatever arrives while this conversation is open has been seen: keep the read mark,
+  // and so the nav badge and the receipt, level with the timeline as it grows.
+  $effect(() => {
+    void conversation.timeline.length;
+    untrack(() => conversation.markRead());
   });
 
   let picking = $state(false);
@@ -180,7 +188,13 @@
     <!-- Not yet read is not an answer either. -->
     <p class="text-surface-500">{C.loading}</p>
   {:else}
-    <div class="flex flex-col gap-3" data-testid="timeline">
+    <div
+      class="flex flex-col gap-3"
+      data-testid="timeline"
+      role="log"
+      aria-live="polite"
+      aria-label={S.conversation.timelineLabel}
+    >
       {#each conversation.timeline as item (item.kind + '-' + keyOf(item))}
         {#if item.kind === 'message' && item.message.listing}
           <!--
@@ -254,6 +268,13 @@
             <p class="pt-1 text-right text-xs">
               {#if item.state === 'waiting'}
                 <span class="opacity-70">{S.general.waitingToSend}</span>
+                <button
+                  type="button"
+                  class="pl-2 underline opacity-70"
+                  onclick={() => conversation.discard(item.id)}
+                >
+                  {S.general.discardUnsent}
+                </button>
               {:else if item.state === 'mayNotHaveSent'}
                 <button
                   type="button"
@@ -266,6 +287,20 @@
                 <span class="text-error-700 dark:text-error-300"
                   >{fill(S.conversation.sendFailed, { reason: item.reason ?? '' })}</span
                 >
+                <button
+                  type="button"
+                  class="pl-2 underline"
+                  onclick={() => conversation.retry(item.id)}
+                >
+                  {S.general.sendAgain}
+                </button>
+                <button
+                  type="button"
+                  class="pl-2 underline"
+                  onclick={() => conversation.discard(item.id)}
+                >
+                  {S.general.discardUnsent}
+                </button>
               {/if}
             </p>
           </div>
@@ -309,6 +344,12 @@
         onClose={() => (picking = false)}
         counterparty={conversation.counterparty}
       />
+    {/if}
+
+    {#if conversation.actionError}
+      <aside class="card variant-soft-error p-3 text-sm" role="alert">
+        {fill(S.conversation.actionFailed, { reason: conversation.actionError })}
+      </aside>
     {/if}
 
     {#if conversation.sendError}

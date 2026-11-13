@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { encodeHashToBase64, type ActionHash } from '@holochain/client';
+  import type { ActionHash } from '@holochain/client';
+  import { paths } from '$lib/paths';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   // View listing and Withdraw interest are the exchange's actions; the card is a view of
   // the same record (R80), so it reads their wording from where it lives.
@@ -36,7 +37,7 @@
   );
 
   const listingHref = $derived(
-    `/${isOffer ? 'offers' : 'requests'}/${encodeHashToBase64(interest.listing)}`
+    isOffer ? paths.offerDetail(interest.listing) : paths.requestDetail(interest.listing)
   );
 </script>
 

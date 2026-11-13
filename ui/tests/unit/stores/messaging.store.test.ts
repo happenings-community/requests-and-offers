@@ -374,3 +374,141 @@ describe('blocking', () => {
     expect(saved).toContain(encodeHashToBase64(ANITA));
   });
 });
+
+describe('a send whose answer was lost', () => {
+  /** No answer at all: a timeout, or the socket going. Not something the zome said. */
+  const noAnswer = { name: 'Error', message: 'Timed out waiting for the conductor' };
+  /** The zome answered and said no, so nothing was written. */
+  const refusal = { name: 'ribosome_error', message: 'Only an accepted member can send' };
+
+  /**
+   * The duplicate-prevention the outbox rests on: the chain is asked for the send id
+   * before anything is sent again, and a send that is found is dropped, not repeated.
+   */
+  it('is not sent again when the chain already has it', async () => {
+    const store = await freshStore();
+    sendMessage.mockReturnValueOnce(E.fail(noAnswer)).mockReturnValue(E.succeed([]));
+    await E.runPromise(store.send(ANITA, 'see you at ten'));
+    expect(store.outbox, 'held with its send id').toHaveLength(1);
+    const heldId = store.outbox[0].id;
+
+    findSent.mockReturnValue(E.succeed(hashes.LISTING));
+    await E.runPromise(store.flushOutbox());
+
+    expect(findSent.mock.calls[0][0], 'asked for this very send').toMatchObject({
+      sendId: heldId
+    });
+    expect(sendMessage, 'the one original call and no second copy').toHaveBeenCalledTimes(1);
+    expect(store.outbox, 'dropped: it went').toHaveLength(0);
+  });
+
+  it('is handed to the member, not retried blind, when the chain cannot be asked', async () => {
+    const store = await freshStore();
+    sendMessage.mockReturnValueOnce(E.fail(noAnswer)).mockReturnValue(E.succeed([]));
+    await E.runPromise(store.send(ANITA, 'see you at ten'));
+
+    findSent.mockReturnValue(E.fail(new Error('find_sent: no answer')));
+    await E.runPromise(store.flushOutbox());
+
+    expect(sendMessage, 'nothing sent without knowing').toHaveBeenCalledTimes(1);
+    expect(store.outbox[0]?.state).toBe('mayNotHaveSent');
+  });
+
+  it('a refusal on the retry stops the retrying and keeps the reason', async () => {
+    const store = await freshStore();
+    sendMessage.mockReturnValueOnce(E.fail(devicesNotFound)).mockReturnValue(E.fail(refusal));
+    await E.runPromise(store.send(ANITA, 'see you at ten'));
+
+    await E.runPromise(store.flushOutbox());
+
+    expect(store.outbox[0]?.state).toBe('refused');
+    expect(store.outbox[0]?.reason, "the zome's own reason, for the member").toContain(
+      'Only an accepted member can send'
+    );
+
+    // Refused items are not picked up again by themselves.
+    await E.runPromise(store.flushOutbox());
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it('a held message can be discarded, and stays discarded after a reload', async () => {
+    const store = await freshStore();
+    sendMessage.mockReturnValue(E.fail(devicesNotFound));
+    await E.runPromise(store.send(ANITA, 'see you at ten'));
+    const heldId = store.outbox[0].id;
+
+    store.discardUnsent(heldId);
+    expect(store.outbox).toHaveLength(0);
+
+    await E.runPromise(store.loadConversations());
+    expect(store.outbox, 'not read back from storage').toHaveLength(0);
+  });
+});
+
+describe('a blocked person', () => {
+  /**
+   * A block acts on what is read and on what arrives by signal. A nudge from someone
+   * blocked must not start a read, their receipt must not be recorded, and a message of
+   * theirs that could not be read must not appear as a fault row naming them.
+   */
+  it('their nudge starts no read', async () => {
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    const store = await freshStore();
+    await E.runPromise(store.loadConversations());
+    store.setBlocked(ANITA, true);
+    // Blocking re-reads the conversations itself; let that finish before counting.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    store.listen();
+    const readsBefore = getSent.mock.calls.length;
+
+    signalHandlers[0]({ type: 'Nudge', hash: hashes.LISTING, from: ANITA_AGENT });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(getSent.mock.calls.length, 'no read was started').toBe(readsBefore);
+  });
+
+  it('a nudge from someone not blocked does start a read', async () => {
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    const store = await freshStore();
+    await E.runPromise(store.loadConversations());
+    store.listen();
+    const readsBefore = getSent.mock.calls.length;
+
+    signalHandlers[0]({ type: 'Nudge', hash: hashes.LISTING, from: ANITA_AGENT });
+
+    await vi.waitFor(() => expect(getSent.mock.calls.length).toBeGreaterThan(readsBefore));
+  });
+
+  it('their receipt is not recorded', async () => {
+    getSent.mockReturnValue(E.succeed([mineToAnita()]));
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    const store = await freshStore();
+    await E.runPromise(store.loadConversations());
+    store.setBlocked(ANITA, true);
+    store.listen();
+
+    signalHandlers[0]({ type: 'Receipt', readUpTo: micros(T_SENT + 5_000), from: ANITA_AGENT });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(store.theirReadUpTo(ANITA)).toBe(0);
+  });
+
+  it('a message of theirs that could not be read is not shown as a fault', async () => {
+    const unreadable = {
+      type: 'Unreadable',
+      hash: hashes.ME,
+      from: ANITA_AGENT,
+      at: micros(T_SENT)
+    };
+    getInbox.mockReturnValue(E.succeed([unreadable]));
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    const store = await freshStore();
+
+    await E.runPromise(store.loadConversations());
+    expect(store.faults, 'shown while they are not blocked').toHaveLength(1);
+
+    store.setBlocked(ANITA, true);
+    await E.runPromise(store.loadConversations());
+    expect(store.faults, 'hidden once they are').toHaveLength(0);
+  });
+});

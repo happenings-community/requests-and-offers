@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use email_address::EmailAddress;
 use hdi::prelude::*;
-use utils::{errors::CommonError, is_image};
+use utils::is_image;
 
 /// Represents a user Entry with various attributes such as name, nickname, bio, etc.
 #[hdk_entry_helper]
@@ -96,31 +96,20 @@ pub fn validate_delete_user(
   )))
 }
 
+/// A `UserUpdates` link joins two `User` records, by their declared entry type.
 pub fn validate_create_link_user_updates(
   _action: TypedAction<CreateLinkData>,
   base_address: AnyLinkableHash,
   target_address: AnyLinkableHash,
   _tag: LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-  let action_hash = base_address
-    .into_action_hash()
-    .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
-  let record = must_get_valid_record(action_hash)?;
-  let _user: User = record
-    .entry()
-    .to_app_option()
-    .map_err(CommonError::Serialize)?
-    .ok_or(CommonError::EntryNotFound("user".to_string()))?;
-  // Check the entry type for the given action hash
-  let action_hash = target_address
-    .into_action_hash()
-    .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
-  let record = must_get_valid_record(action_hash)?;
-  let _user: User = record
-    .entry()
-    .to_app_option()
-    .map_err(CommonError::Serialize)?
-    .ok_or(CommonError::EntryNotFound("user".to_string()))?;
+  for end in [&base_address, &target_address] {
+    if !matches!(crate::entry_at(end)?, Some((_, crate::EntryTypes::User(_)))) {
+      return Ok(ValidateCallbackResult::Invalid(String::from(
+        "a UserUpdates link joins two User records",
+      )));
+    }
+  }
   Ok(ValidateCallbackResult::Valid)
 }
 

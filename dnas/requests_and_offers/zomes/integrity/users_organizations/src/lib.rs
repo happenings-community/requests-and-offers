@@ -255,34 +255,39 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 /// key it returns. A link anchored at someone else's User would hand its
 /// writer that member's messages, so both links must belong to the User's
 /// own author.
-fn is_user_authored_by(hash: &AnyLinkableHash, author: &AgentPubKey) -> ExternResult<bool> {
+/// The record at a link's end and which of this zome's entries it carries, or
+/// none when it is not one of them. The kind is read from the entry type the
+/// action declares, not from what the bytes happen to decode as: two entry
+/// types with the same fields would otherwise pass for each other.
+pub(crate) fn entry_at(hash: &AnyLinkableHash) -> ExternResult<Option<(Record, EntryTypes)>> {
   let Some(action_hash) = hash.clone().into_action_hash() else {
-    return Ok(false);
+    return Ok(None);
   };
   let record = must_get_valid_record(action_hash)?;
-  // only a User's original create: integrity does not tie an update's author to the original's,
-  // so a revision written by someone else must never count as that member's User
-  if !matches!(record.action().data, ActionData::Create(_)) {
-    return Ok(false);
-  }
   let Ok(creation) = TypedAction::<EntryCreationData>::try_from(record.action().clone()) else {
-    return Ok(false);
+    return Ok(None);
   };
   let EntryType::App(app_entry_type) = creation.entry_type() else {
-    return Ok(false);
+    return Ok(None);
   };
   let Some(entry) = record.entry().as_option() else {
-    return Ok(false);
+    return Ok(None);
   };
-  let is_user = matches!(
-    EntryTypes::deserialize_from_type(
-      *app_entry_type.zome_index,
-      app_entry_type.entry_index,
-      entry
-    )?,
-    Some(EntryTypes::User(_))
-  );
-  Ok(is_user && record.action().author() == author)
+  let kind = EntryTypes::deserialize_from_type(
+    *app_entry_type.zome_index,
+    app_entry_type.entry_index,
+    entry,
+  )?;
+  Ok(kind.map(|kind| (record, kind)))
+}
+
+fn is_user_authored_by(hash: &AnyLinkableHash, author: &AgentPubKey) -> ExternResult<bool> {
+  Ok(match entry_at(hash)? {
+    Some((record, EntryTypes::User(_))) => {
+      matches!(record.action().data, ActionData::Create(_)) && record.action().author() == author
+    }
+    _ => false,
+  })
 }
 
 fn invalid(reason: &str) -> ExternResult<ValidateCallbackResult> {

@@ -1,7 +1,6 @@
 use email_address::EmailAddress;
 use hdi::prelude::*;
 use utils::{
-  errors::CommonError,
   grants::{chain_root, check_act, grant_from_tag, Ability},
   is_image,
 };
@@ -119,35 +118,21 @@ pub fn validate_delete_organization(
   Ok(ValidateCallbackResult::Valid)
 }
 
+/// An `OrganizationUpdates` link joins two `Organization` records, by their
+/// declared entry type.
 pub fn validate_create_link_organization_updates(
   _action: TypedAction<CreateLinkData>,
   base_address: AnyLinkableHash,
   target_address: AnyLinkableHash,
   _tag: LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-  let action_hash = base_address
-    .into_action_hash()
-    .ok_or(CommonError::ActionHashNotFound("organization".to_string()))?;
-  let record = must_get_valid_record(action_hash)?;
-  let _organization: crate::Organization = record
-    .entry()
-    .to_app_option()
-    .map_err(CommonError::Serialize)?
-    .ok_or(CommonError::EntryNotFound(
-      "Linked action must reference an entry".to_string(),
-    ))?;
-  // Check the entry type for the given action hash
-  let action_hash = target_address
-    .into_action_hash()
-    .ok_or(CommonError::ActionHashNotFound("organization".to_string()))?;
-  let record = must_get_valid_record(action_hash)?;
-  let _organization: crate::Organization = record
-    .entry()
-    .to_app_option()
-    .map_err(CommonError::Serialize)?
-    .ok_or(CommonError::EntryNotFound(
-      "Linked action must reference an entry".to_string(),
-    ))?;
+  for end in [&base_address, &target_address] {
+    if !matches!(crate::entry_at(end)?, Some((_, crate::EntryTypes::Organization(_)))) {
+      return Ok(ValidateCallbackResult::Invalid(String::from(
+        "an OrganizationUpdates link joins two Organization records",
+      )));
+    }
+  }
   Ok(ValidateCallbackResult::Valid)
 }
 

@@ -89,7 +89,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     }) => match link_type {
       // The recipient must not be able to delete the sender's link: that would
       // destroy the sender's own record of what they sent. A recipient who does not
-      // want to see a message hides it with a private marker instead.
+      // want to see a message hides it in their own app instead.
       LinkTypes::Inbox => Ok(check_link_deleter_is_author(
         action.author(),
         original_action.author(),

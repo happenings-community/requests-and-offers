@@ -100,7 +100,7 @@ pub fn check_link_author_matches_message(
 ///
 /// The recipient must not be able to delete the sender's link: that would destroy the
 /// sender's own record of what they sent. A recipient who does not want to see a
-/// message hides it with a private marker instead.
+/// message hides it in their own app instead.
 pub fn check_link_deleter_is_author(
   deleter: &AgentPubKey,
   link_author: &AgentPubKey,

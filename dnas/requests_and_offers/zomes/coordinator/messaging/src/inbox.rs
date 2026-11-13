@@ -54,9 +54,9 @@ pub struct Message {
 /// encryption arguments the wrong way round, or corrupt data) or the sender's client did
 /// not do that. Validation cannot tell the two apart: it proves the link's author wrote
 /// the message, not who the ciphertext was sealed to. Dropping it silently would hide
-/// the first case, so it is returned and logged instead, with enough to chase it; in the
-/// second case, blocking the sender removes it, because the block filter runs before
-/// decryption.
+/// the first case, so it is returned and logged instead, with enough to chase it. It
+/// carries `from`, so in the second case the reader's own app can leave it out once the
+/// member blocks that sender.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum InboxEntry {
@@ -139,7 +139,7 @@ pub struct InboxDelta {
   pub visible: Vec<ActionHash>,
   /// Only the messages not in `known`, read and decrypted as `get_inbox` would.
   pub entries: Vec<InboxEntry>,
-  /// Role messages in this inbox that still pass the reading filters: never shown here,
+  /// Role messages in this inbox whose links still pass the author filters: never shown here,
   /// and listed so the caller can pass them back in `GetInboxDeltaInput::skipped`.
   /// Whether a message is a role message is inside the encryption, so the first read
   /// has to fetch and decrypt it; without this list every later poll would too (Sacha's
@@ -161,8 +161,10 @@ pub struct InboxDelta {
 ///
 /// Role messages are not personal chat and are left out of `visible` and `entries`, as
 /// `get_inbox` leaves them out; their hashes come back in `skipped`. A hash in `known`
-/// is taken to be a personal message and one in `skipped` a role message, because this
-/// is the only call that returned either.
+/// is taken to be a personal message and one in `skipped` a role message, on the
+/// caller's word: neither is fetched again to find out. So `known` must hold only
+/// hashes this call returned in `entries`, never one learned from `get_message` or the
+/// role inbox, which return role messages too.
 #[hdk_extern]
 pub fn get_inbox_delta(input: GetInboxDeltaInput) -> ExternResult<InboxDelta> {
   let me = agent_info()?.agent_initial_pubkey;
@@ -345,7 +347,7 @@ fn is_administrator(
 /// Split out of `get_inbox` so that `get_role_inbox` and `get_my_role_correspondence`
 /// run the *same* filters rather than copies that have to be kept in step. The cost is
 /// that each of them decrypts messages it then discards; the alternative is three
-/// block-and-acceptance implementations that can drift apart, which is the more
+/// implementations of the acceptance filters that can drift apart, which is the more
 /// expensive mistake.
 ///
 /// Role messages are **not** filtered out here. This is the shared read, and the three
@@ -389,8 +391,8 @@ pub(crate) fn read_inbox(
   let mut visible = Vec::new();
 
   // Both of these were once per message, which meant a full chain scan and two
-  // cross-zome calls per message. The interface calls this on every app open, so the
-  // block list is read once and each distinct author is checked once.
+  // cross-zome calls per message. The interface calls this on every app open, so each
+  // distinct author is checked once.
   let mut authors = AuthorFacts::new();
   // Same reasoning for the role check: one cross-zome call per (author, role) whose role
   // is actually in question, rather than one per message. A case with forty notes from

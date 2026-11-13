@@ -1151,7 +1151,11 @@ async fn a_receipt_arrives_as_read_up_to_from_its_sender() {
 ///
 /// Read markers and blocks left the chain because a private entry hides its content but
 /// not its timing. This is what notices if one comes back: the functions no longer exist,
-/// so calling them fails.
+/// and the conductor says so by name. Any failure would not do: a call with the wrong
+/// payload or the wrong return type fails too, so a restored function would still fail.
+///
+/// **To make it go red:** restore any one of the five externs: its call then fails for
+/// some other reason, or succeeds, and the message is not the one asserted.
 #[tokio::test(flavor = "multi_thread")]
 async fn the_chain_functions_for_blocks_and_read_markers_are_gone() {
     let (conductors, alice, bob, _alice_user, _bob_user) = two_accepted_members().await;
@@ -1160,9 +1164,13 @@ async fn the_chain_functions_for_blocks_and_read_markers_are_gone() {
         let result = conductors[0]
             .call_fallible::<_, ()>(&alice.zome("messaging"), gone, ())
             .await;
+        let text = match result {
+            Ok(()) => panic!("{gone} should no longer exist on the messaging zome"),
+            Err(e) => format!("{e:?}"),
+        };
         assert!(
-            result.is_err(),
-            "{gone} should no longer exist on the messaging zome"
+            text.contains("zome function that doesn't exist"),
+            "{gone} should be refused as a function that does not exist; got {text}"
         );
     }
 

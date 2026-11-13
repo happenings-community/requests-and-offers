@@ -157,14 +157,19 @@
     }
 
     const orgHash = encodeHashToBase64(org.original_action_hash);
-    const mine = await runEffect(
-      organizationsStore.getUserOrganizations(user.original_action_hash)
-    );
-    agentIsProposer = mine.some(
-      (candidate) =>
-        candidate.original_action_hash &&
-        encodeHashToBase64(candidate.original_action_hash) === orgHash
-    );
+    try {
+      const mine = await runEffect(
+        organizationsStore.getUserOrganizations(user.original_action_hash)
+      );
+      agentIsProposer = mine.some(
+        (candidate) =>
+          candidate.original_action_hash &&
+          encodeHashToBase64(candidate.original_action_hash) === orgHash
+      );
+    } catch (error) {
+      console.error('Failed to check whether this is your proposal:', error);
+      agentIsProposer = false;
+    }
   }
 
   async function isMember() {

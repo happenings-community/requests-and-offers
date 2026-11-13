@@ -94,7 +94,7 @@ Agent-activity ops skip validation, as in every other integrity zome since #280:
 
 What validation cannot prove is that a grant has not been revoked since, so a suspended member's message is caught on read, where `get_inbox` drops authors who are not accepted now. Until then their node can still store and gossip what a modified client writes.
 
-**The grant rule holds on a network with a progenitor key, which alpha 2 is not.** With no key in the DNA properties, validation accepts any root (`administration.md`, *The root*), so a modified client can write itself a root admin grant, a member grant resting on it, and then messages that pass this rule: two extra writes. The read side still drops them, because `read_inbox_entries` filters on accepted status, not on grants.
+**The grant rule holds on a network with a progenitor key, which alpha 2 is not.** With no key in the DNA properties, validation accepts any root (`administration.md`, *The root*), so a modified client can write itself a root admin grant, a member grant resting on it, and then messages that pass this rule: two extra writes. The read side still drops them, because `read_inbox_entries` filters on accepted status, not on grants, until the forger also writes itself into the accepted index with the same forged grant: one more write, which a network with no key cannot refuse.
 
 Nor can validation prove who a ciphertext was sealed to. It proves the link's author wrote the message, not that the message was encrypted to the link's base.
 
@@ -109,6 +109,7 @@ Nor can validation prove who a ciphertext was sealed to. It proves the link's au
 - **Size is bounded twice**: the coordinator refuses content over 16 KiB before encrypting, so the caller gets a clear error, and validation bounds the ciphertext because it cannot assume the coordinator ran.
 - **When no agent of any recipient can be found from this device**, the send fails with `DEVICES_NOT_FOUND` and writes nothing. It never means a member has no agents: `get_user_agents` reads with `GetStrategy::Network`, which falls back to locally cached metadata, so a device with no network and a cold cache finds nobody.
 - **A nudge failure never undoes a stored message.** The stored entry is the delivery guarantee; the nudge is timeliness.
+- **Each copy carries the sender's member grant**, which `deliver` reads with `can` and attaches. A sender who is accepted and holds no grant this node can see is refused with `NoMemberGrantYet` before anything is encrypted or written. Just after acceptance that is propagation, and the send works when tried again.
 
 Errors come from `MessagingError` in `utils/src/errors.rs`, as for every zome.
 
@@ -171,6 +172,8 @@ None of these lets anybody read or write what they should not. They are about ho
 ### 6.7. Tests
 
 `tests/sweettest/tests/messaging_inbox.rs` and `messaging_roles.rs`, run as `messaging_inbox` and `messaging_roles` in the Heavy tests (manual) workflow on a `run:sweettest` or `run:heavy` label, not in the CI on every pull request.
+
+The member-grant rule is tested with the other grant rules, in `tests/sweettest/tests/grants.rs` (target `grants`): `a_message_carries_the_member_grant_its_author_holds`, `an_inbox_link_is_its_authors_record_of_their_own_message` (the five `Inbox` link rules, each by a forged link) and `an_accepted_member_with_no_grant_is_told_so_and_sends_nothing`.
 
 `messaging_inbox` proves the encryption before anything rests on it (the recipient reads, the sender reads their own copy, a third member holds the ciphertext and cannot read it, either party can be offline), then the access rules (an unaccepted sender is refused, only an administrator may write to a member who is not accepted, a reader who is not accepted hears only from administrators on both read paths, a since-rejected author is hidden) and blocking.
 

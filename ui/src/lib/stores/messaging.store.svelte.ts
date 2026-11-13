@@ -102,6 +102,8 @@ export type MessagingStore = {
   readonly faults: Fault[];
   readonly outbox: OutboxItem[];
   readonly loading: boolean;
+  /** False until the first read of the conversations has finished. */
+  readonly everLoaded: boolean;
   readonly error: string | null;
 
   loadConversations: () => E.Effect<UIThread[], MessagingError>;
@@ -146,6 +148,8 @@ export function createMessagingStore(): MessagingStore {
   let faults = $state<Fault[]>([]);
   let outbox = $state<OutboxItem[]>([]);
   let loading = $state(false);
+  /** Has any read of the conversations finished, well or badly? */
+  let everLoaded = $state(false);
   let error = $state<string | null>(null);
 
   /**
@@ -328,6 +332,7 @@ export function createMessagingStore(): MessagingStore {
           threads = [];
           faults = [];
           loading = false;
+          everLoaded = true;
           return [];
         }
 
@@ -420,10 +425,12 @@ export function createMessagingStore(): MessagingStore {
         }
 
         loading = false;
+        everLoaded = true;
         return threads;
       }).pipe(
         E.catchAll((e) => {
           loading = false;
+          everLoaded = true;
           error = e instanceof MessagingError ? e.message : String(e);
           return E.fail(e as MessagingError);
         })
@@ -909,6 +916,9 @@ export function createMessagingStore(): MessagingStore {
     },
     get loading() {
       return loading;
+    },
+    get everLoaded() {
+      return everLoaded;
     },
     get error() {
       return error;

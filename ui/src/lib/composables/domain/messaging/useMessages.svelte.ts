@@ -125,8 +125,12 @@ export function useMessages() {
     get faults() {
       return faults;
     },
+    /**
+     * Only the first read. The list is re-read every 15 seconds, and showing "Loading"
+     * for each of those made an empty list flicker.
+     */
     get loading() {
-      return messagingStore.loading;
+      return messagingStore.loading && !messagingStore.everLoaded;
     },
     get error() {
       return messagingStore.error;

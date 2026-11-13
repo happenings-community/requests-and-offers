@@ -749,3 +749,22 @@ export function buildTimeline(thread: UIThread): TimelineItem[] {
   const rank = { interest: 0, exchange: 1, message: 2 };
   return items.sort((a, b) => a.at - b.at || rank[a.kind] - rank[b.kind]);
 }
+
+/**
+ * When a message was sent, as a conversation shows it.
+ *
+ * Today's messages show the time alone. Anything older carries its date too, and its
+ * year once that differs: a bare "14:05" on a message from last month read as today's.
+ */
+export function formatMessageTime(at: number, now: number = Date.now()): string {
+  const sent = new Date(at);
+  const today = new Date(now);
+  const time = sent.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  if (sent.toDateString() === today.toDateString()) return time;
+  const date = sent.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    ...(sent.getFullYear() === today.getFullYear() ? {} : { year: 'numeric' })
+  });
+  return `${date}, ${time}`;
+}

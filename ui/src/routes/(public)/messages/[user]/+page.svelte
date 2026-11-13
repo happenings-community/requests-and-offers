@@ -17,6 +17,7 @@
   import type { ReceiptSetting } from '$lib/utils/messaging-local';
   import {
     bytesLeft,
+    formatMessageTime,
     isTooLong,
     messagesNeeded,
     percentOver,
@@ -84,8 +85,7 @@
   const over = $derived(percentOver(conversation.draft));
   const pieces = $derived(messagesNeeded(conversation.draft));
 
-  const whenOf = (at: number) =>
-    new Date(at).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const whenOf = (at: number) => formatMessageTime(at);
 </script>
 
 <svelte:head><title>{conversation.name}</title></svelte:head>

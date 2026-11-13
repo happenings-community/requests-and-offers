@@ -512,3 +512,16 @@ describe('a blocked person', () => {
     expect(store.faults, 'hidden once they are').toHaveLength(0);
   });
 });
+
+describe('the first read and the ones after', () => {
+  /** The list page shows "Loading" on `loading && !everLoaded`: the first read only. */
+  it('says a read has finished, whether it went well or badly', async () => {
+    const store = await freshStore();
+    expect(store.everLoaded, 'nothing read yet').toBe(false);
+
+    myInterests.mockReturnValue(E.fail(new Error('get_my_interests: no answer')));
+    await expect(E.runPromise(store.loadConversations())).rejects.toThrow();
+
+    expect(store.everLoaded, 'a failed read is still a finished one').toBe(true);
+  });
+});

@@ -743,6 +743,8 @@ async fn a_listing_is_edited_by_its_author_or_an_administrator() {
 /// `Valid` before it reads the tag (the forged links are). In the coordinator,
 /// drop `require_coordinate` from `add_member_to_organization`: the pending
 /// creator is then refused for the organisation's status, not for the role.
+/// Or let `register_approved_coordinator` take a coordinator's grant: Bob's
+/// direct call then writes the links.
 #[tokio::test(flavor = "multi_thread")]
 async fn approval_makes_the_creator_coordinator_and_only_of_that_organisation() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
@@ -806,6 +808,28 @@ async fn approval_makes_the_creator_coordinator_and_only_of_that_organisation() 
         )
         .await;
     assert!(can.is_some(), "`can` finds the coordinator grant");
+
+    // The call that writes an approval's links is the approver's. A coordinator
+    // adds people through the calls that check the user and write the grant.
+    let direct = reason(
+        conductors[1]
+            .call_fallible::<_, bool>(
+                &bob.zome("users_organizations"),
+                "register_approved_coordinator",
+                serde_json::json!({
+                    "organization_original_action_hash": org,
+                    "user_original_action_hash": users[2],
+                }),
+            )
+            .await,
+    );
+    match direct {
+        Ok(_) => panic!("a coordinator should not be able to write an approval's links"),
+        Err(text) => assert!(
+            text.contains("Unauthorized"),
+            "a coordinator writing an approval's links should be refused as unauthorized; got {text}"
+        ),
+    }
     let added: bool = conductors[1]
         .call(&bob.zome("users_organizations"), "add_member_to_organization", mallory_as_member)
         .await;
@@ -1137,7 +1161,7 @@ async fn a_service_type_and_a_medium_of_exchange_are_changed_on_an_admin_grant_o
     .await;
     refused(
         &forged_service_type,
-        "Changing a service type is a role act: a member grant does not cover Administer",
+        "Changing a service type is a role act: a member grant does not cover Administer here",
         "an update of a service type on a member grant",
     );
 
@@ -1157,7 +1181,7 @@ async fn a_service_type_and_a_medium_of_exchange_are_changed_on_an_admin_grant_o
     .await;
     refused(
         &forged_medium,
-        "Changing a medium of exchange is a role act: a member grant does not cover Administer",
+        "Changing a medium of exchange is a role act: a member grant does not cover Administer here",
         "an update of a medium of exchange on a member grant",
     );
 }

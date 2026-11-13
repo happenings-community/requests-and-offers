@@ -158,6 +158,17 @@ let record = get(hash.clone(), GetOptions::default())?
 ```
 Older code on dev still builds errors by hand in places; it migrates when it is touched, and a review flags any new one.
 
+**The same rule holds for validation.** Every `ValidateCallbackResult::Invalid` reason in an integrity zome comes from a per-domain validation enum in the same file (`CommonValidationError`, `UserValidationError`, `OrganizationValidationError`, `StatusValidationError`, `ServiceTypeValidationError`, `MediumOfExchangeValidationError`, `RequestValidationError`, `OfferValidationError`, `ExchangeValidationError`), through the shared helper `invalid`, never a string written at the call site.
+A variant's `#[error]` text is what peers, tests and the UI read, so changing it changes the network's verdicts; `validation_reason_tests` pins every one.
+A new rule adds its variant, and its text to that test, in the PR that needs it.
+```rust
+use utils::errors::{invalid, OfferValidationError};
+
+if offer.title.is_empty() {
+  return invalid(OfferValidationError::TitleEmpty);
+}
+```
+
 ## Domains
 
 All 8 domains follow the 7-layer pattern. Use **Service Types** as the reference template:

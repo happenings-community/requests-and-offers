@@ -1,4 +1,5 @@
 use hdi::prelude::*;
+use utils::errors::{invalid, ServiceTypeValidationError};
 
 // ServiceType Entry Definition
 #[hdk_entry_helper]
@@ -15,14 +16,10 @@ pub fn validate_create_service_type(
   service_type: &ServiceType,
 ) -> ExternResult<ValidateCallbackResult> {
   if service_type.name.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "ServiceType name cannot be empty".to_string(),
-    ));
+    return invalid(ServiceTypeValidationError::NameEmpty);
   }
   if service_type.description.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "ServiceType description cannot be empty".to_string(),
-    ));
+    return invalid(ServiceTypeValidationError::DescriptionEmpty);
   }
   // Technical field is a boolean, no additional validation needed.
   Ok(ValidateCallbackResult::Valid)
@@ -41,21 +38,15 @@ pub fn validate_update_service_type(
 
   // Access author via action.author() from SignedActionHashed or action().author() from SignedAction
   if action.action().author() != original_create_action.author() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Only the original author can update the ServiceType.".to_string(),
-    ));
+    return invalid(ServiceTypeValidationError::UpdateByNonAuthor);
   }
 
   // Apply the same field validation rules as for creation
   if service_type.name.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "ServiceType name cannot be empty".to_string(),
-    ));
+    return invalid(ServiceTypeValidationError::NameEmpty);
   }
   if service_type.description.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "ServiceType description cannot be empty".to_string(),
-    ));
+    return invalid(ServiceTypeValidationError::DescriptionEmpty);
   }
 
   Ok(ValidateCallbackResult::Valid)
@@ -71,9 +62,7 @@ pub fn validate_delete_service_type(
   let original_create_action = original_create_action_record.action(); // This is SignedAction
 
   if action.action().author() != original_create_action.author() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Only the original author can delete the ServiceType.".to_string(),
-    ));
+    return invalid(ServiceTypeValidationError::DeleteByNonAuthor);
   }
   // Additional checks could be added here, e.g., to prevent deletion if linked by active requests/offers.
   Ok(ValidateCallbackResult::Valid)

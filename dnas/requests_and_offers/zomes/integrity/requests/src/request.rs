@@ -1,4 +1,5 @@
 use hdi::prelude::*;
+use utils::errors::{invalid, RequestValidationError};
 use utils::{ContactPreference, DateRange, InteractionType, TimePreference, TimeZone};
 
 /// Represents the status of a listing
@@ -45,31 +46,23 @@ pub struct Request {
 pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult> {
   // Validate title
   if request.title.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Request title cannot be empty".to_string(),
-    ));
+    return invalid(RequestValidationError::TitleEmpty);
   }
 
   // Validate description
   if request.description.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Request description cannot be empty".to_string(),
-    ));
+    return invalid(RequestValidationError::DescriptionEmpty);
   }
 
   // Validate description length (1000 character limit)
   if request.description.len() > 1000 {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Request description cannot exceed 1000 characters".to_string(),
-    ));
+    return invalid(RequestValidationError::DescriptionTooLong);
   }
 
   // Validate time_estimate_hours if present
   if let Some(time_estimate) = request.time_estimate_hours {
     if time_estimate <= 0.0 {
-      return Ok(ValidateCallbackResult::Invalid(
-        "Time estimate must be greater than zero".to_string(),
-      ));
+      return invalid(RequestValidationError::TimeEstimateNotPositive);
     }
   }
 

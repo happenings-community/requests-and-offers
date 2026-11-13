@@ -176,7 +176,9 @@ pub fn send_receipt(input: SendReceiptInput) -> ExternResult<()> {
 /// **The payload is untrusted, both kinds.** A nudge's hash is whatever the sender chose
 /// and may name data that does not exist, that this agent is not the recipient of, or
 /// nothing at all. A receipt's time is equally a claim, and the app clamps it to what it
-/// actually sent that person. Only `from` is trustworthy, being call provenance. Nothing here fetches it. Whatever acts on a nudge is
+/// actually sent that person. Only `from` is trustworthy, being call provenance.
+///
+/// Nothing here fetches what a nudge names. Whatever acts on a nudge is
 /// responsible for deciding whether the thing at that hash is really addressed to
 /// this agent, which for messaging is what the `Inbox` links and their validation
 /// settle.

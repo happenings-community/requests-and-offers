@@ -374,6 +374,25 @@ async fn a_case_reaches_every_holder_and_the_reply_comes_back() {
         "Alice's role inbox should be empty before anything is sent"
     );
 
+    // A send id over the bound is refused here as it is on a personal message, before
+    // anything is written. (Remove `require_send_id_within_bound` from
+    // `send_role_message` and this send goes through.)
+    let mut over_long = serde_json::to_value(open_case("case-0", "an id too long to carry")).unwrap();
+    over_long["sendId"] = serde_json::Value::String("x".repeat(65));
+    match conductors[2]
+        .call_fallible::<_, Vec<SentMessage>>(&carol.zome("messaging"), "send_role_message", over_long)
+        .await
+    {
+        Ok(sent) => panic!("a 65 byte send id should be refused, but the send returned {sent:?}"),
+        Err(e) => {
+            let text = format!("{e} | {e:?}");
+            assert!(
+                text.contains("over the 64 byte limit"),
+                "a 65 byte send id should be refused for its length; got {text}"
+            );
+        }
+    }
+
     let sent: Vec<SentMessage> = conductors[2]
         .call(
             &carol.zome("messaging"),

@@ -2151,10 +2151,12 @@ async fn several_keys_are_removed_in_one_call_the_callers_own_last() {
 /// An `Inbox` link is its author's record of their own message, through
 /// `validate` and not only as pure functions.
 ///
-/// The four link rules of `messaging_integrity` are unit-tested as `check_*`
-/// functions; this drives each through the network with a forged link, so a
-/// rule computed in `validate` and not returned would show. Everyone is an
-/// accepted member, so the grant rule is not what refuses anything here.
+/// Three of the link rules of `messaging_integrity` (the tag, the author
+/// match, who may delete) are unit-tested as `check_*` functions; the other
+/// two (the base is an agent key, the target is a message) are inline in
+/// `validate`. This drives all five through the network with a forged link,
+/// so a rule computed in `validate` and not returned would show. Everyone is
+/// an accepted member, so the grant rule is not what refuses anything here.
 ///
 /// **To make it go red:** in `messaging_integrity/src/lib.rs`, the `Inbox`
 /// arms of `validate`, return `Valid` before the check a row names: that
@@ -2210,9 +2212,15 @@ async fn an_inbox_link_is_its_authors_record_of_their_own_message() {
     );
     // Her own message, but a tag that could carry a label.
     refused(
-        &link(alice_key.clone().into(), mallorys_message.into(), vec![1]).await,
+        &link(alice_key.clone().into(), mallorys_message.clone().into(), vec![1]).await,
         "tag must be empty",
         "an Inbox link with a tag",
+    );
+    // Her own message, hung from something that is not anybody's inbox.
+    refused(
+        &link(users[0].clone().into(), mallorys_message.into(), Vec::new()).await,
+        "An Inbox link's base must be an agent key",
+        "an Inbox link whose base is a User record",
     );
     // A target that is not a message at all.
     refused(
@@ -2234,5 +2242,67 @@ async fn an_inbox_link_is_its_authors_record_of_their_own_message() {
         &removed,
         "Only the author of an Inbox link may delete it",
         "tombstoning Bob's Inbox link",
+    );
+}
+
+/// An accepted member with no member grant is told so, and nothing is written.
+///
+/// Acceptance writes the grant and the accepted link together, so the usual way
+/// to be accepted without a grant is propagation: one reached this node before
+/// the other. The same state is reached here without a race: Alice revokes
+/// Bob's member grant with `revoke_role` and leaves his status accepted. His
+/// send is then refused by the app with the error that names the grant, before
+/// anything is encrypted or committed, and he has sent nothing.
+///
+/// **To make it go red:** in `deliver`, attach `None` when `can_i` finds no
+/// grant instead of returning `NoMemberGrantYet`: the send then fails on the
+/// validation message ("a message is a role act"), not on this one.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_accepted_member_with_no_grant_is_told_so_and_sends_nothing() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let users = everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let bobs_member_grant = grants_of(&conductors[0], alice, bob.agent_pubkey())
+        .await
+        .into_iter()
+        .find(|(_, grant)| grant.role == "member")
+        .map(|(hash, _)| hash)
+        .expect("an accepted member holds a member grant");
+
+    let _: ActionHash = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "revoke_role",
+            serde_json::json!({ "grant": bobs_member_grant, "reason": "testing a send with no grant" }),
+        )
+        .await;
+    await_consistency_s(30, [alice, bob, &mallory]).await.unwrap();
+
+    let sent = reason(
+        conductors[1]
+            .call_fallible::<_, Vec<SentMessage>>(
+                &bob.zome("messaging"),
+                "send_message",
+                SendMessageInput {
+                    to_user: users[0].clone(),
+                    content: "can you hear me".to_string(),
+                },
+            )
+            .await,
+    );
+    match &sent {
+        Ok(copies) => panic!("a member with no grant should not send; wrote {copies:?}"),
+        Err(text) => assert!(
+            text.contains("no member grant yet"),
+            "the refusal should name the missing grant; got {text}"
+        ),
+    }
+
+    let bobs_sent: Vec<serde_json::Value> = conductors[1]
+        .call(&bob.zome("messaging"), "get_sent", ())
+        .await;
+    assert!(
+        bobs_sent.is_empty(),
+        "nothing was written by the refused send; got {bobs_sent:?}"
     );
 }

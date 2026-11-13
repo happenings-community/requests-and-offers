@@ -2,8 +2,10 @@ use hdk::prelude::*;
 use users_organizations_integrity::*;
 use utils::{
   errors::{AdministrationError, CommonError, OrganizationsError, UsersError},
-  find_original_action_hash,
-  grants::{can_i, grant_tag, require_grant, Ability, GrantRoleInput, RevokeRolesOfInput, Role},
+  external_local_call, find_original_action_hash,
+  grants::{
+    can_i, grant_tag, require_grant, Ability, CanInput, GrantRoleInput, RevokeRolesOfInput, Role,
+  },
   EntityActionHash, OriginalActionHash, OrganizationContactInput, OrganizationUserInput,
   PreviousActionHash,
 };
@@ -198,12 +200,20 @@ pub fn add_member_to_organization(input: OrganizationUserInput) -> ExternResult<
     grant_tag(&grant),
   )?;
 
-  create_link(
-    input.user_original_action_hash.0.clone(),
-    input.organization_original_action_hash.0.clone(),
-    LinkTypes::UserOrganizations,
-    (),
-  )?;
+  // The organisation's creator already has this pointer, from proposing it.
+  let listed = get_user_organizations_links(input.user_original_action_hash.0.clone())?
+    .iter()
+    .any(|link| {
+      link.target.clone().into_action_hash() == Some(input.organization_original_action_hash.0.clone())
+    });
+  if !listed {
+    create_link(
+      input.user_original_action_hash.0.clone(),
+      input.organization_original_action_hash.0.clone(),
+      LinkTypes::UserOrganizations,
+      (),
+    )?;
+  }
 
   Ok(true)
 }
@@ -337,26 +347,45 @@ pub fn add_coordinator_to_organization(input: OrganizationUserInput) -> ExternRe
     return Err(AdministrationError::EntityNotAccepted("user".to_string()).into());
   }
 
-  if is_organization_coordinator(input.clone())? {
+  // The coordinator's grant, one per agent that does not hold a live one, resting on
+  // the caller's: a coordinator grants coordinator for the same organisation, an admin
+  // for any. The link may already be there with no grant behind it, where an
+  // administrator has revoked the grant on its own: the grant is then written again
+  // and the link left as it is, so a sole coordinator who lost theirs can be restored.
+  let linked = is_organization_coordinator(input.clone())?;
+  let scope = Some(input.organization_original_action_hash.0.clone());
+  let mut granted = false;
+  for agent in get_user_agents(input.user_original_action_hash.0.clone())? {
+    let holds: Option<ActionHash> = external_local_call(
+      "can",
+      "administration",
+      CanInput {
+        agent: agent.clone(),
+        ability: Ability::Dissolve,
+        scope: scope.clone(),
+      },
+    )?;
+    if holds.is_none() {
+      grant_role(GrantRoleInput {
+        role: Role::OrgCoordinator,
+        holder: agent,
+        scope: scope.clone(),
+      })?;
+      granted = true;
+    }
+  }
+  if linked && !granted {
     return Err(OrganizationsError::AlreadyCoordinator.into());
   }
 
-  // The new coordinator's grant, one per agent, resting on the caller's: a coordinator
-  // grants coordinator for the same organisation, an admin for any.
-  for agent in get_user_agents(input.user_original_action_hash.0.clone())? {
-    grant_role(GrantRoleInput {
-      role: Role::OrgCoordinator,
-      holder: agent,
-      scope: Some(input.organization_original_action_hash.0.clone()),
-    })?;
+  if !linked {
+    create_link(
+      input.organization_original_action_hash.0,
+      input.user_original_action_hash.0,
+      LinkTypes::OrganizationCoordinators,
+      grant_tag(&grant),
+    )?;
   }
-
-  create_link(
-    input.organization_original_action_hash.0,
-    input.user_original_action_hash.0,
-    LinkTypes::OrganizationCoordinators,
-    grant_tag(&grant),
-  )?;
 
   Ok(true)
 }

@@ -719,6 +719,12 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       OpRecord::UpdateEntry { .. } => invalid("exchange records are append-only; nothing is updated"),
       _ => Ok(ValidateCallbackResult::Valid),
     },
+    // The same refusal for the authorities of the *original*: an update is also
+    // delivered, as its own op, to whoever holds the record it changes, and
+    // that authority never sees the two ops above.
+    FlatOp::Update(OpUpdate::Entry { .. }) => {
+      invalid("exchange records are append-only; nothing is updated")
+    }
     FlatOp::Link(OpLink::CreateLink { link_type, action }) => validate_link(
       link_type,
       &action.base_address,
@@ -868,5 +874,32 @@ mod counter_tests {
     c.delivery_timeframe = "Flexible".into();
     c.reciprocal.resource_kind = ResourceKind::Gift;
     assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("both services"));
+  }
+}
+
+#[cfg(test)]
+mod update_op_tests {
+  use hdi::prelude::*;
+  use utils::validation_harness::{set_zome_types, update_op_for_the_original};
+
+  use crate::{validate, EntryTypes, Interest, LinkTypes, ListingType};
+
+  /// Goes red if the `FlatOp::Update` arm is removed from `validate`.
+  #[test]
+  fn an_update_is_refused_on_the_op_the_original_receives() {
+    set_zome_types(EntryTypes::ENUM_LEN, LinkTypes::ENUM_LEN);
+    let interest: SerializedBytes = Interest {
+      listing: ActionHash::from_raw_36(vec![1; 36]),
+      listing_type: ListingType::Offer,
+      user: ActionHash::from_raw_36(vec![2; 36]),
+      grant: None,
+    }
+    .try_into()
+    .unwrap();
+    let verdict = validate(update_op_for_the_original(0, interest)).unwrap();
+    assert_eq!(
+      verdict,
+      ValidateCallbackResult::Invalid("exchange records are append-only; nothing is updated".into())
+    );
   }
 }

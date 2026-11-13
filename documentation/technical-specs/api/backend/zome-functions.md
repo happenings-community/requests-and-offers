@@ -1,5 +1,7 @@
 # Backend Zome Functions API
 
+> **Out of date:** Most functions listed here do not match the coordinator zomes on `dev`; the reference is being rebuilt. Tracked in [#478](https://github.com/happenings-community/requests-and-offers/issues/478).
+
 Complete reference for all Holochain zome functions across all domains.
 
 ## Zome Function Architecture
@@ -14,7 +16,7 @@ pub fn create_entity(input: CreateEntityInput) -> ExternResult<Record> {
     let entity_hash = create_entry(&EntryTypes::Entity(input.clone()))?;
 
     let record = get(entity_hash.clone(), GetOptions::default())?
-        .ok_or(wasm_error!(WasmErrorInner::Guest(String::from("Could not find the just created Entity"))))?;
+        .ok_or(CommonError::RecordNotFound("the just created Entity".to_string()))?;
 
     let path = Path::from("all_entities");
     create_link(path.path_entry_hash()?, entity_hash.clone(), LinkTypes::AllEntities, ())?;
@@ -198,7 +200,7 @@ Removes a member from an organization.
 **DNA**: `requests_and_offers`  
 **Zome**: `administration`
 
-For the full administration design including the progenitor bootstrap mechanism see [The Progenitor Pattern](../../../progenitor.md) and [Administration Zome Specification](../zomes/administration.md).
+For the full administration design including the progenitor bootstrap mechanism see [The Progenitor Pattern](../../../progenitor.md) and [Administration Zome Specification](../../zomes/administration.md).
 
 ### Functions
 
@@ -291,15 +293,19 @@ pub struct NetworkInfo {
 
 ## Error Handling
 
-All zome functions use consistent error handling patterns:
+Zome functions return the errors defined in `dnas/requests_and_offers/utils/src/errors.rs`: `CommonError` for the generic cases and one `thiserror` enum per domain, each converted to `WasmError` by its `From` impl, so `?` does the conversion.
+A message built by hand with `wasm_error!(WasmErrorInner::Guest(...))` is not used in new code; older code migrates when it is touched (CLAUDE.md, § Zome errors).
 
 ```rust
-// Standard error pattern
-pub fn example_function() -> ExternResult<Record> {
-    let result = some_operation()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(format!("Operation failed: {}", e))))?;
+use utils::errors::{CommonError, UsersError};
 
-    Ok(result)
+pub fn example_function(hash: ActionHash) -> ExternResult<Record> {
+    let record = get(hash, GetOptions::default())?
+        .ok_or(CommonError::RecordNotFound("user".to_string()))?;
+    if record.action().author() != &agent_info()?.agent_initial_pubkey {
+        return Err(UsersError::NotAuthor.into());
+    }
+    Ok(record)
 }
 ```
 

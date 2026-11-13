@@ -636,6 +636,97 @@ async fn only_an_administrator_may_write_to_a_member_who_is_not_accepted() {
     }
 }
 
+/// A reader who is no longer accepted hears only from administrators, on both read paths.
+///
+/// The reading-side twin of the test above. Carol is accepted when Bob and Alice (the
+/// administrator) write to her, so both sends pass the sender-side check. Then Alice
+/// rejects Carol. From then on Carol's own node shows her Alice's message and withholds
+/// Bob's, whether she reads her inbox or fetches one message by hash, as a nudge does.
+///
+/// **To make this go red:** in `inbox.rs`, drop the `reader_is_restricted` check from
+/// `get_message` (Bob's message then comes back `Read`), or have `reader_is_restricted`
+/// return `false` (the inbox then shows Bob's message too).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_reader_who_is_not_accepted_hears_only_from_administrators() {
+    let (conductors, alice, bob, carol) = setup_three_agents_with_alice_as_progenitor().await;
+
+    for (i, (cell, name)) in [(&alice, "Alice"), (&bob, "Bob"), (&carol, "Carol")]
+        .into_iter()
+        .enumerate()
+    {
+        conductors[i]
+            .call::<_, Record>(
+                &cell.zome("users_organizations"),
+                "create_user",
+                sample_user(name),
+            )
+            .await;
+    }
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    let alice_user = user_hash_of(&conductors[0], &alice).await;
+    let bob_user = user_hash_of(&conductors[1], &bob).await;
+    let carol_user = user_hash_of(&conductors[2], &carol).await;
+    for user in [alice_user, bob_user, carol_user.clone()] {
+        accept_entity(&conductors[0], &alice, ENTITY_USERS, user).await;
+    }
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // Both written while Carol is accepted, so both pass the sender-side check.
+    let from_bob = send_one(&conductors[1], &bob, carol_user.clone(), "from a member").await;
+    let from_alice = send_one(
+        &conductors[0],
+        &alice,
+        carol_user.clone(),
+        "from an administrator",
+    )
+    .await;
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    let before = readable(conductors[2].call(&carol.zome("messaging"), "get_inbox", ()).await);
+    assert_eq!(
+        before.len(),
+        2,
+        "while Carol is accepted she reads both messages, got {before:?}"
+    );
+
+    reject_entity(
+        &conductors[0],
+        &alice,
+        ENTITY_USERS,
+        carol_user,
+        "testing the reading-side rule",
+    )
+    .await;
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // The inbox path.
+    let after = readable(conductors[2].call(&carol.zome("messaging"), "get_inbox", ()).await);
+    let contents: Vec<&str> = after.iter().map(|m| m.content.as_str()).collect();
+    assert_eq!(
+        contents,
+        vec!["from an administrator"],
+        "a reader who is not accepted should see only the administrator's message"
+    );
+
+    // The nudge path: one message by hash.
+    let bob_read: MessageRead = conductors[2]
+        .call(&carol.zome("messaging"), "get_message", from_bob)
+        .await;
+    assert!(
+        matches!(bob_read, MessageRead::Withheld),
+        "get_message should withhold a member's message from a reader who is not \
+         accepted, got {bob_read:?}"
+    );
+    let alice_read: MessageRead = conductors[2]
+        .call(&carol.zome("messaging"), "get_message", from_alice)
+        .await;
+    match alice_read {
+        MessageRead::Read(message) => assert_eq!(message.content, "from an administrator"),
+        other => panic!("Carol should still read the administrator's message, got {other:?}"),
+    }
+}
+
 /// P6b: a message from an author who is no longer accepted disappears from the inbox.
 ///
 /// The sender-side check passed when this message was written. What this proves is the
@@ -690,6 +781,23 @@ struct GetInboxDeltaInput {
 struct InboxDelta {
     visible: Vec<ActionHash>,
     entries: Vec<InboxEntry>,
+}
+
+/// Send one plain message, for tests that send more than once.
+async fn send_one(
+    conductor: &SweetConductor,
+    sender: &SweetCell,
+    to_user: ActionHash,
+    content: &str,
+) -> ActionHash {
+    let sent: Vec<SentMessage> = conductor
+        .call(&sender.zome("messaging"), "send_message", plain(to_user, content))
+        .await;
+    sent
+        .first()
+        .unwrap_or_else(|| panic!("send_message returned no copies for {content:?}"))
+        .hash
+        .clone()
 }
 
 fn hash_of(entry: &InboxEntry) -> ActionHash {

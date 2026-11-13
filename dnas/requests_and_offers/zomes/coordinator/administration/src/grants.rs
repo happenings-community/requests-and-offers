@@ -9,7 +9,6 @@
 //!
 //! `can` lives here, in the administration zome, because the grants and their
 //! index links are this zome's types and one reader keeps one source of truth.
-//! Brief C's section 1 asked where it should live; that is the reason.
 
 use administration_integrity::*;
 use hdk::prelude::*;
@@ -22,8 +21,6 @@ use utils::{
   DnaProperties,
 };
 
-use crate::administration::get_all_administrators_links;
-
 fn my_pubkey() -> ExternResult<AgentPubKey> {
   Ok(agent_info()?.agent_initial_pubkey)
 }
@@ -31,7 +28,7 @@ fn my_pubkey() -> ExternResult<AgentPubKey> {
 fn links_from(base: impl Into<AnyLinkableHash>, link_type: LinkTypes) -> ExternResult<Vec<Link>> {
   let filter = link_type
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   get_links(LinkQuery::new(base.into(), filter), GetStrategy::Network)
 }
 
@@ -50,6 +47,13 @@ fn is_revoked(grant: &ActionHash) -> ExternResult<bool> {
 }
 
 /// Every grant an agent holds that has not been revoked, newest last.
+///
+/// Read-side, and the whole of the read side: validation can prove a grant
+/// exists and cannot prove that no revocation names it, so the reader leaves
+/// out a revoked grant. It does not ask whether the grant *beneath* this one
+/// has since been revoked. What a holder gave while they held a role stands
+/// when they lose it; a grant written after that, by a modified client, is
+/// valid and is returned. That limit is stated in the spec.
 pub fn live_grants_of(agent: &AgentPubKey) -> ExternResult<Vec<(ActionHash, RoleGrant)>> {
   let mut links = links_from(agent.clone(), LinkTypes::AgentGrants)?;
   links.sort_by_key(|link| link.timestamp);
@@ -64,6 +68,54 @@ pub fn live_grants_of(agent: &AgentPubKey) -> ExternResult<Vec<(ActionHash, Role
     grants.push((hash.clone(), grant_at(&hash)?));
   }
   Ok(grants)
+}
+
+/// The agents who hold a live network administrator grant, read from the
+/// grants themselves through the `AllGrants` index.
+///
+/// The roster links cannot answer this. `revoke_role` ends a role without
+/// touching them and `grant_role` gives one without writing them, so a count
+/// of roster links can say two where one administrator is left, or none where
+/// there is one (found on the home server run of 12 November).
+pub fn live_administrators() -> ExternResult<HashSet<AgentPubKey>> {
+  let mut holders = HashSet::new();
+  for link in links_from(
+    Path::from(format!("grants.{}", Role::Admin)).path_entry_hash()?,
+    LinkTypes::AllGrants,
+  )? {
+    let Some(hash) = link.target.into_action_hash() else {
+      continue;
+    };
+    let grant = grant_at(&hash)?;
+    if grant.parsed_role() != Ok(Role::Admin) || grant.scope.is_some() || holders.contains(&grant.holder) {
+      continue;
+    }
+    if !is_revoked(&hash)? {
+      holders.insert(grant.holder);
+    }
+  }
+  Ok(holders)
+}
+
+/// Whether any agent holds a live network administrator grant. `create_user`
+/// asks this before offering the first user the root on a network with no
+/// progenitor key, so it and [`authority_for`] cannot disagree.
+#[hdk_extern]
+pub fn is_there_an_administrator(_: ()) -> ExternResult<bool> {
+  Ok(!live_administrators()?.is_empty())
+}
+
+/// Refuses an act that would leave the network with no administrator.
+///
+/// The one place the rule lives: `remove_administrator` asks it for everyone
+/// it is about to remove, and `revoke_role` for the holder of an admin grant
+/// it is about to withdraw, so the public extern cannot go round it.
+pub fn refuse_to_leave_no_administrator(leaving: &[AgentPubKey]) -> ExternResult<()> {
+  let live = live_administrators()?;
+  if live.iter().all(|holder| leaving.contains(holder)) {
+    return Err(AdministrationError::LastAdmin.into());
+  }
+  Ok(())
 }
 
 /// The agent's grant that covers an ability in a scope, or none. The app's one
@@ -99,7 +151,7 @@ pub fn require(ability: Ability, scope: Option<ActionHash>) -> ExternResult<Acti
 /// What a new grant by the caller rests on: the caller's own grant that may
 /// give this role, or, for the first administrators, the progenitor's signature
 /// over the grant's body. The root is open to the progenitor key, and, where
-/// no key is configured, to the first user while there is no administrator:
+/// no key is configured, to the first user while no agent holds a live admin grant:
 /// the bootstrap `add_administrator` has always had.
 pub fn authority_for(role: Role, scope: &Option<ActionHash>, holder: &AgentPubKey) -> ExternResult<Authority> {
   let me = my_pubkey()?;
@@ -108,8 +160,7 @@ pub fn authority_for(role: Role, scope: &Option<ActionHash>, holder: &AgentPubKe
   }
   if role == Role::Admin {
     let progenitor_configured = DnaProperties::get_progenitor_pubkey()?.is_some();
-    let bootstrap =
-      !progenitor_configured && get_all_administrators_links("network".to_string())?.is_empty();
+    let bootstrap = !progenitor_configured && live_administrators()?.is_empty();
     if utils::check_if_progenitor()? || bootstrap {
       let body = GrantBody {
         role: role.to_string(),
@@ -153,13 +204,14 @@ pub fn write_grant(
 /// same role and scope.
 #[hdk_extern]
 pub fn grant_role(input: GrantRoleInput) -> ExternResult<ActionHash> {
+  // The caller's authority first: who holds what is not told to someone who may not grant it.
+  let authority = authority_for(input.role, &input.scope, &input.holder)?;
   if let Some(existing) = live_grants_of(&input.holder)?
     .into_iter()
     .find(|(_, g)| g.parsed_role() == Ok(input.role) && g.scope == input.scope)
   {
     return Ok(existing.0);
   }
-  let authority = authority_for(input.role, &input.scope, &input.holder)?;
   write_grant(input.role, input.holder, input.scope, authority)
 }
 
@@ -181,8 +233,17 @@ pub fn revoke_role(input: RevokeRoleInput) -> ExternResult<ActionHash> {
   let grant = grant_at(&input.grant)?;
   let role = grant
     .parsed_role()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e)))?;
+    .map_err(CommonError::InvalidData)?;
   let authority = require(Ability::Grant(role), grant.scope.clone())?;
+  if role == Role::Admin && grant.scope.is_none() {
+    // Only when this is the holder's last live admin grant does the holder leave.
+    let holds_another = live_grants_of(&grant.holder)?.into_iter().any(|(hash, other)| {
+      hash != input.grant && other.parsed_role() == Ok(Role::Admin) && other.scope.is_none()
+    });
+    if !holds_another {
+      refuse_to_leave_no_administrator(std::slice::from_ref(&grant.holder))?;
+    }
+  }
   let hash = create_entry(&EntryTypes::RoleRevocation(RoleRevocation {
     grant: input.grant.clone(),
     authority,

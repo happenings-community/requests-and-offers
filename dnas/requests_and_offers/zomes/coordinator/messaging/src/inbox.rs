@@ -1,5 +1,6 @@
 use hdk::prelude::*;
 use messaging_integrity::{EntryTypes, LinkTypes};
+use utils::errors::CommonError;
 
 use crate::cases::CaseRef;
 use crate::external_calls::{
@@ -278,6 +279,28 @@ impl AuthorFacts {
   }
 }
 
+/// The reading-side twin of `require_may_write_to`: while `me` is neither accepted nor
+/// an administrator, only an administrator may reach them.
+///
+/// Both read paths call this, `read_inbox_entries` and `get_message`, so the rule cannot
+/// hold on one and not the other (Sacha's review of #304: the nudge path skipped it).
+fn reader_is_restricted(me: &AgentPubKey, authors: &mut AuthorFacts) -> ExternResult<bool> {
+  Ok(!authors.accepted(me)? && !check_if_agent_is_administrator(me.clone())?)
+}
+
+/// Whether `agent` is an administrator, asked once per agent per inbox read.
+fn is_administrator(
+  agent: &AgentPubKey,
+  seen: &mut Vec<(AgentPubKey, bool)>,
+) -> ExternResult<bool> {
+  if let Some((_, is)) = seen.iter().find(|(a, _)| a == agent) {
+    return Ok(*is);
+  }
+  let is = check_if_agent_is_administrator(agent.clone())?;
+  seen.push((agent.clone(), is));
+  Ok(is)
+}
+
 /// Every message addressed to `me` that survives the read-side filters, oldest first.
 ///
 /// Split out of `get_inbox` so that `get_role_inbox` and `get_my_role_correspondence`
@@ -311,7 +334,7 @@ pub(crate) fn read_inbox(me: &AgentPubKey, known: &[ActionHash]) -> ExternResult
 
   let link_type_filter = LinkTypes::Inbox
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   // Network rather than Local: a message may have been written by a peer since this
   // agent last gossiped, and an inbox that only reports what is already local would
   // silently miss it.
@@ -332,10 +355,8 @@ pub(crate) fn read_inbox(me: &AgentPubKey, known: &[ActionHash]) -> ExternResult
   // two admins costs two.
   let mut role_claims: Vec<(AgentPubKey, RoleRef, bool)> = Vec::new();
 
-  // The reading-side twin of `require_may_write_to`: while this agent is not accepted,
-  // and is not an administrator, only an administrator may reach them. Read once per
-  // call, and each author's administrator status once.
-  let restricted = !authors.accepted(&me)? && !check_if_agent_is_administrator(me.clone())?;
+  // Read once per call, and each author's administrator status once.
+  let restricted = reader_is_restricted(&me, &mut authors)?;
   let mut administrators: Vec<(AgentPubKey, bool)> = Vec::new();
 
   for link in links {
@@ -432,9 +453,10 @@ pub(crate) fn read_inbox(me: &AgentPubKey, known: &[ActionHash]) -> ExternResult
 pub enum MessageRead {
   /// Not on this agent's shard, or no such action.
   NotFound,
-  /// Held, and deliberately not shown: the author is not an accepted member now, or is
-  /// claiming a role they do not hold. **Blocking is not among these any more**, and is
-  /// applied by the reader's own app instead.
+  /// Held, and deliberately not shown: the author is not an accepted member now, the
+  /// reader is not accepted and the author is not an administrator, or the message
+  /// claims a role its author does not hold now. **Blocking is not among these any
+  /// more**, and is applied by the reader's own app instead.
   Withheld,
   /// Held, and this agent cannot decrypt it. The normal case for a copy encrypted to
   /// somebody else, including another of this member's own agents.
@@ -460,6 +482,9 @@ pub fn get_message(hash: ActionHash) -> ExternResult<MessageRead> {
 
   let mut authors = AuthorFacts::new();
   if !authors.accepted(&from)? {
+    return Ok(MessageRead::Withheld);
+  }
+  if reader_is_restricted(&me, &mut authors)? && !check_if_agent_is_administrator(from.clone())? {
     return Ok(MessageRead::Withheld);
   }
 
@@ -743,17 +768,4 @@ mod tests {
       "a role message with no case has no opener to match against"
     );
   }
-}
-
-/// Whether `agent` is an administrator, asked once per agent per inbox read.
-fn is_administrator(
-  agent: &AgentPubKey,
-  seen: &mut Vec<(AgentPubKey, bool)>,
-) -> ExternResult<bool> {
-  if let Some((_, is)) = seen.iter().find(|(a, _)| a == agent) {
-    return Ok(*is);
-  }
-  let is = check_if_agent_is_administrator(agent.clone())?;
-  seen.push((agent.clone(), is));
-  Ok(is)
 }

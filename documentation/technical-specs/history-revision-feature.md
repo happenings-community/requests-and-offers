@@ -270,7 +270,7 @@ Development tool that:
 
 ## Related Documentation
 
-- [Administration System](./administration-system.md)
-- [Status Management](./status-management.md)
-- [Event Bus Architecture](./event-bus.md)
-- [Effect-TS Patterns](./effect-patterns.md)
+- [Administration System](./zomes/administration.md)
+- Status Management
+- [Event Bus Architecture](./event-bus-pattern.md)
+- [Effect-TS Patterns](../guides/effect-ts-primer.md)

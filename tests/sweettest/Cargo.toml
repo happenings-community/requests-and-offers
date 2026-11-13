@@ -93,12 +93,24 @@ name = "exchanges_attacks_review"
 path = "tests/exchanges_attacks_review.rs"
 
 [[test]]
+name = "users_link_attacks"
+path = "tests/users_link_attacks.rs"
+
+[[test]]
 name = "mediums_of_exchange"
 path = "tests/mediums_of_exchange.rs"
 
 [[test]]
+name = "messaging_inbox"
+path = "tests/messaging_inbox.rs"
+
+[[test]]
 name = "messaging"
 path = "tests/messaging.rs"
+
+[[test]]
+name = "messaging_roles"
+path = "tests/messaging_roles.rs"
 
 [[test]]
 name = "record_op_premise"
@@ -107,11 +119,3 @@ path = "tests/record_op_premise.rs"
 [[test]]
 name = "grants"
 path = "tests/grants.rs"
-
-[[test]]
-name = "messaging_inbox"
-path = "tests/messaging_inbox.rs"
-
-[[test]]
-name = "messaging_roles"
-path = "tests/messaging_roles.rs"

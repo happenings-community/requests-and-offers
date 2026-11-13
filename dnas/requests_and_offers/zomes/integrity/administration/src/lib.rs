@@ -9,8 +9,9 @@ mod tests;
 
 /// Registry of all HDK entry types defined in this integrity zome.
 ///
-/// The single variant wraps [`Status`], the moderation lifecycle entry used to track the
-/// approval state of any entity (user, offer, request, etc.) in the network.
+/// [`Status`] is the moderation lifecycle entry used to track the approval state of any
+/// entity (user, offer, request, etc.) in the network. `RoleGrant` and `RoleRevocation`
+/// are the chain of grants: who holds which role, and by whose authority.
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[hdk_entry_types]
@@ -40,7 +41,8 @@ pub enum LinkTypes {
   AllAdministrators,
 
   /// Index link from an agent's public key to the `"{entity}.administrators"` path entry hash.
-  /// Enables efficient membership queries: "is this agent an administrator?"
+  /// A roster index for listing. Whether an agent administers is asked of the grants
+  /// (`can`), not of this link.
   AgentAdministrators,
 
   /// Update-chain link from a status entry's original action hash to the action hash of its
@@ -110,8 +112,12 @@ fn validate_create_link_agent_administrators(
   validate_holder_role_link(link_author, base_address, tag, Role::Admin)
 }
 
-/// The original entry a delete points at, read back as one of this zome's types.
-fn deleted_entry(action: &TypedAction<DeleteData>) -> ExternResult<Result<EntryTypes, String>> {
+/// The original entry a delete points at, read back as one of this zome's types, or
+/// `None` when it is not this zome's to judge: a system entry such as a capability
+/// grant, whose delete Holochain shows to every integrity zome, or another zome's entry.
+fn deleted_entry(
+  action: &TypedAction<DeleteData>,
+) -> ExternResult<Result<Option<EntryTypes>, String>> {
   let original = must_get_valid_record(action.deletes_address.clone())?;
   let Ok(creation) = TypedAction::<EntryCreationData>::try_from(original.action().clone()) else {
     return Ok(Err(
@@ -119,16 +125,35 @@ fn deleted_entry(action: &TypedAction<DeleteData>) -> ExternResult<Result<EntryT
     ));
   };
   let EntryType::App(def) = creation.entry_type() else {
-    return Ok(Err("a delete in this zome points at an app entry".to_string()));
+    return Ok(Ok(None));
   };
   let Some(entry) = original.entry().as_option() else {
     return Ok(Err("Original record for a delete must contain an entry".to_string()));
   };
-  match EntryTypes::deserialize_from_type(*def.zome_index, def.entry_index, entry)? {
-    Some(app_entry) => Ok(Ok(app_entry)),
-    None => Ok(Err(
-      "Original app entry must be one of the defined entry types for this zome".to_string(),
-    )),
+  Ok(Ok(EntryTypes::deserialize_from_type(
+    *def.zome_index,
+    def.entry_index,
+    entry,
+  )?))
+}
+
+/// Nothing in this zome is deleted: a status is a history, a grant or a
+/// revocation is the record an act rests on. One function, called for the
+/// record op of a delete and for the op its original's authorities receive,
+/// so the rule cannot hold on one and not the other (#234).
+fn validate_delete(action: &TypedAction<DeleteData>) -> ExternResult<ValidateCallbackResult> {
+  match deleted_entry(action)? {
+    Ok(Some(EntryTypes::Status(_))) => Ok(ValidateCallbackResult::Invalid(String::from(
+      "Status cannot be deleted",
+    ))),
+    Ok(Some(EntryTypes::RoleGrant(_))) | Ok(Some(EntryTypes::RoleRevocation(_))) => {
+      Ok(ValidateCallbackResult::Invalid(String::from(
+        "A grant or a revocation is a record and cannot be deleted; revoke a grant instead",
+      )))
+    }
+    // Not this zome's entry: nothing here to refuse.
+    Ok(None) => Ok(ValidateCallbackResult::Valid),
+    Err(reason) => Ok(ValidateCallbackResult::Invalid(reason)),
   }
 }
 
@@ -200,19 +225,18 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       // Nothing in this zome is deleted: a status is a history, a grant or a
       // revocation is the record an act rests on. Routed here rather than left
       // to fall through (#234).
-      OpRecord::DeleteEntry { action } => match deleted_entry(&action)? {
-        Ok(EntryTypes::Status(_)) => Ok(ValidateCallbackResult::Invalid(String::from(
-          "Status cannot be deleted",
-        ))),
-        Ok(EntryTypes::RoleGrant(_)) | Ok(EntryTypes::RoleRevocation(_)) => {
-          Ok(ValidateCallbackResult::Invalid(String::from(
-            "A grant or a revocation is a record and cannot be deleted; revoke a grant instead",
-          )))
-        }
-        Err(reason) => Ok(ValidateCallbackResult::Invalid(reason)),
-      },
+      OpRecord::DeleteEntry { action } => validate_delete(&action),
       _ => Ok(ValidateCallbackResult::Valid),
     },
+    // The same two rules again, for the authorities of the *original*: an
+    // update or a delete is also delivered, as its own op, to whoever holds
+    // the record it changes, and that authority never sees the record op
+    // above. Left to fall through, it would mark a grant deleted on the word
+    // of a node whose own record authority had refused the delete.
+    FlatOp::Update(OpUpdate::Entry { app_entry, action }) => {
+      validate_entry(app_entry, action.author(), true)
+    }
+    FlatOp::Delete(OpDelete { action }) => validate_delete(&action),
     FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
       let author = action.author();
       let base = &action.base_address;
@@ -315,5 +339,100 @@ mod record_op_tests {
       ValidateCallbackResult::Invalid("Invalid status type: bogus".into())
     );
     assert_eq!(record, entry);
+  }
+
+  // -- The ops the *original* receives --
+  //
+  // An update or a delete is delivered a second time, as its own op, to the
+  // authorities of the record it changes. They never see the record op, so a
+  // rule that ran there alone would let them mark a grant updated or deleted.
+  // A Sweettest cannot show this: the author's own conductor validates every
+  // op of a commit and refuses on the first, which here is the record op.
+
+  use utils::grants::{Authority, RoleGrant};
+  use utils::validation_harness::{
+    created_cap_grant, created_record, delete_ops, set_zome_types_holding,
+    update_op_for_the_original,
+  };
+
+  use crate::UnitEntryTypes;
+
+  fn a_grant() -> SerializedBytes {
+    RoleGrant {
+      role: "admin".to_string(),
+      holder: AgentPubKey::from_raw_36(vec![9; 36]),
+      scope: None,
+      authority: Authority::Progenitor {
+        signature: Signature([0; SIGNATURE_BYTES]),
+      },
+    }
+    .try_into()
+    .unwrap()
+  }
+
+  fn delete_verdicts(original: Record) -> (ValidateCallbackResult, ValidateCallbackResult) {
+    let (record_op, original_op) = delete_ops(&original);
+    set_zome_types_holding(EntryTypes::ENUM_LEN, LinkTypes::ENUM_LEN, vec![original]);
+    let record = validate(record_op).unwrap();
+    let at_the_original = validate(original_op).unwrap();
+    println!("record op: {record:?}\noriginal's op: {at_the_original:?}");
+    (record, at_the_original)
+  }
+
+  /// Goes red if the `FlatOp::Update` arm is removed from `validate`.
+  #[test]
+  fn an_update_of_a_grant_is_refused_on_the_op_the_original_receives() {
+    set_zome_types(EntryTypes::ENUM_LEN, LinkTypes::ENUM_LEN);
+    let verdict = validate(update_op_for_the_original(
+      UnitEntryTypes::RoleGrant as u8,
+      a_grant(),
+    ))
+    .unwrap();
+    assert_eq!(
+      verdict,
+      ValidateCallbackResult::Invalid("a grant or a revocation is never updated".into())
+    );
+  }
+
+  /// Goes red if the `FlatOp::Delete` arm is removed from `validate`.
+  #[test]
+  fn a_delete_of_a_grant_is_refused_on_both_ops() {
+    let refusal = ValidateCallbackResult::Invalid(
+      "A grant or a revocation is a record and cannot be deleted; revoke a grant instead".into(),
+    );
+    let (record, at_the_original) =
+      delete_verdicts(created_record(UnitEntryTypes::RoleGrant as u8, a_grant()));
+    assert_eq!(record, refusal);
+    assert_eq!(at_the_original, refusal);
+  }
+
+  /// Goes red if the `FlatOp::Delete` arm is removed from `validate`.
+  #[test]
+  fn a_delete_of_a_status_is_refused_on_both_ops() {
+    let status: SerializedBytes = Status {
+      status_type: "accepted".to_string(),
+      reason: None,
+      suspended_until: None,
+      grant: None,
+    }
+    .try_into()
+    .unwrap();
+    let refusal = ValidateCallbackResult::Invalid("Status cannot be deleted".into());
+    let (record, at_the_original) =
+      delete_verdicts(created_record(UnitEntryTypes::Status as u8, status));
+    assert_eq!(record, refusal);
+    assert_eq!(at_the_original, refusal);
+  }
+
+  /// Holochain shows the delete of a capability grant to every integrity zome. It is
+  /// not this zome's entry, so there is nothing here to refuse: refusing it would stop
+  /// any agent ever deleting a capability grant on this network.
+  ///
+  /// Goes red if `deleted_entry` treats an entry that is not an app entry as an error.
+  #[test]
+  fn a_delete_of_a_capability_grant_is_not_this_zomes_to_refuse() {
+    let (record, at_the_original) = delete_verdicts(created_cap_grant());
+    assert_eq!(record, ValidateCallbackResult::Valid);
+    assert_eq!(at_the_original, ValidateCallbackResult::Valid);
   }
 }

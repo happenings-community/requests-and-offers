@@ -127,6 +127,16 @@ struct Message {
     case: Option<CaseRef>,
 }
 
+/// Mirror of the coordinator's `MessageRead`, the answer `get_message` gives.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+enum MessageRead {
+    NotFound,
+    Withheld,
+    Unreadable,
+    Read(Message),
+}
+
 /// Mirror of the coordinator's `InboxEntry`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -782,13 +792,16 @@ async fn claiming_completing_reopening_and_handing_over() {
 ///
 /// This is the whole security claim behind role labels. The label inside the ciphertext is a
 /// claim, and each reader tests it against the DHT when it reads. Bob replies as an
-/// administrator, is then removed, and his reply disappears from Alice's view of the case
-/// and from Carol's own area, without anything being deleted or rewritten.
+/// administrator, is then removed, and his reply disappears from Alice's view of the case,
+/// from Carol's own area, and from `get_message`, the path a nudge takes, without anything
+/// being deleted or rewritten.
 ///
 /// **How to make this go red:** in
-/// `coordinator/messaging/src/inbox.rs`, make `role_claim_stands` return `Ok(true)`
-/// before it reads the direction. Bob's reply then survives his removal and both counts
-/// below are one too high.
+/// `coordinator/messaging/src/inbox.rs`, make `claims_the_role` return `false`, so no
+/// message is read as claiming the role and `holds_role` is never asked. Bob's reply then
+/// survives his removal, both counts below are one too high, and `get_message` reads it.
+/// Or drop the `role_claim_stands` check from `get_message` alone: only the last assertion
+/// fails.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_removed_admins_role_messages_are_withheld() {
     let (conductors, alice, bob, carol, _alice_user, bob_user, carol_user) =
@@ -805,16 +818,31 @@ async fn a_removed_admins_role_messages_are_withheld() {
         .await
         .unwrap();
 
-    conductors[1]
-        .call::<_, Vec<SentMessage>>(
+    let bob_reply: Vec<SentMessage> = conductors[1]
+        .call(
             &bob.zome("messaging"),
             "send_role_message",
             on_case("case-3", &carol_user, "what format is the file?", None),
         )
         .await;
+    // Alice's own copy, the one a nudge to her would carry.
+    let reply_to_alice = bob_reply
+        .iter()
+        .find(|sent| sent.agent == *alice.agent_pubkey())
+        .expect("Bob's reply should have a copy for Alice, a holder")
+        .hash
+        .clone();
     await_consistency_s(15, [&alice, &bob, &carol])
         .await
         .unwrap();
+
+    let read_before: MessageRead = conductors[0]
+        .call(&alice.zome("messaging"), "get_message", reply_to_alice.clone())
+        .await;
+    assert!(
+        matches!(read_before, MessageRead::Read(_)),
+        "while Bob is an administrator get_message reads his reply; got {read_before:?}"
+    );
 
     let before = role_inbox(&conductors[0], &alice).await;
     assert_eq!(
@@ -862,6 +890,14 @@ async fn a_removed_admins_role_messages_are_withheld() {
         1,
         "the member's own area applies the same check; got {:?}",
         mine[0].cases[0].messages
+    );
+
+    let read_after: MessageRead = conductors[0]
+        .call(&alice.zome("messaging"), "get_message", reply_to_alice)
+        .await;
+    assert!(
+        matches!(read_after, MessageRead::Withheld),
+        "get_message, the nudge path, applies the same role check; got {read_after:?}"
     );
 }
 

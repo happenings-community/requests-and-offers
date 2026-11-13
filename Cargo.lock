@@ -2036,6 +2036,7 @@ version = "0.0.1"
 dependencies = [
  "hdk",
  "serde",
+ "utils",
 ]
 
 [[package]]
@@ -8480,6 +8481,15 @@ dependencies = [
  "holochain_serialized_bytes",
  "serde",
  "utils",
+]
+
+[[package]]
+name = "users_probe"
+version = "0.1.0"
+dependencies = [
+ "hdk",
+ "serde",
+ "users_organizations_integrity",
 ]
 
 [[package]]

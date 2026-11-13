@@ -1,6 +1,6 @@
 //! Calls into the `users_organizations` zome, for the grants a status change
-//! issues: a member's agents, an organisation's creator, and the coordinator
-//! link an approval writes.
+//! issues: a member's agents. The organisation side (the creator's
+//! coordinator grant on approval) arrives with the next PR in the stack.
 
 use hdk::prelude::*;
 use utils::external_local_call;

@@ -21,7 +21,14 @@ use hdk::prelude::hdi::prelude::*;
 /// `EntryTypes::ENUM_LEN` and `LinkTypes::ENUM_LEN` give. Every other host
 /// function panics: a rule that reads the DHT cannot be tested this way.
 pub fn set_zome_types(entry_types: u8, link_types: u8) {
-  struct StandIn(ScopedZomeTypesSet);
+  set_zome_types_holding(entry_types, link_types, Vec::new())
+}
+
+/// As [`set_zome_types`], with `records` on the stand-in DHT: `must_get_valid_record`
+/// returns the one whose action hash is asked for, and panics for any other. For a rule
+/// that reads the one record its op names, such as the original of a delete.
+pub fn set_zome_types_holding(entry_types: u8, link_types: u8, records: Vec<Record>) {
+  struct StandIn(ScopedZomeTypesSet, Vec<Record>);
 
   #[allow(unused_variables)]
   impl HdiT for StandIn {
@@ -45,7 +52,11 @@ pub fn set_zome_types(entry_types: u8, link_types: u8) {
       unimplemented!("must_get_action is not available in the validation harness")
     }
     fn must_get_valid_record(&self, input: MustGetValidRecordInput) -> ExternResult<Record> {
-      unimplemented!("must_get_valid_record is not available in the validation harness")
+      let wanted = input.into_inner();
+      match self.1.iter().find(|record| record.action_address() == &wanted) {
+        Some(record) => Ok(record.clone()),
+        None => unimplemented!("the validation harness holds no record at {wanted}"),
+      }
     }
     fn must_get_agent_activity(
       &self,
@@ -79,16 +90,19 @@ pub fn set_zome_types(entry_types: u8, link_types: u8) {
     }
   }
 
-  set_hdi(StandIn(ScopedZomeTypesSet {
-    entries: ScopedZomeTypes(vec![(
-      ZomeIndex(0),
-      (0..entry_types).map(EntryDefIndex).collect(),
-    )]),
-    links: ScopedZomeTypes(vec![(
-      ZomeIndex(0),
-      (0..link_types).map(LinkType).collect(),
-    )]),
-  }));
+  set_hdi(StandIn(
+    ScopedZomeTypesSet {
+      entries: ScopedZomeTypes(vec![(
+        ZomeIndex(0),
+        (0..entry_types).map(EntryDefIndex).collect(),
+      )]),
+      links: ScopedZomeTypes(vec![(
+        ZomeIndex(0),
+        (0..link_types).map(LinkType).collect(),
+      )]),
+    },
+    records,
+  ));
 }
 
 /// The two ops of a create that carry the entry, as `(CreateEntry, CreateRecord)`.
@@ -112,6 +126,73 @@ pub fn update_ops(entry_index: u8, bytes: SerializedBytes) -> (Op, Op) {
     entry_hash: EntryHash::with_data_sync(&entry),
   };
   both_ops(header(8, 3), ActionData::Update(update), entry)
+}
+
+/// The op an update's *original* receives: the `Update` op, which goes to the authorities
+/// of the record being changed and to no one who sees the two ops of [`update_ops`].
+pub fn update_op_for_the_original(entry_index: u8, bytes: SerializedBytes) -> Op {
+  let entry = app_entry(bytes);
+  let update = UpdateData {
+    original_action_address: action_hash(2),
+    original_entry_address: EntryHash::from_raw_36(vec![4; 36]),
+    entry_type: entry_type(entry_index),
+    entry_hash: EntryHash::with_data_sync(&entry),
+  };
+  Op::Update(Update {
+    update: signed(header(8, 3), ActionData::Update(update)),
+    new_entry: Some(entry),
+  })
+}
+
+/// A created record to put on the stand-in DHT, with an app entry of this zome's.
+pub fn created_record(entry_index: u8, bytes: SerializedBytes) -> Record {
+  let entry = app_entry(bytes);
+  let create = CreateData {
+    entry_type: entry_type(entry_index),
+    entry_hash: EntryHash::with_data_sync(&entry),
+  };
+  Record::new(
+    signed(header(7, 2), ActionData::Create(create)),
+    RecordEntry::Present(entry),
+  )
+}
+
+/// A created capability grant to put on the stand-in DHT: a system entry, private, so
+/// the record carries no entry. Its delete is shown to every integrity zome.
+pub fn created_cap_grant() -> Record {
+  let create = CreateData {
+    entry_type: EntryType::CapGrant,
+    entry_hash: EntryHash::from_raw_36(vec![5; 36]),
+  };
+  Record::new(
+    signed(header(7, 2), ActionData::Create(create)),
+    RecordEntry::Hidden,
+  )
+}
+
+/// The two ops of a delete of `original`, as `(CreateRecord, Delete)`: the record op, and
+/// the op the original's authorities receive.
+pub fn delete_ops(original: &Record) -> (Op, Op) {
+  let delete = DeleteData {
+    deletes_address: original.action_address().clone(),
+    deletes_entry_address: original
+      .action()
+      .entry_hash()
+      .cloned()
+      .unwrap_or_else(|| EntryHash::from_raw_36(vec![4; 36])),
+  };
+  let signed = signed(header(9, 6), ActionData::Delete(delete));
+  let record_op = Op::CreateRecord(CreateRecord {
+    record: Record::new(signed.clone(), RecordEntry::NA),
+  });
+  (record_op, Op::Delete(Delete { delete: signed }))
+}
+
+fn signed(header: ActionHeader, data: ActionData) -> SignedActionHashed {
+  SignedActionHashed::with_presigned(
+    ActionHashed::from_content_sync(Action { header, data }),
+    signature(),
+  )
 }
 
 /// On 0.7 an action is a header shared by every kind plus the kind's own data,

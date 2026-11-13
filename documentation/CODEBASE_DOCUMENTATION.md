@@ -49,7 +49,7 @@ graph TB
 
 ### **Core Technologies**
 
-- **Backend**: Holochain v0.3+ with Rust zomes (coordinator/integrity pattern)
+- **Backend**: Holochain 0.7 with Rust zomes (coordinator/integrity pattern)
 - **Frontend**: SvelteKit + Svelte 5 Runes + Effect-TS
 - **UI Framework**: TailwindCSS + SkeletonUI
 - **State Management**: Effect-TS + Svelte 5 Runes
@@ -807,7 +807,7 @@ cd ui && bun run format
 # Comprehensive testing
 bun test                    # Full test suite
 bun test:ui                 # Frontend tests only
-bun test:unit              # Unit tests (requires Nix)
+bun test:unit              # Unit tests (no Nix needed)
 bun test:integration       # Integration tests
 ```
 
@@ -915,7 +915,7 @@ The project underwent a major documentation overhaul to improve developer experi
 
 - **[Quick Reference Guide](QUICK_REFERENCE.md)**: Essential commands, patterns, and workflows for immediate productivity
 - **[Troubleshooting Guide](TROUBLESHOOTING.md)**: Comprehensive solutions for common development issues
-- **[Consolidated AI Rules](ai/rules/)**: Streamlined development guidelines covering:
+- **[Project Skills](../.claude/skills/) and [Guides](guides/)**: Streamlined development guidelines covering:
   - Development Guidelines (Effect-TS, Svelte 5, schemas, components)
   - Architecture Patterns (7-layer architecture, services, stores, event-driven communication)
   - Testing Framework (Backend Sweettest + Frontend Vitest strategies)

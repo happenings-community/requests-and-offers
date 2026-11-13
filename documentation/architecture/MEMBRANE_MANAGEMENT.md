@@ -137,7 +137,7 @@ Agent-centric by design. The applicant holds their own record; the community hol
 
 ## In-DHT data model *[scaffold]*
 
-*Grounded in a read of the live `administration` zome on `dev` (the `Status` integrity entry, the link registry, the `add_administrator` gate, the single-field `DnaProperties`) and of the pinned toolchain (`hdi 0.7.0` / `holochain_integrity_types 0.6.0`) — not on prior summaries.* This is the structural realisation of *Data & ownership*: what the membrane writes to the DHT, what stays off it, and who may read what. The in-DHT work is **additive** — one new entry, a few new link types, one new DNA property, one new permission audit entry — and reshapes nothing that already exists.
+*Grounded in a read of the live `administration` zome on `dev` (the `Status` integrity entry, the link registry, the `add_administrator` gate, the single-field `DnaProperties`) and of the pinned toolchain (`hdi 0.8.0` / `holochain_integrity_types 0.7.0`) — not on prior summaries.* This is the structural realisation of *Data & ownership*: what the membrane writes to the DHT, what stays off it, and who may read what. The in-DHT work is **additive** — one new entry, a few new link types, one new DNA property, one new permission audit entry — and reshapes nothing that already exists.
 
 A note on vocabulary, because two of the obvious words are taken. Holochain's `CapGrant` occupies "capability" *in the zome-author surface*, and `Warrant` means "a claim that an agent produced invalid data" in the validation layer. So this design says **permission** (not capability), **cause** (not warrant), and avoids bare "grant" and "record" as type names.
 
@@ -213,7 +213,7 @@ Access is itself accountable — principle 7 extended from the decision layer to
 
 ### Why not reuse `AgentAdministrators` for permissions
 
-`check_if_agent_is_administrator` returns true if an agent holds *any* `AgentAdministrators` link (it ignores entity scope; every caller passes `entity: "network"`, so there is one admin domain). Granting a permission through that link would make the holder read as a **full network admin** to every satellite zome — privilege escalation by accident. A separate `PermissionHolder` link avoids it entirely, at zero blast radius. Scoping the admin check by entity — turning the latent generic-over-`entity` admin model into a real role system — is a separate, decoupled refactor for later, not a prerequisite.
+`check_if_agent_is_administrator` returns true if an agent holds a live admin grant (since #377 it asks `can`, not the `AgentAdministrators` roster link; it ignores entity scope, every caller passes `entity: "network"`, so there is one admin domain). Granting a permission through that link would make the holder read as a **full network admin** to every satellite zome — privilege escalation by accident. A separate `PermissionHolder` link avoids it entirely, at zero blast radius. Scoping the admin check by entity — turning the latent generic-over-`entity` admin model into a real role system — is a separate, decoupled refactor for later, not a prerequisite.
 
 ### The enforcement boundary, stated plainly
 

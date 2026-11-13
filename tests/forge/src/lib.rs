@@ -3,6 +3,7 @@
 //! calls and the DHT, which is the point.
 
 use hdk::prelude::*;
+use utils::errors::CommonError;
 
 /// The DNA's integrity zomes, in `ZomeIndex` order, so a test can find the
 /// index of the zome it wants to write into by name.
@@ -30,7 +31,7 @@ pub fn forge_entry(input: ForgeEntryInput) -> ExternResult<ActionHash> {
   create(CreateInput::new(
     EntryDefLocation::app(input.zome_index, input.entry_index),
     EntryVisibility::Public,
-    Entry::App(AppEntryBytes::try_from(input.entry).map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?),
+    Entry::App(AppEntryBytes::try_from(input.entry).map_err(|e| CommonError::InvalidData(e.to_string()))?),
     ChainTopOrdering::default(),
   ))
 }
@@ -46,7 +47,7 @@ pub struct ForgeUpdateInput {
 pub fn forge_update(input: ForgeUpdateInput) -> ExternResult<ActionHash> {
   update(UpdateInput {
     original_action_address: input.original_action_hash,
-    entry: Entry::App(AppEntryBytes::try_from(input.entry).map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?),
+    entry: Entry::App(AppEntryBytes::try_from(input.entry).map_err(|e| CommonError::InvalidData(e.to_string()))?),
     chain_top_ordering: ChainTopOrdering::default(),
   })
 }

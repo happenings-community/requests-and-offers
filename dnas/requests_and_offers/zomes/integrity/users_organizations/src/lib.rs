@@ -192,6 +192,15 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           action.tag.clone(),
         );
       }
+      // The two links that say who a member is (#473).
+      LinkTypes::UserAgents | LinkTypes::MyUser => {
+        return validate_create_identity_link(
+          &link_type,
+          &action.base_address,
+          &action.target_address,
+          action.author(),
+        );
+      }
       _ => (),
     },
     FlatOp::Link(OpLink::DeleteLink {
@@ -217,8 +226,84 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           original_action.tag.clone(),
         );
       }
+      // the links that say who a member is are never tombstoned, by anyone (documentation/architecture/validation.md)
+      LinkTypes::UserAgents | LinkTypes::MyUser => {
+        return invalid("UserAgents and MyUser links are never deleted");
+      }
       _ => (),
     },
+    _ => (),
+  }
+  Ok(ValidateCallbackResult::Valid)
+}
+
+/// Whether `hash` is a User record written by `author`.
+///
+/// `UserAgents` and `MyUser` decide who a member is: `get_user_agents` reads
+/// `UserAgents`, and `send_message` encrypts a copy of every message to each
+/// key it returns. A link anchored at someone else's User would hand its
+/// writer that member's messages, so both links must belong to the User's
+/// own author.
+fn is_user_authored_by(hash: &AnyLinkableHash, author: &AgentPubKey) -> ExternResult<bool> {
+  let Some(action_hash) = hash.clone().into_action_hash() else {
+    return Ok(false);
+  };
+  let record = must_get_valid_record(action_hash)?;
+  // only a User's original create: integrity does not tie an update's author to the original's,
+  // so a revision written by someone else must never count as that member's User
+  if !matches!(record.action().data, ActionData::Create(_)) {
+    return Ok(false);
+  }
+  let Ok(creation) = TypedAction::<EntryCreationData>::try_from(record.action().clone()) else {
+    return Ok(false);
+  };
+  let EntryType::App(app_entry_type) = creation.entry_type() else {
+    return Ok(false);
+  };
+  let Some(entry) = record.entry().as_option() else {
+    return Ok(false);
+  };
+  let is_user = matches!(
+    EntryTypes::deserialize_from_type(
+      *app_entry_type.zome_index,
+      app_entry_type.entry_index,
+      entry
+    )?,
+    Some(EntryTypes::User(_))
+  );
+  Ok(is_user && record.action().author() == author)
+}
+
+fn invalid(reason: &str) -> ExternResult<ValidateCallbackResult> {
+  Ok(ValidateCallbackResult::Invalid(reason.to_string()))
+}
+
+/// Who may write the two links that say who a member is.
+fn validate_create_identity_link(
+  link_type: &LinkTypes,
+  base: &AnyLinkableHash,
+  target: &AnyLinkableHash,
+  author: &AgentPubKey,
+) -> ExternResult<ValidateCallbackResult> {
+  match link_type {
+    LinkTypes::UserAgents => {
+      if !is_user_authored_by(base, author)? {
+        return invalid("only a User's author may link agents to it");
+      }
+      // A second device of the same member needs a rule of its own (a proof
+      // from the first key); until then a User has exactly its author's key.
+      if target.clone().into_agent_pub_key().as_ref() != Some(author) {
+        return invalid("a UserAgents link must point to its author's own key");
+      }
+    }
+    LinkTypes::MyUser => {
+      if base.clone().into_agent_pub_key().as_ref() != Some(author) {
+        return invalid("a MyUser link must start at its author's own key");
+      }
+      if !is_user_authored_by(target, author)? {
+        return invalid("a MyUser link must point to a User its author wrote");
+      }
+    }
     _ => (),
   }
   Ok(ValidateCallbackResult::Valid)

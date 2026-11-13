@@ -36,7 +36,13 @@ export type OutboxItem = {
    * empty message and the listing never arrived.
    */
   listing?: string;
-  /** When the member pressed Send, in milliseconds. */
+  /**
+   * When the member pressed Send, in milliseconds: taken **before** the first attempt,
+   * not when that attempt failed. It is where `find_sent` starts looking, and an attempt
+   * that committed and then lost its answer wrote its links before the failure was
+   * known. Taken afterwards, the search began too late to see them, and the message
+   * was sent a second time.
+   */
   queuedAt: number;
   /**
    * What the app may do next (Sam, 4 October, revised with send ids).
@@ -67,6 +73,21 @@ export type BlockEvent = {
   blocked: boolean;
   at: number;
 };
+
+/** Is this something the outbox can send, retry or discard? */
+export function isOutboxItem(value: unknown): value is OutboxItem {
+  if (typeof value !== 'object' || value === null) return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.id === 'string' &&
+    item.id.length > 0 &&
+    typeof item.to === 'string' &&
+    item.to.length > 0 &&
+    typeof item.content === 'string' &&
+    typeof item.queuedAt === 'number' &&
+    (item.state === 'waiting' || item.state === 'mayNotHaveSent' || item.state === 'refused')
+  );
+}
 
 /**
  * Whether receipts are sent in one conversation.
@@ -155,7 +176,9 @@ export function readLocal(store: LocalStore | undefined, key: string): Messaging
     return {
       schemaVersion: LOCAL_SCHEMA_VERSION,
       archived: Array.isArray(parsed.archived) ? parsed.archived : [],
-      outbox: Array.isArray(parsed.outbox) ? parsed.outbox : [],
+      // Only items that can be acted on. One with no recipient or no id cannot be sent,
+      // retried or discarded by name, and decoding it stopped every item behind it.
+      outbox: Array.isArray(parsed.outbox) ? parsed.outbox.filter(isOutboxItem) : [],
       readUpTo: record(parsed.readUpTo),
       theirReadUpTo: record(parsed.theirReadUpTo),
       blocked: Array.isArray(parsed.blocked) ? parsed.blocked : [],

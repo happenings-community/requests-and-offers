@@ -20,7 +20,7 @@ import ConversationPage from '../../../src/routes/(public)/messages/[user]/+page
  * by address on a network that has none.
  */
 
-const { hashes, getInbox, getSent } = vi.hoisted(() => {
+const { hashes, getInbox, getSent, sendMessage } = vi.hoisted(() => {
   const hash = (n: number) => new Uint8Array(Array(39).fill(n));
   return {
     hashes: {
@@ -33,7 +33,8 @@ const { hashes, getInbox, getSent } = vi.hoisted(() => {
       M2: hash(7)
     },
     getInbox: vi.fn(),
-    getSent: vi.fn()
+    getSent: vi.fn(),
+    sendMessage: vi.fn()
   };
 });
 const { MY_AGENT, ANITA, BELA, ANITA_AGENT } = hashes;
@@ -42,7 +43,7 @@ vi.mock('$lib/services/zomes/messaging.service', async () => {
   const { Context, Effect, Layer } = await import('effect');
   const MessagingServiceTag = Context.GenericTag<unknown>('MessagingService');
   const service = {
-    sendMessage: () => Effect.succeed([]),
+    sendMessage: (...a: unknown[]) => sendMessage(...a),
     findSent: () => Effect.succeed(null),
     getInbox: () => getInbox(),
     getInboxDelta: () =>
@@ -147,6 +148,7 @@ beforeEach(() => {
   localStorage.clear();
   getInbox.mockReturnValue(E.succeed([]));
   getSent.mockReturnValue(E.succeed([]));
+  sendMessage.mockReturnValue(E.succeed([]));
   setPage({ user: anita });
 });
 
@@ -177,6 +179,22 @@ describe('the conversation page', () => {
 
     expect(await screen.findByText('second')).toBeTruthy();
     await waitFor(() => expect(readMark(), 'read up to the new one').toBe(T + 60_000));
+  });
+
+  /** A send with no answer takes a full timeout, and the box stays open meanwhile. */
+  it('keeps what is typed while a send is still going', async () => {
+    sendMessage.mockReturnValue(E.sleep('60 millis').pipe(E.as([])));
+    render(ConversationPage);
+    await screen.findByRole('heading', { name: 'Anita Rossi' });
+    const box = (await screen.findByRole('textbox')) as HTMLTextAreaElement;
+
+    await fireEvent.input(box, { target: { value: 'first message' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await fireEvent.input(box, { target: { value: 'and a second thought' } });
+    await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    expect(box.value, 'not wiped when the first send finished').toBe('and a second thought');
   });
 
   /** "May not have sent" had only "send again": if that kept failing it could not be cleared. */

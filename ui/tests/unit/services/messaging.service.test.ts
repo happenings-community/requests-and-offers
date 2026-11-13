@@ -5,6 +5,7 @@ import {
   MessagingServiceTag,
   type MessagingService
 } from '$lib/services/zomes/messaging.service';
+import { ADMIN_ROLE } from '$lib/schemas/messaging.schemas';
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
 
 /**
@@ -105,8 +106,12 @@ describe('the messaging service calls the zome as the zome is written', () => {
 
     callZome.mockClear();
     callZome.mockResolvedValue([]);
-    await run((s) => s.getRoleInbox('Admin' as never));
-    expect(theCall()).toEqual({ zome: 'messaging', fn: 'get_role_inbox', payload: 'Admin' });
+    await run((s) => s.getRoleInbox(ADMIN_ROLE));
+    expect(theCall()).toEqual({
+      zome: 'messaging',
+      fn: 'get_role_inbox',
+      payload: { type: 'admin' }
+    });
   });
 
   it('a failed call becomes a MessagingError that keeps what was thrown as its cause', async () => {

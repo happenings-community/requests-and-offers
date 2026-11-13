@@ -84,6 +84,13 @@ export type { OutboxItem };
 /** How often to try the outbox again while anything is waiting. */
 const RETRY_INTERVAL_MS = 30_000;
 
+/**
+ * How far before the first attempt `find_sent` starts looking. This device stamps the
+ * moment Send was pressed; the conductor stamps the links. They are the same machine in
+ * the desktop app, so this only has to cover rounding and a clock stepping.
+ */
+const SEND_CLOCK_MARGIN_MS = 5_000;
+
 const storage = (): LocalStore | undefined =>
   typeof localStorage === 'undefined' ? undefined : localStorage;
 
@@ -204,13 +211,30 @@ export function createMessagingStore(): MessagingStore {
    * refused to keep is not dropped by adopting what storage has.
    */
   let outboxAdopted = false;
+  /**
+   * Ids this store has finished with: sent, found already sent, or discarded.
+   *
+   * An item is taken out of memory and out of storage together, but storage can refuse
+   * the write (a full quota, private browsing) and still hold the old list. Anything
+   * read back from storage is checked against this, so a message the member discarded,
+   * or one that went, does not come back and get sent.
+   */
+  const gone = new Set<string>();
+  const dropFromOutbox = (id: string): void => {
+    gone.add(id);
+    outbox = outbox.filter((q) => q.id !== id);
+    write({ outbox });
+  };
   const adoptOutbox = (): void => {
     if (outboxAdopted) return;
     const key = myAgentKey();
     if (!key) return;
     outboxAdopted = true;
     const held = new Set(outbox.map((item) => item.id));
-    outbox = [...readFor(key).outbox.filter((item) => !held.has(item.id)), ...outbox];
+    outbox = [
+      ...readFor(key).outbox.filter((item) => !held.has(item.id) && !gone.has(item.id)),
+      ...outbox
+    ];
   };
 
   const withServices = <A>(
@@ -401,7 +425,10 @@ export function createMessagingStore(): MessagingStore {
         // What storage holds, plus anything held in memory that storage refused to keep.
         outboxAdopted = true;
         const stored = new Set(local.outbox.map((item) => item.id));
-        outbox = [...local.outbox, ...outbox.filter((item) => !stored.has(item.id))];
+        outbox = [
+          ...local.outbox.filter((item) => !gone.has(item.id)),
+          ...outbox.filter((item) => !stored.has(item.id))
+        ];
 
         // **Where blocking is applied to what was read.** Everything below reads from
         // this list, so the personal threads, the role inbox and a member's own
@@ -483,13 +510,19 @@ export function createMessagingStore(): MessagingStore {
    */
   const newSendId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-  const queue = (counterparty: ActionHash, content: string, id: string, listing?: ActionHash) => {
+  const queue = (
+    counterparty: ActionHash,
+    content: string,
+    id: string,
+    pressedAt: number,
+    listing?: ActionHash
+  ) => {
     const item: OutboxItem = {
       id,
       to: threadKeyOf(counterparty),
       content,
       ...(listing ? { listing: encodeHashToBase64(listing) } : {}),
-      queuedAt: Date.now(),
+      queuedAt: pressedAt,
       state: 'waiting'
     };
     adoptOutbox();
@@ -525,6 +558,11 @@ export function createMessagingStore(): MessagingStore {
     listing?: ActionHash
   ): E.Effect<void, MessagingError> => {
     const sendId = newSendId();
+    // Where `find_sent` will start looking if this call's answer is lost: before the
+    // call, with a margin for this device's clock against the conductor's. Taken when
+    // the failure is noticed, it fell after an attempt that had in fact committed, the
+    // search missed it, and the message went twice.
+    const pressedAt = Date.now() - SEND_CLOCK_MARGIN_MS;
     // The read mark rides along, if this chat sends receipts. One rule decides this and
     // the signal, so a chat set to Off cannot leak through the other path.
     const local = localState();
@@ -547,13 +585,13 @@ export function createMessagingStore(): MessagingStore {
           const failure = classifySendFailure(causeOf(e));
           // Nothing was written, so it is safe to hold and retry.
           if (failure.kind === 'devicesNotFound') {
-            queue(counterparty, content, sendId, listing);
+            queue(counterparty, content, sendId, pressedAt, listing);
             return E.void;
           }
           // No answer: we do not know, and we do not guess. It goes to the outbox with
           // its send id, and the next flush asks the chain whether it went.
           if (failure.kind === 'noAnswer') {
-            queue(counterparty, content, sendId, listing);
+            queue(counterparty, content, sendId, pressedAt, listing);
             return E.void;
           }
           return E.fail(e);
@@ -621,6 +659,9 @@ export function createMessagingStore(): MessagingStore {
 
       for (const item of waiting) {
         if (stalled.has(item.to)) continue;
+        // The list was taken when the run began, and a run waits on the conductor
+        // between items. A message the member discarded meanwhile is not sent.
+        if (!outbox.some((q) => q.id === item.id && q.state === 'waiting')) continue;
 
         // The item names its own recipient: the thread key is the counterparty's `User`
         // hash in base64. Looking the thread up instead meant a message to somebody with
@@ -643,8 +684,7 @@ export function createMessagingStore(): MessagingStore {
         );
 
         if (already.ok && already.hash) {
-          outbox = outbox.filter((q) => q.id !== item.id);
-          write({ outbox });
+          dropFromOutbox(item.id);
           continue;
         }
 
@@ -678,8 +718,7 @@ export function createMessagingStore(): MessagingStore {
         );
 
         if (failure === null) {
-          outbox = outbox.filter((q) => q.id !== item.id);
-          write({ outbox });
+          dropFromOutbox(item.id);
           continue;
         }
 
@@ -912,8 +951,7 @@ export function createMessagingStore(): MessagingStore {
    */
   const discardUnsent = (id: string): void => {
     adoptOutbox();
-    outbox = outbox.filter((q) => q.id !== id);
-    write({ outbox });
+    dropFromOutbox(id);
   };
 
   /**

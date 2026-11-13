@@ -100,23 +100,40 @@ export function useConversation(address: string | (() => string)) {
    * a failed `get_inbox` told a member with forty messages that there was nothing there.
    * The reason is kept for the page, which offers this same call again.
    */
+  /** Which run of `initialize` is the current one. */
+  let run = 0;
+  /** The address the screen's state belongs to. */
+  let shownFor: string | null = null;
+
   async function initialize(): Promise<void> {
-    // Everything this screen holds about a person is cleared first, so a change of
-    // address never shows the last person's name, draft or errors on the next one.
-    loaded = false;
+    // An earlier run that resumes after the address has changed must not write the last
+    // person's name, or "loaded", over the next one's.
+    const mine = ++run;
+    const stale = () => mine !== run;
     loadError = null;
     missing = null;
-    sendError = null;
-    actionError = null;
-    name = C.someone;
-    draft = '';
+    // Everything this screen holds about a person is cleared when the address changes,
+    // so the last person's name, draft and errors never show on the next one. Not on a
+    // second run for the same address (Try again, after a failed read): the member's
+    // draft is theirs to keep.
+    if (counterpartyB64 !== shownFor) {
+      shownFor = counterpartyB64;
+      loaded = false;
+      sendError = null;
+      actionError = null;
+      name = C.someone;
+      draft = '';
+    }
     if (!decoded) {
       missing = 'address';
       return;
     }
+    const person = decoded;
     try {
       await runEffect(messagingStore.loadConversations());
-      const user = await runEffect(usersStore.getUserByActionHash(decoded));
+      if (stale()) return;
+      const user = await runEffect(usersStore.getUserByActionHash(person));
+      if (stale()) return;
       if (!user) {
         // Read, and absent: not a fault, and not a conversation either.
         missing = 'member';
@@ -129,9 +146,10 @@ export function useConversation(address: string | (() => string)) {
       // and a row always agree about what has been seen.
       messagingStore.markThreadRead(counterparty);
       if (thread) await resolveTitles(thread.interests);
+      if (stale()) return;
       loaded = true;
     } catch (e) {
-      loadError = reasonOf(e);
+      if (!stale()) loadError = reasonOf(e);
     }
   }
 
@@ -140,11 +158,15 @@ export function useConversation(address: string | (() => string)) {
     if (content.length === 0 || sending) return;
     sending = true;
     sendError = null;
+    // What was in the box when Send was pressed. A send that gets no answer takes a full
+    // timeout, and the box stays open for typing meanwhile.
+    const typed = draft;
     try {
       await runEffect(messagingStore.send(counterparty, content));
       // Cleared only on the paths that kept the message: a real refusal throws, and the
-      // draft stays so nothing a member typed is lost to an error.
-      draft = '';
+      // draft stays so nothing a member typed is lost to an error. And only if it is
+      // still what was sent: anything typed since is the start of the next message.
+      if (draft === typed) draft = '';
       await runEffect(messagingStore.loadConversations());
     } catch (e) {
       sendError = reasonOf(e);

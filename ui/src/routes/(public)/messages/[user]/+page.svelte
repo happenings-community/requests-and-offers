@@ -52,8 +52,12 @@
 
   // Nudges, receipts and the outbox's retries are the root layout's: they carry on after
   // this conversation is left, which is what a message waiting to send needs.
+  // Run for the address and for nothing else. `initialize` reads the stores as it starts,
+  // and left tracked it ran again whenever any of them changed, which now would clear
+  // the screen and the draft under the member's hands.
   $effect(() => {
-    conversation.initialize();
+    void $page.params.user;
+    untrack(() => conversation.initialize());
   });
 
   // Whatever arrives while this conversation is open has been seen: keep the read mark,

@@ -725,3 +725,198 @@ describe('receipts going out', () => {
     expect(sendMessage.mock.calls[0][0]).toMatchObject({ readUpTo: micros(T_SENT) });
   });
 });
+
+describe('what the outbox must not do', () => {
+  const BELA = new Uint8Array(Array(39).fill(9));
+  const KEY = localKey(encodeHashToBase64(MY_AGENT));
+  const held = (id: string, to: Uint8Array, queuedAt: number) => ({
+    id,
+    to: encodeHashToBase64(to),
+    content: `message ${id}`,
+    queuedAt,
+    state: 'waiting'
+  });
+  const store2 = (items: unknown[]) =>
+    localStorage.setItem(KEY, JSON.stringify({ schemaVersion: 2, outbox: items }));
+  const storedIds = () =>
+    (
+      (JSON.parse(localStorage.getItem(KEY) ?? '{}') as { outbox?: Array<{ id: string }> })
+        .outbox ?? []
+    ).map((item) => item.id);
+  const noAnswer = { name: 'Error', message: 'Timed out waiting for the conductor' };
+
+  /**
+   * `find_sent` skips everything older than `since`. An attempt that committed and then
+   * lost its answer wrote its links *before* the failure was noticed, so a search that
+   * starts when the item was queued never sees them and the message goes twice.
+   */
+  it('asks the chain from before the first attempt, not from when it failed', async () => {
+    const store = await freshStore();
+    let firstAttemptAt = 0;
+    sendMessage.mockImplementationOnce(() => {
+      firstAttemptAt = Date.now();
+      // The call commits, then the answer is lost a little later.
+      return E.sleep('30 millis').pipe(E.zipRight(E.fail(noAnswer)));
+    });
+    await E.runPromise(store.send(ANITA, 'see you at ten'));
+    expect(store.outbox, 'held').toHaveLength(1);
+
+    // The zome's own rule: found only if the link is not older than `since`.
+    const committedAtMicros = firstAttemptAt * 1000;
+    findSent.mockImplementation((input: { since: number }) =>
+      E.succeed(committedAtMicros >= input.since ? hashes.LISTING : null)
+    );
+    await E.runPromise(store.flushOutbox());
+
+    expect(sendMessage, 'found, so not sent a second time').toHaveBeenCalledTimes(1);
+    expect(store.outbox).toHaveLength(0);
+  });
+
+  it('does not send a message discarded while the run was under way', async () => {
+    store2([held('a', ANITA, T_SENT), held('b', BELA, T_SENT + 1)]);
+    const store = await freshStore();
+    sendMessage.mockReturnValue(E.sleep('20 millis').pipe(E.as([])));
+
+    const run = E.runPromise(store.flushOutbox());
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    store.discardUnsent('b');
+    await run;
+
+    const sent = sendMessage.mock.calls.map(([input]) => (input as { sendId: string }).sendId);
+    expect(sent).toEqual(['a']);
+  });
+
+  /** Storage can refuse a write and go on holding the old list. */
+  it('does not bring back a discarded message that storage failed to forget', async () => {
+    store2([held('a', ANITA, T_SENT)]);
+    const store = await freshStore();
+    const refuse = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+    try {
+      store.discardUnsent('a');
+      await E.runPromise(store.loadConversations());
+      sendMessage.mockReturnValue(E.succeed([]));
+      await E.runPromise(store.flushOutbox());
+    } finally {
+      refuse.mockRestore();
+    }
+
+    expect(store.outbox, 'still gone from the screen').toHaveLength(0);
+    expect(sendMessage, 'and not sent').not.toHaveBeenCalled();
+  });
+
+  it('keeps a held message that storage refused to keep, across a read', async () => {
+    const store = await freshStore();
+    sendMessage.mockReturnValue(E.fail(devicesNotFound));
+    const refuse = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+    try {
+      await E.runPromise(store.send(ANITA, 'see you at ten'));
+      await E.runPromise(store.loadConversations());
+    } finally {
+      refuse.mockRestore();
+    }
+
+    expect(store.outbox, 'on screen, though not on the device').toHaveLength(1);
+  });
+
+  it('sends oldest first, whatever order the device holds them in', async () => {
+    store2([held('later', ANITA, T_SENT + 10), held('earlier', BELA, T_SENT)]);
+    const store = await freshStore();
+    sendMessage.mockReturnValue(E.succeed([]));
+
+    await E.runPromise(store.flushOutbox());
+
+    const sent = sendMessage.mock.calls.map(([input]) => (input as { sendId: string }).sendId);
+    expect(sent).toEqual(['earlier', 'later']);
+  });
+
+  it('takes a message the chain already has off the device too', async () => {
+    store2([held('a', ANITA, T_SENT)]);
+    const store = await freshStore();
+    findSent.mockReturnValue(E.succeed(hashes.LISTING));
+
+    await E.runPromise(store.flushOutbox());
+
+    expect(storedIds()).toEqual([]);
+  });
+
+  /** Discard and "send again" act on what the device holds, before any read has run. */
+  it('discards a stored message on a store that has read nothing', async () => {
+    store2([held('a', ANITA, T_SENT), held('b', BELA, T_SENT + 1)]);
+    const store = await freshStore();
+
+    store.discardUnsent('a');
+
+    expect(storedIds(), 'the other one is kept, not overwritten').toEqual(['b']);
+  });
+
+  it('sends a stored message again on a store that has read nothing', async () => {
+    store2([{ ...held('a', ANITA, T_SENT), state: 'mayNotHaveSent' }]);
+    const store = await freshStore();
+    sendMessage.mockReturnValue(E.succeed([]));
+
+    await E.runPromise(store.retryUnsent('a'));
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('the timer picks up a stored message with no read and no page open', async () => {
+    store2([held('a', ANITA, T_SENT)]);
+    const store = await freshStore();
+    sendMessage.mockReturnValue(E.succeed([]));
+    vi.useFakeTimers();
+    const stop = store.startRetrying();
+    await vi.advanceTimersByTimeAsync(31_000);
+    stop();
+    vi.useRealTimers();
+
+    await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+  });
+
+  /** One item with no recipient used to throw in the loop and stop everything behind it. */
+  it('is not stopped by a stored item it cannot read', async () => {
+    store2([
+      { id: 'broken', content: 'no recipient', queuedAt: T_SENT, state: 'waiting' },
+      held('a', ANITA, T_SENT + 1)
+    ]);
+    const store = await freshStore();
+    sendMessage.mockReturnValue(E.succeed([]));
+
+    await E.runPromise(store.flushOutbox());
+
+    const sent = sendMessage.mock.calls.map(([input]) => (input as { sendId: string }).sendId);
+    expect(sent).toEqual(['a']);
+  });
+});
+
+describe('a blocked person, in what is read', () => {
+  it('their messages are left out of the conversations', async () => {
+    const theirs = {
+      type: 'Read',
+      hash: hashes.ME,
+      from: ANITA_AGENT,
+      to: MY_AGENT,
+      at: micros(T_SENT),
+      content: 'hello'
+    };
+    getInbox.mockReturnValue(E.succeed([theirs]));
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    const store = await freshStore();
+
+    await E.runPromise(store.loadConversations());
+    expect(
+      store.threads.flatMap((t) => t.messages),
+      'shown while not blocked'
+    ).toHaveLength(1);
+
+    store.setBlocked(ANITA, true);
+    await E.runPromise(store.loadConversations());
+    expect(
+      store.threads.flatMap((t) => t.messages),
+      'left out once blocked'
+    ).toHaveLength(0);
+  });
+});

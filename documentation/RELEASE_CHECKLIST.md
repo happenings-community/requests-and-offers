@@ -305,7 +305,7 @@ gh release create v0.1.X \
 
 ### Technical Specifications
 - **Network**: Holostrap alpha network
-- **Holochain Version**: 0.5.5
+- **Holochain Version**: 0.7.0
 - **UI Framework**: SvelteKit + Svelte 5
 - **Architecture**: 7-Layer Effect-TS
 

@@ -441,3 +441,52 @@ pub async fn setup_agents_with_alice_as_progenitor(
     conductors.exchange_peer_info().await;
     (conductors, cells)
 }
+
+/// Path to the test-only `users_probe` zome, built by `bun run build:zomes`
+/// with the other zomes but never packed into the DNA.
+pub const USERS_PROBE_WASM_PATH: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../target/wasm32-unknown-unknown/release/users_probe.wasm"
+);
+
+/// The DNA with the test-only `users_probe` coordinator added. Like
+/// [`with_exchanges_probe`], it leaves the integrity zomes and the DNA hash
+/// exactly as shipped.
+pub async fn with_users_probe(mut dna: DnaFile) -> DnaFile {
+    let bytes = std::fs::read(USERS_PROBE_WASM_PATH).unwrap_or_else(|e| {
+        panic!(
+            "Failed to read the users probe zome at {USERS_PROBE_WASM_PATH}: {e}\n\
+             Did you run `bun run build:happ`?"
+        )
+    });
+    let wasm = DnaWasm::from(bytes);
+    let wasm_hash = DnaWasmHashed::from_content(wasm.clone()).await.into_hash();
+    let def = CoordinatorZomeDef::from(ZomeDef::Wasm(WasmZomeDef {
+        wasm_hash,
+        dependencies: vec!["users_organizations_integrity".into()],
+    }));
+    dna.update_coordinators(vec![("users_probe".into(), def)], vec![wasm])
+        .await
+        .expect("Failed to add the users probe zome");
+    dna
+}
+
+/// Two conductors, Alice as progenitor, with the test-only users probe zome.
+pub async fn setup_two_agents_with_users_probe() -> (SweetConductorBatch, SweetCell, SweetCell) {
+    let mut conductors =
+        SweetConductorBatch::from_config_rendezvous(2, SweetConductorConfig::standard()).await;
+    let alice_key = SweetAgents::one(conductors[0].keystore()).await;
+    let dna = with_users_probe(build_dna(alice_key.to_string()).await).await;
+    let alice_app = conductors[0]
+        .setup_app_for_agent("requests_and_offers", alice_key, &[dna.clone()])
+        .await
+        .expect("Failed to install app for Alice");
+    let bob_app = conductors[1]
+        .setup_app("requests_and_offers", &[dna])
+        .await
+        .expect("Failed to install app for Bob");
+    conductors.exchange_peer_info().await;
+    let (alice,) = alice_app.into_tuple();
+    let (bob,) = bob_app.into_tuple();
+    (conductors, alice, bob)
+}

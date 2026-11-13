@@ -49,7 +49,7 @@ graph TB
 
 ### **Core Technologies**
 
-- **Backend**: Holochain v0.3+ with Rust zomes (coordinator/integrity pattern)
+- **Backend**: Holochain 0.7 with Rust zomes (coordinator/integrity pattern)
 - **Frontend**: SvelteKit + Svelte 5 Runes + Effect-TS
 - **UI Framework**: TailwindCSS + SkeletonUI
 - **State Management**: Effect-TS + Svelte 5 Runes
@@ -386,7 +386,8 @@ ui/src/
         ├── mediums-of-exchange/ # Admin payment method management
         │   ├── create/      # Create payment method
         │   └── [id]/edit/   # Edit payment method
-        └── hrea-test/       # hREA integration testing
+        ├── hrea/            # hREA · ValueFlows: audit dashboard + test managers tab
+        └── hrea-test/       # Redirects (308) to /admin/hrea?tab=test
 ```
 
 ### **Route Architecture & Navigation**
@@ -438,7 +439,7 @@ The application implements a **dual-interface routing system** with clear separa
 - **Moderation** (`/admin/service-types/moderate/`): Review and approve user suggestions
 - **Status History** (`/admin/{domain}/status-history/`): Track entity status changes
 - **Administrator Management** (`/admin/administrators/`): Role assignment and permissions
-- **Testing Interface** (`/admin/hrea-test/`): hREA integration validation
+- **hREA · ValueFlows** (`/admin/hrea/`): read-only dashboard that reads every VF type from hREA, puts R&O counts beside hREA's in a mapping ledger, draws one exchange's flow and lists the known mapping gaps (`HreaDashboard.svelte`, `useHreaDashboard`, `utils/hrea-dashboard.ts`, `graphql/queries/agreement.queries.ts`); its second tab holds the entity test managers. The old `/admin/hrea-test/` redirects to that tab.
 
 ### **State Management Pattern**
 
@@ -806,7 +807,7 @@ cd ui && bun run format
 # Comprehensive testing
 bun test                    # Full test suite
 bun test:ui                 # Frontend tests only
-bun test:unit              # Unit tests (requires Nix)
+bun test:unit              # Unit tests (no Nix needed)
 bun test:integration       # Integration tests
 ```
 
@@ -914,7 +915,7 @@ The project underwent a major documentation overhaul to improve developer experi
 
 - **[Quick Reference Guide](QUICK_REFERENCE.md)**: Essential commands, patterns, and workflows for immediate productivity
 - **[Troubleshooting Guide](TROUBLESHOOTING.md)**: Comprehensive solutions for common development issues
-- **[Consolidated AI Rules](ai/rules/)**: Streamlined development guidelines covering:
+- **[Project Skills](../.claude/skills/) and [Guides](guides/)**: Streamlined development guidelines covering:
   - Development Guidelines (Effect-TS, Svelte 5, schemas, components)
   - Architecture Patterns (7-layer architecture, services, stores, event-driven communication)
   - Testing Framework (Backend Sweettest + Frontend Vitest strategies)

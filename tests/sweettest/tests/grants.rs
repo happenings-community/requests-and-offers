@@ -204,6 +204,62 @@ async fn status_of(conductor: &SweetConductor, cell: &SweetCell, user: &ActionHa
     status.expect("the user has a status")
 }
 
+/// A link of any type, with any tag, written past the coordinator.
+async fn forge_link(
+    conductor: &SweetConductor,
+    mallory: &SweetCell,
+    base: AnyLinkableHash,
+    target: AnyLinkableHash,
+    zome_index: u8,
+    link_type: u8,
+    tag: Vec<u8>,
+) -> Result<ActionHash, String> {
+    reason(
+        conductor
+            .call_fallible(
+                &mallory.zome("forge"),
+                "forge_link",
+                serde_json::json!({
+                    "base": base,
+                    "target": target,
+                    "zome_index": zome_index,
+                    "link_type": link_type,
+                    "tag": tag,
+                }),
+            )
+            .await,
+    )
+}
+
+/// The app's one permission question, as any honest node asks it: the grant
+/// that lets `agent` administer the network, or none.
+async fn admin_grant_of(
+    conductor: &SweetConductor,
+    cell: &SweetCell,
+    agent: &AgentPubKey,
+) -> Option<ActionHash> {
+    conductor
+        .call(
+            &cell.zome("administration"),
+            "can",
+            serde_json::json!({ "agent": agent, "ability": "Administer", "scope": null }),
+        )
+        .await
+}
+
+/// A `Status` with one field too many. It decodes as a `Status` (serde ignores
+/// the extra key) and, read by anything that does not check the entry type, as
+/// a `RoleRevocation { grant, authority, reason }` as well.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct StatusShapedLikeARevocation {
+    status_type: String,
+    reason: Option<String>,
+    suspended_until: Option<String>,
+    grant: Option<ActionHash>,
+    authority: ActionHash,
+}
+holochain_serialized_bytes::holochain_serial!(StatusShapedLikeARevocation);
+
 fn refused(outcome: &Result<ActionHash, String>, expected: &str, what: &str) {
     match outcome {
         Ok(hash) => panic!("{what} should be refused, but was written as {hash}"),
@@ -216,12 +272,18 @@ fn refused(outcome: &Result<ActionHash, String>, expected: &str, what: &str) {
 
 // ── Entry indexes, from the integrity zomes' enums ──────────────────────────
 
+/// `Status`, the first entry type of `administration_integrity`.
+const STATUS: u8 = 0;
 const REQUEST: u8 = 0;
 const SERVICE_TYPE: u8 = 0;
 /// After `Status`: `utils::grants::ROLE_GRANT_ENTRY_INDEX`.
 const ROLE_GRANT: u8 = 1;
 /// `OrganizationCoordinators` in `users_organizations_integrity::LinkTypes`.
 const ORGANIZATION_COORDINATORS_LINK: u8 = 8;
+/// `AgentAdministrators` in `administration_integrity::LinkTypes`.
+const AGENT_ADMINISTRATORS_LINK: u8 = 1;
+/// `AllGrants`, between `AgentGrants` and `GrantRevocations`.
+const ALL_GRANTS_LINK: u8 = 7;
 /// `AgentGrants` and `GrantRevocations` in `administration_integrity::LinkTypes`.
 const AGENT_GRANTS_LINK: u8 = 6;
 const GRANT_REVOCATIONS_LINK: u8 = 8;
@@ -864,7 +926,7 @@ async fn a_status_change_carries_the_administrators_grant() {
     let alice = &cells[0];
     let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
 
-    // Alice suspends Mallory, so the status Mallory wants to rewrite is a real one.
+    // Mallory's current status, written by Alice when she accepted her: a real one to rewrite.
     let current = status_of(&conductors[1], &mallory, &users[1]).await;
     let alices = grants_of(&conductors[0], alice, alice.agent_pubkey()).await;
     let (alices_admin, _) = alices
@@ -943,4 +1005,804 @@ async fn with_a_progenitor_key_the_root_is_written_by_the_progenitor() {
     )
     .await;
     refused(&forged, "written by the progenitor", "a root grant Mallory wrote with Alice's signature");
+}
+
+/// A revocation link points at a revocation, not at anything shaped like one.
+///
+/// Mallory, an ordinary member, wants Alice's admin grant to read as revoked.
+/// She cannot write a `RoleRevocation`: its rule needs a grant of her own that
+/// could have given the role. But anyone may write a pending `Status`, and a
+/// pending `Status` with one extra field decodes as a `RoleRevocation` naming
+/// Alice's grant. If the `GrantRevocations` link rule reads its target without
+/// checking the entry type, the link is written, and `can` treats any such
+/// link as a revocation: every administrator can be stripped by any member.
+///
+/// **To make it go red:** in `utils/src/grants.rs`, `load_revocation`, drop
+/// the `is_administration_entry` check, so the target is trusted by shape.
+/// The link is written and Alice stops being an administrator (seen at
+/// `a1bf2cb6`, before the check existed).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_revocation_link_points_at_a_real_revocation() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let administration = zome_index(&conductors[1], &mallory, "administration_integrity").await;
+
+    let alices_admin = admin_grant_of(&conductors[0], alice, alice.agent_pubkey())
+        .await
+        .expect("Alice, the progenitor, administers the network");
+
+    // A valid pending status, by its own rules.
+    let lookalike = forge_entry(
+        &conductors[1],
+        &mallory,
+        administration,
+        STATUS,
+        StatusShapedLikeARevocation {
+            status_type: "pending".to_string(),
+            reason: Some("not a revocation".to_string()),
+            suspended_until: None,
+            grant: Some(alices_admin.clone()),
+            authority: alices_admin.clone(),
+        },
+    )
+    .await
+    .expect("a pending status is anyone's to write");
+
+    let linked = forge_link(
+        &conductors[1],
+        &mallory,
+        alices_admin.clone().into(),
+        lookalike.into(),
+        administration,
+        GRANT_REVOCATIONS_LINK,
+        Vec::new(),
+    )
+    .await;
+    refused(
+        &linked,
+        "a revocation link points at a revocation record",
+        "a revocation link to a status shaped like a revocation",
+    );
+
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    assert_eq!(
+        admin_grant_of(&conductors[0], alice, alice.agent_pubkey()).await,
+        Some(alices_admin),
+        "Alice's admin grant is still live"
+    );
+}
+
+/// A removed administrator with a modified client: what the roster cannot
+/// give her, and the limit that is stated and not closed.
+///
+/// Mallory was an administrator and Alice removed her. Her old admin grant is
+/// still a valid record, as every grant is for ever, so validation accepts a
+/// new grant resting on it: validation can prove a grant exists and cannot
+/// prove that no revocation names it.
+///
+/// First, the roster. A roster link is valid when its tag carries an admin
+/// grant its author wrote, and her fresh grant is one. Whether an agent
+/// administers is asked of the grants (`can`), never of the roster, so the
+/// link gives her nothing.
+///
+/// Second, the limit. When she also indexes the fresh grant under her own
+/// key, `can` returns it: nobody has revoked *that* grant, and the reader
+/// does not ask whether the grant beneath it was revoked first. Revocation is
+/// a record of who was removed and when, not a wall against a modified
+/// client (the spec, *Not closed here*). The assertion is here so the limit
+/// is seen in a test, and so that closing it changes this line.
+///
+/// **To make it go red:** have `check_if_agent_is_administrator` read the
+/// `AgentAdministrators` roster link again: the first question then answers
+/// yes.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_removed_administrator_with_a_modified_client() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let administration = zome_index(&conductors[1], &mallory, "administration_integrity").await;
+    let me = mallory.agent_pubkey().clone();
+
+    let added: bool = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "add_administrator",
+            serde_json::json!({
+                "entity": "network",
+                "entity_original_action_hash": users[1],
+                "agent_pubkeys": [me],
+            }),
+        )
+        .await;
+    assert!(added, "Alice makes Mallory an administrator");
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    let old_grant = admin_grant_of(&conductors[0], alice, &me)
+        .await
+        .expect("Mallory administers the network while her grant stands");
+
+    let removed: bool = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "remove_administrator",
+            serde_json::json!({
+                "entity": "network",
+                "entity_original_action_hash": users[1],
+                "agent_pubkeys": [me],
+            }),
+        )
+        .await;
+    assert!(removed, "Alice removes Mallory");
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    assert_eq!(
+        admin_grant_of(&conductors[0], alice, &me).await,
+        None,
+        "a removed administrator's grant is revoked"
+    );
+
+    // Validation accepts the write: the old grant is a valid record, held by
+    // the author, and an admin may grant admin.
+    let fresh = forge_entry(
+        &conductors[1],
+        &mallory,
+        administration,
+        ROLE_GRANT,
+        RoleGrant {
+            role: "admin".to_string(),
+            holder: me.clone(),
+            scope: None,
+            authority: Authority::Grant(old_grant),
+        },
+    )
+    .await
+    .expect("validation cannot see the revocation, so the grant is written");
+
+    // The roster link: valid, because its tag carries an admin grant written
+    // by the link's author.
+    forge_link(
+        &conductors[1],
+        &mallory,
+        me.clone().into(),
+        fresh.clone().into(),
+        administration,
+        AGENT_ADMINISTRATORS_LINK,
+        fresh.get_raw_39().to_vec(),
+    )
+    .await
+    .expect("the roster link carries a valid admin grant written by its author");
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    let still_admin: bool = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "check_if_agent_is_administrator",
+            serde_json::json!({ "entity": "network", "agent_pubkey": me }),
+        )
+        .await;
+    assert!(
+        !still_admin,
+        "a forged roster link does not make a removed administrator one again"
+    );
+
+    // The stated limit: indexed under her key, the fresh grant is returned.
+    forge_link(
+        &conductors[1],
+        &mallory,
+        me.clone().into(),
+        fresh.clone().into(),
+        administration,
+        AGENT_GRANTS_LINK,
+        fresh.get_raw_39().to_vec(),
+    )
+    .await
+    .expect("the index link carries a valid grant written by its author");
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    assert_eq!(
+        admin_grant_of(&conductors[0], alice, &me).await,
+        Some(fresh),
+        "the stated limit: a grant resting on a revoked grant is valid, and `can` returns it"
+    );
+}
+
+/// The links that index a grant are the granter's record of it: each create
+/// rule, met by a forged link.
+///
+/// On a network with no key Mallory can write herself a root, so she has
+/// grants of her own to mislink as well as Alice's to borrow. One row per
+/// rule; each names the check that refuses it.
+///
+/// **To make it go red:** in `administration_integrity/src/grants.rs`, remove
+/// the check a row names (`validate_grant_index_link` for the first four,
+/// `grant_in_tag` and `validate_holder_role_link` for the roster rows): that
+/// row's link is written.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_grant_index_link_is_the_granters_record_of_a_real_grant() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, false).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let administration = zome_index(&conductors[1], &mallory, "administration_integrity").await;
+    let me = mallory.agent_pubkey().clone();
+    let alice_key = alice.agent_pubkey().clone();
+
+    let alices_admin = admin_grant_of(&conductors[0], alice, &alice_key)
+        .await
+        .expect("Alice, the first user, administers the network");
+    // Mallory's own grants: a root (no key, so it is accepted) and a member
+    // grant resting on it.
+    let my_root = forge_entry(
+        &conductors[1],
+        &mallory,
+        administration,
+        ROLE_GRANT,
+        RoleGrant {
+            role: "admin".to_string(),
+            holder: me.clone(),
+            scope: None,
+            authority: Authority::Progenitor { signature: Signature([0; 64]) },
+        },
+    )
+    .await
+    .expect("without a key Mallory's root is accepted");
+    let my_member = forge_entry(
+        &conductors[1],
+        &mallory,
+        administration,
+        ROLE_GRANT,
+        RoleGrant {
+            role: "member".to_string(),
+            holder: me.clone(),
+            scope: None,
+            authority: Authority::Grant(my_root.clone()),
+        },
+    )
+    .await
+    .expect("a member grant resting on a held admin grant is valid");
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+
+    let tag = |grant: &ActionHash| grant.get_raw_39().to_vec();
+    let link = |base: AnyLinkableHash, target: AnyLinkableHash, link_type: u8, tag: Vec<u8>| {
+        forge_link(&conductors[1], &mallory, base, target, administration, link_type, tag)
+    };
+
+    // AgentGrants and AllGrants.
+    refused(
+        &link(me.clone().into(), alices_admin.clone().into(), AGENT_GRANTS_LINK, tag(&alices_admin)).await,
+        "an index link is written by the agent who wrote the grant",
+        "indexing a grant somebody else wrote",
+    );
+    refused(
+        &link(alice_key.clone().into(), my_root.clone().into(), AGENT_GRANTS_LINK, tag(&my_root)).await,
+        "an agent's grant index holds that agent's grants",
+        "indexing a grant from a key that does not hold it",
+    );
+    refused(
+        &link(me.clone().into(), my_member.clone().into(), AGENT_GRANTS_LINK, tag(&my_root)).await,
+        "a grant index link points at the grant its tag carries",
+        "an index link whose target is not the grant in its tag",
+    );
+    refused(
+        &link(me.clone().into(), my_root.clone().into(), ALL_GRANTS_LINK, vec![1, 2, 3]).await,
+        "the link's tag does not carry a grant",
+        "an index link whose tag is not a grant",
+    );
+
+    // The administrator roster.
+    refused(
+        &link(me.clone().into(), users[1].clone().into(), AGENT_ADMINISTRATORS_LINK, tag(&my_member)).await,
+        "and the tag carries a member grant",
+        "a roster link carrying a member grant",
+    );
+    refused(
+        &link(alice_key.into(), users[0].clone().into(), AGENT_ADMINISTRATORS_LINK, tag(&my_root)).await,
+        "index link starts at the grant's holder",
+        "a roster link from a key that does not hold the grant",
+    );
+}
+
+/// The network is never left with no administrator, counted from the grants.
+///
+/// `revoke_role` is a public call and ends a role without touching the roster
+/// links, so after it the roster still lists two administrators where the
+/// grants say one. The guard used to count roster links, and so let the one
+/// administrator who was left be removed (found on the home server run of
+/// 12 November). Both doors are tried: `remove_administrator`, and
+/// `revoke_role` on the last live admin grant.
+///
+/// **To make this go red:** drop the guard from `revoke_role`: the second
+/// door opens and the last grant is revoked. The removal assertion needs both
+/// guards gone, because `remove_administrator` asks the same rule first,
+/// before anything is written, and then revokes through `revoke_role`.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_last_administrator_is_counted_from_the_grants() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let her = mallory.agent_pubkey().clone();
+    let me = alice.agent_pubkey().clone();
+
+    let added: bool = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "add_administrator",
+            serde_json::json!({
+                "entity": "network",
+                "entity_original_action_hash": users[1],
+                "agent_pubkeys": [her],
+            }),
+        )
+        .await;
+    assert!(added, "Alice makes Mallory an administrator");
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    let her_grant = admin_grant_of(&conductors[0], alice, &her)
+        .await
+        .expect("Mallory administers the network while her grant stands");
+    let my_grant = admin_grant_of(&conductors[0], alice, &me)
+        .await
+        .expect("Alice administers the network");
+
+    // The honest revocation, by the public call: the roster is not touched.
+    let _: ActionHash = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "revoke_role",
+            serde_json::json!({ "grant": her_grant, "reason": "testing the last-administrator count" }),
+        )
+        .await;
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    assert_eq!(
+        admin_grant_of(&conductors[0], alice, &her).await,
+        None,
+        "Mallory no longer administers"
+    );
+
+    let removal = reason(
+        conductors[0]
+            .call_fallible::<_, bool>(
+                &alice.zome("administration"),
+                "remove_administrator",
+                serde_json::json!({
+                    "entity": "network",
+                    "entity_original_action_hash": users[0],
+                    "agent_pubkeys": [me],
+                }),
+            )
+            .await,
+    );
+    match &removal {
+        Ok(_) => panic!("removing the only administrator with a live grant should be refused"),
+        Err(text) => assert!(
+            text.contains("Cannot remove last admin"),
+            "the removal should be refused as the last administrator; got {text}"
+        ),
+    }
+
+    let revocation = reason(
+        conductors[0]
+            .call_fallible::<_, ActionHash>(
+                &alice.zome("administration"),
+                "revoke_role",
+                serde_json::json!({ "grant": my_grant, "reason": "testing the other door" }),
+            )
+            .await,
+    );
+    refused(
+        &revocation,
+        "Cannot remove last admin",
+        "revoking the last live admin grant",
+    );
+
+    assert!(
+        admin_grant_of(&conductors[0], alice, &me).await.is_some(),
+        "Alice still administers the network after both refusals"
+    );
+}
+
+/// Makes Mallory an administrator, by Alice, and returns Mallory's admin grant.
+async fn made_administrator(
+    conductors: &SweetConductorBatch,
+    alice: &SweetCell,
+    mallory: &SweetCell,
+    mallory_user: &ActionHash,
+) -> ActionHash {
+    let her = mallory.agent_pubkey().clone();
+    let added: bool = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "add_administrator",
+            serde_json::json!({
+                "entity": "network",
+                "entity_original_action_hash": mallory_user,
+                "agent_pubkeys": [her],
+            }),
+        )
+        .await;
+    assert!(added, "Alice makes Mallory an administrator");
+    await_consistency_s(15, [alice, mallory]).await.unwrap();
+    admin_grant_of(&conductors[0], alice, &her)
+        .await
+        .expect("Mallory administers the network while her grant stands")
+}
+
+/// The rules for who may write a grant, each met by a forged grant.
+///
+/// Mallory is an accepted member and nothing more. Four grants, one per rule
+/// in `validate_role_grant`: an admin grant resting on Alice's admin grant
+/// (borrowed authority), one resting on her own member grant (a member grants
+/// nothing), an admin grant with a scope, and a member grant that claims the
+/// progenitor's signature. Then the honest question: she administers nothing.
+///
+/// **To make it go red:** in `administration_integrity/src/grants.rs`, remove
+/// the check a row names: that row is no longer refused for the reason it
+/// names (the first two grants are then written; the last two meet the next
+/// check and are refused with a different message).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_grant_is_refused_when_its_author_has_no_authority_for_it() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let administration = zome_index(&conductors[1], &mallory, "administration_integrity").await;
+    let me = mallory.agent_pubkey().clone();
+
+    let alices_grant = admin_grant_of(&conductors[0], alice, alice.agent_pubkey())
+        .await
+        .expect("Alice, the progenitor, administers the network");
+    let my_member_grant = grants_of(&conductors[1], &mallory, &me)
+        .await
+        .into_iter()
+        .find(|(_, grant)| grant.role == "member")
+        .map(|(hash, _)| hash)
+        .expect("an accepted member holds a member grant");
+
+    let admin_resting_on = |authority: Authority, scope: Option<ActionHash>, role: &str| RoleGrant {
+        role: role.to_string(),
+        holder: me.clone(),
+        scope,
+        authority,
+    };
+
+    let borrowed = forge_entry(
+        &conductors[1],
+        &mallory,
+        administration,
+        ROLE_GRANT,
+        admin_resting_on(Authority::Grant(alices_grant.clone()), None, "admin"),
+    )
+    .await;
+    refused(
+        &borrowed,
+        "a grant is written by the holder of the grant it rests on",
+        "an admin grant resting on somebody else's grant",
+    );
+
+    let from_a_member = forge_entry(
+        &conductors[1],
+        &mallory,
+        administration,
+        ROLE_GRANT,
+        admin_resting_on(Authority::Grant(my_member_grant), None, "admin"),
+    )
+    .await;
+    refused(
+        &from_a_member,
+        "a member may not grant admin here",
+        "an admin grant resting on a member grant",
+    );
+
+    let scoped = forge_entry(
+        &conductors[1],
+        &mallory,
+        administration,
+        ROLE_GRANT,
+        admin_resting_on(Authority::Grant(alices_grant), Some(users[1].clone()), "admin"),
+    )
+    .await;
+    refused(&scoped, "does not take a scope", "an admin grant with a scope");
+
+    let root_for_a_member = forge_entry(
+        &conductors[1],
+        &mallory,
+        administration,
+        ROLE_GRANT,
+        admin_resting_on(
+            Authority::Progenitor {
+                signature: Signature([0u8; 64]),
+            },
+            None,
+            "member",
+        ),
+    )
+    .await;
+    refused(
+        &root_for_a_member,
+        "the progenitor key grants the first administrators, nothing else",
+        "a member grant claiming the progenitor's signature",
+    );
+
+    assert_eq!(
+        admin_grant_of(&conductors[0], alice, &me).await,
+        None,
+        "after four refusals Mallory administers nothing"
+    );
+}
+
+/// An administrator whose roster link is gone can still be removed.
+///
+/// The roster is an index for listing administrators, and anyone can
+/// tombstone a roster link (no rule refuses it yet). `remove_administrator`
+/// used to fail when it could not find the link, so one forged tombstone made
+/// an administrator impossible to remove. Mallory tombstones her own.
+///
+/// **To make it go red:** have `remove_administrator` return an error when the
+/// entity's `AllAdministrators` link is not found.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_administrator_whose_roster_link_is_gone_can_still_be_removed() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let me = mallory.agent_pubkey().clone();
+    made_administrator(&conductors, alice, &mallory, &users[1]).await;
+
+    let roster: Vec<Link> = conductors[1]
+        .call(
+            &mallory.zome("administration"),
+            "get_all_administrators_links",
+            "network".to_string(),
+        )
+        .await;
+    let mine = roster
+        .into_iter()
+        .find(|link| link.target == users[1].clone().into())
+        .expect("Mallory's entity is on the roster");
+    forge_delete_link(&conductors[1], &mallory, mine.create_link_hash)
+        .await
+        .expect("no rule refuses a tombstone on a roster link yet");
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+
+    let removed: bool = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "remove_administrator",
+            serde_json::json!({
+                "entity": "network",
+                "entity_original_action_hash": users[1],
+                "agent_pubkeys": [me],
+            }),
+        )
+        .await;
+    assert!(removed, "Alice removes Mallory though her roster link is gone");
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    assert_eq!(
+        admin_grant_of(&conductors[0], alice, &me).await,
+        None,
+        "and the removal took her grant"
+    );
+}
+
+/// An administrator revoked by `revoke_role` can be made one again.
+///
+/// `revoke_role` ends the role and leaves the roster link, so the roster
+/// still lists the entity. `add_administrator` used to return early on the
+/// roster's word and write nothing, leaving a listed administrator with no
+/// grant and no way to give them one through the app.
+///
+/// **To make it go red:** have `add_administrator` return `true` when
+/// `check_if_entity_is_administrator` says the entity is listed.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_administrator_revoked_by_revoke_role_can_be_added_again() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let her = mallory.agent_pubkey().clone();
+    let first_grant = made_administrator(&conductors, alice, &mallory, &users[1]).await;
+
+    let _: ActionHash = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "revoke_role",
+            serde_json::json!({ "grant": first_grant, "reason": "testing a second appointment" }),
+        )
+        .await;
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    assert_eq!(
+        admin_grant_of(&conductors[0], alice, &her).await,
+        None,
+        "revoked, Mallory administers nothing"
+    );
+
+    let second_grant = made_administrator(&conductors, alice, &mallory, &users[1]).await;
+    assert_ne!(
+        second_grant, first_grant,
+        "the second appointment is a new grant, not the revoked one"
+    );
+}
+
+/// With the roster emptied by a forged tombstone, a new user still registers,
+/// and does not become an administrator.
+///
+/// No progenitor key, as alpha 2 ships. Alice is the first user and so the
+/// administrator. Mallory tombstones Alice's roster link, which no rule
+/// refuses yet. `create_user` offers the root to the first user, and it used
+/// to decide "first" by the roster: read that way, Bob would be made an
+/// administrator (before the grants were asked anywhere), or `create_user`
+/// would fail for him and everyone after him (once `add_administrator` asked
+/// the grants and `create_user` did not).
+///
+/// **To make it go red:** have `create_user` decide from
+/// `get_all_administrators_links` again: Bob's registration fails.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_new_user_registers_when_the_roster_has_been_emptied() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, false).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+
+    // One at a time: on a network with no key, who is first is the question.
+    for (i, cell, name) in [(0usize, alice, "Alice"), (2, &mallory, "Mallory")] {
+        conductors[i]
+            .call::<_, Record>(&cell.zome("users_organizations"), "create_user", sample_user(name))
+            .await;
+        await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    }
+    assert!(
+        admin_grant_of(&conductors[0], alice, alice.agent_pubkey()).await.is_some(),
+        "Alice, the first user, administers the network"
+    );
+
+    let roster: Vec<Link> = conductors[2]
+        .call(
+            &mallory.zome("administration"),
+            "get_all_administrators_links",
+            "network".to_string(),
+        )
+        .await;
+    assert!(!roster.is_empty(), "the roster lists Alice before the tombstone");
+    for link in roster {
+        forge_delete_link(&conductors[2], &mallory, link.create_link_hash)
+            .await
+            .expect("no rule refuses a tombstone on a roster link yet");
+    }
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    let registered = reason(
+        conductors[1]
+            .call_fallible::<_, Record>(
+                &bob.zome("users_organizations"),
+                "create_user",
+                sample_user("Bob"),
+            )
+            .await,
+    );
+    assert!(
+        registered.is_ok(),
+        "Bob registers though the roster reads empty; got {registered:?}"
+    );
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    assert_eq!(
+        admin_grant_of(&conductors[0], alice, bob.agent_pubkey()).await,
+        None,
+        "and is not made an administrator: Alice still holds a live grant"
+    );
+    assert!(
+        admin_grant_of(&conductors[0], alice, alice.agent_pubkey()).await.is_some(),
+        "Alice still administers"
+    );
+}
+
+/// An administrator who removes the one who appointed them still stands.
+///
+/// Mallory's grant rests on Alice's. Removing Alice revokes Alice's grant,
+/// not Mallory's: what a holder gave while they held a role stands when they
+/// lose it (removing a role never undoes past acts). Through the honest
+/// calls, on Mallory's own conductor.
+///
+/// **To make it go red:** have `live_grants_of` leave out any grant whose
+/// authority has been revoked: Mallory then holds nothing.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_administrator_who_removes_their_appointer_still_stands() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+    let me = mallory.agent_pubkey().clone();
+    made_administrator(&conductors, alice, &mallory, &users[1]).await;
+
+    let removed: bool = conductors[1]
+        .call(
+            &mallory.zome("administration"),
+            "remove_administrator",
+            serde_json::json!({
+                "entity": "network",
+                "entity_original_action_hash": users[0],
+                "agent_pubkeys": [alice.agent_pubkey()],
+            }),
+        )
+        .await;
+    assert!(removed, "Mallory removes Alice, who appointed her");
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+
+    for (i, cell, where_asked) in [(0usize, alice, "Alice's"), (1, &mallory, "Mallory's")] {
+        assert!(
+            admin_grant_of(&conductors[i], cell, &me).await.is_some(),
+            "Mallory still administers, asked on {where_asked} conductor"
+        );
+        assert_eq!(
+            admin_grant_of(&conductors[i], cell, alice.agent_pubkey()).await,
+            None,
+            "Alice no longer does, asked on {where_asked} conductor"
+        );
+    }
+}
+
+/// An administrator removes several keys in one call, their own among them.
+///
+/// Alice appoints Bob and Mallory, then removes herself and Mallory together,
+/// her own key listed first. Each revocation rests on the caller's own grant,
+/// so her own key has to go last or she could not revoke the other. Bob is
+/// left administering. An empty list of keys is refused first: it would pass
+/// the last-administrator rule and tidy a roster link while removing nobody.
+///
+/// **To make it go red:** have `remove_administrator` revoke the keys in the
+/// order given: revoking Mallory then fails as `Unauthorized`.
+#[tokio::test(flavor = "multi_thread")]
+async fn several_keys_are_removed_in_one_call_the_callers_own_last() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let users = everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let me = alice.agent_pubkey().clone();
+    for (user, cell) in [(&users[1], bob), (&users[2], &mallory)] {
+        let added: bool = conductors[0]
+            .call(
+                &alice.zome("administration"),
+                "add_administrator",
+                serde_json::json!({
+                    "entity": "network",
+                    "entity_original_action_hash": user,
+                    "agent_pubkeys": [cell.agent_pubkey()],
+                }),
+            )
+            .await;
+        assert!(added, "Alice appoints a second and a third administrator");
+    }
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    let nobody = reason(
+        conductors[0]
+            .call_fallible::<_, bool>(
+                &alice.zome("administration"),
+                "remove_administrator",
+                serde_json::json!({
+                    "entity": "network",
+                    "entity_original_action_hash": users[0],
+                    "agent_pubkeys": [],
+                }),
+            )
+            .await,
+    );
+    match &nobody {
+        Ok(_) => panic!("a removal that names no key should be refused"),
+        Err(text) => assert!(
+            text.contains("an administrator needs an agent key"),
+            "a removal that names no key should say so; got {text}"
+        ),
+    }
+
+    let removed: bool = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "remove_administrator",
+            serde_json::json!({
+                "entity": "network",
+                "entity_original_action_hash": users[0],
+                "agent_pubkeys": [me, mallory.agent_pubkey()],
+            }),
+        )
+        .await;
+    assert!(removed, "Alice removes herself and Mallory in one call");
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    assert_eq!(admin_grant_of(&conductors[1], bob, &me).await, None);
+    assert_eq!(
+        admin_grant_of(&conductors[1], bob, mallory.agent_pubkey()).await,
+        None
+    );
+    assert!(
+        admin_grant_of(&conductors[1], bob, bob.agent_pubkey()).await.is_some(),
+        "Bob is left administering the network"
+    );
 }

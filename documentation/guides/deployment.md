@@ -1,5 +1,7 @@
 # Deployment Guide: Current Status & Working Process
 
+> **Out of date:** This guide describes an older toolchain (Holochain 0.5.5, a manual Kangaroo process) and predates the tag-triggered release chain. Tracked in [#481](https://github.com/happenings-community/requests-and-offers/issues/481).
+
 **Guide for deploying Requests and Offers across all platforms and repositories**
 
 ---

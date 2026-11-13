@@ -18,7 +18,7 @@
 - **Holochain**: Core technology for building the application, ensuring local-first and peer-to-peer network
   capabilities.
 - **SvelteKit**: Utilized for the guest/front-end, providing a modern and efficient framework for web development.
-  - **Version**: Using Svelte 5.19.2 with SvelteKit 2.16.1
+  - **Version**: Using Svelte 5.19.2 with SvelteKit 2.27.0
   - **Svelte 5 Runes**: Advanced reactivity system with `$state`, `$derived`, and `$effect` for fine-grained reactivity
   - **Skeleton UI**: A component library for building user interfaces with SvelteKit and Tailwind (using
     @skeletonlabs/skeleton 2.7.0).
@@ -34,7 +34,7 @@
 - **hREA**: hREA (Holochain Resource-Event-Agent) is an implementation of the Valueflows specification. It enables a
   transparent and trusted account of resource and information flows between decentralized and independent agents, across
   and within ecosystems.
-  - **Version**: @valueflows/vf-graphql 0.9.1-alpha.6 and @valueflows/vf-graphql-holochain 0.700.0-rc.0, vendored from the hREA `happ-0.5.0-beta.1` tag until npm serves it (see [`vendor/README.md`](../../vendor/README.md))
+  - **Version**: @valueflows/vf-graphql 0.9.1-alpha.6 and @valueflows/vf-graphql-holochain 0.700.0-rc.0, from npm (built from the hREA tree that `happ-0.5.0-beta.1` ships)
   - For detailed hREA integration specifications, see [hREA Integration](../architecture/hrea-integration.md)
 
 ### 2.2 Communication Systems
@@ -321,7 +321,7 @@ All domains have been fully standardized with this pattern:
 ### 4.7 Testing Framework
 
 1. **Frontend Testing**:
-   - **Unit Tests**: Using Vitest (0.28.4) with @effect/vitest (0.21.1) for Effect-specific testing
+   - **Unit Tests**: Using Vitest (3.1.2) with @effect/vitest (0.21.1) for Effect-specific testing
    - **Store Testing**: All 9 helper functions tested for every domain store
    - **Service Testing**: Effect-TS services tested with mock dependencies
    - **Component Tests**: Testing UI components in isolation

@@ -85,10 +85,10 @@ pub struct ApprovedCoordinatorInput {
 /// a caller with neither is refused.
 #[hdk_extern]
 pub fn register_approved_coordinator(input: ApprovedCoordinatorInput) -> ExternResult<bool> {
-  let grant = match can_i(Ability::Coordinate, Some(input.organization_original_action_hash.clone()))? {
-    Some(grant) => grant,
-    None => require_grant(Ability::ChangeStatus, None)?,
-  };
+  // An approver's call only: a grant that may change a status. A coordinator adds
+  // people through `add_member_to_organization` and `add_coordinator_to_organization`,
+  // which check the user and write the grant that goes with the link.
+  let grant = require_grant(Ability::ChangeStatus, None)?;
   let pair = OrganizationUserInput {
     organization_original_action_hash: OriginalActionHash(
       input.organization_original_action_hash.clone(),
@@ -352,6 +352,9 @@ pub fn add_coordinator_to_organization(input: OrganizationUserInput) -> ExternRe
   // for any. The link may already be there with no grant behind it, where an
   // administrator has revoked the grant on its own: the grant is then written again
   // and the link left as it is, so a sole coordinator who lost theirs can be restored.
+  // `Dissolve` is the ability a coordinator grant for this organisation covers and no
+  // network role does, so asking `can` for it asks exactly "a live coordinator grant
+  // for this organisation", where `Coordinate` would also answer for an administrator.
   let linked = is_organization_coordinator(input.clone())?;
   let scope = Some(input.organization_original_action_hash.0.clone());
   let mut granted = false;
@@ -838,6 +841,7 @@ pub fn delete_organization(
   require_dissolve(&organization_original_action_hash)?;
 
   // Delete member links first
+  let mut removed_pointers: Vec<ActionHash> = Vec::new();
   let members_links = get_organization_members_links(organization_original_action_hash.clone())?;
   for link in members_links.clone() {
     let user_hash = link
@@ -851,7 +855,8 @@ pub fn delete_organization(
     for user_org_link in user_organizations_links {
       if let Some(hash) = user_org_link.target.clone().into_action_hash() {
         if hash == organization_original_action_hash {
-          delete_link(user_org_link.create_link_hash, GetOptions::default())?;
+          delete_link(user_org_link.create_link_hash.clone(), GetOptions::default())?;
+          removed_pointers.push(user_org_link.create_link_hash);
           break;
         }
       }
@@ -868,7 +873,9 @@ pub fn delete_organization(
     .and_then(|link| link.target.clone().into_action_hash())
   {
     for link in get_user_organizations_links(my_user)? {
-      if link.target.clone().into_action_hash() == Some(organization_original_action_hash.clone()) {
+      if link.target.clone().into_action_hash() == Some(organization_original_action_hash.clone())
+        && !removed_pointers.contains(&link.create_link_hash)
+      {
         delete_link(link.create_link_hash, GetOptions::default())?;
       }
     }

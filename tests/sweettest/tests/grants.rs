@@ -156,6 +156,19 @@ struct Interest {
 }
 holochain_serialized_bytes::holochain_serial!(Interest);
 
+/// Mirror of `MediumOfExchange` from `mediums_of_exchange_integrity`, with the
+/// grant field a forged update has to carry.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct MediumWithGrant {
+    code: String,
+    name: String,
+    description: Option<String>,
+    exchange_type: String,
+    resource_spec_hrea_id: Option<String>,
+    grant: Option<ActionHash>,
+}
+holochain_serialized_bytes::holochain_serial!(MediumWithGrant);
+
 /// An organisation and one of its people, as the membership calls take them.
 fn pair(organization: &ActionHash, user: &ActionHash) -> serde_json::Value {
     serde_json::json!({
@@ -1055,6 +1068,7 @@ async fn an_interest_carries_the_member_grant_its_author_holds() {
     )
     .await
     .unwrap_or_else(|e| panic!("the listing should be written; got {e}"));
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
 
     let interest = |grant: Option<ActionHash>| Interest {
         listing: listing.clone(),
@@ -1080,6 +1094,72 @@ async fn an_interest_carries_the_member_grant_its_author_holds() {
     let honest = forge_entry(&conductors[2], &mallory, exchanges, INTEREST, interest(Some(mine))).await;
     honest.unwrap_or_else(|e| panic!("an interest with its author's member grant should be written; got {e}"));
     await_consistency_s(30, [alice, bob, &mallory]).await.unwrap();
+}
+
+/// A service type and a medium of exchange are changed on an admin grant, and
+/// a member grant, which is enough to suggest one, is not enough to change one.
+///
+/// Alice creates one of each. Mallory, an accepted member, forges an update of
+/// each carrying her own member grant. Both are refused for the role.
+///
+/// **To make this go red:** in `validate_service_type_grant`
+/// (`service_types_integrity/src/lib.rs`) or `validate_medium_of_exchange_grant`
+/// (`mediums_of_exchange_integrity/src/lib.rs`), check the update for
+/// `Ability::Participate` in place of `Ability::Administer`. That forged
+/// update is then written.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_service_type_and_a_medium_of_exchange_are_changed_on_an_admin_grant_only() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let service_type = a_service_type(&conductors[0], alice, "Gardening").await;
+    let medium: Record = conductors[0]
+        .call(
+            &alice.zome("mediums_of_exchange"),
+            "create_medium_of_exchange",
+            sample_medium_of_exchange("HRS", "Hours"),
+        )
+        .await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let mine = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "member").await;
+
+    let forged_service_type = forge_update(
+        &conductors[2],
+        &mallory,
+        &service_type,
+        ServiceType {
+            name: "Gardening, taken over".to_string(),
+            description: "Rewritten by a member who is not an administrator".to_string(),
+            technical: false,
+            grant: Some(mine.clone()),
+        },
+    )
+    .await;
+    refused(
+        &forged_service_type,
+        "Changing a service type is a role act: a member grant does not cover Administer",
+        "an update of a service type on a member grant",
+    );
+
+    let forged_medium = forge_update(
+        &conductors[2],
+        &mallory,
+        medium.action_address(),
+        MediumWithGrant {
+            code: "HRS".to_string(),
+            name: "Hours, taken over".to_string(),
+            description: None,
+            exchange_type: "currency".to_string(),
+            resource_spec_hrea_id: None,
+            grant: Some(mine),
+        },
+    )
+    .await;
+    refused(
+        &forged_medium,
+        "Changing a medium of exchange is a role act: a member grant does not cover Administer",
+        "an update of a medium of exchange on a member grant",
+    );
 }
 
 /// Approval makes the creator coordinator once. A creator who has since been

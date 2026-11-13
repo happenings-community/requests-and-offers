@@ -102,7 +102,7 @@ pub fn delete_organization(organization_original_action_hash: ActionHash) -> Ext
   - a coordinator of the organisation, on their own grant. One is enough: an organisation may run with a single coordinator, and the last one cannot leave, so this is their way out
   - its creator, while it has no coordinator, which means a proposal never approved
 - An administrator's or a steward's grant does not cover it (`Ability::Dissolve`)
-- Removes its member, coordinator, contact and status links, its entry in the list of all organisations, and the caller's own `UserOrganizations` pointer to it. Its update links stay: they are never tombstoned
+- Removes its member, coordinator, contact and status links, its entry in the list of all organisations, and every member's `UserOrganizations` pointer to it, with the caller's own (a proposal's creator has one and is not yet a member). Its update links stay: they are never tombstoned
 - Revokes the coordinator grants of everyone on its coordinator links, the caller's own last. A coordinator grant given with `grant_role` to someone who was never put on a link is not found, and stays
 - Returns the hash of the delete action
 
@@ -145,14 +145,15 @@ pub fn add_member_to_organization(input: OrganizationUserInput) -> ExternResult<
 ##### `remove_organization_member`
 
 ```rust
-pub fn remove_organization_member(input: OrganizationUserInput) -> ExternResult<bool>
+pub fn remove_organization_member(input: OrganizationUserInput) -> ExternResult<ActionHash>
 ```
 
 - Removes member from organization
-- Needs a coordinator grant for the organisation or an admin grant
-- Removes member and coordinator links
+- Needs a coordinator grant for the organisation or an admin grant, and an accepted organisation
+- Refuses a member who is a coordinator (`AlreadyCoordinator`: remove the role first) and the last member
+- Removes the member link and the member's `UserOrganizations` pointer
 - Removes contact link if the removed member is the contact person
-- Returns success boolean
+- Returns the hash of the last link delete
 
 ##### `leave_organization`
 
@@ -257,6 +258,8 @@ pub fn check_if_agent_is_organization_coordinator(organization_original_action_h
 A coordinator is whoever holds a live `org_coordinator` grant scoped to the organisation (see [administration](administration.md), "The chain of grants"). The `OrganizationCoordinators` link is the listing the interface reads; permission is the grant.
 
 **How the role is given.** The first coordinator is the creator, and the grant is issued by the administrator or steward who approves the organisation, on the first approval only. After that a coordinator gives the role to another member with `add_coordinator_to_organization`. An administrator may give it too.
+
+`register_approved_coordinator` is the extern the administration zome calls, in the approver's cell, to write the creator's member and coordinator links on that first approval. It needs a grant that may change a status, so it is an approver's call and not a coordinator's; it writes links only, and the grant is written by `approve_organization` before it.
 
 **What validation enforces** (`users_organizations_integrity`):
 

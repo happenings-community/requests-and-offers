@@ -11,7 +11,7 @@ use utils::{
 
 use crate::{
   external_calls::{get_agent_user, get_user_agents, register_approved_coordinator, ApprovedCoordinatorInput},
-  grants::{live_grants_of, require, revoke_all, write_grant},
+  grants::{live_grants_of, require, revoke_all, was_ever_granted, write_grant},
 };
 
 /// Creates the initial `Status` entry (always `"pending"`) for the entity identified by
@@ -642,23 +642,26 @@ fn revoke_member_grants(user: &ActionHash, status_type: &str) -> ExternResult<()
 
 /// Approval is what makes an organisation's creator its coordinator (Sam, 18 October):
 /// the approver writes the creator's coordinator grant, resting on their own, and the
-/// coordinator link that carries it. A creator who already holds the grant keeps it.
+/// coordinator link that carries it.
+///
+/// Once only. This runs on every move to accepted, so on the return from a suspension
+/// too, and a creator who has since stood down or been removed as coordinator is not
+/// made one again by it: a grant for this organisation in their history, live or
+/// revoked, means the first approval has already happened. Giving the role back is a
+/// coordinator's act, through `add_coordinator_to_organization`.
 fn approve_organization(organization: &ActionHash, authority: &ActionHash) -> ExternResult<()> {
   let record = get(organization.clone(), GetOptions::default())?
     .ok_or_else(|| CommonError::RecordNotFound("organization".to_string()))?;
   let creator = record.action().author().clone();
   let scope = Some(organization.clone());
-  if live_grants_of(&creator)?
-    .into_iter()
-    .any(|(_, g)| g.parsed_role() == Ok(Role::OrgCoordinator) && g.scope == scope)
-  {
+  if was_ever_granted(&creator, Role::OrgCoordinator, &scope)? {
     return Ok(());
   }
   let user = get_agent_user(creator.clone())?
     .first()
     .and_then(|link| link.target.clone().into_action_hash())
     .ok_or_else(|| CommonError::ActionHashNotFound("user".to_string()))?;
-  let grant = write_grant(
+  write_grant(
     Role::OrgCoordinator,
     creator,
     scope,
@@ -667,7 +670,6 @@ fn approve_organization(organization: &ActionHash, authority: &ActionHash) -> Ex
   register_approved_coordinator(ApprovedCoordinatorInput {
     organization_original_action_hash: organization.clone(),
     user_original_action_hash: user,
-    grant,
   })?;
   Ok(())
 }

@@ -85,6 +85,17 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       }
       _ => (),
     },
+    // The same rules again for the authorities of the *original*: an update is
+    // also delivered, as its own op, to whoever holds the record it changes,
+    // and that authority never sees the record op below. Left to fall through,
+    // it would show an update whose own record authority had refused it.
+    FlatOp::Update(OpUpdate::Entry { app_entry, action }) => {
+      return validate_entry(
+        app_entry,
+        action.author(),
+        Some(&action.data.original_action_address),
+      );
+    }
     FlatOp::CreateRecord(store_record) => match store_record {
       OpRecord::CreateEntry { app_entry, action } => {
         return validate_entry(app_entry, action.author(), None);
@@ -157,7 +168,9 @@ mod record_op_tests {
   //! and `must_get_valid_record` asks the record authority. So every rule the
   //! entry op runs must give the same verdict on the record op.
   use hdi::prelude::*;
-  use utils::validation_harness::{create_ops, set_zome_types, update_ops};
+  use utils::validation_harness::{
+    create_ops, set_zome_types, update_op_for_the_original, update_ops,
+  };
   use utils::{ContactPreference, InteractionType, TimePreference};
 
   use crate::{validate, EntryTypes, LinkTypes, ListingStatus, Request};
@@ -206,5 +219,16 @@ mod record_op_tests {
       ValidateCallbackResult::Invalid("Request title cannot be empty".into())
     );
     assert_eq!(record, entry);
+  }
+
+  /// Goes red if the `FlatOp::Update` arm is removed from `validate`.
+  #[test]
+  fn an_update_the_entry_op_refuses_is_refused_on_the_op_the_original_receives() {
+    set_zome_types(EntryTypes::ENUM_LEN, LinkTypes::ENUM_LEN);
+    let verdict = validate(update_op_for_the_original(0, untitled_request())).unwrap();
+    assert_eq!(
+      verdict,
+      ValidateCallbackResult::Invalid("Request title cannot be empty".into())
+    );
   }
 }

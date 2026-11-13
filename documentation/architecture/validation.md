@@ -54,7 +54,7 @@ It describes `dev`. A PR that changes what validation enforces updates this page
 - **Administration:**
   - its link types are routed to rules;
   - with the grants stack, every grant is checked back to its root.
-- **Role acts outside administration** (#378). Each carries the grant it rests on, held by its author, and the rule runs on the entry op, the record op and, for an update, the op the original's authorities receive (in `exchanges` nothing is updated, and that refusal runs on all three):
+- **Role acts outside administration** (#378). Each carries the grant it rests on, held by its author (a creator changing their own listing or proposal carries none: being its author is the permission), and the rule runs on the entry op, the record op and, for an update, the op the original's authorities receive (in `exchanges` nothing is updated, and that refusal runs on all three):
   - a request or an offer is posted on a member grant, and changed by its creator or on an admin grant;
   - a service type or a medium of exchange is created on an admin or a member grant (a member's is a suggestion), and changed on an admin grant;
   - an organisation is changed by its creator, or on a coordinator grant for it, or on an admin grant, and the link that makes the change the latest revision is written by the change's author;

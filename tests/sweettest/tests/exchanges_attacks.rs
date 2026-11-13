@@ -367,6 +367,43 @@ async fn only_the_recipient_may_counter() {
 }
 
 // ---------------------------------------------------------------------------
+// The grant an agreement rests on
+// ---------------------------------------------------------------------------
+
+/// An agreement carries the member grant its author holds (#378). Bob, the
+/// right member to counter, sends a counter that is valid in every other way
+/// with no grant, then with Alice's. Both are refused for the grant; the same
+/// counter with his own is accepted.
+///
+/// **To make this go red:** remove the `check_act` call from
+/// `validate_agreement` in `exchanges_integrity/src/lib.rs`. Both forgeries
+/// are then written.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_agreement_carries_the_member_grant_its_author_holds() {
+    let w = world().await;
+    let (p, proposal) = w.propose().await;
+
+    let mut no_grant = counter_of(&p, &proposal, &w.bob_grant);
+    no_grant.grant = None;
+    refused(
+        w.bob_decline_then_counter(&p, no_grant, false).await,
+        "an agreement is a role act: this write needs a grant for Participate",
+        "a counter with no grant",
+    );
+
+    refused(
+        w.bob_decline_then_counter(&p, counter_of(&p, &proposal, &w.alice_grant), false).await,
+        "an agreement is a role act: the grant carried is held by someone else",
+        "a counter with Alice's grant",
+    );
+
+    // Control: the same counter with Bob's own grant.
+    w.bob_decline_then_counter(&p, counter_of(&p, &proposal, &w.bob_grant), false)
+        .await
+        .expect("a counter with its author's member grant is accepted");
+}
+
+// ---------------------------------------------------------------------------
 // The decline
 // ---------------------------------------------------------------------------
 

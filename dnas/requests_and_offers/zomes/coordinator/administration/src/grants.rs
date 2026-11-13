@@ -70,6 +70,25 @@ pub fn live_grants_of(agent: &AgentPubKey) -> ExternResult<Vec<(ActionHash, Role
   Ok(grants)
 }
 
+/// Whether the agent has ever been given this role in this scope, by a grant
+/// that is live or one since revoked.
+pub fn was_ever_granted(
+  agent: &AgentPubKey,
+  role: Role,
+  scope: &Option<ActionHash>,
+) -> ExternResult<bool> {
+  for link in links_from(agent.clone(), LinkTypes::AgentGrants)? {
+    let Some(hash) = link.target.into_action_hash() else {
+      continue;
+    };
+    let grant = grant_at(&hash)?;
+    if grant.parsed_role() == Ok(role) && &grant.scope == scope {
+      return Ok(true);
+    }
+  }
+  Ok(false)
+}
+
 /// The agents who hold a live network administrator grant, read from the
 /// grants themselves through the `AllGrants` index.
 ///

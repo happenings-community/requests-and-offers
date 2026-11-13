@@ -290,7 +290,8 @@ pub(crate) fn entry_at(hash: &AnyLinkableHash) -> ExternResult<Option<(Record, E
 ///
 /// The update itself has passed its own rule, so for an organisation that is its
 /// creator or a grant holder. Without the last two, anyone could point a record
-/// at an entry of their own, or back at an old revision.
+/// at an entry of their own, or back at someone else's old revision. A revision's
+/// own author can still link it again; `validation.md` lists that.
 pub(crate) fn validate_update_link(
   link_author: &AgentPubKey,
   base: &AnyLinkableHash,

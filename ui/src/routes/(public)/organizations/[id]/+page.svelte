@@ -33,6 +33,9 @@
     : null;
 
   let agentIsCoordinator = $state(false);
+  // The creator of a proposal that has not been approved yet: it has no coordinator,
+  // and only its creator holds a pointer to it. They may edit or withdraw it.
+  let agentIsProposer = $state(false);
   let agentIsMember = $state(false);
   let organization = $state<UIOrganization | null>(null);
   let loading = $state(true);
@@ -146,6 +149,25 @@
     );
   }
 
+  async function isProposer() {
+    const org = organization;
+    const user = usersStore.currentUser;
+    if (!org?.original_action_hash || !user?.original_action_hash || org.coordinators.length > 0) {
+      agentIsProposer = false;
+      return;
+    }
+
+    const orgHash = encodeHashToBase64(org.original_action_hash);
+    const mine = await runEffect(
+      organizationsStore.getUserOrganizations(user.original_action_hash)
+    );
+    agentIsProposer = mine.some(
+      (candidate) =>
+        candidate.original_action_hash &&
+        encodeHashToBase64(candidate.original_action_hash) === orgHash
+    );
+  }
+
   async function isMember() {
     if (!organization?.original_action_hash || !usersStore.currentUser?.original_action_hash) {
       agentIsMember = false;
@@ -162,6 +184,7 @@
   $effect(() => {
     if (organization && usersStore.currentUser) {
       isCoordinator();
+      isProposer();
       isMember();
       loadOrganizationData();
     }
@@ -279,7 +302,7 @@
           <div class="flex items-center justify-between">
             <h1 class="h1">{organization.name}</h1>
             <div class="ml-4 flex flex-col gap-4">
-              {#if agentIsCoordinator}
+              {#if agentIsCoordinator || agentIsProposer}
                 <a
                   href={paths.organizationEdit(page.params.id!)}
                   class="variant-filled-primary btn"

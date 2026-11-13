@@ -657,6 +657,10 @@ async fn a_message_carries_the_member_grant_its_author_holds() {
 
 /// A listing is edited by its author, who needs no grant, or by an
 /// administrator, whose update carries the admin grant. Anyone else is refused.
+///
+/// **To make this go red:** make `validate_request_grant` in
+/// `requests_integrity/src/request.rs` return `Valid` for an update. Mallory's
+/// forged edit is then written.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_listing_is_edited_by_its_author_or_an_administrator() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
@@ -716,7 +720,16 @@ async fn a_listing_is_edited_by_its_author_or_an_administrator() {
 /// Approval is what makes an organisation's creator its coordinator: before
 /// it the creator cannot act as one, after it they can, and `can` finds the
 /// grant. A coordinator of another organisation is refused, past the
-/// coordinator, on both the record and the membership link.
+/// coordinator, on both the record and the membership links. At the end an
+/// administrator revokes the creator's grant on its own, leaving the link, and
+/// gives it back through the same call that adds a coordinator.
+///
+/// **To make this go red:** in `users_organizations_integrity`, make
+/// `validate_organization_write` return `Valid` for an update (the forged edit
+/// is written), or make `validate_create_link_organization_membership` return
+/// `Valid` before it reads the tag (the forged links are). In the coordinator,
+/// drop `require_coordinate` from `add_member_to_organization`: the pending
+/// creator is then refused for the organisation's status, not for the role.
 #[tokio::test(flavor = "multi_thread")]
 async fn approval_makes_the_creator_coordinator_and_only_of_that_organisation() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
@@ -729,7 +742,7 @@ async fn approval_makes_the_creator_coordinator_and_only_of_that_organisation() 
     let org = org.action_address().clone();
     await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
 
-    let pair = serde_json::json!({
+    let mallory_as_member = serde_json::json!({
         "organization_original_action_hash": org,
         "user_original_action_hash": users[2],
     });
@@ -747,10 +760,16 @@ async fn approval_makes_the_creator_coordinator_and_only_of_that_organisation() 
     assert!(!before, "the creator is not a coordinator while the organisation is pending");
     let early = reason(
         conductors[1]
-            .call_fallible::<_, bool>(&bob.zome("users_organizations"), "add_member_to_organization", pair.clone())
+            .call_fallible::<_, bool>(&bob.zome("users_organizations"), "add_member_to_organization", mallory_as_member.clone())
             .await,
     );
-    assert!(early.is_err(), "a pending organisation's creator cannot add members");
+    match early {
+        Ok(_) => panic!("a pending organisation's creator should not be able to add members"),
+        Err(text) => assert!(
+            text.contains("Not a coordinator"),
+            "a pending organisation's creator should be refused as not a coordinator; got {text}"
+        ),
+    }
 
     // Approval.
     accept_entity(&conductors[0], alice, ENTITY_ORGANIZATIONS, org.clone()).await;
@@ -775,7 +794,7 @@ async fn approval_makes_the_creator_coordinator_and_only_of_that_organisation() 
         .await;
     assert!(can.is_some(), "`can` finds the coordinator grant");
     let added: bool = conductors[1]
-        .call(&bob.zome("users_organizations"), "add_member_to_organization", pair)
+        .call(&bob.zome("users_organizations"), "add_member_to_organization", mallory_as_member)
         .await;
     assert!(added);
 
@@ -873,23 +892,90 @@ async fn approval_makes_the_creator_coordinator_and_only_of_that_organisation() 
     );
     refused(&not_a_user, "a link to an organisation's coordinators points at a user", "a coordinator link that points at an organisation");
 
-    // Bob's own edit, and Alice's as administrator, go through the coordinator.
-    let latest: Option<Record> = conductors[1]
-        .call(&bob.zome("users_organizations"), "get_latest_organization_record", org.clone())
+    // Bob's own edit, now that it is approved, carries his coordinator grant.
+    let by_bob: Record = conductors[1]
+        .call(
+            &bob.zome("users_organizations"),
+            "update_organization",
+            serde_json::json!({
+                "original_action_hash": org,
+                "previous_action_hash": org,
+                "updated_organization": sample_organization("Bob's, by Bob"),
+            }),
+        )
         .await;
+    let bobs: Organization = by_bob.entry().to_app_option().unwrap().expect("an organisation");
+    let bobs_grant = grant_for_role(&conductors[1], bob, bob.agent_pubkey(), "org_coordinator").await;
+    assert_eq!(
+        bobs.grant,
+        Some(bobs_grant.clone()),
+        "after approval the creator's edit carries his coordinator grant"
+    );
+    // Alice updates Bob's revision, so it has to have reached her first.
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
     let by_alice: Record = conductors[0]
         .call(
             &alice.zome("users_organizations"),
             "update_organization",
             serde_json::json!({
                 "original_action_hash": org,
-                "previous_action_hash": latest.unwrap().action_address(),
+                "previous_action_hash": by_bob.action_address(),
                 "updated_organization": sample_organization("Bob's, tidied"),
             }),
         )
         .await;
     let written: Organization = by_alice.entry().to_app_option().unwrap().expect("an organisation");
     assert!(written.grant.is_some(), "the administrator's edit carries her grant");
+
+    // Alice revokes Bob's coordinator grant on its own. His coordinator link
+    // stays, so he is still listed, and holds no grant.
+    let _: ActionHash = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "revoke_role",
+            serde_json::json!({ "grant": bobs_grant, "reason": "revoked on its own" }),
+        )
+        .await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    assert!(is_coordinator(&conductors[1], bob, &org, &users[1]).await);
+    assert!(
+        grant_over(&conductors[1], bob, bob.agent_pubkey(), "Dissolve", &org)
+            .await
+            .is_none(),
+        "the revoked grant no longer answers"
+    );
+    // Adding him again writes the grant back and leaves the link alone.
+    let restored: bool = conductors[0]
+        .call(
+            &alice.zome("users_organizations"),
+            "add_coordinator_to_organization",
+            pair(&org, &users[1]),
+        )
+        .await;
+    assert!(restored);
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    assert!(
+        grant_over(&conductors[1], bob, bob.agent_pubkey(), "Dissolve", &org)
+            .await
+            .is_some(),
+        "a listed coordinator with no grant gets one back"
+    );
+    let again = reason(
+        conductors[0]
+            .call_fallible::<_, bool>(
+                &alice.zome("users_organizations"),
+                "add_coordinator_to_organization",
+                pair(&org, &users[1]),
+            )
+            .await,
+    );
+    match again {
+        Ok(_) => panic!("adding a coordinator who holds the grant and the link should be refused"),
+        Err(text) => assert!(
+            text.contains("Already a coordinator"),
+            "adding a coordinator twice should be refused as already one; got {text}"
+        ),
+    }
 }
 
 /// An offer carries the member grant its author holds, as a request does.
@@ -1438,7 +1524,16 @@ async fn a_revoked_grant_still_validates_but_the_app_refuses_its_holder() {
             )
             .await,
     );
-    assert!(through_the_app.is_err(), "the coordinator refuses a removed administrator");
+    match through_the_app {
+        Ok(record) => panic!(
+            "the coordinator should refuse a removed administrator, but wrote {}",
+            record.action_address()
+        ),
+        Err(text) => assert!(
+            text.contains("Unauthorized"),
+            "the coordinator should refuse a removed administrator as unauthorized; got {text}"
+        ),
+    }
 
     // The limit: validation cannot see the revocation.
     let service_types = zome_index(&conductors[1], &mallory, "service_types_integrity").await;

@@ -87,11 +87,9 @@ struct World {
     carol: SweetCell,
     offer: ActionHash,
     interest: ActionHash,
-    /// Each member's grant, which a write through the probe must carry: an
+    /// Bob's member grant, which his write through the probe must carry: an
     /// agreement is a role act (#378) before it is anything else.
-    alice_grant: ActionHash,
     bob_grant: ActionHash,
-    carol_grant: ActionHash,
 }
 
 impl World {
@@ -228,11 +226,9 @@ async fn world() -> World {
     let interest = interest.signed_action.hashed.hash.clone();
     await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
 
-    let alice_grant = member_grant(&conductors[0], &alice).await;
     let bob_grant = member_grant(&conductors[1], &bob).await;
-    let carol_grant = member_grant(&conductors[2], &carol).await;
 
-    World { conductors, alice, bob, carol, offer, interest, alice_grant, bob_grant, carol_grant }
+    World { conductors, alice, bob, carol, offer, interest, bob_grant }
 }
 
 /// A counter of `countered`, written by the member holding `grant`.

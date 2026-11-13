@@ -30,7 +30,9 @@ export function holochainUrl(path: string = '/'): string {
   // signer, so without this every zome call fails with NoSigningCredentials.
   if (adminPort) params.set('hcAdminPort', adminPort);
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `http://localhost:${UI_PORT}${cleanPath}?${params.toString()}`;
+  // A path may carry its own query (e.g. '/admin/hrea?tab=test').
+  const joiner = cleanPath.includes('?') ? '&' : '?';
+  return `http://localhost:${UI_PORT}${cleanPath}${joiner}${params.toString()}`;
 }
 
 /**

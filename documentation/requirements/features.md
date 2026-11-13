@@ -1,5 +1,7 @@
 # Detailed Feature Specifications
 
+> **Out of date:** The tag-based discovery sections (4.1 to 4.4) and the messaging status (7.1) do not match what `dev` ships. Tracked in [#480](https://github.com/happenings-community/requests-and-offers/issues/480).
+
 ## 1. User Management
 
 ### 1.1 User Profile
@@ -226,12 +228,12 @@ pub struct Request {
   pub time_preference: TimePreference,
   /// The time zone for the request
   pub time_zone: Option<TimeZone>,
-  /// The exchange preference for the request
-  pub exchange_preference: ExchangePreference,
   /// The interaction type for the request
   pub interaction_type: InteractionType,
   /// Generic links related to the request
   pub links: Vec<String>,
+  /// The status of the request (Active, Archived, Deleted)
+  pub status: ListingStatus,
 }
 ```
 
@@ -244,11 +246,10 @@ pub enum ContactPreference {
   Other(String),
 }
 
-pub enum ExchangePreference {
-  Exchange,
-  Arranged,
-  PayItForward,
-  Open(),
+pub enum ListingStatus {
+  Active,
+  Archived,
+  Deleted, // Soft delete
 }
 
 pub enum InteractionType {
@@ -290,9 +291,9 @@ _Note: Service Types integration is handled through separate linking mechanisms 
 - **`time_estimate_hours`**: (Optional f32) Estimated time in hours to complete the request
 - **`time_preference`**: (TimePreference enum) Preferred time of day (Morning, Afternoon, Evening, NoPreference, Other)
 - **`time_zone`**: (Optional String) Requester's time zone
-- **`exchange_preference`**: (ExchangePreference enum) How the requester prefers to reciprocate (Exchange, Arranged, PayItForward, Open)
 - **`interaction_type`**: (InteractionType enum) Whether virtual or in-person interaction
 - **`links`**: (Vec<String>) Generic links for extensibility and integration
+- **`status`**: (ListingStatus enum) Active, Archived, or Deleted (soft delete); defaults to Active
 
 **Service Types Integration:**
 Service types are linked to requests through separate linking mechanisms rather than direct embedding, enabling flexible categorization and tag-based discovery.
@@ -321,12 +322,12 @@ pub struct Offer {
   pub time_preference: TimePreference,
   /// The time zone for the offer
   pub time_zone: Option<TimeZone>,
-  /// The exchange preference for the offer
-  pub exchange_preference: ExchangePreference,
   /// The interaction type for the offer
   pub interaction_type: InteractionType,
   /// Generic links related to the offer
   pub links: Vec<String>,
+  /// The status of the offer (Active, Archived, Deleted)
+  pub status: ListingStatus,
 }
 ```
 
@@ -345,9 +346,9 @@ _Note: Service Types integration is handled through separate linking mechanisms 
 - **`description`**: (String, max 1000 chars) A detailed description of the offer (supports markdown) - required field
 - **`time_preference`**: (TimePreference enum) Preferred time of day (Morning, Afternoon, Evening, NoPreference, Other)
 - **`time_zone`**: (Optional String) Offerer's time zone
-- **`exchange_preference`**: (ExchangePreference enum) How the offerer prefers to reciprocate (Exchange, Arranged, PayItForward, Open)
 - **`interaction_type`**: (InteractionType enum) Whether virtual or in-person interaction
 - **`links`**: (Vec<String>) Generic links for extensibility and integration
+- **`status`**: (ListingStatus enum) Active, Archived, or Deleted (soft delete); defaults to Active
 
 **Service Types Integration:**
 Service types are linked to offers through separate linking mechanisms rather than direct embedding, enabling flexible categorization and tag-based discovery.
@@ -394,7 +395,7 @@ Service types are linked to offers through separate linking mechanisms rather th
 
 ### 3.5 Exchange Completion & Feedback-Driven Fulfillment
 
-**POST-MVP FEATURE**: The exchange completion and feedback system described below has been moved to post-MVP development. This functionality will be implemented after the simplified MVP has been validated with users.
+**PARTLY BUILT**: Completion and review ship in the interim exchange record (`complete_agreement` and `review_agreement` in the exchanges zome, see [Exchange Record](../architecture/EXCHANGE_RECORD.md)), and each completion's hREA event fulfills its side's Commitment. The full feedback-driven hREA flow described below is not built yet.
 
 Based on the hREA mapping and exchange process clarifications, the completion process implements a feedback-driven economic flow:
 
@@ -467,7 +468,7 @@ Service Types are implemented as Resource Specifications in hREA, providing a co
 pub struct ServiceType {
     pub name: String,        // E.g., "Web Development", "Graphic Design", "Childcare"
     pub description: String, // Detailed explanation of the service type (max 500 chars)
-    pub tags: Vec<String>,   // Keywords for searchability, e.g., ["svelte", "rust", "holochain"]
+    pub technical: bool,     // true for technical services, false for non-technical
 }
 ```
 
@@ -475,7 +476,7 @@ pub struct ServiceType {
 
 - **`name`**: Required, non-empty, maximum 100 characters
 - **`description`**: Required, non-empty, maximum 500 characters (supports markdown)
-- **`tags`**: Optional vector, individual tags normalized (lowercase, trimmed), no empty strings or duplicates
+- **`technical`**: Required boolean, technical or non-technical service
 
 #### Status Management Workflow
 

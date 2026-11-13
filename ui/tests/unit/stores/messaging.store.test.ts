@@ -56,12 +56,13 @@ vi.mock('$lib/services/zomes/messaging.service', async () => {
     // The real zome answers from what the caller holds. Most cases here need the
     // whole inbox each time, so by default the delta is everything `getInbox` gives,
     // all of it visible: the store then holds and shows exactly that.
-    getInboxDelta: (known: unknown[]) =>
+    getInboxDelta: (known: unknown[], skipped: unknown[]) =>
       getInboxDelta.getMockImplementation()
-        ? getInboxDelta(known)
+        ? getInboxDelta(known, skipped)
         : Effect.map(getInbox(), (entries: Array<{ hash: unknown }>) => ({
             visible: entries.map((e) => e.hash),
-            entries
+            entries,
+            skipped: []
           })),
     getSent: () => getSent(),
     sendReceipt: () => Effect.void
@@ -314,9 +315,11 @@ describe('a poll fetches only what is new', () => {
     const first = fromAnitaWithMark(T_SENT);
     userByAgent.mockReturnValue({ original_action_hash: ANITA });
     getInboxDelta
-      .mockImplementationOnce(() => E.succeed({ visible: [first.hash], entries: [first] }))
-      .mockImplementationOnce(() => E.succeed({ visible: [first.hash], entries: [] }))
-      .mockImplementationOnce(() => E.succeed({ visible: [], entries: [] }));
+      .mockImplementationOnce(() =>
+        E.succeed({ visible: [first.hash], entries: [first], skipped: [] })
+      )
+      .mockImplementationOnce(() => E.succeed({ visible: [first.hash], entries: [], skipped: [] }))
+      .mockImplementationOnce(() => E.succeed({ visible: [], entries: [], skipped: [] }));
     const store = await freshStore();
 
     await E.runPromise(store.loadConversations());
@@ -330,6 +333,33 @@ describe('a poll fetches only what is new', () => {
 
     await E.runPromise(store.loadConversations());
     expect(store.threads, 'dropped once the zome stops listing it').toHaveLength(0);
+  });
+
+  it('hands back the role messages the zome listed, and never shows one as chat', async () => {
+    // A role message is not personal chat. The zome opens it once to find that out and
+    // lists its hash in `skipped`; handed back, it is not fetched and decrypted again.
+    const roleMessage = hashes.LISTING;
+    getInboxDelta
+      .mockImplementationOnce(() => E.succeed({ visible: [], entries: [], skipped: [roleMessage] }))
+      .mockImplementationOnce(() => E.succeed({ visible: [], entries: [], skipped: [roleMessage] }))
+      .mockImplementationOnce(() => E.succeed({ visible: [], entries: [], skipped: [] }));
+    const store = await freshStore();
+
+    await E.runPromise(store.loadConversations());
+    expect(getInboxDelta.mock.calls[0][1], 'the first poll has nothing to hand back').toEqual([]);
+    expect(store.threads, 'a role message opens no personal thread').toHaveLength(0);
+
+    await E.runPromise(store.loadConversations());
+    expect(getInboxDelta.mock.calls[1][1], 'the second poll hands back what was listed').toEqual([
+      roleMessage
+    ]);
+    expect(getInboxDelta.mock.calls[1][0], 'and does not claim to hold it as chat').toEqual([]);
+
+    await E.runPromise(store.loadConversations());
+    expect(
+      getInboxDelta.mock.calls[2][1],
+      'the third still hands it back, having been told so again'
+    ).toEqual([roleMessage]);
   });
 });
 

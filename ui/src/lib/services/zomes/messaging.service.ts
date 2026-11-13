@@ -45,8 +45,15 @@ export interface MessagingService {
 
   /** Personal messages only. Every role message is kept out, for everyone. */
   readonly getInbox: () => E.Effect<InboxEntry[], MessagingError>;
-  /** `getInbox` for a caller that already holds `known`: only the rest is fetched. */
-  readonly getInboxDelta: (known: ActionHash[]) => E.Effect<InboxDelta, MessagingError>;
+  /**
+   * `getInbox` for a caller that already holds `known`: only the rest is fetched.
+   * `skipped` is what the last call returned as `skipped` (role messages), handed back
+   * so they are not fetched again.
+   */
+  readonly getInboxDelta: (
+    known: ActionHash[],
+    skipped: ActionHash[]
+  ) => E.Effect<InboxDelta, MessagingError>;
 
   /** The nudge path: a recipient is told a hash and fetches the message itself. */
   readonly getMessage: (hash: ActionHash) => E.Effect<MessageRead, MessagingError>;
@@ -111,8 +118,8 @@ export const MessagingServiceLive: Layer.Layer<
     const getInbox = () =>
       wrapZomeCall<InboxEntry[]>('get_inbox', null, MESSAGING_CONTEXTS.GET_INBOX);
 
-    const getInboxDelta = (known: ActionHash[]) =>
-      wrapZomeCall<InboxDelta>('get_inbox_delta', { known }, MESSAGING_CONTEXTS.GET_INBOX);
+    const getInboxDelta = (known: ActionHash[], skipped: ActionHash[]) =>
+      wrapZomeCall<InboxDelta>('get_inbox_delta', { known, skipped }, MESSAGING_CONTEXTS.GET_INBOX);
 
     const getMessage = (hash: ActionHash) =>
       wrapZomeCall<MessageRead>('get_message', hash, MESSAGING_CONTEXTS.GET_MESSAGE);

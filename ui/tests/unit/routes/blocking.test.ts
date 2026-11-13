@@ -30,7 +30,7 @@ vi.mock('$lib/services/zomes/messaging.service', async () => {
     sendMessage: () => Effect.succeed([]),
     findSent: () => Effect.succeed(null),
     getInbox: () => Effect.succeed([]),
-    getInboxDelta: () => Effect.succeed({ visible: [], entries: [] }),
+    getInboxDelta: () => Effect.succeed({ visible: [], entries: [], skipped: [] }),
     getSent: () => Effect.succeed([]),
     sendReceipt: () => Effect.void
   };

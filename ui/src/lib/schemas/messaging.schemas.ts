@@ -159,10 +159,15 @@ export type InboxEntry = Schema.Schema.Type<typeof InboxEntrySchema>;
 /**
  * What `get_inbox_delta` returns to a reader that keeps what it has read: every hash it
  * should show now, and entries only for the hashes it did not already hold.
+ *
+ * `skipped` is the role messages in this inbox. They are not personal chat and are never
+ * in `visible` or `entries`; the zome lists them so the caller can hand them back on the
+ * next call, and it does not fetch and decrypt them again to find out what they are.
  */
 export const InboxDeltaSchema = Schema.Struct({
   visible: Schema.Array(ActionHashSchema),
-  entries: Schema.Array(InboxEntrySchema)
+  entries: Schema.Array(InboxEntrySchema),
+  skipped: Schema.Array(ActionHashSchema)
 });
 export type InboxDelta = Schema.Schema.Type<typeof InboxDeltaSchema>;
 

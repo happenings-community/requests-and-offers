@@ -306,6 +306,12 @@ export function createMessagingStore(): MessagingStore {
    */
   let held = new Map<string, InboxEntry>();
   let heldFor: string | null = null;
+  /**
+   * The role messages in this inbox, as the last poll listed them. Not shown here (the
+   * role inbox reads them its own way); handed back so the zome does not fetch and
+   * decrypt each one again on every poll to find out it is not personal chat.
+   */
+  let skippedRoleMessages: string[] = [];
 
   const loadConversations = (): E.Effect<UIThread[], MessagingError> =>
     withServices((service) =>
@@ -326,11 +332,14 @@ export function createMessagingStore(): MessagingStore {
         const agentId = agentKey ? encodeHashToBase64(agentKey) : null;
         if (agentId !== heldFor) {
           held = new Map();
+          skippedRoleMessages = [];
           heldFor = agentId;
         }
         const delta = yield* service.getInboxDelta(
-          [...held.keys()].map((key) => decodeHashFromBase64(key))
+          [...held.keys()].map((key) => decodeHashFromBase64(key)),
+          skippedRoleMessages.map((key) => decodeHashFromBase64(key))
         );
+        skippedRoleMessages = delta.skipped.map((hash) => encodeHashToBase64(hash));
         const visible = new Set(delta.visible.map((hash) => encodeHashToBase64(hash)));
         for (const key of [...held.keys()]) if (!visible.has(key)) held.delete(key);
         for (const entry of delta.entries) held.set(encodeHashToBase64(entry.hash), entry);

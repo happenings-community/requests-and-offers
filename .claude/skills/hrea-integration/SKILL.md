@@ -26,10 +26,10 @@ Local Entities          hREA Store (mapping layer)        hREA DNA (GraphQL)
 ─────────────          ──────────────────────────        ──────────────────
 UIUser          →  createPersonFromUser()          →  Agent
 UIOrganization  →  createOrganizationFromOrg()     →  Agent
-UIServiceType   →  createResourceSpecFromST()      →  ResourceSpecification
-UIMediumOfExch  →  createResourceSpecFromMoE()     →  ResourceSpecification
-UIRequest       →  createProposalFromRequest()     →  Proposal + 2 Intents
-UIOffer         →  createProposalFromOffer()       →  Proposal + 2 Intents
+UIServiceType   →  createResourceSpecificationFromServiceType()       →  ResourceSpecification
+UIMediumOfExch  →  createResourceSpecificationFromMediumOfExchange()  →  ResourceSpecification
+UIRequest       →  createProposalFromRequest()     →  Proposal + Intents
+UIOffer         →  createProposalFromOffer()       →  Proposal + Intents
 ```
 
 The GraphQL layer uses `@valueflows/vf-graphql-holochain` + Apollo Client with `SchemaLink`.
@@ -56,25 +56,25 @@ If any prerequisite is missing, the request/offer is **queued** in `pendingReque
 // → all queued items are retried
 
 // Event flow:
-// user approved → createPerson() → retryPendingProposals()
-// service type approved → createResourceSpec() → retryPendingProposals()
-// MoE approved → createResourceSpec() → retryPendingProposals()
+// user accepted → createPersonFromUser() → retryPendingProposals()
+// service type approved → createResourceSpecificationFromServiceType() → retryPendingProposals()
+// MoE approved → createResourceSpecificationFromMediumOfExchange() → retryPendingProposals()
 ```
 
 ## Request→Proposal Mapping (Two-Intent Reciprocal Pattern)
 
-Each request/offer creates a Proposal with TWO intents:
+Each request/offer creates a Proposal with one service intent per service type plus one payment intent:
 
 ```
 Request "I need web development"
   → Proposal: name="Request: I need web development"
-  → Intent 1 (primary): action="transfer", provider=requester's agent
+  → Service intent (primary, one per service type): action="work", receiver=requester's agent
       resourceConformsTo = service type resource spec
-  → Intent 2 (reciprocal): action="transfer", receiver=requester's agent
+  → Payment intent (reciprocal): action="transfer", provider=requester's agent
       resourceConformsTo = medium of exchange resource spec
 ```
 
-The intent linking uses `proposeIntent` mutation with `reciprocal: false` for primary intent and `reciprocal: true` for payment intent.
+The intents are created first, then the proposal is created with `publishes` (primary intent IDs) and `reciprocal` (payment intent IDs); the adapter has no `proposeIntent` mutation.
 
 ## Action Hash Reference Format
 
@@ -91,8 +91,8 @@ Lookup: `extractActionHashFromNote(note, entityType)` extracts the hash.
 
 ## Error Handling
 
-- **Missing zome functions**: hREA DNA may not have `get_all_intents` / `get_all_proposals` — service uses `E.catchAll` to return empty arrays
-- **Prerequisite detection**: `createProposalFromRequest` / `createProposalFromOffer` use `E.catchAll` (not `E.tapError`) — queue on failure, return `null`
+- **List queries**: proposal and intent list queries are plain queries with no defensive `E.catchAll`; errors propagate as `HreaError`
+- **Prerequisite detection**: `createProposalFromRequest` / `createProposalFromOffer` use `E.catchAll` (not `E.tapError`): queue on a missing-prerequisite error, return `null`
 - **Initialization**: `createPerson()` calls `initialize()` internally — don't call separately
 - **GraphQL normalization**: Responses need `normalizeIntentResponse()` / `normalizeProposalResponse()` because GraphQL returns nested objects
 
@@ -124,10 +124,10 @@ The hREA store subscribes to `storeEventBus` events:
 
 | Event | Handler | hREA Action |
 |-------|---------|-------------|
-| `user:accepted` | `handleUserAccepted` | `createPerson()` → `retryPendingProposals()` |
-| `organization:accepted` | `handleOrganizationAccepted` | `createOrganization()` → `retryPendingProposals()` |
-| `serviceType:approved` | `handleServiceTypeApproved` | `createResourceSpec()` → `retryPendingProposals()` |
-| `mediumOfExchange:approved` | `handleMediumOfExchangeApproved` | `createResourceSpec()` → `retryPendingProposals()` |
+| `user:accepted` | `handleUserAccepted` | `createPersonFromUser()` → `retryPendingProposals()` |
+| `organization:accepted` | `handleOrganizationAccepted` | `createOrganizationFromOrg()` → `retryPendingProposals()` |
+| `serviceType:approved` | `handleServiceTypeApproved` | `createResourceSpecificationFromServiceType()` → `retryPendingProposals()` |
+| `mediumOfExchange:approved` | `handleMediumOfExchangeApproved` | `createResourceSpecificationFromMediumOfExchange()` → `retryPendingProposals()` |
 | `request:created` | `handleRequestCreated` | `createProposalFromRequest()` |
 | `offer:created` | `handleOfferCreated` | `createProposalFromOffer()` |
 

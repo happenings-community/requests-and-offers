@@ -63,12 +63,11 @@ pub fn create_user(input: User) -> ExternResult<Record> {
   let should_auto_register = if progenitor_configured {
     is_prog
   } else {
-    let no_admins_yet: Vec<Link> = external_local_call(
-      "get_all_administrators_links",
-      "administration",
-      "network".to_string(),
-    )?;
-    no_admins_yet.is_empty()
+    // Asked of the grants, as `add_administrator` asks: the roster is an index anyone can
+    // tombstone, and if the two disagreed this call would fail for every new user.
+    let an_administrator_exists: bool =
+      external_local_call("is_there_an_administrator", "administration", ())?;
+    !an_administrator_exists
   };
 
   if should_auto_register {

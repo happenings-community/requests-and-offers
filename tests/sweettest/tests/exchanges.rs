@@ -369,6 +369,50 @@ async fn agreement_cancelled_after_acceptance() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_withdrawn_proposal_cannot_be_answered() {
+    let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
+
+    let interest: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_interest", json!({ "listing": offer_hash, "listing_type": "Offer" }))
+        .await;
+    let interest_hash = interest.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Alice proposes, then withdraws before Bob has answered.
+    let agreement: Record = conductors[0]
+        .call(&alice.zome("exchanges"), "create_agreement", agreement_input(&offer_hash, &interest_hash))
+        .await;
+    let agreement_hash = agreement.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    let _: Record = conductors[0]
+        .call(
+            &alice.zome("exchanges"),
+            "cancel_agreement",
+            json!({ "agreement": agreement_hash, "note": "Withdrawn by the proposer" }),
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Bob's accept, and a decline too, must be refused rather than stored.
+    for accepted in [true, false] {
+        let response = conductors[1]
+            .call_fallible::<_, Record>(
+                &bob.zome("exchanges"),
+                "respond_to_agreement",
+                json!({ "agreement": agreement_hash, "accepted": accepted, "note": "" }),
+            )
+            .await;
+        assert!(response.is_err(), "a response to a withdrawn proposal must be refused (accepted: {accepted})");
+    }
+
+    let ex: Exchange = conductors[1]
+        .call(&bob.zome("exchanges"), "get_exchange", agreement_hash)
+        .await;
+    assert_eq!(status_of(&ex), "Cancelled");
+    assert!(ex.response.is_none(), "no response may be stored on a withdrawn proposal");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn exchange_refusals() {
     let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
 

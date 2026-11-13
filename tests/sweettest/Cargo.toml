@@ -93,6 +93,10 @@ name = "exchanges_attacks_review"
 path = "tests/exchanges_attacks_review.rs"
 
 [[test]]
+name = "users_link_attacks"
+path = "tests/users_link_attacks.rs"
+
+[[test]]
 name = "mediums_of_exchange"
 path = "tests/mediums_of_exchange.rs"
 

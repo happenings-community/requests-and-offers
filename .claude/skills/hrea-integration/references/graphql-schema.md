@@ -10,14 +10,17 @@ ui/src/lib/graphql/
 │   └── resourceSpecification.fragments.ts
 ├── queries/
 │   ├── agent.queries.ts
+│   ├── agreement.queries.ts
 │   ├── intent.queries.ts
 │   ├── proposal.queries.ts
 │   └── resourceSpecification.queries.ts
 └── mutations/
     ├── agent.mutations.ts
+    ├── agreement.mutations.ts
     ├── intent.mutations.ts
     ├── proposal.mutations.ts
-    └── resourceSpecification.mutations.ts
+    ├── resourceSpecification.mutations.ts
+    └── unit.mutations.ts
 ```
 
 ## Agent Operations
@@ -122,7 +125,8 @@ query GetResourceSpecificationsByClass($classifiedAs: [URI!]) {
 # CREATE_PROPOSAL_MUTATION
 mutation CreateProposal($proposal: ProposalCreateParams!) {
   createProposal(proposal: $proposal) {
-    proposal { id name note created revisionId hasBeginning hasEnd unitBased }
+    proposal { id name note created revisionId hasBeginning hasEnd unitBased
+      publishes { id } reciprocal { id } }
   }
 }
 
@@ -156,18 +160,6 @@ mutation CreateIntent($intent: IntentCreateParams!) {
       resourceQuantity { hasNumericalValue hasUnit { id label symbol } }
       revisionId
       note
-    }
-  }
-}
-
-# PROPOSE_INTENT_MUTATION (links intent to proposal)
-mutation ProposeIntent($publishedIn: ID!, $publishes: ID!, $reciprocal: Boolean) {
-  proposeIntent(publishedIn: $publishedIn, publishes: $publishes, reciprocal: $reciprocal) {
-    proposedIntent {
-      id
-      reciprocal
-      publishedIn { id name }
-      publishes { id action { id } }
     }
   }
 }
@@ -206,42 +198,35 @@ GraphQL returns nested objects that need flattening:
 Creating a proposal from a request/offer:
 
 ```typescript
-// 1. Create proposal
-const proposal = await apolloClient.mutate({
-  mutation: CREATE_PROPOSAL_MUTATION,
-  variables: { proposal: { name: `Request: ${request.title}`, note: request.description } }
-});
-
-// 2. Create primary intent (service)
+// 1. Create primary intents (service, one per service type)
 const primaryIntent = await apolloClient.mutate({
   mutation: CREATE_INTENT_MUTATION,
   variables: { intent: {
-    action: "transfer",
-    provider: agentId,
-    resourceConformsTo: serviceTypeResourceSpecId,
-    note: `Primary intent for request: ${request.title}`
+    action: "work",
+    receiver: agentId,
+    resourceConformsTo: serviceTypeResourceSpecId
   }}
 });
 
-// 3. Create reciprocal intent (payment)
+// 2. Create reciprocal intent (payment)
 const reciprocalIntent = await apolloClient.mutate({
   mutation: CREATE_INTENT_MUTATION,
   variables: { intent: {
     action: "transfer",
-    receiver: agentId,
-    resourceConformsTo: mediumOfExchangeResourceSpecId,
-    note: `Reciprocal intent for request: ${request.title}`
+    provider: agentId,
+    resourceConformsTo: mediumOfExchangeResourceSpecId
   }}
 });
 
-// 4. Link intents to proposal
-await apolloClient.mutate({
-  mutation: PROPOSE_INTENT_MUTATION,
-  variables: { publishedIn: proposalId, publishes: primaryIntentId, reciprocal: false }
-});
-await apolloClient.mutate({
-  mutation: PROPOSE_INTENT_MUTATION,
-  variables: { publishedIn: proposalId, publishes: reciprocalIntentId, reciprocal: true }
+// 3. Create the proposal that publishes them (the adapter has no proposeIntent mutation)
+const proposal = await apolloClient.mutate({
+  mutation: CREATE_PROPOSAL_MUTATION,
+  variables: { proposal: {
+    name: `Request: ${request.title}`,
+    note: proposalNote,
+    publishes: [primaryIntentId],
+    reciprocal: [reciprocalIntentId]
+  }}
 });
 ```
 
@@ -250,4 +235,4 @@ await apolloClient.mutate({
 - All queries use Apollo Client with `SchemaLink` (in-process GraphQL, no HTTP)
 - Schema comes from `@valueflows/vf-graphql-holochain`'s `createHolochainSchema()`
 - Response types need normalization (nested objects → flat IDs)
-- hREA DNA may lack `get_all_intents`/`get_all_proposals` — handle with `E.catchAll`
+- List queries are plain queries with no defensive `E.catchAll`; errors propagate as `HreaError`

@@ -318,9 +318,9 @@ pub struct UpdateEntityActionHash {
 /// `Err(AdministrationError::Unauthorized)` otherwise.
 ///
 /// What a change issues: accepting a member writes a member grant for
-/// each of their agents, and any other status revokes it; accepting an organisation
-/// writes its creator's coordinator grant and the coordinator link, which is what makes
-/// them coordinator.
+/// each of their agents, and any other status revokes it. (An organisation's approval
+/// writing its creator's coordinator grant arrives with the next PR in the stack; here
+/// a status change on anything but a user issues nothing.)
 ///
 /// Two branches:
 /// - **No existing status link** — creates a new `Status` entry plus `AllStatuses` and

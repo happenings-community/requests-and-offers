@@ -1,5 +1,7 @@
 # Service Types Zome (`service_types_integrity`, `service_types_coordinator`)
 
+> **Out of date:** The admin and classification functions below do not exist, and several real externs are missing. Tracked in [#478](https://github.com/happenings-community/requests-and-offers/issues/478).
+
 ## 1. Overview
 
 - **Purpose**: Manages the lifecycle of `ServiceType` entries. These entries define the categories or types of services, skills, or resources that can be requested or offered within the application. This zome is crucial for classifying and discovering requests and offers.

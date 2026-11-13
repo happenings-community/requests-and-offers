@@ -106,7 +106,7 @@ A cancellation written before any response reads as *withdrawn* rather than *can
 | `get_interests_for_listing` | `ActionHash` | `Vec<Record>` | |
 | `get_my_interests` | `()` | `Vec<Record>` | |
 | `create_agreement` | `CreateAgreementInput` | `Record` | parties derived here and re-derived in validation |
-| `respond_to_agreement` | `RespondInput` | `Record` | the counterparty accepts or declines |
+| `respond_to_agreement` | `RespondInput` | `Record` | the counterparty accepts or declines; once, and never after a cancellation, so a withdrawn proposal cannot be accepted |
 | `counter_agreement` | `CounterAgreementInput` | `Record` | declines the proposal and writes the counter in one call; counterparty only, while unanswered and not cancelled |
 | `complete_agreement` | `ActionHash` | `Record` | one completion per party |
 | `review_agreement` | `ReviewInput` | `Record` | |

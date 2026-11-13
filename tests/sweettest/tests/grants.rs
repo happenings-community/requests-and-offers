@@ -674,6 +674,25 @@ async fn approval_makes_the_creator_coordinator_and_only_of_that_organisation() 
     );
     refused(&forged_link, "changing an organisation's coordinators is a role act", "a coordinator link with another organisation's grant");
 
+    // Her grant is good for her own organisation, and a coordinator link there
+    // still has to point at a user.
+    let not_a_user = reason(
+        conductors[2]
+            .call_fallible::<_, ActionHash>(
+                &mallory.zome("forge"),
+                "forge_link",
+                serde_json::json!({
+                    "base": hers,
+                    "target": org,
+                    "zome_index": users_organizations,
+                    "link_type": ORGANIZATION_COORDINATORS_LINK,
+                    "tag": her_grant.get_raw_39(),
+                }),
+            )
+            .await,
+    );
+    refused(&not_a_user, "a link to an organisation's coordinators points at a user", "a coordinator link that points at an organisation");
+
     // Bob's own edit, and Alice's as administrator, go through the coordinator.
     let latest: Option<Record> = conductors[1]
         .call(&bob.zome("users_organizations"), "get_latest_organization_record", org.clone())

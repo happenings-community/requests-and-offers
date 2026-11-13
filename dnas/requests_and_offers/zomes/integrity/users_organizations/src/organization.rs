@@ -55,22 +55,41 @@ pub fn validate_organization_write(
   }
 }
 
-/// A membership link (`OrganizationMembers`, `OrganizationCoordinators`) carries, in its
-/// tag, the grant it rests on: a coordinator grant for this organisation or an admin
-/// grant, or, for the approval that makes a creator coordinator, the approver's admin or
-/// steward grant. The base is the organisation.
+/// A membership link (`OrganizationMembers`, `OrganizationCoordinators`) runs from an
+/// organisation to a user and carries, in its tag, the grant it rests on, held by the
+/// link's author: a coordinator grant for this organisation, or a network grant that may
+/// change a status (an administrator's, or a steward's where the stewarding module is on).
+///
+/// The second is there for approval, which is when an approver writes the creator's
+/// first two links. The rule cannot tell an approval from any other moment, so what it
+/// enforces is wider than that: an administrator or a steward may write a membership
+/// link for any organisation at any time. The coordinator zome only does so on approval.
+/// Who is a coordinator for permission is the grant, not this link.
 pub fn validate_create_link_organization_membership(
   link_author: &AgentPubKey,
   base_address: &AnyLinkableHash,
+  target_address: &AnyLinkableHash,
   tag: &LinkTag,
   what: &str,
 ) -> ExternResult<ValidateCallbackResult> {
   let Some(organization) = base_address.clone().into_action_hash() else {
     return Ok(ValidateCallbackResult::Invalid(format!(
-      "an {} link starts at the organisation",
+      "a link to an organisation's {} starts at the organisation",
       what
     )));
   };
+  if !matches!(crate::entry_at(base_address)?, Some((_, crate::EntryTypes::Organization(_)))) {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "a link to an organisation's {} starts at the organisation",
+      what
+    )));
+  }
+  if !matches!(crate::entry_at(target_address)?, Some((_, crate::EntryTypes::User(_)))) {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "a link to an organisation's {} points at a user",
+      what
+    )));
+  }
   let grant = grant_from_tag(tag).ok();
   let as_coordinator = check_act(&grant, link_author, &Ability::Coordinate, &Some(organization))?;
   if as_coordinator.is_ok() {

@@ -173,6 +173,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         return validate_create_link_organization_membership(
           action.author(),
           &action.base_address,
+          &action.target_address,
           &action.tag,
           "members",
         );
@@ -181,6 +182,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         return validate_create_link_organization_membership(
           action.author(),
           &action.base_address,
+          &action.target_address,
           &action.tag,
           "coordinators",
         );

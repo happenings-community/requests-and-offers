@@ -174,20 +174,14 @@ pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
   // something somebody wrote. Allowing both would quietly reintroduce the context that
   // alpha 2 removed from messages.
   if input.listing.is_some() && !input.content.is_empty() {
-    return Err(wasm_error!(WasmErrorInner::Guest(
-      "A message carries either text or a listing, never both. Send the listing as its \
-       own card."
-        .to_string()
-    )));
+    return Err(MessagingError::TextAndListing.into());
   }
 
   // **And it carries one of them.** Nothing a member can do produces a message with no
   // text and no card, so one arriving here is a client defect, and it is refused rather
   // than written to two chains as a blank bubble nobody meant to send.
   if input.listing.is_none() && input.content.trim().is_empty() {
-    return Err(wasm_error!(WasmErrorInner::Guest(
-      "A message carries text or a listing. This one has neither.".to_string()
-    )));
+    return Err(MessagingError::EmptyMessage.into());
   }
 
   let me = agent_info()?.agent_initial_pubkey;
@@ -294,22 +288,29 @@ pub fn send_role_message(input: SendRoleMessageInput) -> ExternResult<Vec<SentMe
   deliver(&me, &body, &recipients)
 }
 
+/// Refuse an oversized send id before anything is encrypted.
+///
+/// Only the bound is checked. An empty send id is accepted: the interface always sets
+/// one, and a caller that leaves it out simply has no retry protection, since
+/// `find_sent` never matches an empty id.
+fn require_send_id_within_bound(send_id: &str) -> ExternResult<()> {
+  if send_id.len() > MAX_SEND_ID_BYTES {
+    return Err(
+      MessagingError::SendIdTooLong {
+        bytes: send_id.len(),
+        limit: MAX_SEND_ID_BYTES,
+      }
+      .into(),
+    );
+  }
+  Ok(())
+}
+
 /// Refuse an oversized message before anything is encrypted.
 ///
 /// Checked here, before encrypting, so the caller sees a reason rather than a write
 /// failure from validation. The integrity zome bounds the ciphertext as well, because
 /// validation cannot trust that this check ran.
-/// Refuse an oversized send id before anything is encrypted.
-fn require_send_id_within_bound(send_id: &str) -> ExternResult<()> {
-  if send_id.len() > MAX_SEND_ID_BYTES {
-    return Err(wasm_error!(WasmErrorInner::Guest(format!(
-      "Send ID is {} bytes, over the {MAX_SEND_ID_BYTES} byte limit",
-      send_id.len()
-    ))));
-  }
-  Ok(())
-}
-
 fn require_content_within_bound(content: &str) -> ExternResult<()> {
   if content.len() > MAX_CONTENT_BYTES {
     return Err(

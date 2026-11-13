@@ -174,6 +174,17 @@ pub enum MessagingError {
   #[error("Your membership has no member grant yet, so you cannot send messages")]
   NoMemberGrantYet,
 
+  #[error(
+    "A message carries either text or a listing, never both. Send the listing as its own card."
+  )]
+  TextAndListing,
+
+  #[error("A message carries text or a listing. This one has neither.")]
+  EmptyMessage,
+
+  #[error("Send ID is {bytes} bytes, over the {limit} byte limit")]
+  SendIdTooLong { bytes: usize, limit: usize },
+
   /// Carries `messaging::message::DEVICES_NOT_FOUND`, which the coordinator keeps beside
   /// the reasoning for its wording.
   #[error("{0}")]

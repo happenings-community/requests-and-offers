@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use hdk::prelude::*;
 use messaging_integrity::{EntryTypes, LinkTypes};
 use utils::errors::CommonError;
@@ -107,7 +109,7 @@ pub fn get_inbox(_: ()) -> ExternResult<Vec<InboxEntry>> {
   let me = agent_info()?.agent_initial_pubkey;
 
   Ok(
-    read_inbox(&me, &[])?
+    read_inbox(&me, &HashSet::new())?
       .entries
       .into_iter()
       .filter(|entry| !matches!(entry, InboxEntry::Read(m) if m.role.is_some()))
@@ -121,6 +123,10 @@ pub struct GetInboxDeltaInput {
   /// Action hashes of personal messages the caller has already read through this
   /// zome, readable or not. A hash this agent's inbox does not link is ignored.
   pub known: Vec<ActionHash>,
+  /// Action hashes an earlier call returned in `InboxDelta::skipped`: role messages,
+  /// which are not personal chat. Passed back so they are not fetched again.
+  #[serde(default)]
+  pub skipped: Vec<ActionHash>,
 }
 
 /// The inbox as a change against what the caller holds.
@@ -133,6 +139,13 @@ pub struct InboxDelta {
   pub visible: Vec<ActionHash>,
   /// Only the messages not in `known`, read and decrypted as `get_inbox` would.
   pub entries: Vec<InboxEntry>,
+  /// Role messages in this inbox that still pass the reading filters: never shown here,
+  /// and listed so the caller can pass them back in `GetInboxDeltaInput::skipped`.
+  /// Whether a message is a role message is inside the encryption, so the first read
+  /// has to fetch and decrypt it; without this list every later poll would too (Sacha's
+  /// review of #364).
+  #[serde(default)]
+  pub skipped: Vec<ActionHash>,
 }
 
 /// `get_inbox` for a caller that keeps what it has read.
@@ -146,23 +159,49 @@ pub struct InboxDelta {
 /// administrator, while this agent is not accepted) run on the link alone. Only an
 /// unknown hash is fetched and decrypted.
 ///
-/// Role messages are not personal chat and are left out of both lists, as `get_inbox`
-/// leaves them out. A known hash is taken to be a personal message, because this is the
-/// only call that returned it.
+/// Role messages are not personal chat and are left out of `visible` and `entries`, as
+/// `get_inbox` leaves them out; their hashes come back in `skipped`. A hash in `known`
+/// is taken to be a personal message and one in `skipped` a role message, because this
+/// is the only call that returned either.
 #[hdk_extern]
 pub fn get_inbox_delta(input: GetInboxDeltaInput) -> ExternResult<InboxDelta> {
   let me = agent_info()?.agent_initial_pubkey;
-  let read = read_inbox(&me, &input.known)?;
-  let mut visible = read.visible;
-  let entries: Vec<InboxEntry> = read
-    .entries
-    .into_iter()
-    .filter(|entry| !matches!(entry, InboxEntry::Read(m) if m.role.is_some()))
-    .collect();
-  // A new role message was fetched and filtered out: it is not visible either.
-  let kept: Vec<ActionHash> = entries.iter().map(hash_of).collect();
-  visible.retain(|hash| input.known.contains(hash) || kept.contains(hash));
-  Ok(InboxDelta { visible, entries })
+  let known: HashSet<ActionHash> = input.known.into_iter().collect();
+  let already_skipped: HashSet<ActionHash> = input.skipped.into_iter().collect();
+  let held: HashSet<ActionHash> = known.union(&already_skipped).cloned().collect();
+
+  let read = read_inbox(&me, &held)?;
+
+  let mut entries = Vec::new();
+  let mut new_role_messages = HashSet::new();
+  for entry in read.entries {
+    match &entry {
+      InboxEntry::Read(message) if message.role.is_some() => {
+        new_role_messages.insert(message.hash.clone());
+      }
+      _ => entries.push(entry),
+    }
+  }
+
+  // `read.visible` is every linked hash that passes the filters on its link alone,
+  // personal or not. Split it by what each hash is known to be. A hash that is none of
+  // these was fetched and withheld (a role claim that does not stand), and is in
+  // neither list.
+  let returned: HashSet<ActionHash> = entries.iter().map(hash_of).collect();
+  let mut visible = Vec::new();
+  let mut skipped = Vec::new();
+  for hash in read.visible {
+    if already_skipped.contains(&hash) || new_role_messages.contains(&hash) {
+      skipped.push(hash);
+    } else if known.contains(&hash) || returned.contains(&hash) {
+      visible.push(hash);
+    }
+  }
+  Ok(InboxDelta {
+    visible,
+    entries,
+    skipped,
+  })
 }
 
 fn hash_of(entry: &InboxEntry) -> ActionHash {
@@ -314,7 +353,7 @@ fn is_administrator(
 /// two keep only role messages. What is filtered here is the author's role *claim*, so
 /// that no caller can forget to.
 pub(crate) fn read_inbox_entries(me: &AgentPubKey) -> ExternResult<Vec<InboxEntry>> {
-  Ok(read_inbox(me, &[])?.entries)
+  Ok(read_inbox(me, &HashSet::new())?.entries)
 }
 
 /// What `read_inbox` found: the hashes that pass the link-level filters, and the
@@ -329,7 +368,10 @@ pub(crate) struct ReadInbox {
 /// Known hashes are checked on the link alone (author accepted; author an
 /// administrator, while this agent is not accepted) and listed in `visible` without a
 /// fetch. The rest are fetched, filtered and decrypted as before.
-pub(crate) fn read_inbox(me: &AgentPubKey, known: &[ActionHash]) -> ExternResult<ReadInbox> {
+pub(crate) fn read_inbox(
+  me: &AgentPubKey,
+  known: &HashSet<ActionHash>,
+) -> ExternResult<ReadInbox> {
   let me = me.clone();
 
   let link_type_filter = LinkTypes::Inbox
@@ -378,6 +420,8 @@ pub(crate) fn read_inbox(me: &AgentPubKey, known: &[ActionHash]) -> ExternResult
     }
 
     visible.push(hash.clone());
+    // A set, built once by the caller: this loop runs over every inbox link on every
+    // poll, and a scan of a list here made the poll quadratic in the inbox.
     if known.contains(&hash) {
       continue;
     }

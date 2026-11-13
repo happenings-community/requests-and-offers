@@ -9,7 +9,7 @@ The Administration Zome manages system-wide administrative functions, including 
 
 ## Progenitor Pattern
 
-The first agent to call `create_user` after installing the DNA is the **network progenitor**. Their public key is embedded in the DNA properties at install time via `progenitor_pubkey`. When the progenitor creates their user profile, they are automatically registered as the first network administrator — no explicit administrator registration call is required.
+The **network progenitor** is the agent whose public key is embedded in the DNA properties at install time via `progenitor_pubkey`. When the progenitor creates their user profile, they are automatically registered as the first network administrator — no explicit administrator registration call is required.
 
 Key properties:
 - The progenitor pubkey is fixed at DNA install time (in `workdir/happ.yaml` and at test setup via `rolesSettings`).
@@ -136,7 +136,7 @@ pub fn get_all_administrators_links(entity: String) -> ExternResult<Vec<Link>>
 pub fn check_if_entity_is_administrator(input: EntityActionHash) -> ExternResult<bool>
 ```
 
-- Verifies if entity is administrator
+- Reports whether the entity is on the administrator roster, which is a listing: it stays true after `revoke_role`. Whether an agent administers is `check_if_agent_is_administrator`
 - Checks administrator links
 - Returns boolean status
 
@@ -331,13 +331,13 @@ Grants and revocations are records: never updated, never deleted. The only way t
 
 ### Reading authority
 
-`can(agent, ability, scope)` returns the agent's live grant that covers the ability, or none: it reads the holder's `AgentGrants` index, keeps the grants that stand (below), and checks `grant_covers`. Coordinators call `require` before a write and put the grant on the record; integrity checks the record with `check_act`, which reloads the grant and confirms its holder is the author and its role covers the ability.
+`can(agent, ability, scope)` returns the agent's live grant that covers the ability, or none: it reads the holder's `AgentGrants` index, leaves out any grant that has been revoked, and checks `grant_covers`. Coordinators call `require` before a write and put the grant on the record; integrity checks the record with `check_act`, which reloads the grant and confirms its holder is the author and its role covers the ability.
 
 **Revocation is checked on the read side only, and it is a record, not a wall.** Validation can prove a grant exists; it cannot prove that no revocation names it. So a record written while a grant was live stays valid after the grant is revoked, and a holder whose grant has been revoked can still, with a modified client, write records that pass validation. `can` leaves out a grant that has itself been revoked, which is what an honest client asks before every gated write. It does not ask whether the grant *beneath* a grant was revoked: what a holder gave while they held a role stands when they lose it (removing a role never undoes past acts), and by the same reading a grant they write afterwards with a modified client, resting on their revoked one, is valid and is returned once they index it. A revocation records who was removed, by whom and when, for every honest reader and for the people who run the network; it does not stop a modified client. The case `a_removed_administrator_with_a_modified_client` shows the limit, so it is seen and not discovered.
 
 The remedy for a removed holder who goes on acting is with people, not with this zome: the graduated response of the stewarding module, where removal needs a second signature, and the founder's key as the last resort (alpha 3).
 
-A record `can` needs and cannot fetch is an error, not a refusal: the caller hears that the question could not be answered.
+A record `can` needs and cannot fetch is an error, not a refusal: the caller hears that the question could not be answered. The same holds for `is_there_an_administrator`, and so for `create_user` on a network with no key: a newcomer whose node can see an admin grant's index link and not yet the grant itself is told to try again, where the roster count it replaces fetched nothing.
 
 **Not closed here, and open for alpha 3** (they matter on a network with a progenitor key; without one a modified client can write itself a root and needs none of them):
 

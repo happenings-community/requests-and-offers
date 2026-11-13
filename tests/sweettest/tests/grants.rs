@@ -930,10 +930,10 @@ async fn a_grant_index_link_is_the_granters_record_of_a_real_grant() {
 /// 12 November). Both doors are tried: `remove_administrator`, and
 /// `revoke_role` on the last live admin grant.
 ///
-/// **To make this go red:** drop the guard from `revoke_role`: the last grant
-/// is then revoked, and the removal succeeds too, because it revokes through
-/// the same call. The guard at the top of `remove_administrator` refuses
-/// earlier, before anything is written, and no case here tells the two apart.
+/// **To make this go red:** drop the guard from `revoke_role`: the second
+/// door opens and the last grant is revoked. The removal assertion needs both
+/// guards gone, because `remove_administrator` asks the same rule first,
+/// before anything is written, and then revokes through `revoke_role`.
 #[tokio::test(flavor = "multi_thread")]
 async fn the_last_administrator_is_counted_from_the_grants() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
@@ -1054,7 +1054,9 @@ async fn made_administrator(
 /// progenitor's signature. Then the honest question: she administers nothing.
 ///
 /// **To make it go red:** in `administration_integrity/src/grants.rs`, remove
-/// the check a row names: that row's grant is written.
+/// the check a row names: that row is no longer refused for the reason it
+/// names (the first two grants are then written; the last two meet the next
+/// check and are refused with a different message).
 #[tokio::test(flavor = "multi_thread")]
 async fn a_grant_is_refused_when_its_author_has_no_authority_for_it() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
@@ -1348,4 +1350,82 @@ async fn an_administrator_who_removes_their_appointer_still_stands() {
             "Alice no longer does, asked on {where_asked} conductor"
         );
     }
+}
+
+/// An administrator removes several keys in one call, their own among them.
+///
+/// Alice appoints Bob and Mallory, then removes herself and Mallory together,
+/// her own key listed first. Each revocation rests on the caller's own grant,
+/// so her own key has to go last or she could not revoke the other. Bob is
+/// left administering. An empty list of keys is refused first: it would pass
+/// the last-administrator rule and tidy a roster link while removing nobody.
+///
+/// **To make it go red:** have `remove_administrator` revoke the keys in the
+/// order given: revoking Mallory then fails as `Unauthorized`.
+#[tokio::test(flavor = "multi_thread")]
+async fn several_keys_are_removed_in_one_call_the_callers_own_last() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let users = everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let me = alice.agent_pubkey().clone();
+    for (user, cell) in [(&users[1], bob), (&users[2], &mallory)] {
+        let added: bool = conductors[0]
+            .call(
+                &alice.zome("administration"),
+                "add_administrator",
+                serde_json::json!({
+                    "entity": "network",
+                    "entity_original_action_hash": user,
+                    "agent_pubkeys": [cell.agent_pubkey()],
+                }),
+            )
+            .await;
+        assert!(added, "Alice appoints a second and a third administrator");
+    }
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    let nobody = reason(
+        conductors[0]
+            .call_fallible::<_, bool>(
+                &alice.zome("administration"),
+                "remove_administrator",
+                serde_json::json!({
+                    "entity": "network",
+                    "entity_original_action_hash": users[0],
+                    "agent_pubkeys": [],
+                }),
+            )
+            .await,
+    );
+    match &nobody {
+        Ok(_) => panic!("a removal that names no key should be refused"),
+        Err(text) => assert!(
+            text.contains("an administrator needs an agent key"),
+            "a removal that names no key should say so; got {text}"
+        ),
+    }
+
+    let removed: bool = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "remove_administrator",
+            serde_json::json!({
+                "entity": "network",
+                "entity_original_action_hash": users[0],
+                "agent_pubkeys": [me, mallory.agent_pubkey()],
+            }),
+        )
+        .await;
+    assert!(removed, "Alice removes herself and Mallory in one call");
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    assert_eq!(admin_grant_of(&conductors[1], bob, &me).await, None);
+    assert_eq!(
+        admin_grant_of(&conductors[1], bob, mallory.agent_pubkey()).await,
+        None
+    );
+    assert!(
+        admin_grant_of(&conductors[1], bob, bob.agent_pubkey()).await.is_some(),
+        "Bob is left administering the network"
+    );
 }

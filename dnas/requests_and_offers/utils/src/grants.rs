@@ -201,6 +201,10 @@ pub enum Ability {
   Participate,
   /// Edit an organisation and its membership. The scope names it.
   Coordinate,
+  /// Delete an organisation. The scope names it. A coordinator of that
+  /// organisation only: a network role does not cover it, so nobody outside
+  /// an organisation removes it on their own word.
+  Dissolve,
   /// Give someone this role.
   Grant(Role),
 }
@@ -213,6 +217,7 @@ pub fn roles_for(ability: &Ability) -> Vec<Role> {
     Ability::ChangeStatus => vec![Role::Admin, Role::Steward],
     Ability::Participate => vec![Role::Member],
     Ability::Coordinate => vec![Role::OrgCoordinator, Role::Admin],
+    Ability::Dissolve => vec![Role::OrgCoordinator],
     Ability::Grant(_) => vec![Role::Admin, Role::Steward, Role::OrgCoordinator],
   }
 }
@@ -503,6 +508,16 @@ mod tests {
     ));
     assert!(!may_grant(Role::OrgCoordinator, &org(), Role::Member, &None));
     assert!(!may_grant(Role::Member, &None, Role::Member, &None));
+  }
+
+  #[test]
+  fn only_a_coordinator_of_the_organisation_may_dissolve_it() {
+    let other = Some(ActionHash::from_raw_36(vec![2; 36]));
+    assert!(grant_covers(Role::OrgCoordinator, &org(), &Ability::Dissolve, &org()));
+    assert!(!grant_covers(Role::OrgCoordinator, &other, &Ability::Dissolve, &org()));
+    for role in [Role::Admin, Role::Steward, Role::Member] {
+      assert!(!grant_covers(role, &None, &Ability::Dissolve, &org()));
+    }
   }
 
   #[test]

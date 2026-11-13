@@ -31,6 +31,10 @@ pub fn create_organization(organization: Organization) -> ExternResult<Record> {
     return Err(UsersError::UserProfileRequired.into());
   }
 
+  // A new organisation rests on no grant, whatever the client sent.
+  let mut organization = organization;
+  organization.grant = None;
+
   let organization_hash = create_entry(&EntryTypes::Organization(organization.clone()))?;
   let record = get(organization_hash.clone(), GetOptions::default())?
     .ok_or(CommonError::EntryNotFound("organization".to_string()))?;
@@ -70,14 +74,13 @@ pub fn create_organization(organization: Organization) -> ExternResult<Record> {
 pub struct ApprovedCoordinatorInput {
   pub organization_original_action_hash: ActionHash,
   pub user_original_action_hash: ActionHash,
-  /// The approver's grant; the coordinator grant itself was written by the approver in
-  /// the administration zome before this call.
-  pub grant: ActionHash,
 }
 
 /// The links an approval writes: the creator becomes a member and a coordinator of the
-/// organisation. Called by `update_entity_status` in the approver's cell, so the links
-/// carry the approver's admin or steward grant, which their validator accepts.
+/// organisation. Called by `update_entity_status` in the approver's cell, after it has
+/// written the creator's coordinator grant. Each link carries the approver's own grant
+/// in its tag, an admin grant or a steward's, which is what their validator accepts;
+/// a caller with neither is refused.
 #[hdk_extern]
 pub fn register_approved_coordinator(input: ApprovedCoordinatorInput) -> ExternResult<bool> {
   let grant = match can_i(Ability::Coordinate, Some(input.organization_original_action_hash.clone()))? {
@@ -735,16 +738,20 @@ pub fn update_organization(input: UpdateOrganizationInput) -> ExternResult<Recor
   // both need the Create, and a write must not proceed on a guess.
   let original = find_original_action_hash(input.original_action_hash.0.clone())?;
 
-  // The creator edits their own organisation, pending or approved, with no grant;
-  // anyone else carries a coordinator grant for it or an admin grant. The grant field
-  // is set here, never taken from the client.
+  // Its creator edits a proposal with no grant, while it has no coordinator: approval
+  // gives it its first and the last cannot be removed, so that is until it is first
+  // approved. From then on every edit, the creator's included, carries a coordinator
+  // grant for it or an admin grant, so a creator who has stood down or been removed
+  // no longer edits it. The grant field is set here, never taken from the client.
   let creator = get(original.0.clone(), GetOptions::default())?
     .ok_or(CommonError::EntryNotFound("organization".to_string()))?
     .action()
     .author()
     .clone();
   let mut updated_organization = input.updated_organization;
-  updated_organization.grant = if creator == agent_info()?.agent_initial_pubkey {
+  updated_organization.grant = if creator == agent_info()?.agent_initial_pubkey
+    && get_organization_coordinators_links(original.0.clone())?.is_empty()
+  {
     None
   } else {
     Some(require_coordinate(&original.0)?)
@@ -768,13 +775,38 @@ pub fn update_organization(input: UpdateOrganizationInput) -> ExternResult<Recor
   Ok(record)
 }
 
+/// Who may delete an organisation, and nobody else:
+///
+/// - a coordinator of it, on their own grant. One is enough: an organisation may
+///   run with a single coordinator, and the last one cannot leave, so this is their
+///   way out;
+/// - its creator, while it has no coordinator. Approval is what gives it its first,
+///   and the last cannot be removed, so that means a proposal never approved:
+///   withdrawing it is its author's act and needs no grant.
+///
+/// A network role does not cover it (`Ability::Dissolve`).
+fn require_dissolve(organization: &ActionHash) -> ExternResult<()> {
+  if can_i(Ability::Dissolve, Some(organization.clone()))?.is_some() {
+    return Ok(());
+  }
+  let creator = get(organization.clone(), GetOptions::default())?
+    .ok_or(CommonError::EntryNotFound("organization".to_string()))?
+    .action()
+    .author()
+    .clone();
+  if creator == agent_info()?.agent_initial_pubkey
+    && get_organization_coordinators_links(organization.clone())?.is_empty()
+  {
+    return Ok(());
+  }
+  Err(OrganizationsError::NotCoordinator.into())
+}
+
 #[hdk_extern]
 pub fn delete_organization(
   organization_original_action_hash: ActionHash,
 ) -> ExternResult<ActionHash> {
-  if !check_if_agent_is_organization_coordinator(organization_original_action_hash.clone())? {
-    return Err(OrganizationsError::NotCoordinator.into());
-  }
+  require_dissolve(&organization_original_action_hash)?;
 
   // Delete member links first
   let members_links = get_organization_members_links(organization_original_action_hash.clone())?;
@@ -800,11 +832,40 @@ pub fn delete_organization(
     delete_link(link.create_link_hash, GetOptions::default())?;
   }
 
-  // Delete coordinator links
+  // The creator's own pointer to the organisation, written when they proposed
+  // it and not a membership: a proposal withdrawn before approval has no other.
+  if let Some(my_user) = get_agent_user(agent_info()?.agent_initial_pubkey)?
+    .first()
+    .and_then(|link| link.target.clone().into_action_hash())
+  {
+    for link in get_user_organizations_links(my_user)? {
+      if link.target.clone().into_action_hash() == Some(organization_original_action_hash.clone()) {
+        delete_link(link.create_link_hash, GetOptions::default())?;
+      }
+    }
+  }
+
+  // Delete coordinator links, and withdraw each coordinator's grant for this
+  // organisation with them. The caller's own agents go last: each revocation
+  // rests on the caller's grant, which must still be live when it is written.
   let coordinator_links =
     get_organization_coordinators_links(organization_original_action_hash.clone())?;
+  let me = agent_info()?.agent_initial_pubkey;
+  let mut holders = Vec::new();
   for link in coordinator_links {
+    if let Some(user) = link.target.clone().into_action_hash() {
+      holders.extend(get_user_agents(user)?);
+    }
     delete_link(link.create_link_hash, GetOptions::default())?;
+  }
+  holders.sort_by_key(|agent| *agent == me);
+  for holder in holders {
+    revoke_roles_of(RevokeRolesOfInput {
+      holder,
+      role: Role::OrgCoordinator,
+      scope: Some(organization_original_action_hash.clone()),
+      reason: "organisation deleted".to_string(),
+    })?;
   }
 
   // Delete contact links

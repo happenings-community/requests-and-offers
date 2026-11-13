@@ -95,6 +95,7 @@ jobs:
           - misc
           - link_canonicalisation
           - users
+          - users_link_attacks
           - organizations
           - service_types
           - service_types_status
@@ -113,6 +114,7 @@ jobs:
           - messaging
           - messaging_inbox
           - messaging_roles
+          - grants
     steps:
       - uses: actions/checkout@v5
         with:

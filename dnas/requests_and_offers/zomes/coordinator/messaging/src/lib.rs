@@ -21,9 +21,10 @@ pub struct SendNudgeInput {
 
 /// What one agent sends another directly, outside the DHT.
 ///
-/// **Tagged, because there are now two kinds.** A remote signal leaves no record
-/// anywhere: `send_remote_signal` does not ask for `write_workspace`, commits nothing
-/// and produces no op. That is exactly why a read receipt is one rather than an entry —
+/// **Tagged, because there are now two kinds.** A remote signal leaves nothing on any
+/// chain or DHT: `send_remote_signal` does not ask for `write_workspace`, commits nothing
+/// and produces no op. (The transport and any relay still see that two agents exchanged
+/// something at that moment.) That is exactly why a read receipt is one rather than an entry —
 /// an entry would publish its action, and the action's timestamp and type would say who
 /// read whose message and when, to anyone watching.
 ///

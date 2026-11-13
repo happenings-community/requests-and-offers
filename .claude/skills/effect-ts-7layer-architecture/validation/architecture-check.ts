@@ -2,8 +2,8 @@
 
 /**
  * Validates Effect-TS 7-Layer Architecture implementation for a domain.
- * Usage: npx tsx architecture-check.ts <DomainName>
- * Example: npx tsx architecture-check.ts ServiceType
+ * Usage: bunx tsx architecture-check.ts <DomainName>
+ * Example: bunx tsx architecture-check.ts ServiceType
  */
 
 import { readFileSync, existsSync } from 'fs';
@@ -195,7 +195,7 @@ class ArchitectureValidator {
 async function main() {
   const domainName = process.argv[2];
   if (!domainName) {
-    console.error('Usage: npx tsx architecture-check.ts <DomainName>');
+    console.error('Usage: bunx tsx architecture-check.ts <DomainName>');
     process.exit(1);
   }
 

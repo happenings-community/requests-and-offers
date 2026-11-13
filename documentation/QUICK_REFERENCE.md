@@ -36,7 +36,7 @@ bun package                   # Package for distribution
 # Testing
 bun test                      # All tests
 bun test:ui                   # Frontend tests only
-bun test:unit                 # Unit tests (requires Nix)
+bun test:unit                 # Unit tests (no Nix needed)
 nix develop --command bun test:unit  # Autonomous unit test execution
 bun test:integration          # Integration tests
 nix develop --command cargo test --manifest-path tests/sweettest/Cargo.toml  # Backend Sweettest tests
@@ -385,34 +385,34 @@ See [Development Features System](technical-specs/development-features-system.md
 
 ### Essential Reading
 
-- [📋 Project Overview](documentation/project-overview.md) - Complete project introduction
-- [🏗️ Architecture](documentation/architecture.md) - System design and patterns
-- [🔧 Developer Guide](documentation/guides/getting-started.md) - Setup and workflow
-- [📖 Full Documentation Index](documentation/DOCUMENTATION_INDEX.md) - Complete catalog
+- [📋 Project Overview](project-overview.md) - Complete project introduction
+- [🏗️ Architecture](architecture.md) - System design and patterns
+- [🔧 Developer Guide](guides/getting-started.md) - Setup and workflow
+- [📖 Full Documentation Index](DOCUMENTATION_INDEX.md) - Complete catalog
 
 ### API References
 
-- [Frontend Services API](documentation/technical-specs/api/frontend/services.md)
-- [Store Helpers API](documentation/technical-specs/api/frontend/store-helpers.md)
-- [Backend Zome Functions](documentation/technical-specs/api/backend/zome-functions.md)
-- [Error Handling API](documentation/technical-specs/api/frontend/errors.md)
+- [Frontend Services API](technical-specs/api/frontend/services.md)
+- [Store Helpers API](technical-specs/api/frontend/store-helpers.md)
+- [Backend Zome Functions](technical-specs/api/backend/zome-functions.md)
+- [Error Handling API](technical-specs/api/frontend/errors.md)
 
 ### Development Guidelines
 
-- [Development Guidelines](documentation/ai/rules/development-guidelines.md) - Effect-TS and Svelte patterns
-- [Architecture Patterns](documentation/ai/rules/architecture-patterns.md) - 7-layer architecture
-- [Testing Framework](documentation/ai/rules/testing-framework.md) - Comprehensive testing strategy
-- [Domain Implementation](documentation/ai/rules/domain-implementation.md) - Domain patterns and utilities
+- [Development Guidelines](../CLAUDE.md) - Effect-TS and Svelte patterns
+- [Architecture Patterns](guides/architectural-patterns.md) - 7-layer architecture
+- [Testing Framework](guides/testing.md) - Comprehensive testing strategy
+- [Domain Implementation](guides/domain-implementation.md) - Domain patterns and utilities
 
 ## 🤝 Community
 
 - **Discord**: [Join our community](https://discord.gg/happening)
 - **Website**: [hAppenings.community](https://happenings.community/)
-- **Contributing**: [Contributing Guide](documentation/guides/contributing.md)
+- **Contributing**: [Contributing Guide](guides/contributing.md)
 - **Issues**: [GitHub Issues](https://github.com/Happening-Community/requests-and-offers/issues)
 
 ---
 
 > **💡 Pro Tip**: Use Service Types domain as the implementation template - it's 100% complete and follows all established patterns.
 
-> **⚠️ Important**: Unit tests require Nix environment due to hREA integration. Always use `nix develop --command bun test:unit` for autonomous execution.
+> **⚠️ Important**: Unit tests run without Nix (`cd ui && bun run test:unit`); building zomes, the hApp and Sweettest require `nix develop`.

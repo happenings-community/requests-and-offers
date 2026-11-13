@@ -506,6 +506,9 @@ pub fn respond_to_agreement(input: RespondInput) -> ExternResult<Record> {
   if !links_from(agreement_hash.clone(), LinkTypes::AgreementResponses)?.is_empty() {
     return Err(CommonError::InvalidData("this agreement already has a response".to_string()).into());
   }
+  if !links_from(agreement_hash.clone(), LinkTypes::AgreementCancellations)?.is_empty() {
+    return Err(CommonError::InvalidData("this proposal was withdrawn".to_string()).into());
+  }
   let hash = create_entry(&EntryTypes::Response(Response {
     agreement: agreement_hash.clone(),
     accepted: input.accepted,

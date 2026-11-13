@@ -51,9 +51,9 @@ Each domain provides a complete set of APIs following the 7-layer architecture:
 // Dependency injection pattern
 const result = await Effect.runPromise(
   Effect.gen(function* () {
-    const service = yield* ServiceTypeService;
+    const service = yield* ServiceTypesService;
     return yield* service.getAllServiceTypes();
-  }).pipe(Effect.provide(ServiceTypeServiceLive)),
+  }).pipe(Effect.provide(ServiceTypesServiceLive)),
 );
 ```
 

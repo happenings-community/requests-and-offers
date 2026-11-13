@@ -127,6 +127,16 @@ struct Message {
     case: Option<CaseRef>,
 }
 
+/// Mirror of the coordinator's `MessageRead`, the answer `get_message` gives.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+enum MessageRead {
+    NotFound,
+    Withheld,
+    Unreadable,
+    Read(Message),
+}
+
 /// Mirror of the coordinator's `InboxEntry`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -782,13 +792,16 @@ async fn claiming_completing_reopening_and_handing_over() {
 ///
 /// This is the whole security claim behind role labels. The label inside the ciphertext is a
 /// claim, and each reader tests it against the DHT when it reads. Bob replies as an
-/// administrator, is then removed, and his reply disappears from Alice's view of the case
-/// and from Carol's own area, without anything being deleted or rewritten.
+/// administrator, is then removed, and his reply disappears from Alice's view of the case,
+/// from Carol's own area, and from `get_message`, the path a nudge takes, without anything
+/// being deleted or rewritten.
 ///
 /// **How to make this go red:** in
-/// `coordinator/messaging/src/inbox.rs`, make `role_claim_stands` return `Ok(true)`
-/// before it reads the direction. Bob's reply then survives his removal and both counts
-/// below are one too high.
+/// `coordinator/messaging/src/inbox.rs`, make `claims_the_role` return `false`, so no
+/// message is read as claiming the role and `holds_role` is never asked. Bob's reply then
+/// survives his removal, both counts below are one too high, and `get_message` reads it.
+/// Or drop the `role_claim_stands` check from `get_message` alone: only the last assertion
+/// fails.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_removed_admins_role_messages_are_withheld() {
     let (conductors, alice, bob, carol, _alice_user, bob_user, carol_user) =
@@ -805,16 +818,31 @@ async fn a_removed_admins_role_messages_are_withheld() {
         .await
         .unwrap();
 
-    conductors[1]
-        .call::<_, Vec<SentMessage>>(
+    let bob_reply: Vec<SentMessage> = conductors[1]
+        .call(
             &bob.zome("messaging"),
             "send_role_message",
             on_case("case-3", &carol_user, "what format is the file?", None),
         )
         .await;
+    // Alice's own copy, the one a nudge to her would carry.
+    let reply_to_alice = bob_reply
+        .iter()
+        .find(|sent| sent.agent == *alice.agent_pubkey())
+        .expect("Bob's reply should have a copy for Alice, a holder")
+        .hash
+        .clone();
     await_consistency_s(15, [&alice, &bob, &carol])
         .await
         .unwrap();
+
+    let read_before: MessageRead = conductors[0]
+        .call(&alice.zome("messaging"), "get_message", reply_to_alice.clone())
+        .await;
+    assert!(
+        matches!(read_before, MessageRead::Read(_)),
+        "while Bob is an administrator get_message reads his reply; got {read_before:?}"
+    );
 
     let before = role_inbox(&conductors[0], &alice).await;
     assert_eq!(
@@ -862,6 +890,14 @@ async fn a_removed_admins_role_messages_are_withheld() {
         1,
         "the member's own area applies the same check; got {:?}",
         mine[0].cases[0].messages
+    );
+
+    let read_after: MessageRead = conductors[0]
+        .call(&alice.zome("messaging"), "get_message", reply_to_alice)
+        .await;
+    assert!(
+        matches!(read_after, MessageRead::Withheld),
+        "get_message, the nudge path, applies the same role check; got {read_after:?}"
     );
 }
 
@@ -1048,4 +1084,116 @@ async fn the_role_calls_refuse_a_non_holder_and_the_roles_that_are_not_built_yet
         bobs[0].role.is_none(),
         "a personal message carries no role, which is what keeps it in get_inbox"
     );
+}
+
+/// What the caller already holds, as the interface passes it to `get_inbox_delta`.
+#[derive(Serialize, Deserialize, Debug)]
+struct GetInboxDeltaInput {
+    known: Vec<ActionHash>,
+    skipped: Vec<ActionHash>,
+}
+
+/// What `get_inbox_delta` returns, as the interface reads it.
+#[derive(Serialize, Deserialize, Debug)]
+struct InboxDelta {
+    visible: Vec<ActionHash>,
+    entries: Vec<InboxEntry>,
+    skipped: Vec<ActionHash>,
+}
+
+/// A role message is never personal chat for a reader that polls, and is fetched once.
+///
+/// Alice, an administrator, holds one role message (Carol's case) and one personal
+/// message (from Carol) in the same inbox. Three reads. Knowing nothing, she is sent
+/// the personal message only, and the role message comes back by hash in `skipped`.
+/// Passing both back, she is sent nothing and each hash stays in its own list. Passing
+/// back only the personal one, the role message is still `skipped` and still never an
+/// entry: forgetting the list costs a fetch, never a leak into chat.
+///
+/// **To make this go red:** push a role message into `entries` in `get_inbox_delta`
+/// (the first read then returns two entries), or list every hash that passes the link
+/// filters as `visible` (the role hash then shows in `visible`), or drop
+/// `already_skipped` from the split (the second read then loses the role hash from
+/// `skipped`, because nothing fetched it to find out what it is).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_polling_reader_is_told_which_messages_are_role_messages() {
+    let (conductors, alice, bob, carol, alice_user, _bob_user, _carol_user) =
+        two_admins_and_a_member().await;
+
+    let _: Vec<SentMessage> = conductors[2]
+        .call(
+            &carol.zome("messaging"),
+            "send_role_message",
+            open_case("case-delta", "the kettle will not boil"),
+        )
+        .await;
+    let personal: Vec<SentMessage> = conductors[2]
+        .call(
+            &carol.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: alice_user,
+                content: "and thank you for looking".to_string(),
+            },
+        )
+        .await;
+    assert_eq!(personal.len(), 1, "Alice has one agent; got {personal:?}");
+    let personal_hash = personal[0].hash.clone();
+    await_consistency_s(15, [&alice, &bob, &carol])
+        .await
+        .unwrap();
+
+    let delta = |known: Vec<ActionHash>, skipped: Vec<ActionHash>| {
+        let conductor = &conductors[0];
+        let zome = alice.zome("messaging");
+        async move {
+            let out: InboxDelta = conductor
+                .call(&zome, "get_inbox_delta", GetInboxDeltaInput { known, skipped })
+                .await;
+            out
+        }
+    };
+
+    let first = delta(vec![], vec![]).await;
+    assert_eq!(
+        first.entries.len(),
+        1,
+        "knowing nothing, Alice is sent the personal message and not the role message; got {:?}",
+        first.entries
+    );
+    assert_eq!(
+        first.visible,
+        vec![personal_hash.clone()],
+        "only the personal message is visible as chat"
+    );
+    assert_eq!(
+        first.skipped.len(),
+        1,
+        "the role message comes back by hash, to be passed back; got {:?}",
+        first.skipped
+    );
+    let role_hash = first.skipped[0].clone();
+    assert_ne!(role_hash, personal_hash, "the two lists name different messages");
+
+    let second = delta(vec![personal_hash.clone()], vec![role_hash.clone()]).await;
+    assert!(
+        second.entries.is_empty(),
+        "holding both, Alice is sent nothing; got {:?}",
+        second.entries
+    );
+    assert_eq!(second.visible, vec![personal_hash.clone()]);
+    assert_eq!(
+        second.skipped,
+        vec![role_hash.clone()],
+        "a role message passed back stays a role message, with no fetch to find out"
+    );
+
+    let third = delta(vec![personal_hash.clone()], vec![]).await;
+    assert!(
+        third.entries.is_empty(),
+        "a reader that forgot the list is still never sent a role message as chat; got {:?}",
+        third.entries
+    );
+    assert_eq!(third.visible, vec![personal_hash]);
+    assert_eq!(third.skipped, vec![role_hash]);
 }

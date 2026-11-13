@@ -336,6 +336,46 @@ Retrieves all requests associated with a specific organization.
 - `Vec<Record>`: Array of request records associated with the organization
 - `Error`: If retrieval fails
 
+### Get User Active Requests
+
+```rust
+pub fn get_user_active_requests(user_hash: ActionHash) -> ExternResult<Vec<Record>>
+```
+
+Retrieves all active requests created by a specific user.
+
+**Parameters:**
+
+- `user_hash`: The action hash of the user profile
+
+**Returns:**
+
+- `Vec<Record>`: Array of active request records created by the user
+- `Error`: If retrieval fails
+
+**Implementation Details:**
+- Calls `get_user_requests` and keeps only active status requests
+
+### Get User Archived Requests
+
+```rust
+pub fn get_user_archived_requests(user_hash: ActionHash) -> ExternResult<Vec<Record>>
+```
+
+Retrieves all archived requests created by a specific user.
+
+**Parameters:**
+
+- `user_hash`: The action hash of the user profile
+
+**Returns:**
+
+- `Vec<Record>`: Array of archived request records created by the user
+- `Error`: If retrieval fails
+
+**Implementation Details:**
+- Calls `get_user_requests` and keeps only archived status requests
+
 ### Get Request Creator
 
 ```rust

@@ -133,6 +133,64 @@ pub enum ServiceTypeError {
   AlreadyApproved,
 }
 
+/// Errors the messaging coordinator returns to a caller. The texts are what a member
+/// sees, and the Sweettests match on parts of them, so change a text only on purpose.
+#[derive(Debug, Error)]
+pub enum MessagingError {
+  #[error("Message content is {bytes} bytes, over the {limit} byte limit")]
+  ContentTooLong { bytes: usize, limit: usize },
+
+  #[error("That member is not accepted yet, and only a network administrator can write to them")]
+  RecipientNotAccepted,
+
+  #[error("Could not encode message: {0}")]
+  Encode(String),
+
+  #[error("You need a member profile before you can send messages")]
+  SenderHasNoProfile,
+
+  #[error("Your member profile is not accepted yet, so you cannot send messages")]
+  SenderNotAccepted,
+
+  #[error("Case ID is {bytes} bytes, over the {limit} byte limit")]
+  CaseIdTooLong { bytes: usize, limit: usize },
+
+  #[error("A permission name is {bytes} bytes, over the {limit} byte limit")]
+  PermissionNameTooLong { bytes: usize, limit: usize },
+
+  /// The argument names the role: "admin", a permission's name, or "organisation coordinator".
+  #[error(
+    "The {0} role is not enabled yet. Alpha 2 switches on the admin role first; stewards and named permissions arrive with the roles brief, and organisation coordinators with the organisations brief."
+  )]
+  RoleNotEnabled(String),
+
+  /// The argument completes the sentence: "Only a holder of that role can {0}".
+  #[error("Only a holder of that role can {0}")]
+  HolderOnly(String),
+
+  #[error("That role has no holders, so there is nowhere to deliver to")]
+  RoleHasNoHolders,
+
+  #[error("Your membership has no member grant yet, so you cannot send messages")]
+  NoMemberGrantYet,
+
+  #[error(
+    "A message carries either text or a listing, never both. Send the listing as its own card."
+  )]
+  TextAndListing,
+
+  #[error("A message carries text or a listing. This one has neither.")]
+  EmptyMessage,
+
+  #[error("Send ID is {bytes} bytes, over the {limit} byte limit")]
+  SendIdTooLong { bytes: usize, limit: usize },
+
+  /// Carries `messaging::message::DEVICES_NOT_FOUND`, which the coordinator keeps beside
+  /// the reasoning for its wording.
+  #[error("{0}")]
+  DevicesNotFound(String),
+}
+
 impl From<CommonError> for WasmError {
   fn from(err: CommonError) -> Self {
     match err {
@@ -184,6 +242,12 @@ impl From<AdministrationError> for WasmError {
 
 impl From<StatusError> for WasmError {
   fn from(err: StatusError) -> Self {
+    wasm_error!(WasmErrorInner::Guest(err.to_string()))
+  }
+}
+
+impl From<MessagingError> for WasmError {
+  fn from(err: MessagingError) -> Self {
     wasm_error!(WasmErrorInner::Guest(err.to_string()))
   }
 }

@@ -22,7 +22,7 @@ use std::{fmt::Display, str::FromStr};
 
 use hdk::prelude::*;
 
-use crate::{external_local_call, DnaProperties};
+use crate::{errors::CommonError, external_local_call, DnaProperties};
 
 /// The integrity zome that registers `RoleGrant` and `RoleRevocation`, as named
 /// in `dnas/requests_and_offers/workdir/dna.yaml`. A validator in another zome
@@ -286,10 +286,10 @@ fn administration_zome_index() -> ExternResult<ZomeIndex> {
     .iter()
     .position(|name| name.0.as_ref() == ADMINISTRATION_INTEGRITY_ZOME)
     .ok_or_else(|| {
-      wasm_error!(WasmErrorInner::Guest(format!(
+      CommonError::InvalidData(format!(
         "{} is not an integrity zome of this DNA",
         ADMINISTRATION_INTEGRITY_ZOME
-      )))
+      ))
     })?;
   Ok(ZomeIndex(position as u8))
 }
@@ -320,6 +320,25 @@ pub fn load_grant(hash: &ActionHash) -> ExternResult<Result<(RoleGrant, AgentPub
     Err(e) => return Ok(Err(format!("the grant named does not read as one: {}", e))),
   };
   Ok(Ok((grant, record.action().author().clone())))
+}
+
+/// A valid `RoleRevocation` and the agent who wrote it, or `None` when the
+/// record is anything else.
+///
+/// The twin of [`load_grant`], and for the same reason: an entry is trusted
+/// as a revocation only when its action says it is one, in the administration
+/// zome. Decoding alone proves nothing, because serde ignores fields it does
+/// not know: a pending `Status` with an `authority` field added decodes as a
+/// `RoleRevocation`, and a pending `Status` is anyone's to write.
+pub fn load_revocation(hash: &ActionHash) -> ExternResult<Option<(RoleRevocation, AgentPubKey)>> {
+  let record = must_get_valid_record(hash.clone())?;
+  if !is_administration_entry(record.action(), ROLE_REVOCATION_ENTRY_INDEX)? {
+    return Ok(None);
+  }
+  match record.entry().to_app_option::<RoleRevocation>() {
+    Ok(Some(revocation)) => Ok(Some((revocation, record.action().author().clone()))),
+    _ => Ok(None),
+  }
 }
 
 /// The check every role-gated write runs: the carried grant exists and is

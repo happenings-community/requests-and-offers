@@ -7,8 +7,8 @@
 
 use hdi::prelude::*;
 use utils::grants::{
-  grant_from_tag, load_grant, may_grant, role_available, root_is_valid, scope_fits,
-  stewarding_present, Authority, Role, RoleGrant, RoleRevocation,
+  grant_from_tag, load_grant, load_revocation, may_grant, role_available,
+  root_is_valid, scope_fits, stewarding_present, Authority, Role, RoleGrant, RoleRevocation,
 };
 
 fn invalid(reason: impl Into<String>) -> ExternResult<ValidateCallbackResult> {
@@ -213,12 +213,11 @@ pub fn validate_grant_revocation_link(
   let Some(target_hash) = target.clone().into_action_hash() else {
     return invalid("a revocation link points at a revocation record");
   };
-  let record = must_get_valid_record(target_hash)?;
-  let revocation: RoleRevocation = match record.entry().to_app_option() {
-    Ok(Some(revocation)) => revocation,
-    _ => return invalid("a revocation link points at a revocation record"),
+  // By entry type, not by shape: see `load_revocation`.
+  let Some((revocation, revoker)) = load_revocation(&target_hash)? else {
+    return invalid("a revocation link points at a revocation record");
   };
-  if record.action().author() != link_author {
+  if &revoker != link_author {
     return invalid("a revocation link is written by the revoker");
   }
   if base != &AnyLinkableHash::from(revocation.grant) {

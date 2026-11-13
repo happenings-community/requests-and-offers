@@ -4,9 +4,9 @@ This page covers the signal layer (sections 1 to 5, #213) and the encrypted inbo
 
 ## 1. Overview
 
-- **Purpose**: The signal layer. One agent tells others that something addressed to them exists at an `ActionHash`, so their app can fetch it now rather than on its next poll. It is the doorbell described in the [exchange record note](../../architecture/EXCHANGE_RECORD.md) (section 11): the stored data is the record, and the signal only says where to look.
+- **Purpose**: The signal layer. One agent tells others that something addressed to them exists at an `ActionHash`, so their app can fetch it now rather than on its next poll. From #364 a second signal, the receipt, says how far somebody has read (section 6). It is the doorbell described in the [exchange record note](../../architecture/EXCHANGE_RECORD.md) (section 11): the stored data is the record, and the signal only says where to look.
 - **Status**: Added in #213, alpha 2. The encrypted inbox that stores messages (#301, section 6) is the first consumer.
-- **A nudge carries one `ActionHash` and never content.** Nothing travels in a signal that validation does not see, a nudge cannot push arbitrary bytes at another agent's UI, and no size bound is needed because the hash is fixed-length.
+- **A nudge carries one `ActionHash` and never content.** What it points at is stored data that validation has seen, a nudge cannot push arbitrary bytes at another agent's UI, and no size bound is needed because the hash is fixed-length. A receipt is the exception: it carries a time that no validation sees, which is the sender's claim and nothing more.
 - **Zome structure**: the signal layer described in sections 2 to 5 needs no entry or link types. The inbox (section 6) adds an integrity zome, `messaging_integrity`, with one entry type and one link type, and so is part of the DNA hash. #364 removes three private entry types from it and changes what `recv_remote_signal` takes, so it changes both the DNA hash and the remote-signal wire format.
 
 ## 2. Coordinator Zome (`messaging`)
@@ -75,7 +75,7 @@ A nudge is best-effort, and two caveats follow from the host functions.
 
 So a nudge reaches a recipient only if they are online and already discovered by the sender, and neither condition is reported back. That is acceptable because the nudge is never the record: a lost one costs the recipient timeliness, and the stored data is still there to be read.
 
-Rate is not bounded. The transport does not rate-limit remote signals, so a peer can send nudges as fast as it can sign them. Each is one fixed-length hash and fetches nothing, so the cost to a recipient is small; blocking and the inbox's own rules (#240, #301) are where that is handled.
+Rate is not bounded. The transport does not rate-limit remote signals, so a peer can send nudges as fast as it can sign them. Each nudge is one fixed-length hash, each receipt one timestamp, and neither fetches anything, so the cost to a recipient is small. The zome does not block anybody (#364 took that out); ignoring a sender is the interface's job (#308).
 
 ## 5. Tests
 
@@ -130,7 +130,7 @@ Nor can validation prove who a ciphertext was sealed to. It proves the link's au
 - **A nudge failure never undoes a stored message.** The stored entry is the delivery guarantee; the nudge is timeliness.
 - **Each copy carries the sender's member grant**, which `deliver` reads with `can` and attaches. A sender who is accepted and holds no grant this node can see is refused with `NoMemberGrantYet` before anything is encrypted or written. Just after acceptance that is propagation, and the send works when tried again.
 - **A personal message carries text or a listing, never both, and never neither.** This is `send_message`'s rule, in the coordinator: a role message is not checked for emptiness, and no read path refuses a body from a modified client that carries both. `listing` names a listing published from the conversation and is valid only with empty `content`. Whether the listing exists and is the sender's is checked where it is shown, with the interface (#308), not here.
-- **`send_id` is the caller's own name for this send**, up to 64 bytes, carried inside the ciphertext. It is optional and an empty one is accepted. After a send that got no answer the app does not guess and does not retry: it calls `find_sent { send_id, since }`, which looks on this agent's own chain from `since` onwards and returns the message's hash if it was written. An empty `send_id` finds nothing. `since` is compared with the conductor's action timestamps, so a caller whose clock runs ahead of its conductor's could be told a real send was not sent.
+- **`send_id` is the caller's own name for this send**, up to 64 bytes, carried inside the ciphertext. It is optional and an empty one is accepted. After a send that got no answer the interface (#308) does not guess and does not retry: it calls `find_sent { send_id, since }`, which looks on this agent's own chain from `since` onwards and returns the message's hash if it was written. An empty `send_id` finds nothing. `since` is compared with the conductor's action timestamps, so a caller whose clock runs ahead of its conductor's could be told a real send was not sent.
 - **`read_up_to` lets a message carry how far its sender has read**, so a receipt that was dropped as a signal arrives with the next message.
 
 Errors come from `MessagingError` in `utils/src/errors.rs`, as for every zome.

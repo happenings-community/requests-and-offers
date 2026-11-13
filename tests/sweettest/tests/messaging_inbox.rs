@@ -21,7 +21,6 @@ use holochain::sweettest::*;
 use requests_and_offers_sweettest::common::*;
 use serde::{Deserialize, Serialize};
 
-
 /// Mirror of the coordinator's `SendMessageInput`, for an ordinary message.
 ///
 /// **No role fields, deliberately.** The coordinator's `role`, `direction` and `case` are
@@ -956,6 +955,52 @@ async fn a_send_id_rides_along_and_find_sent_locates_it() {
         .await;
     assert!(missing.is_none(), "an id never sent should not be found");
 
+    // A send with no id is accepted, and an empty id finds nothing: without that rule
+    // it would match every message sent without one.
+    conductors[0]
+        .call::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(bob_user.clone(), "no id on this one"),
+        )
+        .await;
+    let by_no_id: Option<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "find_sent",
+            FindSentInput {
+                send_id: String::new(),
+                since: before,
+            },
+        )
+        .await;
+    assert!(by_no_id.is_none(), "an empty send id should find nothing");
+
+    // An id over the bound is refused before anything is written.
+    let too_long = conductors[0]
+        .call_fallible::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user.clone(),
+                content: "an id too long to carry".to_string(),
+                send_id: "x".repeat(65),
+                read_up_to: None,
+                listing: None,
+            },
+        )
+        .await;
+    match too_long {
+        Ok(sent) => panic!("a 65 byte send id should be refused, but the send returned {sent:?}"),
+        Err(e) => {
+            let text = format!("{e} | {e:?}");
+            assert!(
+                text.contains("over the 64 byte limit"),
+                "a 65 byte send id should be refused for its length; got {text}"
+            );
+        }
+    }
+
     // The search is bounded, so one starting after the send finds nothing.
     let after = Timestamp::now();
     let out_of_range: Option<ActionHash> = conductors[0]
@@ -1147,6 +1192,57 @@ async fn a_receipt_arrives_as_read_up_to_from_its_sender() {
     }
 }
 
+/// Sending a message rings the recipient: the same call nudges them with the hash of
+/// the copy it stored for them, so their app fetches now and not on its next poll.
+///
+/// **To make it go red:** remove the nudge from `send_message`. Bob then hears nothing
+/// and the wait times out.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_send_nudges_the_recipient_with_the_hash_it_stored() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+
+    let mut bob_signals =
+        conductors[1].subscribe_to_app_signals("requests_and_offers".to_string());
+
+    let sent: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(bob_user, "the kettle is on"),
+        )
+        .await;
+    let bobs_copy = sent
+        .iter()
+        .find(|copy| &copy.agent == bob.agent_pubkey())
+        .expect("the send should store a copy for Bob's agent")
+        .hash
+        .clone();
+
+    let received = tokio::time::timeout(std::time::Duration::from_secs(240), async {
+        loop {
+            match bob_signals.recv().await.expect("Bob's signal channel closed") {
+                Signal::App { signal, .. } => {
+                    if let Ok(decoded) = signal.into_inner().decode::<MessagingSignal>() {
+                        break decoded;
+                    }
+                }
+                Signal::System(_) => {}
+                Signal::AppDirect { .. } => {}
+            }
+        }
+    })
+    .await
+    .expect("Bob should be nudged by the send");
+
+    match received {
+        MessagingSignal::Nudge { hash, from } => {
+            assert_eq!(hash, bobs_copy, "the nudge should name the copy stored for Bob");
+            assert_eq!(&from, alice.agent_pubkey(), "the sender is taken from call provenance");
+        }
+        other => panic!("expected a nudge, got {other:?}"),
+    }
+}
+
 /// The chain functions for blocks and read markers are gone.
 ///
 /// Read markers and blocks left the chain because a private entry hides its content but
@@ -1166,10 +1262,12 @@ async fn the_chain_functions_for_blocks_and_read_markers_are_gone() {
             .await;
         let text = match result {
             Ok(()) => panic!("{gone} should no longer exist on the messaging zome"),
-            Err(e) => format!("{e:?}"),
+            // Both forms: the conductor's sentence is the error's `Display`, and its
+            // variant name is in the `Debug`. Either says the function is not there.
+            Err(e) => format!("{e} | {e:?}"),
         };
         assert!(
-            text.contains("zome function that doesn't exist"),
+            text.contains("zome function that doesn't exist") || text.contains("ZomeFnNotExists"),
             "{gone} should be refused as a function that does not exist; got {text}"
         );
     }

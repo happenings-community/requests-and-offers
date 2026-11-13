@@ -393,13 +393,26 @@ async fn a_case_reaches_every_holder_and_the_reply_comes_back() {
         }
     }
 
+    // The real one carries a send id, as a personal message can: it rides in the body,
+    // and `find_sent` finds a role send by it. (Drop `send_id` from the body in
+    // `send_role_message` and the lookup below finds nothing.)
+    let before_sending = Timestamp::now();
+    let mut opening = serde_json::to_value(open_case("case-1", "the kettle will not boil")).unwrap();
+    opening["sendId"] = serde_json::Value::String("role-send-1".to_string());
     let sent: Vec<SentMessage> = conductors[2]
+        .call(&carol.zome("messaging"), "send_role_message", opening)
+        .await;
+    let found: Option<ActionHash> = conductors[2]
         .call(
             &carol.zome("messaging"),
-            "send_role_message",
-            open_case("case-1", "the kettle will not boil"),
+            "find_sent",
+            serde_json::json!({ "sendId": "role-send-1", "since": before_sending }),
         )
         .await;
+    assert!(
+        found.is_some(),
+        "a role message sent with an id should be found by it on the sender's chain"
+    );
     assert_eq!(
         sent.len(),
         3,

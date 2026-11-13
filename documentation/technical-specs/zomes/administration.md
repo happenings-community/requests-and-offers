@@ -380,7 +380,7 @@ Forged-client coverage lives in `tests/sweettest/tests/grants.rs`, where one con
 `update_entity_status` writes more than the status:
 
 - **A member accepted**: a `member` grant for each of the member's agents that does not hold a live one, resting on the approver's grant. Any other status revokes them.
-- **An organisation approved for the first time**: an `org_coordinator` grant for its creator, scoped to the organisation and resting on the approver's grant, then the member and coordinator links, each carrying the approver's grant in its tag. The role is issued by the administrator or steward who approves; nobody holds it before.
+- **An organisation approved for the first time**: an `org_coordinator` grant for its creator (the key that created it, and any other agent of the same member), scoped to the organisation and resting on the approver's grant, then the member and coordinator links, each carrying the approver's grant in its tag. The role is issued by the administrator or steward who approves; nobody holds it before.
 
   Once only. A later move to accepted, such as the return from a suspension, writes nothing if the creator was ever granted the role for that organisation, by a grant still live or one since revoked. A creator who stood down or was removed stays out until a coordinator adds them again. Suspending an organisation does not revoke its coordinators' grants.
 

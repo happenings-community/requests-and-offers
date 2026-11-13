@@ -661,12 +661,22 @@ fn approve_organization(organization: &ActionHash, authority: &ActionHash) -> Ex
     .first()
     .and_then(|link| link.target.clone().into_action_hash())
     .ok_or_else(|| CommonError::ActionHashNotFound("user".to_string()))?;
-  write_grant(
-    Role::OrgCoordinator,
-    creator,
-    scope,
-    Authority::Grant(authority.clone()),
-  )?;
+  // The creating key, and any other agent of the same member, as
+  // `add_coordinator_to_organization` gives the role to every agent of a user.
+  let mut holders = vec![creator.clone()];
+  for agent in get_user_agents(user.clone())? {
+    if agent != creator {
+      holders.push(agent);
+    }
+  }
+  for holder in holders {
+    write_grant(
+      Role::OrgCoordinator,
+      holder,
+      scope.clone(),
+      Authority::Grant(authority.clone()),
+    )?;
+  }
   register_approved_coordinator(ApprovedCoordinatorInput {
     organization_original_action_hash: organization.clone(),
     user_original_action_hash: user,

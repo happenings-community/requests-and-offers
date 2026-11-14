@@ -299,6 +299,41 @@ describe('reads that overlap', () => {
     await later;
   });
 
+  /** The other order: its error stood over the conversations until the next read began. */
+  it('an older read that fails first is not left reported once a newer one has worked', async () => {
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    const store = await freshStore();
+    getSent.mockReturnValueOnce(
+      E.sleep('10 millis').pipe(E.andThen(E.fail(new Error('no answer'))))
+    );
+    const older = E.runPromise(store.loadConversations()).catch(() => 'failed');
+    getSent.mockReturnValue(E.sleep('40 millis').pipe(E.as([mineToAnita()])));
+    const newer = E.runPromise(store.loadConversations());
+
+    expect(await older).toBe('failed');
+    expect(store.error, 'reported while nothing newer has worked').not.toBeNull();
+    await newer;
+
+    expect(store.threads).toHaveLength(1);
+    expect(store.error).toBeNull();
+  });
+
+  /** Cleared at the start of each read, the fault gave way to "No conversations yet". */
+  it('a failure stays reported while the next read is under way, and goes when one works', async () => {
+    const store = await freshStore();
+    getSent.mockReturnValue(E.fail(new Error('no answer')));
+    await E.runPromise(store.loadConversations()).catch(() => {});
+    expect(store.error).not.toBeNull();
+
+    getSent.mockReturnValue(E.sleep('30 millis').pipe(E.as([])));
+    const next = E.runPromise(store.loadConversations());
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(store.error, 'still the state of the screen').not.toBeNull();
+
+    await next;
+    expect(store.error).toBeNull();
+  });
+
   /** Thrown away with nothing in its place, the conversation looked empty and unfaulted. */
   it('an older read still writes when the later one failed', async () => {
     userByAgent.mockReturnValue({ original_action_hash: ANITA });

@@ -5,7 +5,7 @@ import { Effect as E } from 'effect';
 import { encodeHashToBase64 } from '@holochain/client';
 import { localKey } from '$lib/utils/messaging-local';
 import messagingStore from '$lib/stores/messaging.store.svelte';
-import { cardsGoing } from '$lib/composables/domain/messaging/useConversation.svelte';
+import { cardsGoing, cardRefusals } from '$lib/composables/domain/messaging/useConversation.svelte';
 import messagingPresence from '$lib/services/messagingPresence.svelte';
 import { setPage } from '../../mocks/app-stores';
 import { signedIn } from '../../mocks/reactive-user.svelte';
@@ -190,6 +190,7 @@ beforeEach(() => {
   cleanup();
   localStorage.clear();
   cardsGoing.clear();
+  cardRefusals.clear();
   getInbox.mockReturnValue(E.succeed([]));
   getSent.mockReturnValue(E.succeed([]));
   // The store is one object for the whole file: nothing held by one case reaches the next.
@@ -867,6 +868,11 @@ describe('the conversation page', () => {
       await composerFor('Bela Kovac');
 
       expect(screen.queryByRole('alert')).toBeNull();
+
+      // And it has been seen: it is not said again on coming back.
+      setPage({ user: anita });
+      await composerFor('Anita Rossi');
+      expect(screen.queryByRole('alert')).toBeNull();
     });
 
     it('takes the reason away when the card is pressed again', async () => {
@@ -1000,6 +1006,40 @@ describe('the conversation page', () => {
       await composerFor('Anita Rossi');
 
       expect(await screen.findByText(/That didn't go through: .*no answer/)).toBeTruthy();
+    });
+
+    /** The other way of coming back: through the list, which makes a new screen. */
+    it('says an accept was refused when the member has been to the list and back by then', async () => {
+      respond.mockReturnValue(
+        E.sleep('60 millis').pipe(E.andThen(E.fail(new Error('respond: no answer'))))
+      );
+      myExchanges.mockReturnValue([fromHer]);
+      const first = render(ConversationPage);
+      await composerFor('Anita Rossi');
+      void fireEvent.click(await screen.findByRole('button', { name: 'Accept' }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      first.unmount();
+      render(ConversationPage);
+      await composerFor('Anita Rossi');
+
+      expect(await screen.findByText(/That didn't go through: .*no answer/)).toBeTruthy();
+      expect(respond).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not say it again once the member has seen it and left', async () => {
+      respond.mockReturnValue(E.fail(new Error('respond: no answer')));
+      const card = await open(fromHer);
+      void card;
+      await fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+      await screen.findByText(/That didn't go through/);
+
+      cleanup();
+      render(ConversationPage);
+      await composerFor('Anita Rossi');
+      await screen.findByTestId('proposal-card');
+
+      expect(screen.queryByText(/That didn't go through/)).toBeNull();
     });
 
     it('cannot be withdrawn while another card is going', async () => {

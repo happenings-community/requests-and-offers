@@ -31,6 +31,15 @@ import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
 export const cardsGoing = new SvelteMap<string, symbol>();
 
 /**
+ * Why the last card to each person was refused, until the member has seen it.
+ *
+ * Beside `cardsGoing` and for the same reason: an accept refused after the member had
+ * left for the list and come back was said on a screen that no longer existed, and the
+ * proposal simply showed as still to be answered. Exported for the unit tests.
+ */
+export const cardRefusals = new SvelteMap<string, string>();
+
+/**
  * One conversation: the person, the timeline, the composer and anything still waiting to
  * go out.
  *
@@ -65,7 +74,7 @@ export function useConversation(address: string | (() => string)) {
   let draft = $state('');
   let sendError = $state<string | null>(null);
   /** Why a card action (share, accept, decline, withdraw) was refused, when one was. */
-  let actionError = $state<string | null>(null);
+  const actionError = $derived(cardRefusals.get(counterpartyB64) ?? null);
   let sending = $state(false);
   /** True once this screen's own read has finished. Until then, nothing is an answer. */
   let loaded = $state(false);
@@ -130,6 +139,8 @@ export function useConversation(address: string | (() => string)) {
     // that read has finished (the layout's poll has usually filled the store already),
     // so a member may have typed by then: the draft is theirs and is kept.
     const samePerson = shownFor === counterpartyB64;
+    // Leaving a person is having seen whatever was said about their last card.
+    if (shownFor !== null && !samePerson) cardRefusals.delete(shownFor);
     shownFor = counterpartyB64;
     // A message still going to this same person is still this screen's: Try again after
     // a failed read must not free Send under it, or leave its text in the box to be sent
@@ -142,7 +153,6 @@ export function useConversation(address: string | (() => string)) {
     loadError = null;
     missing = null;
     sendError = null;
-    actionError = null;
     name = C.someone;
     if (!samePerson) draft = '';
     if (!decoded) {
@@ -280,7 +290,7 @@ export function useConversation(address: string | (() => string)) {
     if (cardsGoing.has(here)) return false;
     const mine = Symbol('card');
     cardsGoing.set(here, mine);
-    actionError = null;
+    cardRefusals.delete(here);
     // Released for the person it was pressed for, and for nobody else: another card may
     // be going on the screen the member has moved to.
     const release = () => {
@@ -289,10 +299,12 @@ export function useConversation(address: string | (() => string)) {
     try {
       await action();
     } catch (e) {
-      // Shown where the member is looking at this person, whether they stayed or went
-      // and came back. Anywhere else there is no screen to say it on.
-      if (!left && counterpartyB64 === here) actionError = reasonOf(e);
-      else refusedElsewhere?.(reasonOf(e));
+      // Said to the member where they are looking at this person, or the next time
+      // they are. The one exception is a card that can be kept as a refused item in the
+      // person's outbox instead: that says it, and offers sending again, by itself.
+      const looking = !left && counterpartyB64 === here;
+      if (!looking && refusedElsewhere) refusedElsewhere(reasonOf(e));
+      else cardRefusals.set(here, reasonOf(e));
       release();
       return false;
     }
@@ -312,6 +324,8 @@ export function useConversation(address: string | (() => string)) {
   const leave = (): void => {
     left = true;
     sendPress++;
+    // Seen, if it was on screen. One that comes after this is kept for the next visit.
+    if (shownFor !== null) cardRefusals.delete(shownFor);
   };
 
   /**

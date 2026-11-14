@@ -391,15 +391,19 @@ export function createMessagingStore(): MessagingStore {
       readsUnderWay += 1;
       return E.gen(function* () {
         loading = true;
-        error = null;
+        // `error` is not cleared here. It is the state of the last read to finish, and
+        // clearing it for a read only just started showed "No conversations yet" in
+        // place of the fault for as long as each read took. A read that works clears it.
 
         const me = myUserHash();
         if (!me) {
           // No profile yet: nothing to show, and not an error worth a red screen.
-          lastWritten = Math.max(lastWritten, run);
+          everLoaded = true;
+          if (run < lastWritten) return threads;
+          lastWritten = run;
+          error = null;
           threads = [];
           faults = [];
-          everLoaded = true;
           return [];
         }
 
@@ -474,6 +478,10 @@ export function createMessagingStore(): MessagingStore {
         // older than what is on screen, which is the answer to give instead.
         if (run < lastWritten) return threads;
         lastWritten = run;
+        // What is on screen now is this read, which worked: an earlier failure, whether
+        // of the last read or of an older one that failed while this was under way, is
+        // no longer the state of the screen.
+        error = null;
 
         threads = buildThreads({
           me,

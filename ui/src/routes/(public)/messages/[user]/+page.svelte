@@ -53,11 +53,12 @@
   // Nudges, receipts and the outbox's retries are the root layout's: they carry on after
   // this conversation is left, which is what a message waiting to send needs.
   // Run for the address and for nothing else. `initialize` clears the screen and the
-  // draft. Today the address is the only reactive thing it reads before its first wait,
-  // so tracking it would change nothing; it is untracked so that stays true whatever it
-  // comes to read, and a member's draft never depends on that.
+  // draft, so it must not run because the page store spoke again with the same address
+  // (SvelteKit does, on a change of hash): the derived value below only changes when the
+  // address does. Untracked, so that stays true whatever `initialize` comes to read.
+  const address = $derived($page.params.user ?? '');
   $effect(() => {
-    void $page.params.user;
+    void address;
     untrack(() => conversation.initialize());
   });
 
@@ -328,6 +329,7 @@
           <button
             type="button"
             class="card flex items-center gap-3 p-3 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700"
+            disabled={conversation.acting}
             onclick={async () => {
               await conversation.shareListing(item.hash);
               sharing = false;

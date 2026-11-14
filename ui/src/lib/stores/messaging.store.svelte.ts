@@ -145,6 +145,8 @@ export type MessagingStore = {
   listen: () => () => void;
   /** Try one message again, because the member asked. */
   retryUnsent: (id: string) => E.Effect<void, never>;
+  /** Keep a message the zome refused after the member had left its conversation. */
+  keepRefused: (counterparty: ActionHash, content: string, reason: string) => void;
   /** Drop one message from the outbox, because the member asked. */
   discardUnsent: (id: string) => void;
 };
@@ -231,10 +233,7 @@ export function createMessagingStore(): MessagingStore {
     if (!key) return;
     outboxAdopted = true;
     const held = new Set(outbox.map((item) => item.id));
-    outbox = [
-      ...readFor(key).outbox.filter((item) => !held.has(item.id) && !gone.has(item.id)),
-      ...outbox
-    ];
+    outbox = [...readFor(key).outbox.filter((item) => !held.has(item.id)), ...outbox];
   };
 
   const withServices = <A>(
@@ -664,9 +663,6 @@ export function createMessagingStore(): MessagingStore {
 
       for (const item of waiting) {
         if (stalled.has(item.to)) continue;
-        // The list was taken when the run began, and a run waits on the conductor
-        // between items. A message the member discarded meanwhile is not sent.
-        if (!outbox.some((q) => q.id === item.id && q.state === 'waiting')) continue;
 
         // The item names its own recipient: the thread key is the counterparty's `User`
         // hash in base64. Looking the thread up instead meant a message to somebody with
@@ -688,7 +684,9 @@ export function createMessagingStore(): MessagingStore {
           E.catchAll(() => E.succeed({ ok: false as const, hash: null }))
         );
 
-        // The member may have discarded it while the chain was being asked.
+        // The list was taken when the run began, and a run waits on the conductor for
+        // every item. A message the member discarded meanwhile, while an earlier one was
+        // going or while the chain was being asked about this one, is not sent.
         if (!outbox.some((q) => q.id === item.id && q.state === 'waiting')) continue;
 
         if (already.ok && already.hash) {
@@ -946,12 +944,36 @@ export function createMessagingStore(): MessagingStore {
         q.id === id ? { ...q, state: 'waiting' as const, reason: undefined } : q
       );
       write({ outbox });
+      // A run already under way took its list before this item was put back, and asking
+      // for a flush only waits for that run. Then one more, so "send again" sends now
+      // and not at the next tick. Not otherwise: a second ask straight after a send that
+      // got no answer is the narrowest moment to ask the chain whether it went.
+      const joinedARun = flushing !== null;
       yield* flushOutbox();
-      // A run already under way took its list before this item was put back, and the
-      // call above only waited for that run. One more, so "send again" sends now and not
-      // at the next tick.
-      if (outbox.some((q) => q.id === id && q.state === 'waiting')) yield* flushOutbox();
+      if (joinedARun) yield* flushOutbox();
     });
+
+  /**
+   * Keep a message the zome refused when there was no screen left to say so on.
+   *
+   * A refusal normally shows beside the composer with the draft still in it. If the
+   * member has moved to another conversation by the time it comes, the draft has gone
+   * with the page. It goes in the outbox as `refused`, with the reason, where the
+   * member finds it in that person's conversation and can send it again or discard it.
+   */
+  const keepRefused = (counterparty: ActionHash, content: string, reason: string): void => {
+    adoptOutbox();
+    const item: OutboxItem = {
+      id: newSendId(),
+      to: threadKeyOf(counterparty),
+      content,
+      queuedAt: Date.now() - SEND_CLOCK_MARGIN_MS,
+      state: 'refused',
+      reason
+    };
+    outbox = [...outbox, item];
+    write({ outbox });
+  };
 
   /**
    * Drop one message from the outbox for good, because the member asked.
@@ -1049,6 +1071,7 @@ export function createMessagingStore(): MessagingStore {
     startRetrying,
     listen,
     retryUnsent,
+    keepRefused,
     discardUnsent
   };
 }

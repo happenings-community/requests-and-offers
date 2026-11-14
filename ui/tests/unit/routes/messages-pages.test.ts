@@ -21,25 +21,30 @@ import ConversationPage from '../../../src/routes/(public)/messages/[user]/+page
  * by address on a network that has none.
  */
 
-const { hashes, getInbox, getSent, sendMessage, userByHash } = vi.hoisted(() => {
-  const hash = (n: number) => new Uint8Array(Array(39).fill(n));
-  return {
-    hashes: {
-      ME: hash(1),
-      MY_AGENT: hash(2),
-      ANITA: hash(3),
-      BELA: hash(4),
-      ANITA_AGENT: hash(5),
-      M1: hash(6),
-      M2: hash(7)
-    },
-    getInbox: vi.fn(),
-    getSent: vi.fn(),
-    sendMessage: vi.fn(),
-    /** Set to stand in for one lookup of a member by hash; otherwise the default below. */
-    userByHash: vi.fn()
-  };
-});
+const { hashes, getInbox, getSent, sendMessage, findSent, userByHash, myRequests } = vi.hoisted(
+  () => {
+    const hash = (n: number) => new Uint8Array(Array(39).fill(n));
+    return {
+      hashes: {
+        ME: hash(1),
+        MY_AGENT: hash(2),
+        ANITA: hash(3),
+        BELA: hash(4),
+        ANITA_AGENT: hash(5),
+        M1: hash(6),
+        M2: hash(7)
+      },
+      getInbox: vi.fn(),
+      getSent: vi.fn(),
+      sendMessage: vi.fn(),
+      findSent: vi.fn(),
+      /** My own published requests, for the Share a listing picker. */
+      myRequests: vi.fn(),
+      /** Set to stand in for one lookup of a member by hash; otherwise the default below. */
+      userByHash: vi.fn()
+    };
+  }
+);
 const { MY_AGENT, ANITA, BELA, ANITA_AGENT } = hashes;
 
 vi.mock('$lib/services/zomes/messaging.service', async () => {
@@ -47,7 +52,7 @@ vi.mock('$lib/services/zomes/messaging.service', async () => {
   const MessagingServiceTag = Context.GenericTag<unknown>('MessagingService');
   const service = {
     sendMessage: (...a: unknown[]) => sendMessage(...a),
-    findSent: () => Effect.succeed(null),
+    findSent: (...a: unknown[]) => findSent(...a),
     getInbox: () => getInbox(),
     getInboxDelta: () =>
       Effect.map(getInbox(), (entries: Array<{ hash: unknown }>) => ({
@@ -114,20 +119,26 @@ vi.mock('$lib/stores/exchanges.store.svelte', async () => {
   };
 });
 
-const { listings } = vi.hoisted(() => ({
-  listings: async () => {
-    const { Effect } = await import('effect');
-    return {
-      default: {
-        getMyListings: () => Effect.succeed([]),
-        getRequest: () => Effect.succeed(null),
-        getOffer: () => Effect.succeed(null)
-      }
-    };
-  }
-}));
-vi.mock('$lib/stores/requests.store.svelte', listings);
-vi.mock('$lib/stores/offers.store.svelte', listings);
+vi.mock('$lib/stores/requests.store.svelte', async () => {
+  const { Effect } = await import('effect');
+  return {
+    default: {
+      getMyListings: () => Effect.succeed(myRequests()),
+      getRequest: () => Effect.succeed(null),
+      getOffer: () => Effect.succeed(null)
+    }
+  };
+});
+vi.mock('$lib/stores/offers.store.svelte', async () => {
+  const { Effect } = await import('effect');
+  return {
+    default: {
+      getMyListings: () => Effect.succeed([]),
+      getRequest: () => Effect.succeed(null),
+      getOffer: () => Effect.succeed(null)
+    }
+  };
+});
 
 vi.mock('@skeletonlabs/skeleton', () => ({
   getModalStore: () => ({ trigger: vi.fn() }),
@@ -157,8 +168,13 @@ beforeEach(() => {
   localStorage.clear();
   getInbox.mockReturnValue(E.succeed([]));
   getSent.mockReturnValue(E.succeed([]));
+  // The store is one object for the whole file: nothing held by one case reaches the next.
+  for (const item of [...messagingStore.outbox]) messagingStore.discardUnsent(item.id);
   sendMessage.mockReset();
   sendMessage.mockReturnValue(E.succeed([]));
+  findSent.mockReset();
+  findSent.mockReturnValue(E.succeed(null));
+  myRequests.mockReturnValue([]);
   userByHash.mockReset();
   signedIn.current = { original_action_hash: hashes.ME, status: { status_type: 'accepted' } };
   setPage({ user: anita });
@@ -305,6 +321,194 @@ describe('the conversation page', () => {
     await new Promise((resolve) => setTimeout(resolve, 120));
 
     expect(screen.queryByText(/Only an accepted member can send/)).toBeNull();
+
+    // And it is not lost: back in Anita's conversation it is there, refused, with the reason.
+    setPage({ user: anita });
+    await screen.findByRole('heading', { name: 'Anita Rossi' });
+    expect(await screen.findByText('to Anita')).toBeTruthy();
+    expect(screen.getByText(/Only an accepted member can send/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Send again' })).toBeTruthy();
+  });
+
+  it('sends a second message after a first', async () => {
+    render(ConversationPage);
+    const box = await composerFor('Anita Rossi');
+    const send = () => screen.getByRole('button', { name: 'Send' });
+
+    await fireEvent.input(box, { target: { value: 'one' } });
+    await fireEvent.click(send());
+    await waitFor(() => expect(box.value).toBe(''));
+    await fireEvent.input(box, { target: { value: 'two' } });
+    await fireEvent.click(send());
+
+    await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(2));
+    expect(sendMessage.mock.calls.map(([input]) => (input as { content: string }).content)).toEqual(
+      ['one', 'two']
+    );
+  });
+
+  it('lets the member press Send again after a refusal', async () => {
+    sendMessage.mockReturnValue(E.fail(refusal));
+    render(ConversationPage);
+    const box = await composerFor('Anita Rossi');
+    await fireEvent.input(box, { target: { value: 'will be refused' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await screen.findByText(/Only an accepted member can send/);
+
+    expect((screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(
+      false
+    );
+  });
+
+  it('does not send while a send is already going', async () => {
+    sendMessage.mockReturnValue(E.sleep('40 millis').pipe(E.as([])));
+    render(ConversationPage);
+    const box = await composerFor('Anita Rossi');
+    await fireEvent.input(box, { target: { value: 'once' } });
+    const form = box.closest('form') as HTMLFormElement;
+
+    await fireEvent.submit(form);
+    await fireEvent.submit(form);
+    await new Promise((resolve) => setTimeout(resolve, 80));
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  /** Leaving and coming back during a slow send must not free Send under a later one. */
+  it('an answer to an earlier press does not free Send for a later one still going', async () => {
+    sendMessage.mockReturnValue(E.sleep('60 millis').pipe(E.as([])));
+    render(ConversationPage);
+    let box = await composerFor('Anita Rossi');
+    await fireEvent.input(box, { target: { value: 'one' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+    setPage({ user: bela });
+    await composerFor('Bela Kovac');
+    setPage({ user: anita });
+    box = await composerFor('Anita Rossi');
+    await fireEvent.input(box, { target: { value: 'two' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    // The answer to "one" arrives about now; "two" is still on its way.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await fireEvent.submit(box.closest('form') as HTMLFormElement);
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    expect(sendMessage.mock.calls.map(([input]) => (input as { content: string }).content)).toEqual(
+      ['one', 'two']
+    );
+  });
+
+  /** SvelteKit speaks again on a change of hash, with the same address. */
+  it('keeps the draft when the page store speaks again with the same address', async () => {
+    render(ConversationPage);
+    const box = await composerFor('Anita Rossi');
+    await fireEvent.input(box, { target: { value: 'half a thought' } });
+
+    setPage({ user: anita }, '/messages#top');
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(((await screen.findByRole('textbox')) as HTMLTextAreaElement).value).toBe(
+      'half a thought'
+    );
+  });
+
+  describe('sharing a listing', () => {
+    const listing = hashes.M2;
+    const openPicker = async () => {
+      myRequests.mockReturnValue([{ original_action_hash: listing, title: 'Bike repair' }]);
+      render(ConversationPage);
+      await composerFor('Anita Rossi');
+      await fireEvent.click(screen.getByRole('button', { name: 'Share a listing' }));
+      return screen.findByRole('button', { name: /Bike repair/ });
+    };
+
+    it('sends the listing as a card, with no text', async () => {
+      await fireEvent.click(await openPicker());
+
+      await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+      expect(sendMessage.mock.calls[0][0]).toMatchObject({ content: '', listing });
+    });
+
+    /** Two clicks made two sends with two ids, so the other person got two cards. */
+    it('sends one card for a double click', async () => {
+      sendMessage.mockReturnValue(E.sleep('40 millis').pipe(E.as([])));
+      const row = await openPicker();
+
+      void fireEvent.click(row);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      void fireEvent.click(row);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the reason when the zome refuses the card', async () => {
+      sendMessage.mockReturnValue(E.fail(refusal));
+      await fireEvent.click(await openPicker());
+
+      expect(
+        await screen.findByText(/That didn't go through: .*Only an accepted member can send/)
+      ).toBeTruthy();
+    });
+
+    it('does not say the card failed because the read after it failed', async () => {
+      const row = await openPicker();
+      getInbox.mockReturnValue(E.fail(new Error('get_inbox_delta: no answer')));
+
+      await fireEvent.click(row);
+      await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+      await new Promise((resolve) => setTimeout(resolve, 30));
+
+      expect(screen.queryByText(/didn't go through/)).toBeNull();
+    });
+
+    it('reads the conversation again once the card has gone', async () => {
+      const row = await openPicker();
+      const readsBefore = getSent.mock.calls.length;
+
+      await fireEvent.click(row);
+
+      await waitFor(() => expect(getSent.mock.calls.length).toBeGreaterThan(readsBefore));
+    });
+  });
+
+  describe('held messages on the page', () => {
+    const hold = (items: unknown[]) =>
+      localStorage.setItem(KEY, JSON.stringify({ schemaVersion: 2, outbox: items }));
+    const item = (id: string, to: string, queuedAt: number, state = 'waiting') => ({
+      id,
+      to,
+      content: `message ${id}`,
+      queuedAt,
+      state
+    });
+
+    it("shows this person's held messages only, oldest first", async () => {
+      hold([
+        item('later', anita, T + 10),
+        item('for-bela', bela, T + 5),
+        item('earlier', anita, T)
+      ]);
+      render(ConversationPage);
+      await composerFor('Anita Rossi');
+
+      const shown = (await screen.findAllByText(/^message /)).map((node) => node.textContent);
+      expect(shown).toEqual(['message earlier', 'message later']);
+    });
+
+    it('sends one that may not have sent when the member says to', async () => {
+      hold([item('held-9', anita, T, 'mayNotHaveSent')]);
+      render(ConversationPage);
+      await composerFor('Anita Rossi');
+
+      await fireEvent.click(
+        await screen.findByRole('button', { name: 'This may not have sent. Send again?' })
+      );
+
+      await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+      expect(sendMessage.mock.calls[0][0]).toMatchObject({ sendId: 'held-9' });
+      await waitFor(() => expect(screen.queryByText('message held-9')).toBeNull());
+    });
   });
 
   /** "May not have sent" had only "send again": if that kept failing it could not be cleared. */

@@ -115,6 +115,8 @@ export function useConversation(address: string | (() => string)) {
     // of address and for Try again after a failed read, where there is no composer and
     // so no draft to lose.
     shownFor = counterpartyB64;
+    press++;
+    acting = false;
     loaded = false;
     loadError = null;
     missing = null;
@@ -152,6 +154,9 @@ export function useConversation(address: string | (() => string)) {
     }
   }
 
+  /** Which press of Send, or of a card, is the one this screen is waiting on. */
+  let press = 0;
+
   async function send(): Promise<void> {
     const content = draft.trim();
     if (content.length === 0 || sending) return;
@@ -160,21 +165,29 @@ export function useConversation(address: string | (() => string)) {
     // What was in the box when Send was pressed. A send that gets no answer takes a full
     // timeout, and the box stays open for typing meanwhile.
     const typed = draft;
-    // Whose conversation this was pressed in. If the member has moved to another by the
-    // time the answer comes, nothing about it is written on the new one's screen: not a
-    // "wasn't sent", not a cleared box, not a Send button coming back to life.
-    const pressedFor = shownFor;
-    const stillHere = () => shownFor === pressedFor;
+    // This press, on this screen. If the member has moved to another conversation by the
+    // time the answer comes, or has come back and pressed Send again, the answer is not
+    // this screen's to act on: no "wasn't sent" on someone else's page, no cleared box,
+    // no Send button coming back to life under a later message still on its way.
+    // (`initialize` moves `press` on as well, so leaving and returning counts.)
+    const mine = ++press;
+    const target = counterparty;
+    const stillMine = () => mine === press;
     try {
-      await runEffect(messagingStore.send(counterparty, content));
+      await runEffect(messagingStore.send(target, content));
     } catch (e) {
-      if (stillHere()) {
+      if (stillMine()) {
         sendError = reasonOf(e);
         sending = false;
+      } else {
+        // Refused after the member had left: there is no screen to say so on and the
+        // draft went with the page. Kept in that person's conversation as a refused
+        // message, with the reason, so it is neither lost nor silently dropped.
+        messagingStore.keepRefused(target, content, reasonOf(e));
       }
       return;
     }
-    if (stillHere()) {
+    if (stillMine()) {
       // Cleared only on the paths that kept the message: a real refusal returned above,
       // and the draft stays so nothing a member typed is lost to an error. And only if
       // it is still what was sent: anything typed since is the start of the next message.
@@ -214,14 +227,21 @@ export function useConversation(address: string | (() => string)) {
   };
 
   /** One card action: the same refresh after, and the reason kept if it was refused. */
+  /** A card action is on its way. One at a time: a second click sends a second card. */
+  let acting = $state(false);
+
   async function act(action: () => Promise<unknown>): Promise<void> {
+    if (acting) return;
+    acting = true;
     actionError = null;
-    const pressedFor = shownFor;
+    const mine = ++press;
     try {
       await action();
     } catch (e) {
-      if (shownFor === pressedFor) actionError = reasonOf(e);
+      if (mine === press) actionError = reasonOf(e);
       return;
+    } finally {
+      acting = false;
     }
     await refresh();
   }
@@ -326,6 +346,9 @@ export function useConversation(address: string | (() => string)) {
     },
     get sending() {
       return sending;
+    },
+    get acting() {
+      return acting;
     },
     get sendError() {
       return sendError;

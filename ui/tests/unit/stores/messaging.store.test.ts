@@ -842,6 +842,51 @@ describe('what the outbox must not do', () => {
     expect(sendMessage, 'tried once, not on every run').toHaveBeenCalledTimes(1);
   });
 
+  it('keeps a refusal on the device, so it is still refused after a reload', async () => {
+    store2([held('a', ANITA, T_SENT)]);
+    const store = await freshStore();
+    sendMessage.mockReturnValue(
+      E.fail({ name: 'ribosome_error', message: 'Only an accepted member can send' })
+    );
+
+    await E.runPromise(store.flushOutbox());
+
+    const kept = (
+      JSON.parse(localStorage.getItem(KEY) ?? '{}') as {
+        outbox: Array<{ state: string; reason?: string }>;
+      }
+    ).outbox[0];
+    expect(kept.state).toBe('refused');
+    expect(kept.reason).toContain('Only an accepted member can send');
+  });
+
+  /** A second ask straight after a silent send is the worst moment to ask the chain. */
+  it('"send again" asks the chain once when no run was under way', async () => {
+    store2([{ ...held('a', ANITA, T_SENT), state: 'refused', reason: 'Not yet accepted' }]);
+    const store = await freshStore();
+    sendMessage.mockReturnValue(E.fail(noAnswer));
+
+    await E.runPromise(store.retryUnsent('a'));
+
+    expect(findSent).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a message refused after its conversation was left, for that person', async () => {
+    const store = await freshStore();
+
+    store.keepRefused(ANITA, 'to Anita', 'Only an accepted member can send');
+
+    expect(store.outbox[0]).toMatchObject({
+      to: encodeHashToBase64(ANITA),
+      content: 'to Anita',
+      state: 'refused',
+      reason: 'Only an accepted member can send'
+    });
+    await E.runPromise(store.flushOutbox());
+    expect(sendMessage, 'not retried without the member').not.toHaveBeenCalled();
+  });
+
   it('leaves out a stored item whose listing is not a hash', async () => {
     store2([{ ...held('bad', ANITA, T_SENT), listing: 42 }, held('a', ANITA, T_SENT + 1)]);
     const store = await freshStore();

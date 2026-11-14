@@ -6,6 +6,7 @@
     useServiceTypeSorting,
     type ServiceTypeSortField
   } from '$lib/composables/search/useServiceTypeSorting.svelte';
+  import { paths } from '$lib/paths';
 
   type Props = {
     serviceTypes: UIServiceType[];
@@ -53,7 +54,7 @@
   function handleEdit(serviceType: UIServiceType) {
     if (serviceType.original_action_hash) {
       const encodedHash = encodeHashToBase64(serviceType.original_action_hash);
-      goto(`/admin/service-types/${encodedHash}/edit`);
+      goto(paths.adminServiceTypeEdit(encodedHash));
     }
   }
 
@@ -62,8 +63,8 @@
       const encodedHash = encodeHashToBase64(serviceType.original_action_hash);
       // Navigate to admin view if showActions is true, otherwise public view
       const path = showActions
-        ? `/admin/service-types/${encodedHash}`
-        : `/service-types/${encodedHash}`;
+        ? paths.adminServiceTypeDetail(encodedHash)
+        : paths.serviceTypeDetail(encodedHash);
       goto(path);
     }
   }
@@ -121,7 +122,7 @@
           {/if}
         </p>
         {#if serviceTypes.length === 0 && showActions}
-          <a href="/admin/service-types/create" class="variant-filled-primary btn mt-4">
+          <a href={paths.adminServiceTypeCreate()} class="variant-filled-primary btn mt-4">
             Create First Service Type
           </a>
         {/if}

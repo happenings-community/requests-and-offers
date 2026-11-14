@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
   import type { ActionHash } from '@holochain/client';
   import ExchangeChainCard from './ExchangeChainCard.svelte';
   import type { ChainGroup } from '$lib/utils/exchange-chains';
@@ -62,7 +63,7 @@
         {me}
         otherName={nameOf(chain.latest) ?? 'them'}
         otherPicture={pictureOf(chain.latest)}
-        title={titleOf(chain.latest) ?? 'A listing'}
+        title={titleOf(chain.latest) ?? C.something}
         lastMoved={lastActivity(chain.latest)}
       />
     {/each}

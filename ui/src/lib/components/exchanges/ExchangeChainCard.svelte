@@ -1,6 +1,7 @@
 <script lang="ts">
   import { encodeHashToBase64, type ActionHash } from '@holochain/client';
   import ExchangeCard from './ExchangeCard.svelte';
+  import ReachPerson from './ReachPerson.svelte';
   import {
     roundChanges,
     roundOutcome,
@@ -9,7 +10,7 @@
     type RoundChange,
     type RoundOutcome
   } from '$lib/utils/exchange-chains';
-  import { formatWhen, wroteIt } from '$lib/utils/exchange-ui';
+  import { counterpartyOf, formatWhen, wroteIt } from '$lib/utils/exchange-ui';
   import type { UIExchange } from '$lib/types/ui';
 
   /**
@@ -93,6 +94,13 @@
     {chip}
     framed={false}
   />
+  <!--
+    Outside the card's link, not inside it: a link within a link is invalid and the
+    browser picks one for you. Go to chat is a second destination, so it gets its own.
+  -->
+  <div class="flex flex-wrap items-center gap-2 px-4 pb-3">
+    <ReachPerson person={counterpartyOf(latest, me)} context="exchange" count />
+  </div>
 
   {#if earlier.length > 0 || chain.missingEarlier}
     <div class="space-y-3 border-t border-surface-300 px-4 py-3 text-sm dark:border-surface-600">

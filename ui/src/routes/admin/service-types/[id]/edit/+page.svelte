@@ -1,10 +1,11 @@
 <script lang="ts">
   import ServiceTypeForm from '$lib/components/service-types/ServiceTypeForm.svelte';
   import { useServiceTypeDetails } from '$lib/composables';
+  import { paths } from '$lib/paths';
 
   // Initialize the composable with edit-specific behavior
   const serviceTypeDetails = useServiceTypeDetails({
-    backRoute: '/admin/service-types'
+    backRoute: paths.adminServiceTypes()
   });
 
   // Destructure for template convenience

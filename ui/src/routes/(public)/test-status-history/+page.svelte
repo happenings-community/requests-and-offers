@@ -1,6 +1,7 @@
 <script lang="ts">
   // Simple test page to verify our TDD logging for status history
   import { onMount } from 'svelte';
+  import { paths } from '$lib/paths';
 
   let testResults: string[] = [];
 
@@ -115,7 +116,7 @@
   </div>
 
   <div class="mt-6 text-center">
-    <a href="/admin/users/status-history" class="variant-filled-primary btn">
+    <a href={paths.adminUsersStatusHistory()} class="variant-filled-primary btn">
       Go to Real Status History Page
     </a>
   </div>

@@ -3,9 +3,10 @@
   import organizationsStore from '$lib/stores/organizations.store.svelte';
   import type { OrganizationInDHT } from '$lib/types/holochain';
   import usersStore from '$lib/stores/users.store.svelte';
-  import { encodeHashToBase64, type ActionHash } from '@holochain/client';
+  import { type ActionHash } from '@holochain/client';
   import OrganizationForm from '$lib/components/organizations/OrganizationForm.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import { paths } from '$lib/paths';
 
   let isContact = $state(false);
   let contactRole = $state('');
@@ -35,7 +36,7 @@
 
       await setCreatorAsContact(record.signed_action.hashed.hash);
 
-      goto(`/organizations/${encodeHashToBase64(record.signed_action.hashed.hash)}`);
+      goto(paths.organizationDetail(record.signed_action.hashed.hash));
     } catch (err) {
       console.error('Error creating organization:', err);
       return Promise.reject(err);

@@ -24,6 +24,7 @@
   import offersStore from '$lib/stores/offers.store.svelte';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
+  import { paths } from '$lib/paths';
 
   const modalStore = getModalStore();
   const toastStore = getToastStore();
@@ -267,7 +268,7 @@
                 message: 'Successfully left the organization',
                 background: 'variant-filled-success'
               });
-              goto('/organizations');
+              goto(paths.organizations());
             } else {
               toastStore.trigger({
                 message: 'Failed to leave the organization',
@@ -307,7 +308,10 @@
             <h1 class="h1">{organization.name}</h1>
             <div class="ml-4 flex flex-col gap-4">
               {#if agentIsCoordinator || agentIsProposer}
-                <a href="/organizations/{page.params.id}/edit" class="variant-filled-primary btn">
+                <a
+                  href={paths.organizationEdit(page.params.id!)}
+                  class="variant-filled-primary btn"
+                >
                   Edit Organization
                 </a>
               {/if}
@@ -356,7 +360,7 @@
           {#if organization.contact}
             <p>
               <strong>Contact Person:</strong>
-              <a href="/users/{encodeHashToBase64(organization.contact.user_hash)}" class="anchor">
+              <a href={paths.userProfile(organization.contact.user_hash)} class="anchor">
                 {resolvedContactName || '...'}
               </a>
               - {organization.contact.role}
@@ -476,7 +480,9 @@
                 <h3 class="h3">Organization Requests</h3>
                 {#if (agentIsCoordinator || agentIsMember) && organization?.status?.status_type === 'accepted'}
                   <a
-                    href={`/requests/create?organization=${page.params.id}`}
+                    href={paths.requestCreate({
+                      organization: decodeHashFromBase64(page.params.id!)
+                    })}
                     class="variant-filled-primary btn">Create New Request</a
                   >
                 {/if}
@@ -500,7 +506,9 @@
                     </p>
                   {:else if agentIsCoordinator || agentIsMember}
                     <a
-                      href={`/requests/create?organization=${page.params.id}`}
+                      href={paths.requestCreate({
+                        organization: decodeHashFromBase64(page.params.id!)
+                      })}
                       class="variant-filled-primary btn">Create First Request</a
                     >
                   {/if}
@@ -516,7 +524,9 @@
                 <h3 class="h3">Organization Offers</h3>
                 {#if (agentIsCoordinator || agentIsMember) && organization?.status?.status_type === 'accepted'}
                   <a
-                    href={`/offers/create?organization=${page.params.id}`}
+                    href={paths.offerCreate({
+                      organization: decodeHashFromBase64(page.params.id!)
+                    })}
                     class="variant-filled-primary btn">Create New Offer</a
                   >
                 {/if}
@@ -540,7 +550,9 @@
                     </p>
                   {:else if agentIsCoordinator || agentIsMember}
                     <a
-                      href={`/offers/create?organization=${page.params.id}`}
+                      href={paths.offerCreate({
+                        organization: decodeHashFromBase64(page.params.id!)
+                      })}
                       class="variant-filled-primary btn">Create First Offer</a
                     >
                   {/if}

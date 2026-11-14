@@ -6,6 +6,7 @@ import type { UIServiceType } from '$lib/types/ui';
 import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
+import { paths } from '$lib/paths';
 
 /**
  * Service Type Details Error
@@ -80,7 +81,7 @@ export interface UseServiceTypeDetailsOptions {
 export function useServiceTypeDetails(
   options: UseServiceTypeDetailsOptions = {}
 ): UseServiceTypeDetails {
-  const { backRoute = '/admin/service-types', onDeleted, onError } = options;
+  const { backRoute = paths.adminServiceTypes(), onDeleted, onError } = options;
 
   // Page context
   const serviceTypeId = $derived(page.params.id);
@@ -170,7 +171,7 @@ export function useServiceTypeDetails(
   function navigateToEdit(): void {
     if (state.serviceType?.original_action_hash) {
       const encodedHash = encodeHashToBase64(state.serviceType.original_action_hash);
-      goto(`/admin/service-types/${encodedHash}/edit`);
+      goto(paths.adminServiceTypeEdit(encodedHash));
     }
   }
 

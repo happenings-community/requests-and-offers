@@ -1,15 +1,16 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import ServiceTypeForm from '$lib/components/service-types/ServiceTypeForm.svelte';
+  import { paths } from '$lib/paths';
 
   function handleCreateSuccess() {
     // The form's composable announces the success; this only navigates.
     // Navigate back to the service types list
-    goto('/admin/service-types');
+    goto(paths.adminServiceTypes());
   }
 
   function handleCancel() {
-    goto('/admin/service-types');
+    goto(paths.adminServiceTypes());
   }
 </script>
 

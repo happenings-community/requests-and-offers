@@ -8,6 +8,7 @@
   import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
   import { runEffect } from '@/lib/utils/effect';
   import { encodeHashToBase64 } from '@holochain/client';
+  import { paths } from '$lib/paths';
 
   let loading = $state(false);
   let syncLoading = $state(false);
@@ -220,7 +221,7 @@
     }
 
     // Navigate to admin medium of exchange page
-    goto(`/admin/mediums-of-exchange`);
+    goto(paths.adminMediumsOfExchange());
   }
 
   onMount(async () => {

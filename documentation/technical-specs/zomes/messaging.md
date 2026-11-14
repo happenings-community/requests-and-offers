@@ -64,7 +64,7 @@ A recipient does not need priming. An inbound remote signal is itself a zome cal
 
 `init` runs once per cell. A cell that existed before this zome was added never runs it and never gets the grant, so adding `messaging` to a running deployment in place with `UpdateCoordinators` would leave those cells unable to receive nudges, silently. A fresh install does not hit this.
 
-**Blocking is not in this zome.** From #364 nothing here blocks: it is the interface's job, in the member's own app, in local storage, applied there to what the read calls return and to incoming signals (#308). It was first built as private `Block` entries on the blocker's chain; a private entry hides its content but not its timing, and a block committed moments after a message arrived told anyone watching the chain who had been blocked.
+**Blocking is not in this zome.** From #364 nothing here blocks: it is the interface's job, in the member's own app, in local storage, applied there to what the read calls return and to incoming signals (#308, section 7). It was first built as private `Block` entries on the blocker's chain; a private entry hides its content but not its timing, and a block committed moments after a message arrived told anyone watching the chain who had been blocked.
 
 ## 4. Delivery
 
@@ -204,3 +204,57 @@ The member-grant rule is tested with the other grant rules, in `tests/sweettest/
 `messaging_roles` proves that a case reaches every holder and the reply comes back, that a holder may reply to an opener who is no longer accepted, claiming, completing, reopening and handing over, that a removed administrator's role messages are withheld (from the role inbox, the member's own area and `get_message`), that a reused case ID from another member opens a separate case, that the role calls refuse a non-holder and the roles not yet built, and that a polling reader is told which messages are role messages and is never sent one as chat.
 
 The pure validation rules are unit-tested in `messaging_integrity`.
+
+## 7. The interface (#308)
+
+The zome stores, delivers and reads. Everything a member would call "my messages" beyond that is the interface's, in `ui/src/lib/stores/messaging.store.svelte.ts` and the pages under `/messages`.
+
+### 7.1. Screens
+
+- **`/messages`**: one row per person, built from messages, interests and exchanges with them. Filters by kind; archived conversations; a row for each message that arrived and could not be read, naming its sender.
+- **`/messages/[user]`**: the conversation with one member. Messages, shared listings, interests and proposals in time order, and a composer for an accepted member. Opening it marks it read, and it stays read as messages arrive while it is open.
+- **`/messages/blocked`**: who is blocked now, and the history of blocks and unblocks.
+
+### 7.2. Reading
+
+The root layout reads the conversations every 15 seconds while a member is signed in, and on every nudge. Each read calls `get_inbox_delta` with the hashes it already holds and the role messages it was told to skip, so only what is new is fetched and decrypted. A read that fails is shown with its reason and a way to try again, never as an empty list.
+
+### 7.3. Sending, and the outbox
+
+A send that the zome accepts is done. Otherwise:
+
+| What happened | What the interface does |
+|---|---|
+| The zome could not find the recipient's devices (nothing was written) | holds the message in the outbox as **waiting** |
+| No answer at all: a timeout, or the connection going | holds it as **waiting**, with its send id |
+| The zome refused | shows the zome's reason; the draft stays in the composer. If the member has left that conversation by the time the refusal comes, the message is kept in its outbox as **refused**, with the reason |
+
+The outbox is read from the device by whichever comes first: a read of the conversations, a message being held, discarded or sent again, or the next 30 second tick. It does not wait for the conversations to be read successfully. It is retried every 30 seconds and when the browser reports it is online again, oldest first, one run at a time. A run is skipped when the conductor reports no reachable peer (if that question fails, the run goes ahead). Within a run, a message that cannot go holds back the later held ones to the same person, and nobody else's. That is as far as ordering goes: a new message typed while an older one is held goes straight to the zome, ahead of it, and the next run starts afresh. Before anything is sent a second time the chain is asked for its send id (`find_sent`), looking from five seconds before Send was first pressed, so an attempt that committed and lost its answer is seen: found means it went, and it is dropped. If that question cannot be answered the item becomes **may not have sent** and waits for the member to say send again. A refusal on a retry makes it **refused**, with the reason. A member can discard an item in any of the three states, and send a refused one again. A message discarded while a run is under way is not sent by that run, unless its own send had already begun. "Send again" sends at once, after any run already under way. A card (a shared listing, an accept, a decline, a withdrawal) is one at a time: a second click while one is going does nothing.
+
+Two limits. **A held message shows only in that person's conversation**: the list of conversations has no marker for it, so a refused message to someone with no conversation yet is found only by opening theirs. **One tab at a time**: the outbox is one list per member on the device, and each open tab writes its own view of it, so two tabs open on the same member can each bring back what the other discarded, or drop what the other held. `find_sent` still stops a message that went from going twice.
+
+### 7.4. What is kept on the device
+
+In the browser's local storage, under the member's agent key, and nowhere else: archived conversations, the outbox, how far the member has read each conversation, how far each other person says they have read, the receipt settings (overall, and per conversation: inherit, on or off), the block list and its history, and whether the member has seen the first-contact notice. None of it is on the chain and none of it syncs between a member's devices.
+
+### 7.5. Blocking
+
+A block is by person, not by agent. It is applied in two places:
+
+- **What is read.** A blocked person's messages are left out of every thread, and a message of theirs that could not be read is not shown as a fault.
+- **What arrives by signal.** The sender is resolved to a person first. A nudge from someone blocked starts no read, and their receipt is not recorded. A sender who cannot be resolved is not known to be blocked, so their nudge still starts a read; what that read returns goes through the block list.
+
+The blocked person is not told, and their messages are still stored: the zome knows nothing of the block.
+
+### 7.6. Receipts
+
+When a conversation's read mark advances and that conversation sends receipts, the interface calls `send_receipt` and carries the same mark in the body of the member's next message there. A message that was held and goes later from the outbox carries no mark. A receipt that arrives is clamped to the last message this member actually sent that person. "Read" is shown only where a receipt arrived.
+
+### 7.7. A network without messaging
+
+Whether a network has messaging is read from the DNA: it does when `messaging_integrity` is among its integrity zomes (`ui/src/lib/services/messagingPresence.svelte.ts`). Without it the interface shows no Messages entry, no "message this person" action and no unread count, and the `/messages` pages render nothing but a notice if opened by address, so no messaging call is made. `VITE_MESSAGING_DISABLED=true` forces that mode for testing.
+
+### 7.8. Tests
+
+`ui/tests/unit/stores/messaging.store.test.ts` (the outbox and its three states, the send that is not repeated, a stored outbox surviving a failed read, blocks on reads and on signals, receipts in and out, the delta read), `ui/tests/unit/services/messaging.service.test.ts` (each call's function name and payload), `ui/tests/unit/routes/messages-pages.test.ts` (the pages mounted on the real store: the address followed and nothing carried from one person to the next, the open conversation kept read, names, discard, a refused send keeping its draft, a failed read not reported as a failed send, a network without messaging). Also `ui/tests/unit/routes/conversation-page.test.ts` and `blocking.test.ts`. The composer is exercised against a stood-in zome only: there is no e2e case for messaging, so nothing sends a message through the pages to a conductor.
+

@@ -1,3 +1,4 @@
+import { SvelteMap } from 'svelte/reactivity';
 import { encodeHashToBase64, type ActionHash } from '@holochain/client';
 import { readHash } from '$lib/paths';
 import messagingStore, { type OutboxItem } from '$lib/stores/messaging.store.svelte';
@@ -17,6 +18,17 @@ import offersStore from '$lib/stores/offers.store.svelte';
 import type { UIInterest } from '$lib/types/ui';
 import type { ReceiptSetting } from '$lib/utils/messaging-local';
 import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
+
+/**
+ * The people a card (a shared listing, an accept, a decline, a withdrawal) is on its way
+ * to, each with the press that put them there.
+ *
+ * **Outside any one screen.** A card still going is still going after the member leaves
+ * the conversation, for another person or for the list, and comes back: kept on the
+ * screen, it was forgotten with the screen, and the row was free for a second card.
+ * Exported for the unit tests, which clear it between cases.
+ */
+export const cardsGoing = new SvelteMap<string, symbol>();
 
 /**
  * One conversation: the person, the timeline, the composer and anything still waiting to
@@ -119,17 +131,18 @@ export function useConversation(address: string | (() => string)) {
     // so a member may have typed by then: the draft is theirs and is kept.
     const samePerson = shownFor === counterpartyB64;
     shownFor = counterpartyB64;
-    sendPress++;
-    cardPress++;
-    // A card still going for this very person (the member left and came straight back)
-    // is still going: its controls stay held until it has been dealt with.
-    acting = going.has(counterpartyB64);
+    // A message still going to this same person is still this screen's: Try again after
+    // a failed read must not free Send under it, or leave its text in the box to be sent
+    // twice. For another person, the answer is no longer this screen's to act on.
+    if (!samePerson) {
+      sendPress++;
+      sending = false;
+    }
     loaded = false;
     loadError = null;
     missing = null;
     sendError = null;
     actionError = null;
-    sending = false;
     name = C.someone;
     if (!samePerson) draft = '';
     if (!decoded) {
@@ -162,15 +175,15 @@ export function useConversation(address: string | (() => string)) {
   }
 
   /**
-   * Which press of Send this screen is waiting on, and which press of a card.
+   * Which press of Send this screen is waiting on.
    *
-   * **Two counts, not one.** They shared one, so a card pressed while a message was
-   * still going made that message's answer look like somebody else's: Send stayed
-   * disabled with the sent text still in the box, and a refusal of either was reported
-   * nowhere. A card and a message are answered separately.
+   * **Send's own count.** It was shared with the cards, so a card pressed while a
+   * message was still going made that message's answer look like somebody else's: Send
+   * stayed disabled with the sent text still in the box, and a refusal of either was
+   * reported nowhere. A card and a message are answered separately; a card is answered
+   * to the person it was pressed for (see `act`).
    */
   let sendPress = 0;
-  let cardPress = 0;
 
   async function send(): Promise<void> {
     const content = draft.trim();
@@ -242,15 +255,14 @@ export function useConversation(address: string | (() => string)) {
   };
 
   /**
-   * A card action is on its way. One at a time: a second click sends a second card.
+   * A card action is on its way to this person. One at a time: a second click sends a
+   * second card.
    *
    * **Held until the re-read after it has finished**, not only until the action has. The
    * picker row and the card's own buttons stay on screen through the re-read, and a click
    * in that gap sent a second card. The page disables every card control on this.
    */
-  let acting = $state(false);
-  /** The people a card is on its way to. Plain, not state: only `acting` is shown. */
-  const going = new Set<string>();
+  const acting = $derived(cardsGoing.has(counterpartyB64));
 
   /**
    * One card action: the same refresh after, and the reason kept if it was refused.
@@ -261,26 +273,26 @@ export function useConversation(address: string | (() => string)) {
    */
   async function act(
     action: () => Promise<unknown>,
-    /** What to do with a refusal that comes after the member has left this screen. */
-    refusedLater?: (reason: string) => void
+    /** What to do with a refusal that comes when this person is no longer on screen. */
+    refusedElsewhere?: (reason: string) => void
   ): Promise<boolean> {
     const here = counterpartyB64;
-    if (going.has(here)) return false;
-    going.add(here);
-    acting = true;
+    if (cardsGoing.has(here)) return false;
+    const mine = Symbol('card');
+    cardsGoing.set(here, mine);
     actionError = null;
-    const mine = ++cardPress;
     // Released for the person it was pressed for, and for nobody else: another card may
     // be going on the screen the member has moved to.
     const release = () => {
-      going.delete(here);
-      if (counterpartyB64 === here && !left) acting = false;
+      if (cardsGoing.get(here) === mine) cardsGoing.delete(here);
     };
     try {
       await action();
     } catch (e) {
-      if (mine === cardPress) actionError = reasonOf(e);
-      else refusedLater?.(reasonOf(e));
+      // Shown where the member is looking at this person, whether they stayed or went
+      // and came back. Anywhere else there is no screen to say it on.
+      if (!left && counterpartyB64 === here) actionError = reasonOf(e);
+      else refusedElsewhere?.(reasonOf(e));
       release();
       return false;
     }
@@ -292,7 +304,7 @@ export function useConversation(address: string | (() => string)) {
   /**
    * The page is going away. Any answer still on its way now belongs to no screen.
    *
-   * `initialize` moves the counts on for a change of person, but leaving Messages
+   * `initialize` moves Send's count on for a change of person, but leaving Messages
    * altogether destroys the page without running it, and a refusal that came after
    * that was written to a screen nobody could see and kept nowhere.
    */
@@ -300,7 +312,6 @@ export function useConversation(address: string | (() => string)) {
   const leave = (): void => {
     left = true;
     sendPress++;
-    cardPress++;
   };
 
   /**

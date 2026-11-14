@@ -5,6 +5,7 @@ import { Effect as E } from 'effect';
 import { encodeHashToBase64 } from '@holochain/client';
 import { localKey } from '$lib/utils/messaging-local';
 import messagingStore from '$lib/stores/messaging.store.svelte';
+import { cardsGoing } from '$lib/composables/domain/messaging/useConversation.svelte';
 import messagingPresence from '$lib/services/messagingPresence.svelte';
 import { setPage } from '../../mocks/app-stores';
 import { signedIn } from '../../mocks/reactive-user.svelte';
@@ -188,6 +189,7 @@ const readMark = () =>
 beforeEach(() => {
   cleanup();
   localStorage.clear();
+  cardsGoing.clear();
   getInbox.mockReturnValue(E.succeed([]));
   getSent.mockReturnValue(E.succeed([]));
   // The store is one object for the whole file: nothing held by one case reaches the next.
@@ -509,6 +511,62 @@ describe('the conversation page', () => {
     expect(((await screen.findByRole('textbox')) as HTMLTextAreaElement).value).toBe('typed early');
   });
 
+  /** The poll or a nudge starts a read while this page's own is still under way. */
+  it('shows the conversation, and marks it read, when another read starts during its own', async () => {
+    getInbox.mockReturnValue(E.sleep('30 millis').pipe(E.as([fromAnita(hashes.M1, T, 'first')])));
+    render(ConversationPage);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    void E.runPromise(messagingStore.loadConversations()).catch(() => {});
+
+    expect(await screen.findByText('first')).toBeTruthy();
+    await waitFor(() => expect(readMark()).toBe(T));
+  });
+
+  /** It showed a name, a working composer and an empty timeline, with no fault at all. */
+  it('still shows the conversation when a read started during its own then fails', async () => {
+    getInbox.mockReturnValueOnce(
+      E.sleep('30 millis').pipe(E.as([fromAnita(hashes.M1, T, 'first')]))
+    );
+    render(ConversationPage);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    getInbox.mockReturnValue(E.fail(new Error('get_inbox_delta: no answer')));
+    await E.runPromise(messagingStore.loadConversations()).catch(() => {});
+
+    await composerFor('Anita Rossi');
+    expect(await screen.findByText('first')).toBeTruthy();
+  });
+
+  /** Try again freed Send and kept the text, so the same message could be sent twice. */
+  it('does not leave a message in the box to send twice when Try again is pressed as it goes', async () => {
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, 'first')]));
+    await E.runPromise(messagingStore.loadConversations());
+    getInbox.mockReturnValue(
+      E.sleep('30 millis').pipe(E.andThen(E.fail(new Error('get_inbox_delta: no answer'))))
+    );
+    sendMessage.mockReturnValue(E.sleep('120 millis').pipe(E.as([])));
+    render(ConversationPage);
+    const box = (await screen.findByRole('textbox')) as HTMLTextAreaElement;
+    await fireEvent.input(box, { target: { value: 'hello once' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+    await screen.findByTestId('conversation-fault');
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, 'first')]));
+    await fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await composerFor('Anita Rossi');
+    expect(
+      (screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled,
+      'the message is still going'
+    ).toBe(true);
+
+    await waitFor(() =>
+      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('')
+    );
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect((screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(
+      false
+    );
+  });
+
   /** SvelteKit speaks again on a change of hash, with the same address. */
   it('keeps the draft when the page store speaks again with the same address', async () => {
     render(ConversationPage);
@@ -776,6 +834,54 @@ describe('the conversation page', () => {
       expect(sendMessage).toHaveBeenCalledTimes(1);
     });
 
+    /** Leaving for the list and coming back made a new screen, which had forgotten it. */
+    it('sends one card when the member leaves Messages and comes back while it is going', async () => {
+      myRequests.mockReturnValue([{ original_action_hash: listing, title: 'Bike repair' }]);
+      const first = render(ConversationPage);
+      await composerFor('Anita Rossi');
+      await fireEvent.click(screen.getByRole('button', { name: 'Share a listing' }));
+      sendMessage.mockReturnValue(E.sleep('120 millis').pipe(E.as([])));
+      void fireEvent.click(await screen.findByRole('button', { name: /Bike repair/ }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      first.unmount();
+      render(ConversationPage);
+      await composerFor('Anita Rossi');
+      await fireEvent.click(screen.getByRole('button', { name: 'Share a listing' }));
+      const again = (await screen.findByRole('button', {
+        name: /Bike repair/
+      })) as HTMLButtonElement;
+      expect(again.disabled, 'still going').toBe(true);
+      await fireEvent.click(again);
+
+      await waitFor(() => expect(again.disabled).toBe(false));
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not carry a refused card's reason to the next person's screen", async () => {
+      sendMessage.mockReturnValue(E.fail(refusal));
+      await fireEvent.click(await openPicker());
+      await screen.findByText(/That didn't go through/);
+
+      setPage({ user: bela });
+      await composerFor('Bela Kovac');
+
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('takes the reason away when the card is pressed again', async () => {
+      sendMessage.mockReturnValueOnce(E.fail(refusal));
+      await fireEvent.click(await openPicker());
+      await screen.findByText(/That didn't go through/);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      sendMessage.mockReturnValue(E.sleep('60 millis').pipe(E.as([])));
+      void fireEvent.click(screen.getByRole('button', { name: /Bike repair/ }));
+
+      await waitFor(() => expect(screen.queryByText(/That didn't go through/)).toBeNull());
+      expect(sendMessage, 'while it is still going').toHaveBeenCalledTimes(2);
+    });
+
     it('reads the conversation again once the card has gone', async () => {
       const row = await openPicker();
       const readsBefore = getSent.mock.calls.length;
@@ -877,6 +983,23 @@ describe('the conversation page', () => {
 
       // And free again once the card has gone.
       await waitFor(() => expect(confirmDecline().disabled).toBe(false));
+    });
+
+    /** They went to someone else and came back: this is the screen to say it on. */
+    it('says an accept was refused when the member has gone away and come back by then', async () => {
+      respond.mockReturnValue(
+        E.sleep('60 millis').pipe(E.andThen(E.fail(new Error('respond: no answer'))))
+      );
+      await open(fromHer);
+      void fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      setPage({ user: bela });
+      await composerFor('Bela Kovac');
+      setPage({ user: anita });
+      await composerFor('Anita Rossi');
+
+      expect(await screen.findByText(/That didn't go through: .*no answer/)).toBeTruthy();
     });
 
     it('cannot be withdrawn while another card is going', async () => {

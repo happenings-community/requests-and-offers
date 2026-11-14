@@ -370,18 +370,25 @@ export function createMessagingStore(): MessagingStore {
   let skippedRoleMessages: string[] = [];
 
   /**
-   * Which read of the conversations is the newest one started.
+   * Reads of the conversations overlap: the poll, a nudge and the read after a send can
+   * all be under way together, and they finish in any order.
    *
-   * **Only the newest read writes what the screen shows.** The poll, a nudge and the
-   * read after a send can all be under way together, and they finish in any order. A
-   * slow poll that started before a message was sent landed after the read that showed
-   * it, and took the message off the screen until the next read.
+   * **A read writes the screen unless one started after it already has.** A slow poll
+   * that started before a message was sent landed after the read that showed it, and
+   * took the message off the screen until the next read. The rule is not "only the
+   * newest started writes": reads that keep overlapping would then never show anything,
+   * and a read whose successor failed would be thrown away with nothing in its place.
    */
   let readRun = 0;
+  /** The latest-started read that has written the screen. */
+  let lastWritten = 0;
+  /** How many are under way. `loading` is true while any is. */
+  let readsUnderWay = 0;
 
   const loadConversations = (): E.Effect<UIThread[], MessagingError> =>
     withServices((service) => {
       const run = ++readRun;
+      readsUnderWay += 1;
       return E.gen(function* () {
         loading = true;
         error = null;
@@ -389,9 +396,9 @@ export function createMessagingStore(): MessagingStore {
         const me = myUserHash();
         if (!me) {
           // No profile yet: nothing to show, and not an error worth a red screen.
+          lastWritten = Math.max(lastWritten, run);
           threads = [];
           faults = [];
-          loading = false;
           everLoaded = true;
           return [];
         }
@@ -463,9 +470,10 @@ export function createMessagingStore(): MessagingStore {
           return !(person && blocked.has(threadKeyOf(person)));
         });
 
-        // An older read than the one now under way: what it found is already out of
-        // date, and the newer one will say so. Nothing on screen is touched.
-        if (run !== readRun) return threads;
+        // A read started after this one has already written: what this one found is
+        // older than what is on screen, which is the answer to give instead.
+        if (run < lastWritten) return threads;
+        lastWritten = run;
 
         threads = buildThreads({
           me,
@@ -499,20 +507,22 @@ export function createMessagingStore(): MessagingStore {
           });
         }
 
-        loading = false;
         everLoaded = true;
         return threads;
       }).pipe(
         E.catchAll((e) => {
-          // `readRun` here is the newest started; a failure of an older read is not the
-          // state of the screen either.
-          if (run === readRun) {
-            loading = false;
-            everLoaded = true;
-            error = e instanceof MessagingError ? e.message : String(e);
-          }
+          everLoaded = true;
+          // Not reported over a later read that worked: that one is the state of the
+          // screen. (The caller is still told its own read failed.)
+          if (run > lastWritten) error = e instanceof MessagingError ? e.message : String(e);
           return E.fail(e as MessagingError);
-        })
+        }),
+        E.ensuring(
+          E.sync(() => {
+            readsUnderWay -= 1;
+            loading = readsUnderWay > 0;
+          })
+        )
       );
     });
 

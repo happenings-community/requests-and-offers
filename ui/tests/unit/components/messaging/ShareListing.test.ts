@@ -44,6 +44,7 @@ describe('sharing a listing just published', () => {
 
     await waitFor(() => expect(goto).toHaveBeenCalledWith(BACK));
     expect(send).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(button().disabled, 'free again afterwards').toBe(false));
     expect(send).toHaveBeenCalledWith(ANITA, '', LISTING);
   });
 

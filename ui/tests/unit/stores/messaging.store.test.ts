@@ -276,12 +276,43 @@ describe('reads that overlap', () => {
     getSent.mockReturnValue(E.succeed([mineToAnita()]));
     await E.runPromise(store.loadConversations());
     expect(store.threads, 'shown').toHaveLength(1);
-    expect(store.loading, 'the older read is not the screen: nothing is loading').toBe(false);
+    expect(store.loading, 'a read is still under way').toBe(true);
 
     await older;
 
     expect(store.threads, 'still shown').toHaveLength(1);
     expect(store.threads[0].messages).toHaveLength(1);
+    expect(store.loading).toBe(false);
+  });
+
+  /** "Only the newest started writes" would show nothing while reads keep overlapping. */
+  it('a read writes even though a later one has started and not finished', async () => {
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    getSent.mockReturnValue(E.succeed([mineToAnita()]));
+    const store = await freshStore();
+    const first = E.runPromise(store.loadConversations());
+    getSent.mockReturnValue(E.sleep('60 millis').pipe(E.as([mineToAnita()])));
+    const later = E.runPromise(store.loadConversations());
+
+    expect(await first, 'and answers with what it found').toHaveLength(1);
+    expect(store.threads, 'shown before the later one has finished').toHaveLength(1);
+    await later;
+  });
+
+  /** Thrown away with nothing in its place, the conversation looked empty and unfaulted. */
+  it('an older read still writes when the later one failed', async () => {
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    const store = await freshStore();
+    getSent.mockReturnValueOnce(E.sleep('40 millis').pipe(E.as([mineToAnita()])));
+    const older = E.runPromise(store.loadConversations());
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    getSent.mockReturnValue(E.fail(new Error('no answer')));
+    await E.runPromise(store.loadConversations()).catch(() => {});
+    expect(store.error, 'the failure is reported').not.toBeNull();
+
+    await older;
+
+    expect(store.threads, 'what the older one found is shown').toHaveLength(1);
   });
 
   it('an older read that fails late is not reported over a newer one that worked', async () => {
@@ -928,6 +959,17 @@ describe('what the outbox must not do', () => {
     expect(sendMessage, 'not retried without the member').not.toHaveBeenCalled();
   });
 
+  /** Kept before the stored outbox had been read, it wrote over what was stored. */
+  it('keeps a refused message beside what is already stored, on a store that has read nothing', async () => {
+    store2([held('a', ANITA, T_SENT)]);
+    const store = await freshStore();
+
+    store.keepRefused(ANITA, 'to Anita', 'Only an accepted member can send');
+
+    expect(storedIds()).toHaveLength(2);
+    expect(storedIds()).toContain('a');
+  });
+
   it('keeps that refused message on the device, so a reload still shows it', async () => {
     const store = await freshStore();
 
@@ -1059,6 +1101,24 @@ describe('what the outbox must not do', () => {
     await E.runPromise(store.retryUnsent('a'));
 
     expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('the timer stops when it is told to', async () => {
+    store2([held('a', ANITA, T_SENT)]);
+    const store = await freshStore();
+    findSent.mockReturnValue(E.succeed(null));
+    sendMessage.mockReturnValue(E.fail(devicesNotFound));
+    vi.useFakeTimers();
+    const stop = store.startRetrying();
+    await vi.advanceTimersByTimeAsync(31_000);
+    const tries = sendMessage.mock.calls.length;
+    expect(tries, 'it was running').toBeGreaterThan(0);
+
+    stop();
+    await vi.advanceTimersByTimeAsync(120_000);
+    vi.useRealTimers();
+
+    expect(sendMessage).toHaveBeenCalledTimes(tries);
   });
 
   it('the timer picks up a stored message with no read and no page open', async () => {

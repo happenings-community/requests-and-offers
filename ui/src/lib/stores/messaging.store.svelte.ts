@@ -399,7 +399,7 @@ export function createMessagingStore(): MessagingStore {
         if (!me) {
           // No profile yet: nothing to show, and not an error worth a red screen.
           everLoaded = true;
-          if (run < lastWritten) return threads;
+          // Nothing is awaited before this point, so this is the newest read started.
           lastWritten = run;
           error = null;
           threads = [];

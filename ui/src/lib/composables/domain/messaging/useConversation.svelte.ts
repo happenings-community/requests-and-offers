@@ -37,7 +37,7 @@ export const cardsGoing = new SvelteMap<string, symbol>();
  * left for the list and come back was said on a screen that no longer existed, and the
  * proposal simply showed as still to be answered. Exported for the unit tests.
  */
-export const cardRefusals = new SvelteMap<string, string>();
+export const cardRefusals = new SvelteMap<string, { reason: string; about?: string }>();
 
 /**
  * One conversation: the person, the timeline, the composer and anything still waiting to
@@ -74,7 +74,16 @@ export function useConversation(address: string | (() => string)) {
   let draft = $state('');
   let sendError = $state<string | null>(null);
   /** Why a card action (share, accept, decline, withdraw) was refused, when one was. */
-  const actionError = $derived(cardRefusals.get(counterpartyB64) ?? null);
+  const actionError = $derived.by(() => {
+    const refusal = cardRefusals.get(counterpartyB64);
+    if (!refusal) return null;
+    // Said only while the thing it is about is still waiting. A reason kept from an
+    // earlier visit may be "no answer" for an accept that did in fact land: by the time
+    // the member is back the proposal is an agreement, and "that didn't go through"
+    // over it would be wrong.
+    if (refusal.about && thread && !stillWaiting(thread, refusal.about)) return null;
+    return refusal.reason;
+  });
   let sending = $state(false);
   /** True once this screen's own read has finished. Until then, nothing is an answer. */
   let loaded = $state(false);
@@ -82,6 +91,12 @@ export function useConversation(address: string | (() => string)) {
   let loadError = $state<string | null>(null);
 
   const thread = $derived<UIThread | undefined>(messagingStore.threads.find((t) => t.key === key));
+
+  /** Is this proposal, or this interest, still in the conversation and unanswered? */
+  const stillWaiting = (t: UIThread, hash: string): boolean =>
+    t.exchanges.some(
+      (e) => encodeHashToBase64(e.agreement_hash) === hash && e.status === 'Proposed' && !e.response
+    ) || t.interests.some((i) => encodeHashToBase64(i.interest_hash) === hash);
   const timeline = $derived<TimelineItem[]>(thread ? buildTimeline(thread) : []);
 
   /** Anything for this person that has not gone out, oldest first. */
@@ -140,7 +155,8 @@ export function useConversation(address: string | (() => string)) {
     // so a member may have typed by then: the draft is theirs and is kept.
     const samePerson = shownFor === counterpartyB64;
     // Leaving a person is having seen whatever was said about their last card.
-    if (shownFor !== null && !samePerson) cardRefusals.delete(shownFor);
+    // (Only if it could have been: a visit whose read failed showed the fault instead.)
+    if (shownFor !== null && !samePerson && loaded) cardRefusals.delete(shownFor);
     shownFor = counterpartyB64;
     // A message still going to this same person is still this screen's: Try again after
     // a failed read must not free Send under it, or leave its text in the box to be sent
@@ -283,9 +299,15 @@ export function useConversation(address: string | (() => string)) {
    */
   async function act(
     action: () => Promise<unknown>,
-    /** What to do with a refusal that comes when this person is no longer on screen. */
-    refusedElsewhere?: (reason: string) => void
+    options: {
+      /** The proposal or interest the card answers, so its reason is not said once that has moved on. */
+      about?: ActionHash;
+      /** What to do with a refusal that comes when this person is no longer on screen. */
+      refusedElsewhere?: (reason: string) => void;
+    } = {}
   ): Promise<boolean> {
+    const { refusedElsewhere } = options;
+    const about = options.about ? encodeHashToBase64(options.about) : undefined;
     const here = counterpartyB64;
     if (cardsGoing.has(here)) return false;
     const mine = Symbol('card');
@@ -304,7 +326,7 @@ export function useConversation(address: string | (() => string)) {
       // person's outbox instead: that says it, and offers sending again, by itself.
       const looking = !left && counterpartyB64 === here;
       if (!looking && refusedElsewhere) refusedElsewhere(reasonOf(e));
-      else cardRefusals.set(here, reasonOf(e));
+      else cardRefusals.set(here, { reason: reasonOf(e), about });
       release();
       return false;
     }
@@ -325,7 +347,7 @@ export function useConversation(address: string | (() => string)) {
     left = true;
     sendPress++;
     // Seen, if it was on screen. One that comes after this is kept for the next visit.
-    if (shownFor !== null) cardRefusals.delete(shownFor);
+    if (shownFor !== null && loaded) cardRefusals.delete(shownFor);
   };
 
   /**
@@ -378,24 +400,25 @@ export function useConversation(address: string | (() => string)) {
    */
   const shareListing = (listing: ActionHash): Promise<boolean> => {
     const target = counterparty;
-    return act(
-      () => runEffect(messagingStore.send(target, '', listing)),
+    return act(() => runEffect(messagingStore.send(target, '', listing)), {
       // Refused after the member had left: kept in that person's conversation as a
       // refused card, with the reason, exactly as a refused message is.
-      (reason) => messagingStore.keepRefused(target, '', reason, listing)
-    );
+      refusedElsewhere: (reason) => messagingStore.keepRefused(target, '', reason, listing)
+    });
   };
 
   /** Accept or decline a proposal. A decline must carry a reason; the form enforces it. */
   const respond = (agreement: ActionHash, accepted: boolean, note: string): Promise<boolean> =>
-    act(() => runEffect(exchangesStore.respond(agreement, accepted, note)));
+    act(() => runEffect(exchangesStore.respond(agreement, accepted, note)), { about: agreement });
 
   /** The proposer's one move while a proposal waits, as on the exchange page. */
   const withdrawProposal = (agreement: ActionHash): Promise<boolean> =>
-    act(() => runEffect(exchangesStore.cancel(agreement, 'Withdrawn by the proposer')));
+    act(() => runEffect(exchangesStore.cancel(agreement, 'Withdrawn by the proposer')), {
+      about: agreement
+    });
 
   const withdrawInterest = (interest: ActionHash): Promise<boolean> =>
-    act(() => runEffect(exchangesStore.withdrawInterest(interest)));
+    act(() => runEffect(exchangesStore.withdrawInterest(interest)), { about: interest });
 
   return {
     get counterparty() {

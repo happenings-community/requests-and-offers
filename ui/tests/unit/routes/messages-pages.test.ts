@@ -1027,10 +1027,74 @@ describe('the conversation page', () => {
       expect(respond).toHaveBeenCalledTimes(1);
     });
 
+    it('does not say an accept was refused on the screen of the person the member went to', async () => {
+      respond.mockReturnValue(
+        E.sleep('40 millis').pipe(E.andThen(E.fail(new Error('respond: no answer'))))
+      );
+      await open(fromHer);
+      void fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      setPage({ user: bela });
+      await composerFor('Bela Kovac');
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      expect(screen.queryByRole('alert'), 'nothing on Bela').toBeNull();
+
+      setPage({ user: anita });
+      await composerFor('Anita Rossi');
+      expect(await screen.findByText(/That didn't go through: .*no answer/)).toBeTruthy();
+    });
+
+    /** "No answer" is the case where it may have landed after all. */
+    it('does not say an accept failed once the proposal has been answered', async () => {
+      respond.mockReturnValue(
+        E.sleep('40 millis').pipe(E.andThen(E.fail(new Error('respond: no answer'))))
+      );
+      myExchanges.mockReturnValue([fromHer]);
+      const first = render(ConversationPage);
+      await composerFor('Anita Rossi');
+      void fireEvent.click(await screen.findByRole('button', { name: 'Accept' }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      first.unmount();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
+      myExchanges.mockReturnValue([
+        { ...fromHer, status: 'Agreed', response: { accepted: true, created_at: T + 1 } }
+      ]);
+      render(ConversationPage);
+      await composerFor('Anita Rossi');
+      await new Promise((resolve) => setTimeout(resolve, 30));
+
+      expect(screen.queryByText(/That didn't go through/)).toBeNull();
+    });
+
+    /** The visit showed the fault, not the reason, so the reason has not been seen. */
+    it('still says it after a visit whose read failed', async () => {
+      respond.mockReturnValue(
+        E.sleep('40 millis').pipe(E.andThen(E.fail(new Error('respond: no answer'))))
+      );
+      myExchanges.mockReturnValue([fromHer]);
+      const first = render(ConversationPage);
+      await composerFor('Anita Rossi');
+      void fireEvent.click(await screen.findByRole('button', { name: 'Accept' }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      first.unmount();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
+      getInbox.mockReturnValue(E.fail(new Error('get_inbox_delta: no answer')));
+      const second = render(ConversationPage);
+      await screen.findByTestId('conversation-fault');
+      second.unmount();
+
+      getInbox.mockReturnValue(E.succeed([]));
+      render(ConversationPage);
+      await composerFor('Anita Rossi');
+      expect(await screen.findByText(/That didn't go through: .*respond: no answer/)).toBeTruthy();
+    });
+
     it('does not say it again once the member has seen it and left', async () => {
       respond.mockReturnValue(E.fail(new Error('respond: no answer')));
-      const card = await open(fromHer);
-      void card;
+      await open(fromHer);
       await fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
       await screen.findByText(/That didn't go through/);
 

@@ -110,20 +110,19 @@ export function useConversation(address: string | (() => string)) {
     // person's name, or "loaded", over the next one's.
     const mine = ++run;
     const stale = () => mine !== run;
+    // Everything this screen holds about a person is cleared first, so the last person's
+    // name, draft and errors never show on the next one. The page runs this for a change
+    // of address and for Try again after a failed read, where there is no composer and
+    // so no draft to lose.
+    shownFor = counterpartyB64;
+    loaded = false;
     loadError = null;
     missing = null;
-    // Everything this screen holds about a person is cleared when the address changes,
-    // so the last person's name, draft and errors never show on the next one. Not on a
-    // second run for the same address (Try again, after a failed read): the member's
-    // draft is theirs to keep.
-    if (counterpartyB64 !== shownFor) {
-      shownFor = counterpartyB64;
-      loaded = false;
-      sendError = null;
-      actionError = null;
-      name = C.someone;
-      draft = '';
-    }
+    sendError = null;
+    actionError = null;
+    sending = false;
+    name = C.someone;
+    draft = '';
     if (!decoded) {
       missing = 'address';
       return;
@@ -161,17 +160,41 @@ export function useConversation(address: string | (() => string)) {
     // What was in the box when Send was pressed. A send that gets no answer takes a full
     // timeout, and the box stays open for typing meanwhile.
     const typed = draft;
+    // Whose conversation this was pressed in. If the member has moved to another by the
+    // time the answer comes, nothing about it is written on the new one's screen: not a
+    // "wasn't sent", not a cleared box, not a Send button coming back to life.
+    const pressedFor = shownFor;
+    const stillHere = () => shownFor === pressedFor;
     try {
       await runEffect(messagingStore.send(counterparty, content));
-      // Cleared only on the paths that kept the message: a real refusal throws, and the
-      // draft stays so nothing a member typed is lost to an error. And only if it is
-      // still what was sent: anything typed since is the start of the next message.
-      if (draft === typed) draft = '';
-      await runEffect(messagingStore.loadConversations());
     } catch (e) {
-      sendError = reasonOf(e);
-    } finally {
+      if (stillHere()) {
+        sendError = reasonOf(e);
+        sending = false;
+      }
+      return;
+    }
+    if (stillHere()) {
+      // Cleared only on the paths that kept the message: a real refusal returned above,
+      // and the draft stays so nothing a member typed is lost to an error. And only if
+      // it is still what was sent: anything typed since is the start of the next message.
+      if (draft === typed) draft = '';
       sending = false;
+    }
+    await refresh();
+  }
+
+  /**
+   * Re-read after something was done. **A failed re-read is not a failed send.** The two
+   * used to share one `try`, so a message that had gone was reported as "wasn't sent"
+   * whenever the read after it failed, and a card action that had gone as "didn't go
+   * through", which invites doing it twice. The store reports its own read failures.
+   */
+  async function refresh(): Promise<void> {
+    try {
+      await runEffect(messagingStore.loadConversations());
+    } catch {
+      // `messagingStore.error` has the reason; the next poll tries again.
     }
   }
 
@@ -193,12 +216,14 @@ export function useConversation(address: string | (() => string)) {
   /** One card action: the same refresh after, and the reason kept if it was refused. */
   async function act(action: () => Promise<unknown>): Promise<void> {
     actionError = null;
+    const pressedFor = shownFor;
     try {
       await action();
-      await runEffect(messagingStore.loadConversations());
     } catch (e) {
-      actionError = reasonOf(e);
+      if (shownFor === pressedFor) actionError = reasonOf(e);
+      return;
     }
+    await refresh();
   }
 
   /**

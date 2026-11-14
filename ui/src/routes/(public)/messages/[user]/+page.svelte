@@ -52,9 +52,10 @@
 
   // Nudges, receipts and the outbox's retries are the root layout's: they carry on after
   // this conversation is left, which is what a message waiting to send needs.
-  // Run for the address and for nothing else. `initialize` reads the stores as it starts,
-  // and left tracked it ran again whenever any of them changed, which now would clear
-  // the screen and the draft under the member's hands.
+  // Run for the address and for nothing else. `initialize` clears the screen and the
+  // draft. Today the address is the only reactive thing it reads before its first wait,
+  // so tracking it would change nothing; it is untracked so that stays true whatever it
+  // comes to read, and a member's draft never depends on that.
   $effect(() => {
     void $page.params.user;
     untrack(() => conversation.initialize());

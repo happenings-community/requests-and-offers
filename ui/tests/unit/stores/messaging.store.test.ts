@@ -772,6 +772,87 @@ describe('what the outbox must not do', () => {
     expect(store.outbox).toHaveLength(0);
   });
 
+  it('looks from five seconds before the attempt, for a clock that disagrees', async () => {
+    const store = await freshStore();
+    const pressed = Date.now();
+    sendMessage.mockReturnValueOnce(E.fail(noAnswer));
+    await E.runPromise(store.send(ANITA, 'see you at ten'));
+
+    await E.runPromise(store.flushOutbox());
+
+    const since = (findSent.mock.calls[0][0] as { since: number }).since / 1000;
+    expect(since, 'no later than five seconds before Send was pressed').toBeLessThanOrEqual(
+      pressed - 5_000
+    );
+    expect(since, 'and not much earlier').toBeGreaterThan(pressed - 6_000);
+  });
+
+  it('does not send a message discarded while the chain was being asked about it', async () => {
+    store2([held('a', ANITA, T_SENT)]);
+    const store = await freshStore();
+    findSent.mockReturnValue(E.sleep('30 millis').pipe(E.as(null)));
+    sendMessage.mockReturnValue(E.succeed([]));
+
+    const run = E.runPromise(store.flushOutbox());
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    store.discardUnsent('a');
+    await run;
+
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  /** "Send again" pressed during a run only waited for that run, whose list was older. */
+  it('sends again at once, even when a run is already under way', async () => {
+    store2([
+      held('a', ANITA, T_SENT),
+      { ...held('b', BELA, T_SENT + 1), state: 'refused', reason: 'Not yet accepted' }
+    ]);
+    const store = await freshStore();
+    sendMessage.mockReturnValue(E.sleep('20 millis').pipe(E.as([])));
+
+    const run = E.runPromise(store.flushOutbox());
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await E.runPromise(store.retryUnsent('b'));
+    await run;
+
+    const sent = sendMessage.mock.calls.map(([input]) => (input as { sendId: string }).sendId);
+    expect(sent).toEqual(['a', 'b']);
+    expect(store.outbox).toHaveLength(0);
+  });
+
+  /** Storage that refused the write still says "waiting"; this store knows better. */
+  it('does not go back to retrying a refused message when storage kept the old state', async () => {
+    store2([held('a', ANITA, T_SENT)]);
+    const store = await freshStore();
+    sendMessage.mockReturnValue(
+      E.fail({ name: 'ribosome_error', message: 'Only an accepted member can send' })
+    );
+    const refuse = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+    try {
+      await E.runPromise(store.flushOutbox());
+      await E.runPromise(store.loadConversations());
+      await E.runPromise(store.flushOutbox());
+    } finally {
+      refuse.mockRestore();
+    }
+
+    expect(store.outbox[0]?.state).toBe('refused');
+    expect(sendMessage, 'tried once, not on every run').toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves out a stored item whose listing is not a hash', async () => {
+    store2([{ ...held('bad', ANITA, T_SENT), listing: 42 }, held('a', ANITA, T_SENT + 1)]);
+    const store = await freshStore();
+    sendMessage.mockReturnValue(E.succeed([]));
+
+    await E.runPromise(store.flushOutbox());
+
+    const sent = sendMessage.mock.calls.map(([input]) => (input as { sendId: string }).sendId);
+    expect(sent).toEqual(['a']);
+  });
+
   it('does not send a message discarded while the run was under way', async () => {
     store2([held('a', ANITA, T_SENT), held('b', BELA, T_SENT + 1)]);
     const store = await freshStore();

@@ -84,6 +84,7 @@ export function isOutboxItem(value: unknown): value is OutboxItem {
     typeof item.to === 'string' &&
     item.to.length > 0 &&
     typeof item.content === 'string' &&
+    (item.listing === undefined || typeof item.listing === 'string') &&
     typeof item.queuedAt === 'number' &&
     (item.state === 'waiting' || item.state === 'mayNotHaveSent' || item.state === 'refused')
   );

@@ -7,6 +7,7 @@ import { localKey } from '$lib/utils/messaging-local';
 import messagingStore from '$lib/stores/messaging.store.svelte';
 import messagingPresence from '$lib/services/messagingPresence.svelte';
 import { setPage } from '../../mocks/app-stores';
+import { signedIn } from '../../mocks/reactive-user.svelte';
 import MessagesLayout from '../../../src/routes/(public)/messages/+layout.svelte';
 import MessagesPage from '../../../src/routes/(public)/messages/+page.svelte';
 import ConversationPage from '../../../src/routes/(public)/messages/[user]/+page.svelte';
@@ -20,7 +21,7 @@ import ConversationPage from '../../../src/routes/(public)/messages/[user]/+page
  * by address on a network that has none.
  */
 
-const { hashes, getInbox, getSent, sendMessage } = vi.hoisted(() => {
+const { hashes, getInbox, getSent, sendMessage, userByHash } = vi.hoisted(() => {
   const hash = (n: number) => new Uint8Array(Array(39).fill(n));
   return {
     hashes: {
@@ -34,7 +35,9 @@ const { hashes, getInbox, getSent, sendMessage } = vi.hoisted(() => {
     },
     getInbox: vi.fn(),
     getSent: vi.fn(),
-    sendMessage: vi.fn()
+    sendMessage: vi.fn(),
+    /** Set to stand in for one lookup of a member by hash; otherwise the default below. */
+    userByHash: vi.fn()
   };
 });
 const { MY_AGENT, ANITA, BELA, ANITA_AGENT } = hashes;
@@ -76,20 +79,26 @@ vi.mock('$lib/services/HolochainClientService.svelte', async () => {
 
 vi.mock('$lib/stores/users.store.svelte', async () => {
   const { Effect } = await import('effect');
+  const { signedIn } = await import('../../mocks/reactive-user.svelte');
   const same = (a: Uint8Array, b: Uint8Array) => a.every((byte, i) => byte === b[i]);
   return {
     default: {
-      currentUser: { original_action_hash: hashes.ME, status: { status_type: 'accepted' } },
+      // Reactive, as the real store's is: read through the signal on every access.
+      get currentUser() {
+        return signedIn.current;
+      },
       getUserByAgentPubKey: (agent: Uint8Array) =>
         Effect.succeed(
           same(agent, hashes.ANITA_AGENT) ? { original_action_hash: hashes.ANITA } : null
         ),
       getUserByActionHash: (user: Uint8Array) =>
-        Effect.succeed(
-          same(user, hashes.BELA)
-            ? { name: 'Bela Kovac', original_action_hash: hashes.BELA }
-            : { name: 'Anita Rossi', original_action_hash: hashes.ANITA }
-        )
+        userByHash.getMockImplementation()
+          ? userByHash(user)
+          : Effect.succeed(
+              same(user, hashes.BELA)
+                ? { name: 'Bela Kovac', original_action_hash: hashes.BELA }
+                : { name: 'Anita Rossi', original_action_hash: hashes.ANITA }
+            )
     }
   };
 });
@@ -148,7 +157,10 @@ beforeEach(() => {
   localStorage.clear();
   getInbox.mockReturnValue(E.succeed([]));
   getSent.mockReturnValue(E.succeed([]));
+  sendMessage.mockReset();
   sendMessage.mockReturnValue(E.succeed([]));
+  userByHash.mockReset();
+  signedIn.current = { original_action_hash: hashes.ME, status: { status_type: 'accepted' } };
   setPage({ user: anita });
 });
 
@@ -195,6 +207,104 @@ describe('the conversation page', () => {
     await new Promise((resolve) => setTimeout(resolve, 120));
 
     expect(box.value, 'not wiped when the first send finished').toBe('and a second thought');
+  });
+
+  /** The composer, once the page has loaded for whoever the address names. */
+  const composerFor = async (name: string) => {
+    await screen.findByRole('heading', { name });
+    return (await screen.findByRole('textbox')) as HTMLTextAreaElement;
+  };
+  const refusal = { name: 'ribosome_error', message: 'Only an accepted member can send' };
+
+  it('does not carry a draft from one person to the next', async () => {
+    render(ConversationPage);
+    const box = await composerFor('Anita Rossi');
+    await fireEvent.input(box, { target: { value: 'meant for Anita' } });
+
+    setPage({ user: bela });
+
+    expect((await composerFor('Bela Kovac')).value).toBe('');
+  });
+
+  /** A late answer about the last address must not write over the next one. */
+  it('is not overwritten by a late answer about the person it was showing before', async () => {
+    let release: (user: unknown) => void = () => {};
+    const anitaLookup = new Promise((resolve) => (release = resolve));
+    userByHash.mockImplementation((user: Uint8Array) =>
+      user.every((byte, i) => byte === ANITA[i])
+        ? E.promise(() => anitaLookup)
+        : E.succeed({ name: 'Bela Kovac', original_action_hash: BELA })
+    );
+    render(ConversationPage);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    setPage({ user: bela });
+    await screen.findByRole('heading', { name: 'Bela Kovac' });
+    release({ name: 'Anita Rossi', original_action_hash: ANITA });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(screen.getByRole('heading', { name: 'Bela Kovac' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Anita Rossi' })).toBeNull();
+  });
+
+  /** The page sets itself up for its address, not whenever a store it reads changes. */
+  it('keeps the draft when the signed-in member is re-read', async () => {
+    render(ConversationPage);
+    const box = await composerFor('Anita Rossi');
+    await fireEvent.input(box, { target: { value: 'half a thought' } });
+
+    signedIn.current = { original_action_hash: hashes.ME, status: { status_type: 'accepted' } };
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(((await screen.findByRole('textbox')) as HTMLTextAreaElement).value).toBe(
+      'half a thought'
+    );
+  });
+
+  it('keeps the draft and shows the reason when the zome refuses', async () => {
+    sendMessage.mockReturnValue(E.fail(refusal));
+    render(ConversationPage);
+    const box = await composerFor('Anita Rossi');
+    await fireEvent.input(box, { target: { value: 'will be refused' } });
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+    expect(await screen.findByText(/Only an accepted member can send/)).toBeTruthy();
+    expect(box.value, 'nothing the member typed is lost to an error').toBe('will be refused');
+  });
+
+  /** A failed re-read after a send is a read fault, never "your message wasn't sent". */
+  it('does not say a message was not sent because the read after it failed', async () => {
+    render(ConversationPage);
+    const box = await composerFor('Anita Rossi');
+    await fireEvent.input(box, { target: { value: 'this one goes' } });
+    getInbox.mockReturnValue(E.fail(new Error('get_inbox_delta: no answer')));
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(screen.queryByText(/wasn't sent/)).toBeNull();
+    expect(box.value, 'and the box is cleared, because it went').toBe('');
+  });
+
+  /** A slow send's answer belongs to the conversation it was pressed in. */
+  it("does not show one person's refused send on the next person's screen", async () => {
+    sendMessage.mockReturnValue(E.sleep('60 millis').pipe(E.zipRight(E.fail(refusal))));
+    render(ConversationPage);
+    const box = await composerFor('Anita Rossi');
+    await fireEvent.input(box, { target: { value: 'to Anita' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+    setPage({ user: bela });
+    await composerFor('Bela Kovac');
+    expect(
+      (screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled,
+      'Bela can be written to while the send to Anita is still out'
+    ).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    expect(screen.queryByText(/Only an accepted member can send/)).toBeNull();
   });
 
   /** "May not have sent" had only "send again": if that kept failing it could not be cleared. */

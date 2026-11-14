@@ -425,8 +425,13 @@ export function createMessagingStore(): MessagingStore {
         // What storage holds, plus anything held in memory that storage refused to keep.
         outboxAdopted = true;
         const stored = new Set(local.outbox.map((item) => item.id));
+        // Where both hold an item, this store's copy is the newer: storage that refused
+        // a write still says "waiting" about a message since refused.
+        const inMemory = new Map(outbox.map((item) => [item.id, item]));
         outbox = [
-          ...local.outbox.filter((item) => !gone.has(item.id)),
+          ...local.outbox
+            .filter((item) => !gone.has(item.id))
+            .map((item) => inMemory.get(item.id) ?? item),
           ...outbox.filter((item) => !stored.has(item.id))
         ];
 
@@ -682,6 +687,9 @@ export function createMessagingStore(): MessagingStore {
           E.map((hash) => ({ ok: true as const, hash })),
           E.catchAll(() => E.succeed({ ok: false as const, hash: null }))
         );
+
+        // The member may have discarded it while the chain was being asked.
+        if (!outbox.some((q) => q.id === item.id && q.state === 'waiting')) continue;
 
         if (already.ok && already.hash) {
           dropFromOutbox(item.id);
@@ -939,6 +947,10 @@ export function createMessagingStore(): MessagingStore {
       );
       write({ outbox });
       yield* flushOutbox();
+      // A run already under way took its list before this item was put back, and the
+      // call above only waited for that run. One more, so "send again" sends now and not
+      // at the next tick.
+      if (outbox.some((q) => q.id === id && q.state === 'waiting')) yield* flushOutbox();
     });
 
   /**

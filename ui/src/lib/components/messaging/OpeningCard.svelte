@@ -14,8 +14,10 @@
     /** True when I am the one who showed interest, false when they did. */
     mine: boolean;
     onWithdraw: (interest: ActionHash) => void;
+    /** A card action in this conversation is still going: a second click is a second act. */
+    disabled?: boolean;
   };
-  const { interest, name, mine, onWithdraw }: Props = $props();
+  const { interest, name, mine, onWithdraw, disabled = false }: Props = $props();
 
   const isOffer = $derived(interest.listing_type === 'Offer');
 
@@ -54,6 +56,7 @@
       <button
         type="button"
         class="btn btn-sm variant-ghost"
+        {disabled}
         onclick={() => onWithdraw(interest.interest_hash)}
       >
         {E.interest.withdraw}

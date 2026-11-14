@@ -774,17 +774,20 @@ describe('what the outbox must not do', () => {
 
   it('looks from five seconds before the attempt, for a clock that disagrees', async () => {
     const store = await freshStore();
-    const pressed = Date.now();
+    // The clock is held still, so this is the exact time and not a race with it.
+    const pressed = 1_760_000_123_456;
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(pressed);
     sendMessage.mockReturnValueOnce(E.fail(noAnswer));
-    await E.runPromise(store.send(ANITA, 'see you at ten'));
-
-    await E.runPromise(store.flushOutbox());
+    findSent.mockReturnValue(E.succeed(null));
+    try {
+      await E.runPromise(store.send(ANITA, 'see you at ten'));
+      await E.runPromise(store.flushOutbox());
+    } finally {
+      clock.mockRestore();
+    }
 
     const since = (findSent.mock.calls[0][0] as { since: number }).since / 1000;
-    expect(since, 'no later than five seconds before Send was pressed').toBeLessThanOrEqual(
-      pressed - 5_000
-    );
-    expect(since, 'and not much earlier').toBeGreaterThan(pressed - 6_000);
+    expect(since, 'five seconds before Send was pressed').toBe(pressed - 5_000);
   });
 
   it('does not send a message discarded while the chain was being asked about it', async () => {
@@ -887,6 +890,17 @@ describe('what the outbox must not do', () => {
     expect(sendMessage, 'not retried without the member').not.toHaveBeenCalled();
   });
 
+  it('keeps that refused message on the device, so a reload still shows it', async () => {
+    const store = await freshStore();
+
+    store.keepRefused(ANITA, 'to Anita', 'Only an accepted member can send');
+
+    const reopened = await freshStore();
+    await E.runPromise(reopened.flushOutbox());
+    expect(reopened.outbox).toHaveLength(1);
+    expect(reopened.outbox[0]).toMatchObject({ content: 'to Anita', state: 'refused' });
+  });
+
   it('leaves out a stored item whose listing is not a hash', async () => {
     store2([{ ...held('bad', ANITA, T_SENT), listing: 42 }, held('a', ANITA, T_SENT + 1)]);
     const store = await freshStore();
@@ -977,6 +991,26 @@ describe('what the outbox must not do', () => {
     store.discardUnsent('a');
 
     expect(storedIds(), 'the other one is kept, not overwritten').toEqual(['b']);
+  });
+
+  /** The timer waits up to its interval; coming back online should not. */
+  it('tries the outbox again as soon as the browser says it is back online', async () => {
+    store2([held('a', ANITA, T_SENT)]);
+    const store = await freshStore();
+    findSent.mockReturnValue(E.succeed(null));
+    // Nothing gets through, so it is still waiting for the next time.
+    sendMessage.mockReturnValue(E.fail(devicesNotFound));
+    const stop = store.startRetrying();
+
+    window.dispatchEvent(new Event('online'));
+    await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(store.outbox[0]?.state, 'still waiting').toBe('waiting');
+
+    stop();
+    window.dispatchEvent(new Event('online'));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(sendMessage, 'and not once stopped').toHaveBeenCalledTimes(1);
   });
 
   it('sends a stored message again on a store that has read nothing', async () => {

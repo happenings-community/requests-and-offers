@@ -10,11 +10,14 @@
     exchange: UIExchange;
     name: string;
     me: ActionHash | undefined;
-    onRespond: (agreement: ActionHash, accepted: boolean, note: string) => Promise<void>;
+    /** Answers whether it was done: `false` is a refusal, or an action that did not run. */
+    onRespond: (agreement: ActionHash, accepted: boolean, note: string) => Promise<boolean>;
     /** The proposer's one move while the other person has not answered. */
-    onWithdraw: (agreement: ActionHash) => Promise<void>;
+    onWithdraw: (agreement: ActionHash) => Promise<boolean>;
+    /** Another card action in this conversation is still going. */
+    disabled?: boolean;
   };
-  const { exchange, name, me, onRespond, onWithdraw }: Props = $props();
+  const { exchange, name, me, onRespond, onWithdraw, disabled = false }: Props = $props();
 
   const fromMe = $derived(wroteIt(exchange, me));
   const initial = $derived(name.trim().charAt(0).toUpperCase() || '?');
@@ -85,9 +88,18 @@
     if (!isAccept && !reasonGiven) return;
     busy = true;
     try {
-      await onRespond(exchange.agreement_hash, isAccept, isAccept ? '' : reason.trim());
-      declining = false;
-      reason = '';
+      const done = await onRespond(
+        exchange.agreement_hash,
+        isAccept,
+        isAccept ? '' : reason.trim()
+      );
+      // Only once it has gone. A decline that was refused, or did not run, keeps its
+      // form open and the reason in it: the page says what went wrong, and the member
+      // should not have to write the reason again to try again.
+      if (done) {
+        declining = false;
+        reason = '';
+      }
     } finally {
       busy = false;
     }
@@ -150,7 +162,7 @@
       <button
         type="button"
         class="variant-ghost btn btn-sm"
-        disabled={busy}
+        disabled={busy || disabled}
         onclick={withdraw}
         data-testid="proposal-withdraw">{S.proposal.withdraw}</button
       >
@@ -177,7 +189,7 @@
           <button
             type="button"
             class="variant-filled-error btn btn-sm"
-            disabled={!reasonGiven || busy}
+            disabled={!reasonGiven || busy || disabled}
             onclick={() => answer(false)}
           >
             {S.proposal.declineForm.confirm}
@@ -200,7 +212,7 @@
         <button
           type="button"
           class="variant-filled-success btn btn-sm"
-          disabled={busy}
+          disabled={busy || disabled}
           onclick={() => answer(true)}>{S.proposal.accept}</button
         >
         <a

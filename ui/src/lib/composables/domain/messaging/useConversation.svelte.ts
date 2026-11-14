@@ -102,8 +102,6 @@ export function useConversation(address: string | (() => string)) {
    */
   /** Which run of `initialize` is the current one. */
   let run = 0;
-  /** The address the screen's state belongs to. */
-  let shownFor: string | null = null;
 
   async function initialize(): Promise<void> {
     // An earlier run that resumes after the address has changed must not write the last
@@ -114,8 +112,8 @@ export function useConversation(address: string | (() => string)) {
     // name, draft and errors never show on the next one. The page runs this for a change
     // of address and for Try again after a failed read, where there is no composer and
     // so no draft to lose.
-    shownFor = counterpartyB64;
-    press++;
+    sendPress++;
+    cardPress++;
     acting = false;
     loaded = false;
     loadError = null;
@@ -154,8 +152,16 @@ export function useConversation(address: string | (() => string)) {
     }
   }
 
-  /** Which press of Send, or of a card, is the one this screen is waiting on. */
-  let press = 0;
+  /**
+   * Which press of Send this screen is waiting on, and which press of a card.
+   *
+   * **Two counts, not one.** They shared one, so a card pressed while a message was
+   * still going made that message's answer look like somebody else's: Send stayed
+   * disabled with the sent text still in the box, and a refusal of either was reported
+   * nowhere. A card and a message are answered separately.
+   */
+  let sendPress = 0;
+  let cardPress = 0;
 
   async function send(): Promise<void> {
     const content = draft.trim();
@@ -169,10 +175,10 @@ export function useConversation(address: string | (() => string)) {
     // time the answer comes, or has come back and pressed Send again, the answer is not
     // this screen's to act on: no "wasn't sent" on someone else's page, no cleared box,
     // no Send button coming back to life under a later message still on its way.
-    // (`initialize` moves `press` on as well, so leaving and returning counts.)
-    const mine = ++press;
+    // (`initialize` moves the count on as well, so leaving and returning counts.)
+    const mine = ++sendPress;
     const target = counterparty;
-    const stillMine = () => mine === press;
+    const stillMine = () => mine === sendPress;
     try {
       await runEffect(messagingStore.send(target, content));
     } catch (e) {
@@ -226,24 +232,42 @@ export function useConversation(address: string | (() => string)) {
     if (loaded && decoded) messagingStore.markThreadRead(counterparty);
   };
 
-  /** One card action: the same refresh after, and the reason kept if it was refused. */
-  /** A card action is on its way. One at a time: a second click sends a second card. */
+  /**
+   * A card action is on its way. One at a time: a second click sends a second card.
+   *
+   * **Held until the re-read after it has finished**, not only until the action has. The
+   * picker row and the card's own buttons stay on screen through the re-read, and a click
+   * in that gap sent a second card. The page disables every card control on this.
+   */
   let acting = $state(false);
 
-  async function act(action: () => Promise<unknown>): Promise<void> {
-    if (acting) return;
+  /**
+   * One card action: the same refresh after, and the reason kept if it was refused.
+   *
+   * **Answers whether it was done.** A card clears what the member typed (a reason for
+   * declining) only on `true`: `false` is a refusal, shown by the page, or an action not
+   * run because another was still going, and neither is a reason to lose their words.
+   */
+  async function act(action: () => Promise<unknown>): Promise<boolean> {
+    if (acting) return false;
     acting = true;
     actionError = null;
-    const mine = ++press;
+    const mine = ++cardPress;
+    // Not released by an action that belongs to a conversation since left: `initialize`
+    // has already released it there, and another card may be going on the new screen.
+    const release = () => {
+      if (mine === cardPress) acting = false;
+    };
     try {
       await action();
     } catch (e) {
-      if (mine === press) actionError = reasonOf(e);
-      return;
-    } finally {
-      acting = false;
+      if (mine === cardPress) actionError = reasonOf(e);
+      release();
+      return false;
     }
     await refresh();
+    release();
+    return true;
   }
 
   /**
@@ -294,18 +318,18 @@ export function useConversation(address: string | (() => string)) {
    * is what keeps a listing a card rather than becoming context on something somebody
    * wrote.
    */
-  const shareListing = (listing: ActionHash): Promise<void> =>
+  const shareListing = (listing: ActionHash): Promise<boolean> =>
     act(() => runEffect(messagingStore.send(counterparty, '', listing)));
 
   /** Accept or decline a proposal. A decline must carry a reason; the form enforces it. */
-  const respond = (agreement: ActionHash, accepted: boolean, note: string): Promise<void> =>
+  const respond = (agreement: ActionHash, accepted: boolean, note: string): Promise<boolean> =>
     act(() => runEffect(exchangesStore.respond(agreement, accepted, note)));
 
   /** The proposer's one move while a proposal waits, as on the exchange page. */
-  const withdrawProposal = (agreement: ActionHash): Promise<void> =>
+  const withdrawProposal = (agreement: ActionHash): Promise<boolean> =>
     act(() => runEffect(exchangesStore.cancel(agreement, 'Withdrawn by the proposer')));
 
-  const withdrawInterest = (interest: ActionHash): Promise<void> =>
+  const withdrawInterest = (interest: ActionHash): Promise<boolean> =>
     act(() => runEffect(exchangesStore.withdrawInterest(interest)));
 
   return {

@@ -805,10 +805,10 @@ export function createMessagingStore(): MessagingStore {
    * **Started by the root layout, not by a conversation.** The outbox belongs to the
    * member, not to the chat it was written in: a message held while one conversation was
    * open must still go after they navigate away, reload, or come back tomorrow. The timer
-   * is the fallback half of the retry; the other half is the browser's `online` event,
-   * which the layout also wires to `flushOutbox`. Neither is sufficient alone: the event
-   * never fires if the connection never dropped, and a timer alone would wait up to its
-   * full interval after it came back.
+   * is the fallback half of the retry; the other half is the browser's `online` event.
+   * Neither is sufficient alone: the event never fires if the connection never dropped,
+   * and a timer alone would wait up to its full interval after it came back. Both are
+   * started here, so that one call is the whole of "keep trying" and one test covers it.
    */
   const startRetrying = (): (() => void) => {
     if (typeof setInterval === 'undefined') return () => {};
@@ -816,7 +816,14 @@ export function createMessagingStore(): MessagingStore {
       adoptOutbox();
       if (outbox.some((item) => item.state === 'waiting')) void E.runPromise(flushOutbox());
     }, RETRY_INTERVAL_MS);
-    return () => clearInterval(handle);
+    // A flush that fails is the outbox's own business: the items stay held.
+    const online = () => void E.runPromise(flushOutbox()).catch(() => {});
+    const target = typeof window === 'undefined' ? undefined : window;
+    target?.addEventListener('online', online);
+    return () => {
+      clearInterval(handle);
+      target?.removeEventListener('online', online);
+    };
   };
 
   /**

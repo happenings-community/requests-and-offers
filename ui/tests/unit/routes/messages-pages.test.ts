@@ -21,30 +21,49 @@ import ConversationPage from '../../../src/routes/(public)/messages/[user]/+page
  * by address on a network that has none.
  */
 
-const { hashes, getInbox, getSent, sendMessage, findSent, userByHash, myRequests } = vi.hoisted(
-  () => {
-    const hash = (n: number) => new Uint8Array(Array(39).fill(n));
-    return {
-      hashes: {
-        ME: hash(1),
-        MY_AGENT: hash(2),
-        ANITA: hash(3),
-        BELA: hash(4),
-        ANITA_AGENT: hash(5),
-        M1: hash(6),
-        M2: hash(7)
-      },
-      getInbox: vi.fn(),
-      getSent: vi.fn(),
-      sendMessage: vi.fn(),
-      findSent: vi.fn(),
-      /** My own published requests, for the Share a listing picker. */
-      myRequests: vi.fn(),
-      /** Set to stand in for one lookup of a member by hash; otherwise the default below. */
-      userByHash: vi.fn()
-    };
-  }
-);
+const {
+  hashes,
+  getInbox,
+  getSent,
+  sendMessage,
+  findSent,
+  userByHash,
+  myRequests,
+  myExchanges,
+  myInterests,
+  requestByHash,
+  respond,
+  cancel,
+  withdrawInterest
+} = vi.hoisted(() => {
+  const hash = (n: number) => new Uint8Array(Array(39).fill(n));
+  return {
+    hashes: {
+      ME: hash(1),
+      MY_AGENT: hash(2),
+      ANITA: hash(3),
+      BELA: hash(4),
+      ANITA_AGENT: hash(5),
+      M1: hash(6),
+      M2: hash(7)
+    },
+    getInbox: vi.fn(),
+    getSent: vi.fn(),
+    sendMessage: vi.fn(),
+    findSent: vi.fn(),
+    /** My own published requests, for the Share a listing picker. */
+    myRequests: vi.fn(),
+    /** My exchanges and interests, which are what put cards in a conversation. */
+    myExchanges: vi.fn(),
+    myInterests: vi.fn(),
+    requestByHash: vi.fn(),
+    respond: vi.fn(),
+    cancel: vi.fn(),
+    withdrawInterest: vi.fn(),
+    /** Set to stand in for one lookup of a member by hash; otherwise the default below. */
+    userByHash: vi.fn()
+  };
+});
 const { MY_AGENT, ANITA, BELA, ANITA_AGENT } = hashes;
 
 vi.mock('$lib/services/zomes/messaging.service', async () => {
@@ -112,9 +131,12 @@ vi.mock('$lib/stores/exchanges.store.svelte', async () => {
   const { Effect } = await import('effect');
   return {
     default: {
-      getMyInterests: () => Effect.succeed([]),
+      getMyInterests: () => Effect.succeed(myInterests()),
       getInterestsForListing: () => Effect.succeed([]),
-      loadMyExchanges: () => Effect.succeed([])
+      loadMyExchanges: () => Effect.succeed(myExchanges()),
+      respond: (...a: unknown[]) => respond(...a),
+      cancel: (...a: unknown[]) => cancel(...a),
+      withdrawInterest: (...a: unknown[]) => withdrawInterest(...a)
     }
   };
 });
@@ -124,7 +146,7 @@ vi.mock('$lib/stores/requests.store.svelte', async () => {
   return {
     default: {
       getMyListings: () => Effect.succeed(myRequests()),
-      getRequest: () => Effect.succeed(null),
+      getRequest: () => Effect.succeed(requestByHash()),
       getOffer: () => Effect.succeed(null)
     }
   };
@@ -175,6 +197,13 @@ beforeEach(() => {
   findSent.mockReset();
   findSent.mockReturnValue(E.succeed(null));
   myRequests.mockReturnValue([]);
+  myExchanges.mockReturnValue([]);
+  myInterests.mockReturnValue([]);
+  requestByHash.mockReturnValue(null);
+  for (const call of [respond, cancel, withdrawInterest]) {
+    call.mockReset();
+    call.mockReturnValue(E.succeed(undefined));
+  }
   userByHash.mockReset();
   signedIn.current = { original_action_hash: hashes.ME, status: { status_type: 'accepted' } };
   setPage({ user: anita });
@@ -462,6 +491,149 @@ describe('the conversation page', () => {
       expect(screen.queryByText(/didn't go through/)).toBeNull();
     });
 
+    /**
+     * The row stays on screen until the re-read after the send has finished, so a click
+     * in that gap was a second card with a second id.
+     */
+    it('sends one card for a second click while the conversation is read again', async () => {
+      const row = await openPicker();
+      getSent.mockReturnValue(E.sleep('120 millis').pipe(E.as([])));
+
+      void fireEvent.click(row);
+      await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      const again = screen.queryByRole('button', { name: /Bike repair/ }) as HTMLButtonElement;
+      expect(again?.disabled, 'no row to press while the card is still being dealt with').not.toBe(
+        false
+      );
+      if (again) void fireEvent.click(again);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('shares a second listing after a first', async () => {
+      await fireEvent.click(await openPicker());
+      await waitFor(() => expect(screen.queryByRole('button', { name: /Bike repair/ })).toBeNull());
+
+      await fireEvent.click(screen.getByRole('button', { name: 'Share a listing' }));
+      const row = (await screen.findByRole('button', { name: /Bike repair/ })) as HTMLButtonElement;
+      expect(row.disabled).toBe(false);
+      await fireEvent.click(row);
+
+      await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(2));
+    });
+
+    it('leaves the picker open under the reason when the card is refused', async () => {
+      sendMessage.mockReturnValue(E.fail(refusal));
+      await fireEvent.click(await openPicker());
+
+      await screen.findByText(/That didn't go through/);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      const row = screen.getByRole('button', { name: /Bike repair/ }) as HTMLButtonElement;
+      expect(row.disabled, 'and free to press again').toBe(false);
+    });
+
+    /**
+     * Send and the cards counted their presses together, so a card pressed while a
+     * message was going made that message's answer look like nobody's.
+     */
+    it('frees Send and clears the box when a card is pressed while a message is going', async () => {
+      const row = await openPicker();
+      sendMessage.mockReturnValueOnce(E.sleep('60 millis').pipe(E.as([])));
+      const box = screen.getByRole('textbox') as HTMLTextAreaElement;
+      await fireEvent.input(box, { target: { value: 'hello' } });
+      await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+      await fireEvent.click(row);
+
+      await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(box.value).toBe(''));
+      expect((screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(
+        false
+      );
+    });
+
+    it('says why a message was refused when a card was pressed while it was going', async () => {
+      const row = await openPicker();
+      sendMessage.mockReturnValueOnce(E.sleep('60 millis').pipe(E.andThen(E.fail(refusal))));
+      const box = screen.getByRole('textbox') as HTMLTextAreaElement;
+      await fireEvent.input(box, { target: { value: 'hello' } });
+      await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+      await fireEvent.click(row);
+
+      expect(
+        await screen.findByText(/Your message wasn't sent: .*Only an accepted member can send/)
+      ).toBeTruthy();
+      expect(box.value, 'the draft is kept').toBe('hello');
+      expect(messagingStore.outbox, 'and not held as well').toHaveLength(0);
+      expect((screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(
+        false
+      );
+    });
+
+    it('says why a card was refused when Send was pressed while it was going', async () => {
+      const row = await openPicker();
+      sendMessage.mockReturnValueOnce(E.sleep('60 millis').pipe(E.andThen(E.fail(refusal))));
+      void fireEvent.click(row);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const box = screen.getByRole('textbox') as HTMLTextAreaElement;
+      await fireEvent.input(box, { target: { value: 'hello' } });
+      await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+      expect(await screen.findByText(/That didn't go through/)).toBeTruthy();
+    });
+
+    it('does not carry an open picker from one person to the next', async () => {
+      await openPicker();
+
+      setPage({ user: bela });
+      await composerFor('Bela Kovac');
+
+      expect(screen.queryByTestId('share-listing')).toBeNull();
+    });
+
+    /** A card still going for the person just left must not lock the next person's cards. */
+    it("does not lock the next person's cards on one still going for the last", async () => {
+      const row = await openPicker();
+      sendMessage.mockReturnValueOnce(E.sleep('150 millis').pipe(E.as([])));
+      void fireEvent.click(row);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      setPage({ user: bela });
+      await composerFor('Bela Kovac');
+      await fireEvent.click(screen.getByRole('button', { name: 'Share a listing' }));
+      const next = (await screen.findByRole('button', {
+        name: /Bike repair/
+      })) as HTMLButtonElement;
+
+      expect(next.disabled).toBe(false);
+    });
+
+    /** And the other way: the last person's card finishing must not free the next one's. */
+    it("does not free the next person's cards when one for the last person finishes", async () => {
+      const row = await openPicker();
+      sendMessage.mockReturnValue(E.sleep('60 millis').pipe(E.as([])));
+      void fireEvent.click(row);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      setPage({ user: bela });
+      await composerFor('Bela Kovac');
+      await fireEvent.click(screen.getByRole('button', { name: 'Share a listing' }));
+      const next = (await screen.findByRole('button', {
+        name: /Bike repair/
+      })) as HTMLButtonElement;
+      sendMessage.mockReturnValue(E.sleep('200 millis').pipe(E.as([])));
+      void fireEvent.click(next);
+      // Anita's card has gone by now; Bela's is still on its way.
+      await new Promise((resolve) => setTimeout(resolve, 110));
+
+      expect(next.isConnected, "the next person's picker is still open").toBe(true);
+      expect(next.disabled, 'and its card is still going').toBe(true);
+    });
+
     it('reads the conversation again once the card has gone', async () => {
       const row = await openPicker();
       const readsBefore = getSent.mock.calls.length;
@@ -469,6 +641,157 @@ describe('the conversation page', () => {
       await fireEvent.click(row);
 
       await waitFor(() => expect(getSent.mock.calls.length).toBeGreaterThan(readsBefore));
+    });
+  });
+
+  describe('a proposal in the conversation', () => {
+    const AGREEMENT = hashes.M1;
+    const term = { resource_kind: 'Gift', resource_conforms_to: 'Gift' };
+    /** One Anita wrote and I have not answered. */
+    const fromHer = {
+      agreement_hash: AGREEMENT,
+      status: 'Proposed',
+      created_at: T,
+      agreement: {
+        counterparty: hashes.ME,
+        provider: ANITA,
+        receiver: hashes.ME,
+        primary: term,
+        reciprocal: term
+      }
+    };
+    /** One I wrote and she has not answered. */
+    const fromMe = {
+      ...fromHer,
+      agreement: { ...fromHer.agreement, counterparty: ANITA, provider: hashes.ME, receiver: ANITA }
+    };
+    const open = async (exchange: unknown) => {
+      myExchanges.mockReturnValue([exchange]);
+      render(ConversationPage);
+      await composerFor('Anita Rossi');
+      return screen.findByTestId('proposal-card');
+    };
+    const declineWith = async (reason: string) => {
+      await fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
+      const box = screen.getByLabelText(/Why are you declining/i) as HTMLTextAreaElement;
+      await fireEvent.input(box, { target: { value: reason } });
+      return box;
+    };
+    const confirmDecline = () =>
+      screen.getByRole('button', { name: 'Decline proposal' }) as HTMLButtonElement;
+
+    it('accepts with Accept', async () => {
+      await open(fromHer);
+      await fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+
+      await waitFor(() => expect(respond).toHaveBeenCalledTimes(1));
+      expect(respond).toHaveBeenCalledWith(AGREEMENT, true, '');
+    });
+
+    it('declines with the reason the member gave', async () => {
+      await open(fromHer);
+      await declineWith('  Not this week  ');
+      await fireEvent.click(confirmDecline());
+
+      await waitFor(() => expect(respond).toHaveBeenCalledTimes(1));
+      expect(respond).toHaveBeenCalledWith(AGREEMENT, false, 'Not this week');
+    });
+
+    it('withdraws with Withdraw', async () => {
+      await open(fromMe);
+      await fireEvent.click(screen.getByTestId('proposal-withdraw'));
+
+      await waitFor(() => expect(cancel).toHaveBeenCalledTimes(1));
+      expect(cancel.mock.calls[0][0]).toBe(AGREEMENT);
+      expect(respond).not.toHaveBeenCalled();
+    });
+
+    /** The form closed and the reason went with it, under a line saying it had failed. */
+    it('keeps the reason when the decline does not go through', async () => {
+      respond.mockReturnValue(E.fail(new Error('respond: no answer')));
+      await open(fromHer);
+      const box = await declineWith('Not this week');
+      await fireEvent.click(confirmDecline());
+
+      expect(await screen.findByText(/That didn't go through: .*no answer/)).toBeTruthy();
+      expect(box.isConnected, 'the form is still open').toBe(true);
+      expect(box.value).toBe('Not this week');
+    });
+
+    /** Pressed while another card was going, it made no call and threw the reason away. */
+    it('cannot be answered while another card is going, and keeps what was typed', async () => {
+      myRequests.mockReturnValue([{ original_action_hash: hashes.M2, title: 'Bike repair' }]);
+      await open(fromHer);
+      const box = await declineWith('Not this week');
+      await fireEvent.click(screen.getByRole('button', { name: 'Share a listing' }));
+      sendMessage.mockReturnValueOnce(E.sleep('80 millis').pipe(E.as([])));
+      void fireEvent.click(await screen.findByRole('button', { name: /Bike repair/ }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(confirmDecline().disabled).toBe(true);
+      await fireEvent.click(confirmDecline());
+      expect(respond).not.toHaveBeenCalled();
+      expect(box.value).toBe('Not this week');
+
+      // And free again once the card has gone.
+      await waitFor(() => expect(confirmDecline().disabled).toBe(false));
+    });
+
+    it('answers a second proposal after a first', async () => {
+      const second = { ...fromHer, agreement_hash: hashes.M2, created_at: T + 1 };
+      myExchanges.mockReturnValue([fromHer, second]);
+      render(ConversationPage);
+      await composerFor('Anita Rossi');
+      const accepts = await screen.findAllByRole('button', { name: 'Accept' });
+
+      await fireEvent.click(accepts[0]);
+      await waitFor(() => expect(respond).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect((accepts[1] as HTMLButtonElement).disabled).toBe(false));
+      await fireEvent.click(accepts[1]);
+
+      await waitFor(() => expect(respond).toHaveBeenCalledTimes(2));
+    });
+  });
+
+  describe('an interest in the conversation', () => {
+    const INTEREST = hashes.M1;
+    const LISTING = hashes.M2;
+    const open = async (user: Uint8Array) => {
+      myInterests.mockReturnValue([
+        { interest_hash: INTEREST, listing: LISTING, listing_type: 'Request', user, created_at: T }
+      ]);
+      requestByHash.mockReturnValue({ title: 'Bike repair', creator: ANITA });
+      render(ConversationPage);
+      await composerFor('Anita Rossi');
+      return screen.findByTestId('opening-card');
+    };
+
+    it('withdraws my interest with Withdraw', async () => {
+      await open(hashes.ME);
+      await fireEvent.click(screen.getByRole('button', { name: /withdraw/i }));
+
+      await waitFor(() => expect(withdrawInterest).toHaveBeenCalledTimes(1));
+      expect(withdrawInterest).toHaveBeenCalledWith(INTEREST);
+    });
+
+    it("offers no Withdraw on the other person's interest", async () => {
+      await open(ANITA);
+
+      expect(screen.queryByRole('button', { name: /withdraw/i })).toBeNull();
+    });
+
+    it('sends one withdrawal for a second click while the first is going', async () => {
+      withdrawInterest.mockReturnValue(E.sleep('60 millis').pipe(E.as(undefined)));
+      await open(hashes.ME);
+      const button = screen.getByRole('button', { name: /withdraw/i }) as HTMLButtonElement;
+
+      void fireEvent.click(button);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(button.disabled).toBe(true);
+      void fireEvent.click(button);
+      await new Promise((resolve) => setTimeout(resolve, 120));
+
+      expect(withdrawInterest).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -509,6 +832,53 @@ describe('the conversation page', () => {
       expect(sendMessage.mock.calls[0][0]).toMatchObject({ sendId: 'held-9' });
       await waitFor(() => expect(screen.queryByText('message held-9')).toBeNull());
     });
+  });
+
+  it('lets a message still waiting to send be taken back', async () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        schemaVersion: 2,
+        outbox: [
+          { id: 'held-2', to: anita, content: 'on second thoughts', queuedAt: T, state: 'waiting' }
+        ]
+      })
+    );
+    // Nothing gets through, so it stays waiting.
+    sendMessage.mockReturnValue(E.fail(new Error('send_message: no answer')));
+    render(ConversationPage);
+    expect(await screen.findByText('on second thoughts')).toBeTruthy();
+
+    await fireEvent.click(await screen.findByRole('button', { name: 'Discard' }));
+
+    await waitFor(() => expect(screen.queryByText('on second thoughts')).toBeNull());
+    const stored = JSON.parse(localStorage.getItem(KEY) ?? '{}') as { outbox: unknown[] };
+    expect(stored.outbox, 'and gone from the device').toEqual([]);
+  });
+
+  /** A card that has not gone yet is a card, not an empty bubble. */
+  it('draws a held card as a card', async () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        schemaVersion: 2,
+        outbox: [
+          {
+            id: 'held-3',
+            to: anita,
+            content: '',
+            listing: encodeHashToBase64(hashes.M2),
+            queuedAt: T,
+            state: 'refused',
+            reason: 'no'
+          }
+        ]
+      })
+    );
+    render(ConversationPage);
+    await composerFor('Anita Rossi');
+
+    expect(await screen.findByTestId('shared-listing-card')).toBeTruthy();
   });
 
   /** "May not have sent" had only "send again": if that kept failing it could not be cleared. */

@@ -240,7 +240,7 @@ export const MESSAGING_STRINGS = {
      * decisions, and someone who has just posted may want to look at it first.
      */
     shareWith: 'Share it with {name}',
-    shareFailed: 'That could not be shared. Your listing is published; try sharing again.'
+    shareFailed: 'That could not be shared: {reason}. Your listing is published; try sharing again.'
   },
 
   /**

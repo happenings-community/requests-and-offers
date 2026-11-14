@@ -210,13 +210,10 @@
     const interval = setInterval(refresh, 15000);
     const stopRetrying = messagingStore.startRetrying();
     const stopListening = messagingStore.listen();
-    const flush = () => void runEffect(messagingStore.flushOutbox());
-    window.addEventListener('online', flush);
     return () => {
       clearInterval(interval);
       stopRetrying();
       stopListening();
-      window.removeEventListener('online', flush);
     };
   });
 

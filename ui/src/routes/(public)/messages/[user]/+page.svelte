@@ -59,7 +59,13 @@
   const address = $derived($page.params.user ?? '');
   $effect(() => {
     void address;
-    untrack(() => conversation.initialize());
+    untrack(() => {
+      // What was open on the last person's screen is not open on the next one's.
+      picking = false;
+      sharing = false;
+      confirmingBlock = false;
+      conversation.initialize();
+    });
   });
 
   // Whatever arrives while this conversation is open has been seen: keep the read mark,
@@ -234,6 +240,7 @@
             mine={me !== undefined &&
               encodeHashToBase64(item.interest.user) === encodeHashToBase64(me)}
             onWithdraw={conversation.withdrawInterest}
+            disabled={conversation.acting}
           />
         {:else if showsAsAgreement(item.exchange)}
           <AgreementLine
@@ -248,6 +255,7 @@
             {me}
             onRespond={conversation.respond}
             onWithdraw={conversation.withdrawProposal}
+            disabled={conversation.acting}
           />
         {/if}
       {/each}
@@ -331,8 +339,12 @@
             class="card flex items-center gap-3 p-3 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700"
             disabled={conversation.acting}
             onclick={async () => {
-              await conversation.shareListing(item.hash);
-              sharing = false;
+              // Closed once the card has gone. A refusal leaves it open, under the reason,
+              // so trying again is one click.
+              // Only this person's picker: if the member has moved on meanwhile, the one
+              // open now belongs to the next conversation.
+              const here = address;
+              if ((await conversation.shareListing(item.hash)) && here === address) sharing = false;
             }}
           >
             <span

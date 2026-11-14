@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import {
   EMPTY_LOCAL,
   LOCAL_SCHEMA_VERSION,
+  isOutboxItem,
   localKey,
   readLocal,
   writeLocal,
@@ -141,5 +142,30 @@ describe('writeLocal', () => {
     };
     expect(() => writeLocal(refusing, KEY, { archived: ['x'] })).not.toThrow();
     expect(writeLocal(refusing, KEY, { archived: ['x'] })).toBe(false);
+  });
+});
+
+describe('isOutboxItem', () => {
+  it('accepts a message and a card', () => {
+    expect(isOutboxItem(item())).toBe(true);
+    expect(isOutboxItem(item({ content: '', listing: 'uhCkkLISTING' }))).toBe(true);
+  });
+
+  /** Each of these cannot be sent, retried or discarded by name, so none is kept. */
+  it.each([
+    ['no recipient', { to: '' }],
+    ['no id', { id: '' }],
+    ['a recipient that is not text', { to: 7 }],
+    ['content that is not text', { content: null }],
+    ['a listing that is not text', { listing: 42 }],
+    ['no time', { queuedAt: '1' }],
+    ['a state nobody knows', { state: 'sent' }]
+  ])('refuses one with %s', (_name, over) => {
+    expect(isOutboxItem({ ...item(), ...over })).toBe(false);
+  });
+
+  it('refuses what is not an item at all', () => {
+    expect(isOutboxItem(null)).toBe(false);
+    expect(isOutboxItem('a1')).toBe(false);
   });
 });

@@ -3,6 +3,7 @@
   import messagingStore from '$lib/stores/messaging.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import { reasonOf } from '$lib/utils/error-shape';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import BackToConversation from './BackToConversation.svelte';
   import type { ShareListingProps } from '$lib/extensions/share-listing';
@@ -35,17 +36,25 @@
   });
 
   async function share() {
-    if (!listing) return;
+    if (!listing || sharing) return;
     sharing = true;
     shareError = null;
     try {
       // A card-only message: the zome refuses a body carrying both text and a listing.
       await runEffect(messagingStore.send(counterparty, '', listing));
+    } catch (e) {
+      // The listing is published either way, so the message says so rather than implying
+      // the whole thing failed, and gives the reason it was given.
+      shareError = fill(S.listing.shareFailed, { reason: reasonOf(e) });
+      sharing = false;
+      return;
+    }
+    // The card has gone. A navigation that fails after that is not a failed share, and
+    // saying so would invite sending it twice; the way back is still on the page.
+    try {
       await goto(conversation);
     } catch {
-      // The listing is published either way, so the message says so rather than implying
-      // the whole thing failed.
-      shareError = S.listing.shareFailed;
+      // Nothing to report: the button is free again and Back to conversation is beside it.
     } finally {
       sharing = false;
     }
@@ -65,5 +74,5 @@
   <BackToConversation />
 </div>
 {#if shareError}
-  <p class="text-sm text-error-500">{shareError}</p>
+  <p class="text-sm text-error-500" role="alert">{shareError}</p>
 {/if}

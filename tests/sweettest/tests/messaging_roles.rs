@@ -374,13 +374,45 @@ async fn a_case_reaches_every_holder_and_the_reply_comes_back() {
         "Alice's role inbox should be empty before anything is sent"
     );
 
+    // A send id over the bound is refused here as it is on a personal message, before
+    // anything is written. (Remove `require_send_id_within_bound` from
+    // `send_role_message` and this send goes through.)
+    let mut over_long = serde_json::to_value(open_case("case-0", "an id too long to carry")).unwrap();
+    over_long["sendId"] = serde_json::Value::String("x".repeat(65));
+    match conductors[2]
+        .call_fallible::<_, Vec<SentMessage>>(&carol.zome("messaging"), "send_role_message", over_long)
+        .await
+    {
+        Ok(sent) => panic!("a 65 byte send id should be refused, but the send returned {sent:?}"),
+        Err(e) => {
+            let text = format!("{e} | {e:?}");
+            assert!(
+                text.contains("over the 64 byte limit"),
+                "a 65 byte send id should be refused for its length; got {text}"
+            );
+        }
+    }
+
+    // The real one carries a send id, as a personal message can: it rides in the body,
+    // and `find_sent` finds a role send by it. (Drop `send_id` from the body in
+    // `send_role_message` and the lookup below finds nothing.)
+    let before_sending = Timestamp::now();
+    let mut opening = serde_json::to_value(open_case("case-1", "the kettle will not boil")).unwrap();
+    opening["sendId"] = serde_json::Value::String("role-send-1".to_string());
     let sent: Vec<SentMessage> = conductors[2]
+        .call(&carol.zome("messaging"), "send_role_message", opening)
+        .await;
+    let found: Option<ActionHash> = conductors[2]
         .call(
             &carol.zome("messaging"),
-            "send_role_message",
-            open_case("case-1", "the kettle will not boil"),
+            "find_sent",
+            serde_json::json!({ "sendId": "role-send-1", "since": before_sending }),
         )
         .await;
+    assert!(
+        found.is_some(),
+        "a role message sent with an id should be found by it on the sender's chain"
+    );
     assert_eq!(
         sent.len(),
         3,
@@ -1084,4 +1116,116 @@ async fn the_role_calls_refuse_a_non_holder_and_the_roles_that_are_not_built_yet
         bobs[0].role.is_none(),
         "a personal message carries no role, which is what keeps it in get_inbox"
     );
+}
+
+/// What the caller already holds, as the interface passes it to `get_inbox_delta`.
+#[derive(Serialize, Deserialize, Debug)]
+struct GetInboxDeltaInput {
+    known: Vec<ActionHash>,
+    skipped: Vec<ActionHash>,
+}
+
+/// What `get_inbox_delta` returns, as the interface reads it.
+#[derive(Serialize, Deserialize, Debug)]
+struct InboxDelta {
+    visible: Vec<ActionHash>,
+    entries: Vec<InboxEntry>,
+    skipped: Vec<ActionHash>,
+}
+
+/// A role message is never personal chat for a reader that polls, and is fetched once.
+///
+/// Alice, an administrator, holds one role message (Carol's case) and one personal
+/// message (from Carol) in the same inbox. Three reads. Knowing nothing, she is sent
+/// the personal message only, and the role message comes back by hash in `skipped`.
+/// Passing both back, she is sent nothing and each hash stays in its own list. Passing
+/// back only the personal one, the role message is still `skipped` and still never an
+/// entry: forgetting the list costs a fetch, never a leak into chat.
+///
+/// **To make this go red:** push a role message into `entries` in `get_inbox_delta`
+/// (the first read then returns two entries), or list every hash that passes the link
+/// filters as `visible` (the role hash then shows in `visible`), or drop
+/// `already_skipped` from the split (the second read then loses the role hash from
+/// `skipped`, because nothing fetched it to find out what it is).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_polling_reader_is_told_which_messages_are_role_messages() {
+    let (conductors, alice, bob, carol, alice_user, _bob_user, _carol_user) =
+        two_admins_and_a_member().await;
+
+    let _: Vec<SentMessage> = conductors[2]
+        .call(
+            &carol.zome("messaging"),
+            "send_role_message",
+            open_case("case-delta", "the kettle will not boil"),
+        )
+        .await;
+    let personal: Vec<SentMessage> = conductors[2]
+        .call(
+            &carol.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: alice_user,
+                content: "and thank you for looking".to_string(),
+            },
+        )
+        .await;
+    assert_eq!(personal.len(), 1, "Alice has one agent; got {personal:?}");
+    let personal_hash = personal[0].hash.clone();
+    await_consistency_s(15, [&alice, &bob, &carol])
+        .await
+        .unwrap();
+
+    let delta = |known: Vec<ActionHash>, skipped: Vec<ActionHash>| {
+        let conductor = &conductors[0];
+        let zome = alice.zome("messaging");
+        async move {
+            let out: InboxDelta = conductor
+                .call(&zome, "get_inbox_delta", GetInboxDeltaInput { known, skipped })
+                .await;
+            out
+        }
+    };
+
+    let first = delta(vec![], vec![]).await;
+    assert_eq!(
+        first.entries.len(),
+        1,
+        "knowing nothing, Alice is sent the personal message and not the role message; got {:?}",
+        first.entries
+    );
+    assert_eq!(
+        first.visible,
+        vec![personal_hash.clone()],
+        "only the personal message is visible as chat"
+    );
+    assert_eq!(
+        first.skipped.len(),
+        1,
+        "the role message comes back by hash, to be passed back; got {:?}",
+        first.skipped
+    );
+    let role_hash = first.skipped[0].clone();
+    assert_ne!(role_hash, personal_hash, "the two lists name different messages");
+
+    let second = delta(vec![personal_hash.clone()], vec![role_hash.clone()]).await;
+    assert!(
+        second.entries.is_empty(),
+        "holding both, Alice is sent nothing; got {:?}",
+        second.entries
+    );
+    assert_eq!(second.visible, vec![personal_hash.clone()]);
+    assert_eq!(
+        second.skipped,
+        vec![role_hash.clone()],
+        "a role message passed back stays a role message, with no fetch to find out"
+    );
+
+    let third = delta(vec![personal_hash.clone()], vec![]).await;
+    assert!(
+        third.entries.is_empty(),
+        "a reader that forgot the list is still never sent a role message as chat; got {:?}",
+        third.entries
+    );
+    assert_eq!(third.visible, vec![personal_hash]);
+    assert_eq!(third.skipped, vec![role_hash]);
 }

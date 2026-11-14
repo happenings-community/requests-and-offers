@@ -9,12 +9,6 @@ pub use message::*;
 #[unit_enum(UnitEntryTypes)]
 pub enum EntryTypes {
   EncryptedMessage(EncryptedMessage),
-  #[entry_type(visibility = "private")]
-  Block(Block),
-  #[entry_type(visibility = "private")]
-  Unblock(Unblock),
-  #[entry_type(visibility = "private")]
-  ReadMarker(ReadMarker),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -95,7 +89,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     }) => match link_type {
       // The recipient must not be able to delete the sender's link: that would
       // destroy the sender's own record of what they sent. A recipient who does not
-      // want to see a message hides it with a private marker instead.
+      // want to see a message hides it in their own app instead.
       LinkTypes::Inbox => Ok(check_link_deleter_is_author(
         action.author(),
         original_action.author(),
@@ -113,18 +107,12 @@ fn validate_entry(
 ) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
     EntryTypes::EncryptedMessage(message) => validate_encrypted_message(message, author),
-    // The private entries hold an agent key or a read position, and are only ever
-    // on their author's own chain. There is nothing for a third party to check, and
-    // no other agent can see them.
-    EntryTypes::Block(_) | EntryTypes::Unblock(_) | EntryTypes::ReadMarker(_) => {
-      Ok(ValidateCallbackResult::Valid)
-    }
   }
 }
 
 /// A message is not editable. Editing one would leave the recipient holding a
 /// different message from the one they were nudged about, with no way to tell.
-/// Send another instead. Nothing in this zome updates its private entries either.
+/// Send another instead.
 fn refuse_update() -> ValidateCallbackResult {
   ValidateCallbackResult::Invalid("Messaging entries cannot be updated".to_string())
 }

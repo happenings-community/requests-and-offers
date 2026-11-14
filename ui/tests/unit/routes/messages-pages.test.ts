@@ -875,6 +875,15 @@ describe('the conversation page', () => {
       expect(screen.queryByRole('alert')).toBeNull();
     });
 
+    it('says why a card was refused in a conversation that already has messages', async () => {
+      getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, 'hello')]));
+      sendMessage.mockReturnValue(E.fail(refusal));
+      await fireEvent.click(await openPicker());
+
+      expect(await screen.findByText(/That didn't go through/)).toBeTruthy();
+      expect(screen.getByText('hello')).toBeTruthy();
+    });
+
     it('takes the reason away when the card is pressed again', async () => {
       sendMessage.mockReturnValueOnce(E.fail(refusal));
       await fireEvent.click(await openPicker());
@@ -1092,6 +1101,100 @@ describe('the conversation page', () => {
       expect(await screen.findByText(/That didn't go through: .*respond: no answer/)).toBeTruthy();
     });
 
+    /** Press a card that is refused after the member has left Messages, and leave. */
+    const refusedAfterLeaving = async (button: () => Promise<HTMLElement>) => {
+      const first = render(ConversationPage);
+      await composerFor('Anita Rossi');
+      void fireEvent.click(await button());
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      first.unmount();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    };
+    const saysNothing = async () => {
+      render(ConversationPage);
+      await composerFor('Anita Rossi');
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(screen.queryByText(/That didn't go through/)).toBeNull();
+    };
+
+    /** On screen before this visit's own read had finished, from what the store held. */
+    it('does not say it again after it was on screen, even before the visit had read', async () => {
+      respond.mockReturnValue(
+        E.sleep('40 millis').pipe(E.andThen(E.fail(new Error('respond: no answer'))))
+      );
+      myExchanges.mockReturnValue([fromHer]);
+      await refusedAfterLeaving(() => screen.findByRole('button', { name: 'Accept' }));
+
+      getInbox.mockReturnValue(E.sleep('150 millis').pipe(E.as([])));
+      render(ConversationPage);
+      expect(await screen.findByText(/That didn't go through: .*no answer/)).toBeTruthy();
+      setPage({ user: bela });
+      await new Promise((resolve) => setTimeout(resolve, 250));
+
+      getInbox.mockReturnValue(E.succeed([]));
+      setPage({ user: anita });
+      await composerFor('Anita Rossi');
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(screen.queryByText(/That didn't go through/), 'said a second time').toBeNull();
+    });
+
+    it('still says it after a visit whose read failed and a move to someone else', async () => {
+      respond.mockReturnValue(
+        E.sleep('40 millis').pipe(E.andThen(E.fail(new Error('respond: no answer'))))
+      );
+      myExchanges.mockReturnValue([fromHer]);
+      await refusedAfterLeaving(() => screen.findByRole('button', { name: 'Accept' }));
+
+      getInbox.mockReturnValue(E.fail(new Error('get_inbox_delta: no answer')));
+      render(ConversationPage);
+      await screen.findByTestId('conversation-fault');
+      getInbox.mockReturnValue(E.succeed([]));
+      setPage({ user: bela });
+      await composerFor('Bela Kovac');
+
+      setPage({ user: anita });
+      await composerFor('Anita Rossi');
+      expect(await screen.findByText(/That didn't go through: .*respond: no answer/)).toBeTruthy();
+    });
+
+    it('is not said once the proposal has a response, whatever its status reads', async () => {
+      respond.mockReturnValue(
+        E.sleep('40 millis').pipe(E.andThen(E.fail(new Error('respond: no answer'))))
+      );
+      myExchanges.mockReturnValue([fromHer]);
+      await refusedAfterLeaving(() => screen.findByRole('button', { name: 'Accept' }));
+
+      myExchanges.mockReturnValue([
+        {
+          ...fromHer,
+          response: { agreement: AGREEMENT, accepted: true, note: '', created_at: T + 1 }
+        }
+      ]);
+      await saysNothing();
+    });
+
+    it('is not said once the proposal is no longer proposed, response or not', async () => {
+      respond.mockReturnValue(
+        E.sleep('40 millis').pipe(E.andThen(E.fail(new Error('respond: no answer'))))
+      );
+      myExchanges.mockReturnValue([fromHer]);
+      await refusedAfterLeaving(() => screen.findByRole('button', { name: 'Accept' }));
+
+      myExchanges.mockReturnValue([{ ...fromHer, status: 'Agreed' }]);
+      await saysNothing();
+    });
+
+    it('does not say a withdrawal failed once the proposal has been answered', async () => {
+      cancel.mockReturnValue(
+        E.sleep('40 millis').pipe(E.andThen(E.fail(new Error('cancel: no answer'))))
+      );
+      myExchanges.mockReturnValue([fromMe]);
+      await refusedAfterLeaving(() => screen.findByTestId('proposal-withdraw'));
+
+      myExchanges.mockReturnValue([{ ...fromMe, status: 'Agreed' }]);
+      await saysNothing();
+    });
+
     it('does not say it again once the member has seen it and left', async () => {
       respond.mockReturnValue(E.fail(new Error('respond: no answer')));
       await open(fromHer);
@@ -1155,6 +1258,36 @@ describe('the conversation page', () => {
 
       await waitFor(() => expect(withdrawInterest).toHaveBeenCalledTimes(1));
       expect(withdrawInterest).toHaveBeenCalledWith(INTEREST);
+    });
+
+    const refusedAfterLeaving = async () => {
+      withdrawInterest.mockReturnValue(
+        E.sleep('40 millis').pipe(E.andThen(E.fail(new Error('withdraw: no answer'))))
+      );
+      await open(hashes.ME);
+      void fireEvent.click(screen.getByRole('button', { name: /withdraw/i }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      cleanup();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    };
+
+    /** The interest was the whole conversation, so withdrawing it took the thread too. */
+    it('does not say a withdrawal failed once the interest, and the conversation, have gone', async () => {
+      await refusedAfterLeaving();
+
+      myInterests.mockReturnValue([]);
+      render(ConversationPage);
+      await composerFor('Anita Rossi');
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(screen.queryByText(/That didn't go through/)).toBeNull();
+    });
+
+    it('says a withdrawal failed on the next visit while the interest is still there', async () => {
+      await refusedAfterLeaving();
+
+      render(ConversationPage);
+      await composerFor('Anita Rossi');
+      expect(await screen.findByText(/That didn't go through: .*withdraw: no answer/)).toBeTruthy();
     });
 
     it("offers no Withdraw on the other person's interest", async () => {

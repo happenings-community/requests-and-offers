@@ -77,11 +77,12 @@ export function useConversation(address: string | (() => string)) {
   const actionError = $derived.by(() => {
     const refusal = cardRefusals.get(counterpartyB64);
     if (!refusal) return null;
-    // Said only while the thing it is about is still waiting. A reason kept from an
-    // earlier visit may be "no answer" for an accept that did in fact land: by the time
-    // the member is back the proposal is an agreement, and "that didn't go through"
-    // over it would be wrong.
-    if (refusal.about && thread && !stillWaiting(thread, refusal.about)) return null;
+    // Said only while the thing it is about is still in the conversation and waiting.
+    // A reason may be "no answer" for an accept or a withdrawal that did in fact land:
+    // by the time it is read the proposal is an agreement, or the interest has gone, and
+    // "that didn't go through" over it would be wrong. No thread at all is not waiting
+    // either: withdrawing the only interest takes the conversation with it.
+    if (refusal.about && !(thread && stillWaiting(thread, refusal.about))) return null;
     return refusal.reason;
   });
   let sending = $state(false);
@@ -91,6 +92,37 @@ export function useConversation(address: string | (() => string)) {
   let loadError = $state<string | null>(null);
 
   const thread = $derived<UIThread | undefined>(messagingStore.threads.find((t) => t.key === key));
+
+  /**
+   * The conversation is on screen: not the fault, not "nobody here", not "Loading".
+   *
+   * It is drawn from what the store holds before this visit's own read has finished, so
+   * this is not `loaded`.
+   */
+  const shown = $derived(!loadError && missing === null && (loaded || thread !== undefined));
+
+  /**
+   * The card's reason on screen for each person, as the screen last stood.
+   *
+   * Leaving a conversation with a reason on screen is having seen it, so it is not said
+   * again. One that was not on screen when the member left (it came while they were
+   * elsewhere, or a failed read had replaced the conversation with its fault) is kept for
+   * the next visit. By person, because on a change of address this is updated for the
+   * next person before `initialize` runs for the last one. Plain, not state: only read on
+   * leaving.
+   */
+  const onScreen = new Map<string, { reason: string; about?: string }>();
+  $effect(() => {
+    const person = counterpartyB64;
+    const refusal = cardRefusals.get(person);
+    if (actionError !== null && shown && refusal) onScreen.set(person, refusal);
+    else onScreen.delete(person);
+  });
+  const forgetSeen = (person: string): void => {
+    const seen = onScreen.get(person);
+    if (seen && cardRefusals.get(person) === seen) cardRefusals.delete(person);
+    onScreen.delete(person);
+  };
 
   /** Is this proposal, or this interest, still in the conversation and unanswered? */
   const stillWaiting = (t: UIThread, hash: string): boolean =>
@@ -155,8 +187,8 @@ export function useConversation(address: string | (() => string)) {
     // so a member may have typed by then: the draft is theirs and is kept.
     const samePerson = shownFor === counterpartyB64;
     // Leaving a person is having seen whatever was said about their last card.
-    // (Only if it could have been: a visit whose read failed showed the fault instead.)
-    if (shownFor !== null && !samePerson && loaded) cardRefusals.delete(shownFor);
+    // (Only if it was on screen: a visit whose read failed showed the fault instead.)
+    if (shownFor !== null && !samePerson) forgetSeen(shownFor);
     shownFor = counterpartyB64;
     // A message still going to this same person is still this screen's: Try again after
     // a failed read must not free Send under it, or leave its text in the box to be sent
@@ -347,7 +379,7 @@ export function useConversation(address: string | (() => string)) {
     left = true;
     sendPress++;
     // Seen, if it was on screen. One that comes after this is kept for the next visit.
-    if (shownFor !== null && loaded) cardRefusals.delete(shownFor);
+    if (shownFor !== null) forgetSeen(shownFor);
   };
 
   /**

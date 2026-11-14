@@ -203,8 +203,12 @@ export class SentMessage extends Schema.Class<SentMessage>('SentMessage')({
 export class SendMessageInput extends Schema.Class<SendMessageInput>('SendMessageInput')({
   toUser: ActionHashSchema,
   content: Schema.String,
-  /** This send's identity, kept across retries so no copy is ever shown twice. */
-  sendId: Schema.String,
+  /**
+   * This send's identity, kept across retries so no copy is ever shown twice. Required
+   * and never empty: the zome refuses a send without one, because a send with no answer
+   * can only be checked by it.
+   */
+  sendId: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64)),
   readUpTo: Schema.optional(TimestampSchema),
   /** Only valid with empty `content`: the zome refuses a message carrying both. */
   listing: Schema.optional(ActionHashSchema)
@@ -236,8 +240,8 @@ export class SendRoleMessageInput extends Schema.Class<SendRoleMessageInput>(
 )({
   role: RoleRefSchema,
   content: Schema.String,
-  /** As on a personal message; the zome reads `sendId` and bounds it at 64 bytes. */
-  sendId: Schema.optional(Schema.String),
+  /** As on a personal message: required, never empty, at most 64 bytes. */
+  sendId: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64)),
   caseId: Schema.String,
   kind: CaseKindSchema,
   opener: Schema.optional(ActionHashSchema),

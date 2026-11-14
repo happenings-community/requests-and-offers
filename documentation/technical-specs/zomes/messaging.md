@@ -79,7 +79,7 @@ There are two kinds of message: **personal**, from one member to another (`send_
 
 | Data | Where it lives | Who can read it |
 |---|---|---|
-| `EncryptedMessage` (nonce and ciphertext only) | public entry on the DHT | anyone holds it; only the recipient agent can decrypt it |
+| `EncryptedMessage` (nonce, ciphertext and the sender's member grant) | public entry on the DHT | anyone holds it; only the recipient agent can decrypt it. The grant says no more than the author's key on the action already does |
 | `Inbox` link, recipient's agent key to the message's action hash, empty tag | public link | anyone can see that A wrote to B, and when |
 | content, role, direction and case (ID, kind, opener, event) | inside the ciphertext | the recipient agent, and the sending agent |
 | `Block`, `Unblock`, `ReadMarker` | private entries on the author's own chain | the author only |
@@ -88,11 +88,15 @@ The role and the case are inside the encryption on purpose: on the entry or in a
 
 ### 6.2. Validation (`messaging_integrity`)
 
-Refused: a ciphertext over `MAX_CIPHERTEXT_BYTES` (17 KiB); any update to a messaging entry; a delete by anyone but the author; an `Inbox` link whose base is not an agent key, whose target is not an `EncryptedMessage`, whose author is not the message's author, or whose tag is not empty; and a link delete by anyone but the link's author, so a recipient cannot destroy the sender's record of what they sent.
+Refused: a message that does not carry a member grant held by its author, the same rule a listing has, so an agent who was never accepted cannot use the network to carry messages; a ciphertext over `MAX_CIPHERTEXT_BYTES` (17 KiB); any update to a messaging entry; a delete by anyone but the author; an `Inbox` link whose base is not an agent key, whose target is not an `EncryptedMessage`, whose author is not the message's author, or whose tag is not empty; and a link delete by anyone but the link's author, so a recipient cannot destroy the sender's record of what they sent.
 
 Agent-activity ops skip validation, as in every other integrity zome since #280: no rule here applies to them.
 
-What validation cannot prove is who a ciphertext was sealed to. It proves the link's author wrote the message, not that the message was encrypted to the link's base.
+What validation cannot prove is that a grant has not been revoked since, so a suspended member's message is caught on read, where `get_inbox` drops authors who are not accepted now. Until then their node can still store and gossip what a modified client writes.
+
+**The grant rule holds on a network with a progenitor key, which alpha 2 is not.** With no key in the DNA properties, validation accepts any root (`administration.md`, *The root*), so a modified client can write itself a root admin grant, a member grant resting on it, and then messages that pass this rule: two extra writes. The read side still drops them, because `read_inbox_entries` filters on accepted status, not on grants, until the forger also writes itself into the accepted index with the same forged grant: one more write, which a network with no key cannot refuse.
+
+Nor can validation prove who a ciphertext was sealed to. It proves the link's author wrote the message, not that the message was encrypted to the link's base.
 
 **An author's delete is a withdrawal from later reads, not an unsend.** No extern deletes a message, so today only a modified client can. `get` on a deleted action returns nothing ("Deleted actions are a tombstone set", `holochain_cascade` 0.7.0, `src/lib.rs:328-334`), so once a delete reaches the authorities the message drops out of `get_inbox` and `get_message` returns `NotFound`. A reader who has already decrypted it keeps it, and nothing is erased: the op stays held, as ciphertext. A real "withdraw a message" is #482.
 
@@ -105,6 +109,7 @@ What validation cannot prove is who a ciphertext was sealed to. It proves the li
 - **Size is bounded twice**: the coordinator refuses content over 16 KiB before encrypting, so the caller gets a clear error, and validation bounds the ciphertext because it cannot assume the coordinator ran.
 - **When no agent of any recipient can be found from this device**, the send fails with `DEVICES_NOT_FOUND` and writes nothing. It never means a member has no agents: `get_user_agents` reads with `GetStrategy::Network`, which falls back to locally cached metadata, so a device with no network and a cold cache finds nobody.
 - **A nudge failure never undoes a stored message.** The stored entry is the delivery guarantee; the nudge is timeliness.
+- **Each copy carries the sender's member grant**, which `deliver` reads with `can` and attaches. A sender who is accepted and holds no grant this node can see is refused with `NoMemberGrantYet` before anything is encrypted or written. Just after acceptance that is propagation, and the send works when tried again.
 
 Errors come from `MessagingError` in `utils/src/errors.rs`, as for every zome.
 
@@ -167,6 +172,8 @@ None of these lets anybody read or write what they should not. They are about ho
 ### 6.7. Tests
 
 `tests/sweettest/tests/messaging_inbox.rs` and `messaging_roles.rs`, run as `messaging_inbox` and `messaging_roles` in the Heavy tests (manual) workflow on a `run:sweettest` or `run:heavy` label, not in the CI on every pull request.
+
+The member-grant rule is tested with the other grant rules, in `tests/sweettest/tests/grants.rs` (target `grants`): `a_message_carries_the_member_grant_its_author_holds`, `an_inbox_link_is_its_authors_record_of_their_own_message` (the five `Inbox` link rules, each by a forged link) and `an_accepted_member_with_no_grant_is_told_so_and_sends_nothing`.
 
 `messaging_inbox` proves the encryption before anything rests on it (the recipient reads, the sender reads their own copy, a third member holds the ciphertext and cannot read it, either party can be offline), then the access rules (an unaccepted sender is refused, only an administrator may write to a member who is not accepted, a reader who is not accepted hears only from administrators on both read paths, a since-rejected author is hidden) and blocking.
 

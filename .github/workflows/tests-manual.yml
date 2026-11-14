@@ -114,6 +114,7 @@ jobs:
           - messaging
           - messaging_inbox
           - messaging_roles
+          - grants
     steps:
       - uses: actions/checkout@v5
         with:

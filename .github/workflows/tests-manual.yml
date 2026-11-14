@@ -75,7 +75,7 @@ jobs:
     # clock, because the binaries run on separate runners at once. Each leg
     # still pays the compile, which is why exactly one of them saves the cache
     # below; every later run restores it.
-    name: Sweettest (${{ matrix.target }})
+    name: Sweettest (${{ matrix.target }}${{ matrix.shard != '1/1' && format(' {0}', matrix.shard) || '' }})
     # Not keyed on github.event_name: inside a called workflow that reports the
     # CALLER's event (a tag push), so an event check here would silently skip the
     # whole suite and the release would sail through an empty gate.
@@ -114,7 +114,21 @@ jobs:
           - messaging
           - messaging_inbox
           - messaging_roles
-          - grants
+        # Which slice of the target's cases a leg runs, as k/n. Every target above is
+        # one leg, 1/1.
+        shard: ['1/1']
+        # grants is split in two because one leg no longer fits the job's 120
+        # minutes: a case costs three and a half to five and a half minutes on a
+        # hosted runner, 29 of them took 104 minutes (run 43538170814), and at 33
+        # the leg was cancelled at the limit with every case it had reached green
+        # (run 43538115055). The cases are dealt out in turn, so the halves stay
+        # even as cases are added. A target that grows past about 25 cases needs
+        # the same treatment.
+        include:
+          - target: grants
+            shard: '1/2'
+          - target: grants
+            shard: '2/2'
     steps:
       - uses: actions/checkout@v5
         with:
@@ -220,8 +234,18 @@ jobs:
             # which is nothing beside conductor construction.
             export CARGO_TARGET_DIR=target/native-tests
             cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} --no-run
-            mapfile -t cases < <(cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} -- --list | sed -n "s/: test$//p")
-            echo "${#cases[@]} tests in ${{ matrix.target }}"
+            mapfile -t all < <(cargo test -p requests_and_offers_sweettest --test ${{ matrix.target }} -- --list | sed -n "s/: test$//p")
+            # This leg runs every n-th case starting at the k-th, for a shard k/n.
+            # 1/1 is all of them. Between them the n legs run each case exactly once.
+            shard="${{ matrix.shard }}"
+            k="${shard%/*}"
+            n="${shard#*/}"
+            cases=()
+            for i in "${!all[@]}"; do
+              if [ $(( i % n )) -eq $(( k - 1 )) ]; then cases+=("${all[$i]}"); fi
+            done
+            echo "${#all[@]} tests in ${{ matrix.target }}, ${#cases[@]} in shard $shard"
+            [ "${#cases[@]}" -gt 0 ] || { echo "no cases in shard $shard"; exit 1; }
             # --show-output because libtest hides the output of a passing test, and
             # some of these tests print measurements that are only interesting
             # when they pass: the messaging suite logs how long each recipient

@@ -427,6 +427,88 @@ describe('the conversation page', () => {
     );
   });
 
+  /**
+   * Leaving for another conversation was covered; leaving Messages altogether destroys
+   * the page, and the refusal went to a screen nobody could see and was kept nowhere.
+   */
+  it('keeps a message refused after the member has left Messages altogether', async () => {
+    sendMessage.mockReturnValue(E.sleep('40 millis').pipe(E.andThen(E.fail(refusal))));
+    const { unmount } = render(ConversationPage);
+    const box = await composerFor('Anita Rossi');
+    await fireEvent.input(box, { target: { value: 'meant for Anita' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+    unmount();
+
+    await waitFor(() => expect(messagingStore.outbox).toHaveLength(1));
+    expect(messagingStore.outbox[0]).toMatchObject({
+      to: anita,
+      content: 'meant for Anita',
+      state: 'refused'
+    });
+  });
+
+  it("does not carry one person's errors to the next person's screen", async () => {
+    sendMessage.mockReturnValue(E.fail(refusal));
+    render(ConversationPage);
+    const box = await composerFor('Anita Rossi');
+    await fireEvent.input(box, { target: { value: 'meant for Anita' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await screen.findByText(/Your message wasn't sent/);
+
+    setPage({ user: bela });
+    await composerFor('Bela Kovac');
+
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('does not carry an open Block question from one person to the next', async () => {
+    render(ConversationPage);
+    await composerFor('Anita Rossi');
+    await fireEvent.click(screen.getByRole('button', { name: 'Block' }));
+    expect(screen.getByRole('button', { name: 'Block Anita Rossi' })).toBeTruthy();
+
+    setPage({ user: bela });
+    await composerFor('Bela Kovac');
+
+    expect(screen.queryByRole('button', { name: /^Block .+/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Block' })).toBeTruthy();
+  });
+
+  it('does not carry an open proposal picker from one person to the next', async () => {
+    render(ConversationPage);
+    await composerFor('Anita Rossi');
+    await fireEvent.click(screen.getByRole('button', { name: 'Make a proposal' }));
+    expect(screen.getByTestId('proposal-picker')).toBeTruthy();
+
+    setPage({ user: bela });
+    await composerFor('Bela Kovac');
+
+    expect(screen.queryByTestId('proposal-picker')).toBeNull();
+  });
+
+  /**
+   * The composer is on screen before this page's own read has finished when the store
+   * already holds the conversation, so there can be a draft when that read fails.
+   */
+  it('keeps what was typed when the first read fails and is tried again', async () => {
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, 'first')]));
+    await E.runPromise(messagingStore.loadConversations());
+    getInbox.mockReturnValue(
+      E.sleep('40 millis').pipe(E.andThen(E.fail(new Error('get_inbox_delta: no answer'))))
+    );
+    render(ConversationPage);
+    const box = (await screen.findByRole('textbox')) as HTMLTextAreaElement;
+    await fireEvent.input(box, { target: { value: 'typed early' } });
+
+    await screen.findByTestId('conversation-fault');
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, 'first')]));
+    await fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    await screen.findByRole('heading', { name: 'Anita Rossi' });
+    expect(((await screen.findByRole('textbox')) as HTMLTextAreaElement).value).toBe('typed early');
+  });
+
   /** SvelteKit speaks again on a change of hash, with the same address. */
   it('keeps the draft when the page store speaks again with the same address', async () => {
     render(ConversationPage);
@@ -634,6 +716,66 @@ describe('the conversation page', () => {
       expect(next.disabled, 'and its card is still going').toBe(true);
     });
 
+    it('keeps a card refused after the member has moved on, for the person it was for', async () => {
+      const row = await openPicker();
+      sendMessage.mockReturnValue(E.sleep('40 millis').pipe(E.andThen(E.fail(refusal))));
+      void fireEvent.click(row);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      setPage({ user: bela });
+      await composerFor('Bela Kovac');
+      await waitFor(() => expect(messagingStore.outbox).toHaveLength(1));
+
+      expect(messagingStore.outbox[0]).toMatchObject({
+        to: anita,
+        content: '',
+        listing: encodeHashToBase64(listing),
+        state: 'refused'
+      });
+      expect(
+        screen.queryByRole('alert'),
+        "and not reported on the next person's screen"
+      ).toBeNull();
+    });
+
+    it('keeps a card refused after the member has left Messages altogether', async () => {
+      myRequests.mockReturnValue([{ original_action_hash: listing, title: 'Bike repair' }]);
+      const { unmount } = render(ConversationPage);
+      await composerFor('Anita Rossi');
+      await fireEvent.click(screen.getByRole('button', { name: 'Share a listing' }));
+      sendMessage.mockReturnValue(E.sleep('40 millis').pipe(E.andThen(E.fail(refusal))));
+      void fireEvent.click(await screen.findByRole('button', { name: /Bike repair/ }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      unmount();
+
+      await waitFor(() => expect(messagingStore.outbox).toHaveLength(1));
+      expect(messagingStore.outbox[0]).toMatchObject({ to: anita, state: 'refused' });
+    });
+
+    /** Leaving and coming straight back freed the row while the first card was still going. */
+    it('sends one card when the member leaves and comes back while it is going', async () => {
+      const row = await openPicker();
+      sendMessage.mockReturnValue(E.sleep('120 millis').pipe(E.as([])));
+      void fireEvent.click(row);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      setPage({ user: bela });
+      await composerFor('Bela Kovac');
+      setPage({ user: anita });
+      await composerFor('Anita Rossi');
+      await fireEvent.click(screen.getByRole('button', { name: 'Share a listing' }));
+      const again = (await screen.findByRole('button', {
+        name: /Bike repair/
+      })) as HTMLButtonElement;
+      expect(again.disabled, 'still going').toBe(true);
+      await fireEvent.click(again);
+
+      // And free again once it has gone.
+      await waitFor(() => expect(again.disabled).toBe(false));
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+    });
+
     it('reads the conversation again once the card has gone', async () => {
       const row = await openPicker();
       const readsBefore = getSent.mock.calls.length;
@@ -735,6 +877,20 @@ describe('the conversation page', () => {
 
       // And free again once the card has gone.
       await waitFor(() => expect(confirmDecline().disabled).toBe(false));
+    });
+
+    it('cannot be withdrawn while another card is going', async () => {
+      myRequests.mockReturnValue([{ original_action_hash: hashes.M2, title: 'Bike repair' }]);
+      await open(fromMe);
+      await fireEvent.click(screen.getByRole('button', { name: 'Share a listing' }));
+      sendMessage.mockReturnValueOnce(E.sleep('80 millis').pipe(E.as([])));
+      void fireEvent.click(await screen.findByRole('button', { name: /Bike repair/ }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const withdraw = screen.getByTestId('proposal-withdraw') as HTMLButtonElement;
+      expect(withdraw.disabled).toBe(true);
+      await waitFor(() => expect(withdraw.disabled).toBe(false));
+      expect(cancel).not.toHaveBeenCalled();
     });
 
     it('answers a second proposal after a first', async () => {

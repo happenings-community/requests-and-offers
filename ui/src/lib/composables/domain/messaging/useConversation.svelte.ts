@@ -102,6 +102,8 @@ export function useConversation(address: string | (() => string)) {
    */
   /** Which run of `initialize` is the current one. */
   let run = 0;
+  /** The address the screen's state belongs to. */
+  let shownFor: string | null = null;
 
   async function initialize(): Promise<void> {
     // An earlier run that resumes after the address has changed must not write the last
@@ -109,12 +111,19 @@ export function useConversation(address: string | (() => string)) {
     const mine = ++run;
     const stale = () => mine !== run;
     // Everything this screen holds about a person is cleared first, so the last person's
-    // name, draft and errors never show on the next one. The page runs this for a change
-    // of address and for Try again after a failed read, where there is no composer and
-    // so no draft to lose.
+    // name, draft and errors never show on the next one.
+    //
+    // The draft is the exception when the address has not changed. The page also runs
+    // this for Try again after a failed read, and the composer can be on screen before
+    // that read has finished (the layout's poll has usually filled the store already),
+    // so a member may have typed by then: the draft is theirs and is kept.
+    const samePerson = shownFor === counterpartyB64;
+    shownFor = counterpartyB64;
     sendPress++;
     cardPress++;
-    acting = false;
+    // A card still going for this very person (the member left and came straight back)
+    // is still going: its controls stay held until it has been dealt with.
+    acting = going.has(counterpartyB64);
     loaded = false;
     loadError = null;
     missing = null;
@@ -122,7 +131,7 @@ export function useConversation(address: string | (() => string)) {
     actionError = null;
     sending = false;
     name = C.someone;
-    draft = '';
+    if (!samePerson) draft = '';
     if (!decoded) {
       missing = 'address';
       return;
@@ -240,6 +249,8 @@ export function useConversation(address: string | (() => string)) {
    * in that gap sent a second card. The page disables every card control on this.
    */
   let acting = $state(false);
+  /** The people a card is on its way to. Plain, not state: only `acting` is shown. */
+  const going = new Set<string>();
 
   /**
    * One card action: the same refresh after, and the reason kept if it was refused.
@@ -248,20 +259,28 @@ export function useConversation(address: string | (() => string)) {
    * declining) only on `true`: `false` is a refusal, shown by the page, or an action not
    * run because another was still going, and neither is a reason to lose their words.
    */
-  async function act(action: () => Promise<unknown>): Promise<boolean> {
-    if (acting) return false;
+  async function act(
+    action: () => Promise<unknown>,
+    /** What to do with a refusal that comes after the member has left this screen. */
+    refusedLater?: (reason: string) => void
+  ): Promise<boolean> {
+    const here = counterpartyB64;
+    if (going.has(here)) return false;
+    going.add(here);
     acting = true;
     actionError = null;
     const mine = ++cardPress;
-    // Not released by an action that belongs to a conversation since left: `initialize`
-    // has already released it there, and another card may be going on the new screen.
+    // Released for the person it was pressed for, and for nobody else: another card may
+    // be going on the screen the member has moved to.
     const release = () => {
-      if (mine === cardPress) acting = false;
+      going.delete(here);
+      if (counterpartyB64 === here && !left) acting = false;
     };
     try {
       await action();
     } catch (e) {
       if (mine === cardPress) actionError = reasonOf(e);
+      else refusedLater?.(reasonOf(e));
       release();
       return false;
     }
@@ -269,6 +288,20 @@ export function useConversation(address: string | (() => string)) {
     release();
     return true;
   }
+
+  /**
+   * The page is going away. Any answer still on its way now belongs to no screen.
+   *
+   * `initialize` moves the counts on for a change of person, but leaving Messages
+   * altogether destroys the page without running it, and a refusal that came after
+   * that was written to a screen nobody could see and kept nowhere.
+   */
+  let left = false;
+  const leave = (): void => {
+    left = true;
+    sendPress++;
+    cardPress++;
+  };
 
   /**
    * What one of my messages is doing: sending, sent, or read.
@@ -318,8 +351,15 @@ export function useConversation(address: string | (() => string)) {
    * is what keeps a listing a card rather than becoming context on something somebody
    * wrote.
    */
-  const shareListing = (listing: ActionHash): Promise<boolean> =>
-    act(() => runEffect(messagingStore.send(counterparty, '', listing)));
+  const shareListing = (listing: ActionHash): Promise<boolean> => {
+    const target = counterparty;
+    return act(
+      () => runEffect(messagingStore.send(target, '', listing)),
+      // Refused after the member had left: kept in that person's conversation as a
+      // refused card, with the reason, exactly as a refused message is.
+      (reason) => messagingStore.keepRefused(target, '', reason, listing)
+    );
+  };
 
   /** Accept or decline a proposal. A decline must carry a reason; the form enforces it. */
   const respond = (agreement: ActionHash, accepted: boolean, note: string): Promise<boolean> =>
@@ -393,6 +433,7 @@ export function useConversation(address: string | (() => string)) {
       return missing;
     },
     initialize,
+    leave,
     send,
     retry,
     discard,

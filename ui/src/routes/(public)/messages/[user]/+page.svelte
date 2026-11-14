@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { page } from '$app/stores';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import { useConversation } from '$lib/composables/domain/messaging/useConversation.svelte';
@@ -67,6 +67,9 @@
       conversation.initialize();
     });
   });
+
+  // Leaving Messages altogether: an answer still on its way has no screen to land on.
+  onDestroy(() => conversation.leave());
 
   // Whatever arrives while this conversation is open has been seen: keep the read mark,
   // and so the nav badge and the receipt, level with the timeline as it grows.

@@ -146,7 +146,12 @@ export type MessagingStore = {
   /** Try one message again, because the member asked. */
   retryUnsent: (id: string) => E.Effect<void, never>;
   /** Keep a message the zome refused after the member had left its conversation. */
-  keepRefused: (counterparty: ActionHash, content: string, reason: string) => void;
+  keepRefused: (
+    counterparty: ActionHash,
+    content: string,
+    reason: string,
+    listing?: ActionHash
+  ) => void;
   /** Drop one message from the outbox, because the member asked. */
   discardUnsent: (id: string) => void;
 };
@@ -364,9 +369,20 @@ export function createMessagingStore(): MessagingStore {
    */
   let skippedRoleMessages: string[] = [];
 
+  /**
+   * Which read of the conversations is the newest one started.
+   *
+   * **Only the newest read writes what the screen shows.** The poll, a nudge and the
+   * read after a send can all be under way together, and they finish in any order. A
+   * slow poll that started before a message was sent landed after the read that showed
+   * it, and took the message off the screen until the next read.
+   */
+  let readRun = 0;
+
   const loadConversations = (): E.Effect<UIThread[], MessagingError> =>
-    withServices((service) =>
-      E.gen(function* () {
+    withServices((service) => {
+      const run = ++readRun;
+      return E.gen(function* () {
         loading = true;
         error = null;
 
@@ -447,6 +463,10 @@ export function createMessagingStore(): MessagingStore {
           return !(person && blocked.has(threadKeyOf(person)));
         });
 
+        // An older read than the one now under way: what it found is already out of
+        // date, and the newer one will say so. Nothing on screen is touched.
+        if (run !== readRun) return threads;
+
         threads = buildThreads({
           me,
           inbox: visibleInbox,
@@ -484,13 +504,17 @@ export function createMessagingStore(): MessagingStore {
         return threads;
       }).pipe(
         E.catchAll((e) => {
-          loading = false;
-          everLoaded = true;
-          error = e instanceof MessagingError ? e.message : String(e);
+          // `readRun` here is the newest started; a failure of an older read is not the
+          // state of the screen either.
+          if (run === readRun) {
+            loading = false;
+            everLoaded = true;
+            error = e instanceof MessagingError ? e.message : String(e);
+          }
           return E.fail(e as MessagingError);
         })
-      )
-    );
+      );
+    });
 
   /**
    * My own agent key: the one this installation's client runs as.
@@ -968,12 +992,18 @@ export function createMessagingStore(): MessagingStore {
    * with the page. It goes in the outbox as `refused`, with the reason, where the
    * member finds it in that person's conversation and can send it again or discard it.
    */
-  const keepRefused = (counterparty: ActionHash, content: string, reason: string): void => {
+  const keepRefused = (
+    counterparty: ActionHash,
+    content: string,
+    reason: string,
+    listing?: ActionHash
+  ): void => {
     adoptOutbox();
     const item: OutboxItem = {
       id: newSendId(),
       to: threadKeyOf(counterparty),
       content,
+      ...(listing ? { listing: encodeHashToBase64(listing) } : {}),
       queuedAt: Date.now() - SEND_CLOCK_MARGIN_MS,
       state: 'refused',
       reason

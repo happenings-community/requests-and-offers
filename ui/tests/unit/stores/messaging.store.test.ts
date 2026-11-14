@@ -260,6 +260,44 @@ describe('a shared listing that has to wait (F2)', () => {
   });
 });
 
+describe('reads that overlap', () => {
+  /**
+   * The poll, a nudge and the read after a send finish in any order. A slow poll started
+   * before a message was sent landed after the read that showed it and took it away.
+   */
+  it('an older read that finishes late does not replace what a newer one showed', async () => {
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    const store = await freshStore();
+    // The older read: slow, and started before the message existed.
+    getSent.mockReturnValueOnce(E.sleep('60 millis').pipe(E.as([])));
+    const older = E.runPromise(store.loadConversations());
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    // The newer one sees it.
+    getSent.mockReturnValue(E.succeed([mineToAnita()]));
+    await E.runPromise(store.loadConversations());
+    expect(store.threads, 'shown').toHaveLength(1);
+    expect(store.loading, 'the older read is not the screen: nothing is loading').toBe(false);
+
+    await older;
+
+    expect(store.threads, 'still shown').toHaveLength(1);
+    expect(store.threads[0].messages).toHaveLength(1);
+  });
+
+  it('an older read that fails late is not reported over a newer one that worked', async () => {
+    const store = await freshStore();
+    getSent.mockReturnValueOnce(
+      E.sleep('40 millis').pipe(E.andThen(E.fail(new Error('no answer'))))
+    );
+    const older = E.runPromise(store.loadConversations()).catch(() => 'failed');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await E.runPromise(store.loadConversations());
+
+    expect(await older).toBe('failed');
+    expect(store.error).toBeNull();
+  });
+});
+
 describe('receipts (F5)', () => {
   /**
    * The zome emits `{ type: 'Receipt', readUpTo, from }`; `from` is an agent and a thread

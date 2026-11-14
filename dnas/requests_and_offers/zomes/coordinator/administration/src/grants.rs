@@ -15,8 +15,8 @@ use hdk::prelude::*;
 use utils::{
   errors::{AdministrationError, CommonError},
   grants::{
-    grant_covers, grant_tag, Ability, Authority, CanInput, GrantBody, Role,
-    RoleGrant, RoleRevocation,
+    grant_covers, grant_tag, Ability, Authority, CanInput, GrantBody, GrantRoleInput,
+    RevokeRolesOfInput, Role, RoleGrant, RoleRevocation,
   },
   DnaProperties,
 };
@@ -68,6 +68,25 @@ pub fn live_grants_of(agent: &AgentPubKey) -> ExternResult<Vec<(ActionHash, Role
     grants.push((hash.clone(), grant_at(&hash)?));
   }
   Ok(grants)
+}
+
+/// Whether the agent has ever been given this role in this scope, by a grant
+/// that is live or one since revoked.
+pub fn was_ever_granted(
+  agent: &AgentPubKey,
+  role: Role,
+  scope: &Option<ActionHash>,
+) -> ExternResult<bool> {
+  for link in links_from(agent.clone(), LinkTypes::AgentGrants)? {
+    let Some(hash) = link.target.into_action_hash() else {
+      continue;
+    };
+    let grant = grant_at(&hash)?;
+    if grant.parsed_role() == Ok(role) && &grant.scope == scope {
+      return Ok(true);
+    }
+  }
+  Ok(false)
 }
 
 /// The agents who hold a live network administrator grant, read from the
@@ -199,14 +218,6 @@ pub fn write_grant(
   Ok(hash)
 }
 
-/// Input for `grant_role`.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GrantRoleInput {
-  pub role: Role,
-  pub holder: AgentPubKey,
-  pub scope: Option<ActionHash>,
-}
-
 /// Gives an agent a role, resting on the caller's authority. Returns the grant
 /// already held if there is one, so a second grant is never written for the
 /// same role and scope.
@@ -280,6 +291,13 @@ pub fn revoke_all(
     }
   }
   Ok(revoked)
+}
+
+/// Withdraws every live grant of one role an agent holds in a scope, for another
+/// zome: an organisation removing a coordinator. Returns how many were revoked.
+#[hdk_extern]
+pub fn revoke_roles_of(input: RevokeRolesOfInput) -> ExternResult<usize> {
+  revoke_all(&input.holder, input.role, &input.scope, &input.reason)
 }
 
 /// Every live grant an agent holds, as records, for the interface.

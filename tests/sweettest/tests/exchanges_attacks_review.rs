@@ -43,6 +43,8 @@ struct Agreement {
     terms: String,
     delivery_timeframe: String,
     counters: Option<Countering>,
+    /// The member grant the write rests on (the grants stack, #378).
+    grant: Option<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(Agreement);
 
@@ -85,6 +87,9 @@ struct World {
     carol: SweetCell,
     offer: ActionHash,
     interest: ActionHash,
+    /// Bob's member grant, which his write through the probe must carry: an
+    /// agreement is a role act (#378) before it is anything else.
+    bob_grant: ActionHash,
 }
 
 impl World {
@@ -161,6 +166,22 @@ async fn member_hash(conductor: &SweetConductor, cell: &SweetCell) -> ActionHash
     links[0].target.clone().into_action_hash().unwrap()
 }
 
+/// The agent's live member grant, as issued on acceptance.
+async fn member_grant(conductor: &SweetConductor, cell: &SweetCell) -> ActionHash {
+    let records: Vec<Record> = conductor
+        .call(&cell.zome("administration"), "get_agent_grants", cell.agent_pubkey().clone())
+        .await;
+    records
+        .into_iter()
+        .find(|r| {
+            let grant: RoleGrant = r.entry().to_app_option().unwrap().expect("a grant entry");
+            grant.role == "member"
+        })
+        .expect("an accepted member holds a member grant")
+        .action_address()
+        .clone()
+}
+
 async fn world() -> World {
     let (conductors, mut cells) = setup_agents_with_alice_as_progenitor(3, true).await;
     let carol = cells.pop().unwrap();
@@ -205,11 +226,15 @@ async fn world() -> World {
     let interest = interest.signed_action.hashed.hash.clone();
     await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
 
-    World { conductors, alice, bob, carol, offer, interest }
+    let bob_grant = member_grant(&conductors[1], &bob).await;
+
+    World { conductors, alice, bob, carol, offer, interest, bob_grant }
 }
 
-fn counter_of(countered: &ActionHash, proposal: &Agreement) -> Agreement {
+/// A counter of `countered`, written by the member holding `grant`.
+fn counter_of(countered: &ActionHash, proposal: &Agreement, grant: &ActionHash) -> Agreement {
     let mut counter = proposal.clone();
+    counter.grant = Some(grant.clone());
     counter.counterparty = if proposal.counterparty == proposal.provider {
         proposal.receiver.clone()
     } else {
@@ -263,7 +288,7 @@ async fn review_withdrawn_proposal_through_the_probe() {
     eprintln!("REVIEW withdrawn: coordinator refused with {:?}", via_app.err());
 
     // Through the probe: what validation alone says.
-    let r = w.bob_decline_then_counter(&p, counter_of(&p, &proposal), false).await;
+    let r = w.bob_decline_then_counter(&p, counter_of(&p, &proposal, &w.bob_grant), false).await;
     eprintln!("REVIEW withdrawn: probe decline+counter of a withdrawn proposal -> {r:?}");
     w.sync().await;
     let after = w.view(2, &p).await;
@@ -346,7 +371,7 @@ async fn review_a_third_member_writes_the_forward_link() {
     let w = world().await;
     let (p, proposal) = w.propose().await;
     let real = w
-        .bob_decline_then_counter(&p, counter_of(&p, &proposal), false)
+        .bob_decline_then_counter(&p, counter_of(&p, &proposal, &w.bob_grant), false)
         .await
         .expect("counter");
     w.sync().await;

@@ -10,8 +10,8 @@ use utils::{
 };
 
 use crate::{
-  external_calls::get_user_agents,
-  grants::{live_grants_of, require, revoke_all, write_grant},
+  external_calls::{get_agent_user, get_user_agents, register_approved_coordinator, ApprovedCoordinatorInput},
+  grants::{live_grants_of, require, revoke_all, was_ever_granted, write_grant},
 };
 
 /// Creates the initial `Status` entry (always `"pending"`) for the entity identified by
@@ -318,9 +318,10 @@ pub struct UpdateEntityActionHash {
 /// `Err(AdministrationError::Unauthorized)` otherwise.
 ///
 /// What a change issues: accepting a member writes a member grant for
-/// each of their agents, and any other status revokes it. (An organisation's approval
-/// writing its creator's coordinator grant arrives with the next PR in the stack; here
-/// a status change on anything but a user issues nothing.)
+/// each of their agents, and any other status revokes it. The first approval of an
+/// organisation writes its creator's coordinator grant and their member and
+/// coordinator links (`approve_organization`); no other status change on an
+/// organisation issues or revokes anything.
 ///
 /// Two branches:
 /// - **No existing status link** — creates a new `Status` entry plus `AllStatuses` and
@@ -437,6 +438,9 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
       } else {
         revoke_member_grants(&resolved_original_action_hash.0, &new_status.status_type)?;
       }
+    }
+    "organizations" if accepted => {
+      approve_organization(&resolved_original_action_hash.0, &authority)?;
     }
     _ => {}
   }
@@ -586,13 +590,15 @@ pub fn unsuspend_entity(input: UpdateInput) -> ExternResult<bool> {
   Ok(update_entity_status(update_status_input).is_ok())
 }
 
-/// Deletes the `EntityStatus` link and the underlying `Status` entry for the given entity.
+/// Takes an entity out of the status index: its `EntityStatus` link and any
+/// `AcceptedEntity` link. Its `Status` entries stand; statuses are never deleted
+/// (`validate` refuses the delete). Until #234 passed, this deleted the entity's own
+/// record instead of its status, so deleting an organisation tombed it twice and left
+/// its status index in place.
 ///
-/// Also removes any `AcceptedEntity` link so the entity no longer appears in the accepted
-/// index. Note: `Status` entries themselves are immutable by integrity validation
-/// (`validate_delete_status` always returns `Invalid`), so this operation will fail at the
-/// DHT validation layer — this function exists for coordinator-level cleanup scenarios
-/// where entry deletion is permitted by a future policy change.
+/// Deleting an organisation (two role holders) comes later. Until then
+/// `delete_organization` clears the organisation's links, calls this, and tombs the
+/// organisation record itself.
 #[hdk_extern]
 pub fn delete_status(input: EntityActionHash) -> ExternResult<bool> {
   let link = get_entity_status_link(input.clone())?;
@@ -603,8 +609,6 @@ pub fn delete_status(input: EntityActionHash) -> ExternResult<bool> {
   })?;
 
   delete_link(link.create_link_hash, GetOptions::default())?;
-  let hash: ActionHash = input.entity_original_action_hash.into();
-  delete_entry(hash)?;
 
   Ok(true)
 }
@@ -634,5 +638,49 @@ fn revoke_member_grants(user: &ActionHash, status_type: &str) -> ExternResult<()
   for agent in get_user_agents(user.clone())? {
     revoke_all(&agent, Role::Member, &None, status_type)?;
   }
+  Ok(())
+}
+
+/// Approval is what makes an organisation's creator its coordinator (Sam, 18 October):
+/// the approver writes the creator's coordinator grant, resting on their own, and the
+/// coordinator link that carries it.
+///
+/// Once only. This runs on every move to accepted, so on the return from a suspension
+/// too, and a creator who has since stood down or been removed as coordinator is not
+/// made one again by it: a grant for this organisation in their history, live or
+/// revoked, means the first approval has already happened. Giving the role back is a
+/// coordinator's act, through `add_coordinator_to_organization`.
+fn approve_organization(organization: &ActionHash, authority: &ActionHash) -> ExternResult<()> {
+  let record = get(organization.clone(), GetOptions::default())?
+    .ok_or_else(|| CommonError::RecordNotFound("organization".to_string()))?;
+  let creator = record.action().author().clone();
+  let scope = Some(organization.clone());
+  if was_ever_granted(&creator, Role::OrgCoordinator, &scope)? {
+    return Ok(());
+  }
+  let user = get_agent_user(creator.clone())?
+    .first()
+    .and_then(|link| link.target.clone().into_action_hash())
+    .ok_or_else(|| CommonError::ActionHashNotFound("user".to_string()))?;
+  // The creating key, and any other agent of the same member, as
+  // `add_coordinator_to_organization` gives the role to every agent of a user.
+  let mut holders = vec![creator.clone()];
+  for agent in get_user_agents(user.clone())? {
+    if agent != creator {
+      holders.push(agent);
+    }
+  }
+  for holder in holders {
+    write_grant(
+      Role::OrgCoordinator,
+      holder,
+      scope.clone(),
+      Authority::Grant(authority.clone()),
+    )?;
+  }
+  register_approved_coordinator(ApprovedCoordinatorInput {
+    organization_original_action_hash: organization.clone(),
+    user_original_action_hash: user,
+  })?;
   Ok(())
 }

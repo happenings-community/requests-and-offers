@@ -33,8 +33,9 @@ use serde::{Deserialize, Serialize};
 struct SendMessageInput {
     to_user: ActionHash,
     content: String,
-    /// Matches copies of one message. Empty on the cases that predate send ids, which is
-    /// deliberate: those exercise the `#[serde(default)]` fallback.
+    /// Matches copies of one message, and is required: `plain` gives each send a fresh
+    /// one. Left empty, the field is not sent at all, which is how the case that is about
+    /// it sends none.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     send_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -43,15 +44,12 @@ struct SendMessageInput {
     listing: Option<ActionHash>,
 }
 
-/// An ordinary message with no send id, no read mark and no listing.
-///
-/// The cases that predate send ids go through here, so they keep exercising the serde
-/// defaults rather than quietly sending an empty id on purpose.
+/// An ordinary message with a fresh send id, no read mark and no listing.
 fn plain(to_user: ActionHash, content: impl Into<String>) -> SendMessageInput {
     SendMessageInput {
         to_user,
         content: content.into(),
-        send_id: String::new(),
+        send_id: fresh_send_id(),
         read_up_to: None,
         listing: None,
     }
@@ -955,15 +953,32 @@ async fn a_send_id_rides_along_and_find_sent_locates_it() {
         .await;
     assert!(missing.is_none(), "an id never sent should not be found");
 
-    // A send with no id is accepted, and an empty id finds nothing: without that rule
-    // it would match every message sent without one.
-    conductors[0]
-        .call::<_, Vec<SentMessage>>(
+    // A send with no id is refused before anything is written: a send that got no answer
+    // can only be checked by its id. (Remove the empty check from `require_send_id` and
+    // this send goes through.)
+    let no_id = conductors[0]
+        .call_fallible::<_, Vec<SentMessage>>(
             &alice.zome("messaging"),
             "send_message",
-            plain(bob_user.clone(), "no id on this one"),
+            SendMessageInput {
+                send_id: String::new(),
+                ..plain(bob_user.clone(), "no id on this one")
+            },
         )
         .await;
+    match no_id {
+        Ok(sent) => panic!("a send with no send id should be refused, but it returned {sent:?}"),
+        Err(e) => {
+            let text = format!("{e} | {e:?}");
+            assert!(
+                text.contains("A send needs a send ID"),
+                "a send with no send id should be refused for that; got {text}"
+            );
+        }
+    }
+
+    // And an empty id finds nothing: a body written before send ids existed carries
+    // none, and matching on emptiness would report any such message as this one.
     let by_no_id: Option<ActionHash> = conductors[0]
         .call(
             &alice.zome("messaging"),

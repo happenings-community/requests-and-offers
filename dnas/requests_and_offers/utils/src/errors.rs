@@ -185,6 +185,9 @@ pub enum MessagingError {
   #[error("Send ID is {bytes} bytes, over the {limit} byte limit")]
   SendIdTooLong { bytes: usize, limit: usize },
 
+  #[error("A send needs a send ID, so that one with no answer can be checked before it is tried again")]
+  SendIdMissing,
+
   /// Carries `messaging::message::DEVICES_NOT_FOUND`, which the coordinator keeps beside
   /// the reasoning for its wording.
   #[error("{0}")]

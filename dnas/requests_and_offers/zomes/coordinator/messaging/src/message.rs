@@ -53,7 +53,7 @@ pub struct SendMessageInput {
   /// may have several agents and each gets its own copy.
   pub to_user: ActionHash,
   pub content: String,
-  /// This send's identity, chosen by the caller. See `MessageBody::send_id`.
+  /// This send's identity, chosen by the caller. Required: see `require_send_id`.
   #[serde(default)]
   pub send_id: String,
   /// How far the sender has read in this conversation, if they are telling.
@@ -72,7 +72,7 @@ pub struct SendMessageInput {
 pub struct SendRoleMessageInput {
   pub role: RoleRef,
   pub content: String,
-  /// This send's identity, chosen by the caller. See `MessageBody::send_id`.
+  /// This send's identity, chosen by the caller. Required: see `require_send_id`.
   #[serde(default)]
   pub send_id: String,
   /// Chosen by the sender. Never the whole key for a case: see `CaseRef::opener`.
@@ -111,8 +111,9 @@ pub(crate) struct MessageBody {
   /// Keeping the earliest is what stops a sender reusing an id to replace something
   /// already sent. That is the interface's job; nothing in this zome collapses.
   ///
-  /// `#[serde(default)]` so a body written before send ids existed still decodes, with an
-  /// empty id; those fall back to the older collapse rule.
+  /// Never empty on a send made now (`require_send_id`). `#[serde(default)]` so a body
+  /// written before send ids existed still decodes, with an empty id; those fall back to
+  /// the older collapse rule.
   #[serde(default)]
   pub(crate) send_id: String,
   /// How far the sender has read in this conversation, riding along for free.
@@ -168,7 +169,7 @@ pub struct SentMessage {
 #[hdk_extern]
 pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
   require_content_within_bound(&input.content)?;
-  require_send_id_within_bound(&input.send_id)?;
+  require_send_id(&input.send_id)?;
 
   // **A message is text or a card, never both.** A listing travels on a card-only
   // message, which is how it reaches the other person without becoming a context tag on
@@ -222,7 +223,7 @@ pub fn send_message(input: SendMessageInput) -> ExternResult<Vec<SentMessage>> {
 #[hdk_extern]
 pub fn send_role_message(input: SendRoleMessageInput) -> ExternResult<Vec<SentMessage>> {
   require_content_within_bound(&input.content)?;
-  require_send_id_within_bound(&input.send_id)?;
+  require_send_id(&input.send_id)?;
   if input.case_id.len() > MAX_CASE_ID_BYTES {
     return Err(
       MessagingError::CaseIdTooLong {
@@ -289,12 +290,20 @@ pub fn send_role_message(input: SendRoleMessageInput) -> ExternResult<Vec<SentMe
   deliver(&me, &body, &recipients)
 }
 
-/// Refuse an oversized send id before anything is encrypted.
+/// Refuse a send with no send id, or with one over the bound, before anything is encrypted.
 ///
-/// Only the bound is checked. An empty send id is accepted: the interface always sets
-/// one, and a caller that leaves it out simply has no retry protection, since
-/// `find_sent` never matches an empty id.
-fn require_send_id_within_bound(send_id: &str) -> ExternResult<()> {
+/// **An empty id is refused, not taken as "no retry protection".** A send that got no
+/// answer can only be checked with `find_sent`, which never matches an empty id, so a
+/// send without one could be written twice by an honest retry. The interface always sets
+/// one; this makes it a rule for every caller. It is a coordinator check because the id
+/// is inside the encryption, where validation cannot see it.
+///
+/// `send_id` keeps `#[serde(default)]` on the inputs so that leaving the field out is
+/// told this, rather than failing to decode.
+fn require_send_id(send_id: &str) -> ExternResult<()> {
+  if send_id.is_empty() {
+    return Err(MessagingError::SendIdMissing.into());
+  }
   if send_id.len() > MAX_SEND_ID_BYTES {
     return Err(
       MessagingError::SendIdTooLong {

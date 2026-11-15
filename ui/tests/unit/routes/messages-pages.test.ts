@@ -528,21 +528,21 @@ describe('the conversation page', () => {
 
     expect(announced()).toBe('');
 
-    await fireEvent.input(box, { target: { value: 'a'.repeat(16 * 1024 - 400) } });
+    await fireEvent.input(box, { target: { value: 'a'.repeat(3 * 1024 - 400) } });
     await waitFor(() => expect(announced()).toBe('Close to the limit for one message.'));
     expect(counter().getAttribute('aria-live')).toBeNull();
 
     // A figure in the announcement would be stale here: the counter has moved on.
-    await fireEvent.input(box, { target: { value: 'a'.repeat(16 * 1024 - 10) } });
+    await fireEvent.input(box, { target: { value: 'a'.repeat(3 * 1024 - 10) } });
     expect(counter().textContent).toContain('99%');
     expect(announced()).toBe('Close to the limit for one message.');
 
-    await fireEvent.input(box, { target: { value: 'a'.repeat(16 * 1024 + 10) } });
+    await fireEvent.input(box, { target: { value: 'a'.repeat(3 * 1024 + 10) } });
     await waitFor(() =>
       expect(announced()).toBe('Too long for one message. Split it into 2 messages.')
     );
 
-    await fireEvent.input(box, { target: { value: 'a'.repeat(32 * 1024 + 10) } });
+    await fireEvent.input(box, { target: { value: 'a'.repeat(6 * 1024 + 10) } });
     await waitFor(() =>
       expect(announced()).toBe('Too long for one message. Split it into 3 messages.')
     );

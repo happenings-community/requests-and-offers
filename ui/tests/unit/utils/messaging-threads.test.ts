@@ -27,7 +27,9 @@ import {
   classifySendFailure,
   contentBytes,
   isDevicesNotFound,
+  isKeystoreFrameOverflow,
   isPersonal,
+  MAX_CONTENT_BYTES,
   isTooLong,
   messagesNeeded,
   percentOver,
@@ -497,7 +499,7 @@ describe('isDevicesNotFound', () => {
     const refusals = [
       'Your member profile is not accepted yet, so you cannot send messages',
       'That role has no holders, so there is nowhere to deliver to',
-      'Message content is 20000 bytes, over the 16384 byte limit',
+      'Message content is 20000 bytes, over the 3072 byte limit',
       'Only a holder of that role can send a case event'
     ];
     for (const refusal of refusals) {
@@ -556,6 +558,98 @@ describe('classifySendFailure', () => {
     const result = classifySendFailure(refusal);
     expect(result.kind).toBe('refused');
     expect(result.kind === 'refused' && result.reason).toContain('not accepted yet');
+  });
+
+  /**
+   * **The keystore refusing a message for its size**, as the walk of 15 November met it:
+   * a 12 KB message stuck on "Waiting to send", and every later message to that person
+   * queued behind it. Lair refuses IPC frames over 8 KiB, and the conductor reports it as
+   * `internal_error`, which is not on the answered list, so it read as no answer and was
+   * retried for ever. Encrypting comes before any entry is written and a failed zome call
+   * commits nothing, so it is a refusal, shown in words the member can act on.
+   *
+   * The message is the console's, verbatim.
+   *
+   * **To make this go red:** remove the `isKeystoreFrameOverflow` branch. It reads as
+   * `noAnswer` again.
+   */
+  it('treats the keystore refusing a message for its size as a refusal, in plain words', () => {
+    const overflow = holochainError(
+      'internal_error',
+      'Wasm runtime error while working with Ribosome: RuntimeError: holochain::core::ribosome::host_fn::ed_25519_x_salsa20_poly1305_encrypt:43: Host("{\\"error\\":\\"FrameOverflow\\",\\"message\\":\\"11980 > 8192\\"}")'
+    );
+    const result = classifySendFailure(overflow);
+    expect(result).toEqual({ kind: 'refused', reason: S.conversation.tooLongToEncrypt });
+    expect(fill(S.conversation.sendFailed, { reason: S.conversation.tooLongToEncrypt })).toBe(
+      "Your message wasn't sent: it is too long to encrypt. Copy it, discard it here, and send it in shorter parts"
+    );
+  });
+
+  /**
+   * **A refusal from our own zome, as Holochain 0.7 really sends it.** Not as
+   * `ribosome_error`, which is what 0.6 used and what every fixture above assumed: the
+   * app interface answers any failed call with `internal_error`, rendered with
+   * `RibosomeError`'s `Display` and our `Guest("…")` inside it. So from the move to 0.7
+   * every refusal (too long, not accepted) read as no answer and was retried for ever.
+   * The shape here is `WasmError`'s own `Display` (`holochain_wasmer_common` 0.0.103),
+   * `module:line: Guest(…)`, the same as the console's `Host(…)` line from the walk.
+   *
+   * **To make this go red:** remove `isZomeFailure` from `classifySendFailure`. It reads
+   * as `noAnswer` again.
+   */
+  it('treats a refusal from the zome as a refusal, under Holochain 0.7, in its own words', () => {
+    const tooLong = holochainError(
+      'internal_error',
+      'Wasm runtime error while working with Ribosome: RuntimeError: messaging::message:350: Guest("Message content is 3073 bytes, over the 3072 byte limit")'
+    );
+    expect(classifySendFailure(tooLong)).toEqual({
+      kind: 'refused',
+      reason: 'Message content is 3073 bytes, over the 3072 byte limit'
+    });
+    expect(isTooLong('Message content is 3073 bytes, over the 3072 byte limit')).toBe(true);
+
+    const notAccepted = holochainError(
+      'internal_error',
+      'Wasm runtime error while working with Ribosome: RuntimeError: messaging::message:120: Guest("Your member profile is not accepted yet, so you cannot send messages")'
+    );
+    expect(classifySendFailure(notAccepted)).toEqual({
+      kind: 'refused',
+      reason: 'Your member profile is not accepted yet, so you cannot send messages'
+    });
+  });
+
+  /**
+   * A host function failing inside the call wrote nothing either, but it is usually
+   * passing (Lair reconnecting after an overflow, a network timeout), so it is retried by
+   * itself, the chain asked first, rather than put to the member in wire text.
+   *
+   * **To make this go red:** drop the `Guest(` condition from `isZomeFailure`.
+   */
+  it('leaves a host function failing inside the call as no answer, to be retried', () => {
+    const aborted = holochainError(
+      'internal_error',
+      'Wasm runtime error while working with Ribosome: RuntimeError: holochain::core::ribosome::host_fn::ed_25519_x_salsa20_poly1305_encrypt:43: Host("{\\"error\\":\\"ConnectionAborted\\"}")'
+    );
+    expect(classifySendFailure(aborted).kind).toBe('noAnswer');
+  });
+
+  /**
+   * Only that. An `internal_error` from anywhere else may follow a write, a failed store
+   * or a lost cell, so it stays no answer and the chain is asked before anything is sent
+   * again.
+   */
+  it('leaves every other internal error as no answer', () => {
+    for (const other of [
+      'Conductor returned an error while using a ConductorApi: CellMissing',
+      'Source chain error: the head moved under us',
+      'Io error while using a Interface Api: broken pipe'
+    ]) {
+      expect(classifySendFailure(holochainError('internal_error', other)).kind, other).toBe(
+        'noAnswer'
+      );
+    }
+    expect(isKeystoreFrameOverflow('anything else')).toBe(false);
+    expect(isKeystoreFrameOverflow(null)).toBe(false);
   });
 
   /** The other names the conductor uses when it answered and said no. */
@@ -878,21 +972,22 @@ describe('the composer byte budget', () => {
   });
 
   /**
-   * **Sam's two worked examples**, from the hand test on 4 October. They are what fixes
-   * the rounding: 20,001 bytes is 22.08% over, and the line says 23%, so the percentage
-   * is ceilinged rather than rounded.
+   * **Sam's two worked examples**, from the hand test on 4 October, scaled from the old
+   * 16 KiB limit to 3 KiB (15 November). What they fix is the rounding: 3,700 bytes is
+   * 20.44% over, and the line says 21%, so the percentage is ceilinged rather than
+   * rounded.
    *
-   * **To make this go red:** use `Math.round` in `percentOver`. The first case says 22.
+   * **To make this go red:** use `Math.round` in `percentOver`. The first case says 20.
    */
-  it('matches the worked examples: 23% over and two messages, then three', () => {
-    const twentyThousandAndOne = 'a'.repeat(20_001);
-    expect(contentBytes(twentyThousandAndOne)).toBe(20_001);
-    expect(percentOver(twentyThousandAndOne)).toBe(23);
-    expect(messagesNeeded(twentyThousandAndOne)).toBe(2);
+  it('matches the worked examples: 21% over and two messages, then three', () => {
+    const thirtySevenHundred = 'a'.repeat(3_700);
+    expect(contentBytes(thirtySevenHundred)).toBe(3_700);
+    expect(percentOver(thirtySevenHundred)).toBe(21);
+    expect(messagesNeeded(thirtySevenHundred)).toBe(2);
 
-    const fortyThousand = 'a'.repeat(40_000);
-    expect(messagesNeeded(fortyThousand)).toBe(3);
-    expect(percentOver(fortyThousand)).toBe(145);
+    const sevenThousand = 'a'.repeat(7_000);
+    expect(messagesNeeded(sevenThousand)).toBe(3);
+    expect(percentOver(sevenThousand)).toBe(128);
   });
 
   /**
@@ -902,16 +997,16 @@ describe('the composer byte budget', () => {
    */
   it('floors what is used and ceilings what is over', () => {
     expect(percentUsed('')).toBe(0);
-    expect(percentUsed('a'.repeat(16 * 1024 - 1)), 'one byte short is not 100%').toBe(99);
-    expect(percentUsed('a'.repeat(16 * 1024))).toBe(100);
+    expect(percentUsed('a'.repeat(3 * 1024 - 1)), 'one byte short is not 100%').toBe(99);
+    expect(percentUsed('a'.repeat(3 * 1024))).toBe(100);
 
-    expect(percentOver('a'.repeat(16 * 1024)), 'exactly at the limit is not over').toBe(0);
-    expect(percentOver('a'.repeat(16 * 1024 + 1)), 'one byte over rounds up to 1%').toBe(1);
+    expect(percentOver('a'.repeat(3 * 1024)), 'exactly at the limit is not over').toBe(0);
+    expect(percentOver('a'.repeat(3 * 1024 + 1)), 'one byte over rounds up to 1%').toBe(1);
   });
 
   /**
-   * **The boundary, where floor and ceiling meet** (Sam, 5 October). 16,384 is the last
-   * byte that sends and the first that reads as 100%; 16,385 is the first that is
+   * **The boundary, where floor and ceiling meet** (Sam, 5 October). 3,072 is the last
+   * byte that sends and the first that reads as 100%; 3,073 is the first that is
    * refused and the first that is 1% over. An off-by-one anywhere in the three helpers
    * would land exactly here and nowhere else.
    *
@@ -922,11 +1017,11 @@ describe('the composer byte budget', () => {
    * `bytesLeft`, `percentUsed`, `percentOver` or `messagesNeeded`.
    */
   it('holds exactly at the limit, and tips one byte past it', () => {
-    const atTheLimit = 'a'.repeat(16 * 1024);
-    const oneOver = 'a'.repeat(16 * 1024 + 1);
+    const atTheLimit = 'a'.repeat(3 * 1024);
+    const oneOver = 'a'.repeat(3 * 1024 + 1);
 
-    expect(contentBytes(atTheLimit)).toBe(16_384);
-    expect(contentBytes(oneOver)).toBe(16_385);
+    expect(contentBytes(atTheLimit)).toBe(3_072);
+    expect(contentBytes(oneOver)).toBe(3_073);
 
     // Exactly at the limit: sendable, and reads as full.
     expect(bytesLeft(atTheLimit), 'nothing left, but not negative').toBe(0);
@@ -947,22 +1042,50 @@ describe('the composer byte budget', () => {
 
   it('never suggests splitting a message that fits', () => {
     expect(messagesNeeded('')).toBe(1);
-    expect(messagesNeeded('a'.repeat(16 * 1024))).toBe(1);
-    expect(messagesNeeded('a'.repeat(16 * 1024 + 1))).toBe(2);
+    expect(messagesNeeded('a'.repeat(3 * 1024))).toBe(1);
+    expect(messagesNeeded('a'.repeat(3 * 1024 + 1))).toBe(2);
   });
 
   it('reports what is left, and goes negative past the limit', () => {
-    expect(bytesLeft('')).toBe(16 * 1024);
-    expect(bytesLeft('a'.repeat(16 * 1024))).toBe(0);
-    expect(bytesLeft('a'.repeat(16 * 1024 + 1))).toBe(-1);
-    // And the emoji case: 4096 of them is exactly the limit, not a quarter of it.
-    expect(bytesLeft('🤝'.repeat(4096))).toBe(0);
+    expect(bytesLeft('')).toBe(3 * 1024);
+    expect(bytesLeft('a'.repeat(3 * 1024))).toBe(0);
+    expect(bytesLeft('a'.repeat(3 * 1024 + 1))).toBe(-1);
+    // And the emoji case: 768 of them is exactly the limit, not a quarter of it.
+    expect(bytesLeft('🤝'.repeat(768))).toBe(0);
+  });
+});
+
+/**
+ * **The limit, read from the zome itself.** The app's `MAX_CONTENT_BYTES` mirrors the
+ * coordinator's, and a mirror that drifts lets the composer offer to send what the zome
+ * refuses, or refuse what it would take. So the zome's constant is read out of
+ * `message.rs` and evaluated, as the `DEVICES_NOT_FOUND` contract above is.
+ *
+ * **To make this go red:** change either constant on its own.
+ */
+describe('MAX_CONTENT_BYTES', () => {
+  it("is the zome's own limit, read from message.rs", () => {
+    const path = 'dnas/requests_and_offers/zomes/coordinator/messaging/src/message.rs';
+    const found = [resolve(process.cwd(), '..', path), resolve(process.cwd(), path)].find(
+      (candidate) => existsSync(candidate)
+    );
+    expect(found, `${path} not found`).toBeTruthy();
+    const match = readFileSync(found as string, 'utf8').match(
+      /pub const MAX_CONTENT_BYTES: usize = ([0-9_ *]+);/
+    );
+    expect(match, 'MAX_CONTENT_BYTES is a product or a number on one line').toBeTruthy();
+    const zome = (match as RegExpMatchArray)[1]
+      .split('*')
+      .map((factor) => Number(factor.trim().replaceAll('_', '')))
+      .reduce((product, factor) => product * factor, 1);
+    expect(zome).toBe(3 * 1024);
+    expect(MAX_CONTENT_BYTES).toBe(zome);
   });
 });
 
 describe('isTooLong', () => {
   it("recognises the zome's length refusal, whatever the numbers", () => {
-    expect(isTooLong('Message content is 20000 bytes, over the 16384 byte limit')).toBe(true);
+    expect(isTooLong('Message content is 20000 bytes, over the 3072 byte limit')).toBe(true);
     expect(isTooLong('Message content is 1 bytes, over the 2 byte limit')).toBe(true);
   });
 

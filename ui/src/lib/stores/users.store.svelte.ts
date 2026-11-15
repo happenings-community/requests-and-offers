@@ -242,7 +242,12 @@ export const createUsersStore = (): E.Effect<
                     original_action_hash: originalActionHash // ← Use the parameter, not the record hash
                   };
                   E.runSync(cache.set(originalActionHash.toString(), correctedUser));
-                  syncCacheToState(correctedUser, 'add');
+                  // only an accepted member belongs in the accepted list; reading anyone else's
+                  // latest record (the admin refresh does it for every member) takes them out of it
+                  syncCacheToState(
+                    correctedUser,
+                    correctedUser.status?.status_type === 'accepted' ? 'add' : 'remove'
+                  );
                   return correctedUser;
                 }
                 return null;

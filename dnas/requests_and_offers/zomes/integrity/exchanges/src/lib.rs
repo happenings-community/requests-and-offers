@@ -1,6 +1,5 @@
 use hdi::prelude::*;
-use utils::errors::{invalid, ExchangeValidationError};
-use utils::errors::CommonError;
+use utils::errors::{invalid, CommonError, ExchangeValidationError};
 use utils::grants::{check_act, Ability};
 
 /// Which kind of listing an exchange settles. Carried on entries so the
@@ -273,7 +272,7 @@ fn validate_interest(
     Err(reason) => return invalid(reason),
   }
   if let Err(reason) = check_act(&interest.grant, author, &Ability::Participate, &None)? {
-    return invalid(&format!("an interest is a role act: {}", reason));
+    return invalid(ExchangeValidationError::InterestIsRoleAct(reason.to_string()));
   }
   if live_interest_before(action, interest)? {
     return invalid("this member already has an interest in this listing");
@@ -414,7 +413,7 @@ fn validate_agreement(action: &TypedAction<CreateData>, agreement: &Agreement) -
     return invalid(ExchangeValidationError::NoMedium);
   }
   if let Err(reason) = check_act(&agreement.grant, author, &Ability::Participate, &None)? {
-    return invalid(&format!("an agreement is a role act: {}", reason));
+    return invalid(ExchangeValidationError::AgreementIsRoleAct(reason.to_string()));
   }
   match &agreement.counters {
     None => Ok(ValidateCallbackResult::Valid),
@@ -786,9 +785,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     // The same refusal for the authorities of the *original*: an update is also
     // delivered, as its own op, to whoever holds the record it changes, and
     // that authority never sees the two ops above.
-    FlatOp::Update(OpUpdate::Entry { .. }) => {
-      invalid("exchange records are append-only; nothing is updated")
-    }
+    FlatOp::Update(OpUpdate::Entry { .. }) => invalid(ExchangeValidationError::UpdateRefused),
     FlatOp::Link(OpLink::CreateLink { link_type, action }) => validate_link(
       link_type,
       &action.base_address,

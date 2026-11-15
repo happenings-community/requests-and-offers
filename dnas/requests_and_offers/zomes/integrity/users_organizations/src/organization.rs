@@ -47,17 +47,14 @@ pub fn validate_organization_write(
   };
   let (root, creator) = match chain_root(previous)? {
     Ok(found) => found,
-    Err(reason) => return Ok(ValidateCallbackResult::Invalid(reason)),
+    Err(reason) => return invalid(reason),
   };
   if &creator == author {
     return Ok(ValidateCallbackResult::Valid);
   }
   match check_act(&grant, author, &Ability::Coordinate, &Some(root))? {
     Ok(_) => Ok(ValidateCallbackResult::Valid),
-    Err(reason) => Ok(ValidateCallbackResult::Invalid(format!(
-      "editing an organisation is a role act: {}",
-      reason
-    ))),
+    Err(reason) => invalid(OrganizationValidationError::EditIsRoleAct(reason.to_string())),
   }
 }
 
@@ -79,22 +76,13 @@ pub fn validate_create_link_organization_membership(
   what: &str,
 ) -> ExternResult<ValidateCallbackResult> {
   let Some(organization) = base_address.clone().into_action_hash() else {
-    return Ok(ValidateCallbackResult::Invalid(format!(
-      "a link to an organisation's {} starts at the organisation",
-      what
-    )));
+    return invalid(OrganizationValidationError::MembershipLinkBase(what.to_string()));
   };
   if !matches!(crate::entry_at(base_address)?, Some((_, crate::EntryTypes::Organization(_)))) {
-    return Ok(ValidateCallbackResult::Invalid(format!(
-      "a link to an organisation's {} starts at the organisation",
-      what
-    )));
+    return invalid(OrganizationValidationError::MembershipLinkBase(what.to_string()));
   }
   if !matches!(crate::entry_at(target_address)?, Some((_, crate::EntryTypes::User(_)))) {
-    return Ok(ValidateCallbackResult::Invalid(format!(
-      "a link to an organisation's {} points at a user",
-      what
-    )));
+    return invalid(OrganizationValidationError::MembershipLinkTarget(what.to_string()));
   }
   let grant = grant_from_tag(tag).ok();
   let as_coordinator = check_act(&grant, link_author, &Ability::Coordinate, &Some(organization))?;
@@ -103,11 +91,10 @@ pub fn validate_create_link_organization_membership(
   }
   match check_act(&grant, link_author, &Ability::ChangeStatus, &None)? {
     Ok(_) => Ok(ValidateCallbackResult::Valid),
-    Err(_) => Ok(ValidateCallbackResult::Invalid(format!(
-      "changing an organisation's {} is a role act: {}",
-      what,
-      as_coordinator.err().unwrap_or_default()
-    ))),
+    Err(_) => invalid(OrganizationValidationError::MembershipIsRoleAct {
+      what: what.to_string(),
+      reason: as_coordinator.err().map(|r| r.to_string()).unwrap_or_default(),
+    }),
   }
 }
 

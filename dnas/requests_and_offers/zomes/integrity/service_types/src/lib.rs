@@ -70,24 +70,18 @@ fn validate_service_type_grant(
   is_update: bool,
 ) -> ExternResult<ValidateCallbackResult> {
   if is_update {
-    return Ok(match check_act(grant, author, &Ability::Administer, &None)? {
-      Ok(_) => ValidateCallbackResult::Valid,
-      Err(reason) => ValidateCallbackResult::Invalid(format!(
-        "Changing a service type is a role act: {}",
-        reason
-      )),
-    });
+    return match check_act(grant, author, &Ability::Administer, &None)? {
+      Ok(_) => Ok(ValidateCallbackResult::Valid),
+      Err(reason) => invalid(ServiceTypeValidationError::ChangeIsRoleAct(reason.to_string())),
+    };
   }
   if check_act(grant, author, &Ability::Administer, &None)?.is_ok() {
     return Ok(ValidateCallbackResult::Valid);
   }
-  Ok(match check_act(grant, author, &Ability::Participate, &None)? {
-    Ok(_) => ValidateCallbackResult::Valid,
-    Err(reason) => ValidateCallbackResult::Invalid(format!(
-      "Creating a service type is a role act: {}",
-      reason
-    )),
-  })
+  match check_act(grant, author, &Ability::Participate, &None)? {
+    Ok(_) => Ok(ValidateCallbackResult::Valid),
+    Err(reason) => invalid(ServiceTypeValidationError::CreateIsRoleAct(reason.to_string())),
+  }
 }
 
 #[allow(clippy::collapsible_match, clippy::single_match)]

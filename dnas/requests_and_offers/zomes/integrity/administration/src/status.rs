@@ -225,10 +225,7 @@ pub fn validate_status(
 
   if is_update || status.status_type != "pending" {
     if let Err(reason) = check_act(&status.grant, author, &Ability::ChangeStatus, &None)? {
-      return Ok(ValidateCallbackResult::Invalid(format!(
-        "a status change is a role act: {}",
-        reason
-      )));
+      return invalid(StatusValidationError::ChangeIsRoleAct(reason.to_string()));
     }
   }
 
@@ -243,20 +240,14 @@ pub fn validate_create_link_entity_status(
   target_address: &AnyLinkableHash,
 ) -> ExternResult<ValidateCallbackResult> {
   let Some(status_hash) = target_address.clone().into_action_hash() else {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "An EntityStatus link points at a status record",
-    )));
+    return invalid(StatusValidationError::EntityStatusLinkTarget);
   };
   let record = must_get_valid_record(status_hash)?;
   if record.entry().to_app_option::<Status>().ok().flatten().is_none() {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "An EntityStatus link points at a status record",
-    )));
+    return invalid(StatusValidationError::EntityStatusLinkTarget);
   }
   if record.action().author() != link_author {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "An EntityStatus link is written by the author of the status it points at",
-    )));
+    return invalid(StatusValidationError::EntityStatusLinkAuthor);
   }
   Ok(ValidateCallbackResult::Valid)
 }
@@ -270,10 +261,7 @@ pub fn validate_create_link_accepted_entity(
   let grant = utils::grants::grant_from_tag(tag).ok();
   match check_act(&grant, link_author, &Ability::ChangeStatus, &None)? {
     Ok(_) => Ok(ValidateCallbackResult::Valid),
-    Err(reason) => Ok(ValidateCallbackResult::Invalid(format!(
-      "the accepted index is written with an admin or steward grant: {}",
-      reason
-    ))),
+    Err(reason) => invalid(StatusValidationError::AcceptedIndexWithoutGrant(reason.to_string())),
   }
 }
 

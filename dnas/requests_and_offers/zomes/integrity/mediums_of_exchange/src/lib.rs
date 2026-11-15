@@ -68,24 +68,18 @@ fn validate_medium_of_exchange_grant(
   is_update: bool,
 ) -> ExternResult<ValidateCallbackResult> {
   if is_update {
-    return Ok(match check_act(grant, author, &Ability::Administer, &None)? {
-      Ok(_) => ValidateCallbackResult::Valid,
-      Err(reason) => ValidateCallbackResult::Invalid(format!(
-        "Changing a medium of exchange is a role act: {}",
-        reason
-      )),
-    });
+    return match check_act(grant, author, &Ability::Administer, &None)? {
+      Ok(_) => Ok(ValidateCallbackResult::Valid),
+      Err(reason) => invalid(MediumOfExchangeValidationError::ChangeIsRoleAct(reason.to_string())),
+    };
   }
   if check_act(grant, author, &Ability::Administer, &None)?.is_ok() {
     return Ok(ValidateCallbackResult::Valid);
   }
-  Ok(match check_act(grant, author, &Ability::Participate, &None)? {
-    Ok(_) => ValidateCallbackResult::Valid,
-    Err(reason) => ValidateCallbackResult::Invalid(format!(
-      "Creating a medium of exchange is a role act: {}",
-      reason
-    )),
-  })
+  match check_act(grant, author, &Ability::Participate, &None)? {
+    Ok(_) => Ok(ValidateCallbackResult::Valid),
+    Err(reason) => invalid(MediumOfExchangeValidationError::CreateIsRoleAct(reason.to_string())),
+  }
 }
 
 #[allow(clippy::collapsible_match, clippy::single_match)]

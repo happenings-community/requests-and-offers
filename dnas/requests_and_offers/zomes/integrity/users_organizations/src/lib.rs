@@ -294,35 +294,36 @@ pub(crate) fn validate_update_link(
   match entry_at(base)? {
     Some((record, entry)) if is_kind(&entry) && matches!(record.action().data, ActionData::Create(_)) => {}
     _ => {
-      return invalid(&format!(
-        "{name} link starts at the original record of {kind}"
-      ))
+      return invalid(CommonValidationError::UpdatesLinkBase {
+        name: name.to_string(),
+        kind: kind.to_string(),
+      })
     }
   }
   let update = match entry_at(target)? {
     Some((record, entry)) if is_kind(&entry) && matches!(record.action().data, ActionData::Update(_)) => {
       record
     }
-    _ => return invalid(&format!("{name} link points at an update of {kind}")),
+    _ => return invalid(updates_link_target(name, kind)),
   };
   let Some(target_hash) = target.clone().into_action_hash() else {
-    return invalid(&format!("{name} link points at an update of {kind}"));
+    return invalid(updates_link_target(name, kind));
   };
   match utils::grants::chain_root(&target_hash)? {
     Ok((root, _)) if AnyLinkableHash::from(root.clone()) == *base => {}
     Ok(_) => {
-      return invalid(&format!(
-        "{name} link points at an update of the record it starts at"
-      ))
+      return invalid(CommonValidationError::UpdatesLinkOtherRecord(name.to_string()))
     }
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   }
   if update.action().author() != link_author {
-    return invalid(&format!(
-      "{name} link is written by the author of the update it points at"
-    ));
+    return invalid(CommonValidationError::UpdatesLinkAuthor(name.to_string()));
   }
   Ok(ValidateCallbackResult::Valid)
+}
+
+fn updates_link_target(name: &str, kind: &str) -> CommonValidationError {
+  CommonValidationError::UpdatesLinkTarget { name: name.to_string(), kind: kind.to_string() }
 }
 
 fn is_user_authored_by(hash: &AnyLinkableHash, author: &AgentPubKey) -> ExternResult<bool> {

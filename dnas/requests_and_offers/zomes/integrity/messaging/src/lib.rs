@@ -1,4 +1,5 @@
 use hdi::prelude::*;
+use utils::errors::{invalid, verdict, MessagingValidationError};
 
 mod message;
 pub use message::*;
@@ -114,7 +115,7 @@ fn validate_entry(
 /// different message from the one they were nudged about, with no way to tell.
 /// Send another instead.
 fn refuse_update() -> ValidateCallbackResult {
-  ValidateCallbackResult::Invalid("Messaging entries cannot be updated".to_string())
+  verdict(MessagingValidationError::UpdateRefused)
 }
 
 /// An `Inbox` link is only valid if it points a recipient at a message its own
@@ -129,15 +130,11 @@ fn validate_create_inbox_link(
   link_author: AgentPubKey,
 ) -> ExternResult<ValidateCallbackResult> {
   if base_address.into_agent_pub_key().is_none() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "An Inbox link's base must be an agent key".to_string(),
-    ));
+    return invalid(MessagingValidationError::InboxLinkBase);
   }
 
   let Some(target) = target_address.into_action_hash() else {
-    return Ok(ValidateCallbackResult::Invalid(
-      "An Inbox link's target must be an action hash".to_string(),
-    ));
+    return invalid(MessagingValidationError::InboxLinkTargetNotAction);
   };
 
   let record = must_get_valid_record(target)?;
@@ -149,15 +146,11 @@ fn validate_create_inbox_link(
   // `deserialize_from_type` checks the zome index too, so another zome's entry
   // cannot satisfy it either.
   let Some(EntryType::App(app_entry_def)) = record.action().entry_type() else {
-    return Ok(ValidateCallbackResult::Invalid(
-      "An Inbox link's target must be an app entry".to_string(),
-    ));
+    return invalid(MessagingValidationError::InboxLinkTargetNotAppEntry);
   };
 
   let Some(entry) = record.entry().as_option() else {
-    return Ok(ValidateCallbackResult::Invalid(
-      "An Inbox link's target record must contain its entry".to_string(),
-    ));
+    return invalid(MessagingValidationError::InboxLinkTargetMissingEntry);
   };
 
   match EntryTypes::deserialize_from_type(
@@ -167,9 +160,7 @@ fn validate_create_inbox_link(
   )? {
     Some(EntryTypes::EncryptedMessage(_)) => (),
     _ => {
-      return Ok(ValidateCallbackResult::Invalid(
-        "An Inbox link's target must be an EncryptedMessage".to_string(),
-      ))
+      return invalid(MessagingValidationError::InboxLinkTargetNotMessage)
     }
   }
 

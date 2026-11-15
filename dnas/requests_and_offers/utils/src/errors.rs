@@ -268,7 +268,14 @@ impl From<MessagingError> for WasmError {
 
 /// Refuses an op with `reason` as the verdict's text.
 pub fn invalid(reason: impl std::fmt::Display) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Invalid(reason.to_string()))
+  Ok(verdict(reason))
+}
+
+/// The same refusal as a bare verdict, for a rule written as a pure function that
+/// returns `ValidateCallbackResult` rather than `ExternResult` (messaging's, which
+/// its unit tests call directly). `invalid` is this, wrapped.
+pub fn verdict(reason: impl std::fmt::Display) -> ValidateCallbackResult {
+  ValidateCallbackResult::Invalid(reason.to_string())
 }
 
 /// The reasons every zome's delete routing shares.
@@ -282,6 +289,21 @@ pub enum CommonValidationError {
 
   #[error("Original app entry must be one of the defined entry types for this zome")]
   UnknownAppEntry,
+
+  #[error("Original record for a delete must contain an entry")]
+  DeletedEntryMissing,
+
+  #[error("{name} link starts at the original record of {kind}")]
+  UpdatesLinkBase { name: String, kind: String },
+
+  #[error("{name} link points at an update of {kind}")]
+  UpdatesLinkTarget { name: String, kind: String },
+
+  #[error("{0} link points at an update of the record it starts at")]
+  UpdatesLinkOtherRecord(String),
+
+  #[error("{0} link is written by the author of the update it points at")]
+  UpdatesLinkAuthor(String),
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -334,6 +356,18 @@ pub enum OrganizationValidationError {
 
   #[error("OrganizationUpdates links cannot be deleted")]
   UpdatesLinkDeleteRefused,
+
+  #[error("editing an organisation is a role act: {0}")]
+  EditIsRoleAct(String),
+
+  #[error("a link to an organisation's {0} starts at the organisation")]
+  MembershipLinkBase(String),
+
+  #[error("a link to an organisation's {0} points at a user")]
+  MembershipLinkTarget(String),
+
+  #[error("changing an organisation's {what} is a role act: {reason}")]
+  MembershipIsRoleAct { what: String, reason: String },
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -355,6 +389,18 @@ pub enum StatusValidationError {
 
   #[error("StatusUpdates links cannot be deleted")]
   UpdatesLinkDeleteRefused,
+
+  #[error("a status change is a role act: {0}")]
+  ChangeIsRoleAct(String),
+
+  #[error("An EntityStatus link points at a status record")]
+  EntityStatusLinkTarget,
+
+  #[error("An EntityStatus link is written by the author of the status it points at")]
+  EntityStatusLinkAuthor,
+
+  #[error("the accepted index is written with an admin or steward grant: {0}")]
+  AcceptedIndexWithoutGrant(String),
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -365,11 +411,11 @@ pub enum ServiceTypeValidationError {
   #[error("ServiceType description cannot be empty")]
   DescriptionEmpty,
 
-  #[error("Only the original author can update the ServiceType.")]
-  UpdateByNonAuthor,
+  #[error("Changing a service type is a role act: {0}")]
+  ChangeIsRoleAct(String),
 
-  #[error("Only the original author can delete the ServiceType.")]
-  DeleteByNonAuthor,
+  #[error("Creating a service type is a role act: {0}")]
+  CreateIsRoleAct(String),
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -383,11 +429,11 @@ pub enum MediumOfExchangeValidationError {
   #[error("MediumOfExchange exchange_type must be either 'base' or 'currency'")]
   InvalidExchangeType,
 
-  #[error("Only the original author can update the MediumOfExchange.")]
-  UpdateByNonAuthor,
+  #[error("Changing a medium of exchange is a role act: {0}")]
+  ChangeIsRoleAct(String),
 
-  #[error("Only the original author can delete the MediumOfExchange.")]
-  DeleteByNonAuthor,
+  #[error("Creating a medium of exchange is a role act: {0}")]
+  CreateIsRoleAct(String),
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -403,6 +449,12 @@ pub enum RequestValidationError {
 
   #[error("Time estimate must be greater than zero")]
   TimeEstimateNotPositive,
+
+  #[error("Posting a request is a role act: {0}")]
+  PostIsRoleAct(String),
+
+  #[error("Changing a request is a role act: {0}")]
+  ChangeIsRoleAct(String),
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -415,6 +467,12 @@ pub enum OfferValidationError {
 
   #[error("Offer description cannot exceed 1000 characters")]
   DescriptionTooLong,
+
+  #[error("Posting an offer is a role act: {0}")]
+  PostIsRoleAct(String),
+
+  #[error("Changing an offer is a role act: {0}")]
+  ChangeIsRoleAct(String),
 }
 
 /// The exchange rules. A `String` field names the record or the side the
@@ -537,6 +595,149 @@ pub enum ExchangeValidationError {
 
   #[error("a counter link points at the counter-proposal that answers its base")]
   CounterLinkWrongTarget,
+
+  #[error("an interest is a role act: {0}")]
+  InterestIsRoleAct(String),
+
+  #[error("an agreement is a role act: {0}")]
+  AgreementIsRoleAct(String),
+}
+
+/// The reasons the chain of grants gives, from the shared checks in `grants.rs`
+/// and from the administration zome's own validation of grants, revocations and
+/// their index links.
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum GrantValidationError {
+  #[error("Unknown role: {0}")]
+  UnknownRole(String),
+
+  #[error("the root grant is not signed by the progenitor key")]
+  RootNotSignedByProgenitor,
+
+  #[error("the root grant is written by the progenitor")]
+  RootNotWrittenByProgenitor,
+
+  #[error("the grant named is not a role grant")]
+  NotARoleGrant,
+
+  #[error("the grant named has no entry")]
+  GrantHasNoEntry,
+
+  #[error("the grant named does not read as one: {0}")]
+  GrantUnreadable(String),
+
+  /// The ability as its `Debug` form, as the reason has always read.
+  #[error("this write needs a grant for {0}")]
+  NeedsGrant(String),
+
+  #[error("the grant carried is held by someone else")]
+  HeldBySomeoneElse,
+
+  #[error("a {role} grant does not cover {ability} here")]
+  DoesNotCover { role: String, ability: String },
+
+  #[error("an entity's chain holds creates and updates only")]
+  ChainNotCreatesAndUpdates,
+
+  #[error("the link's tag does not carry a grant")]
+  TagCarriesNoGrant,
+
+  #[error("a {0} grant needs the stewarding module, and this network does not have it")]
+  NeedsStewarding(String),
+
+  #[error("a {0} grant does not take a scope")]
+  ScopeNotTaken(String),
+
+  #[error("a {0} grant needs a scope")]
+  ScopeNeeded(String),
+
+  #[error("the progenitor key grants the first administrators, nothing else")]
+  ProgenitorGrantsAdminsOnly,
+
+  #[error("a grant is written by the holder of the grant it rests on")]
+  NotHolderOfParent,
+
+  #[error("a {granter} may not grant {role} here")]
+  MayNotGrant { granter: String, role: String },
+
+  #[error("a revocation is written by the holder of the grant it rests on")]
+  RevocationNotByHolder,
+
+  #[error("a {authority} may not revoke a {role} grant here")]
+  MayNotRevoke { authority: String, role: String },
+
+  #[error("an index link is written by the agent who wrote the grant")]
+  IndexLinkNotByGranter,
+
+  #[error("this index holds {index} grants, and the tag carries a {carried} grant")]
+  IndexHoldsOtherRole { index: String, carried: String },
+
+  #[error("a grant index link points at the grant its tag carries")]
+  IndexLinkTargetMismatch,
+
+  #[error("an agent's grant index holds that agent's grants")]
+  AgentIndexHoldsOthers,
+
+  #[error("a {0} index link starts at the grant's holder")]
+  HolderLinkBaseMismatch(String),
+
+  #[error("a revocation link points at a revocation record")]
+  RevocationLinkTarget,
+
+  #[error("a revocation link is written by the revoker")]
+  RevocationLinkNotByRevoker,
+
+  #[error("a revocation link starts at the grant it revokes")]
+  RevocationLinkBase,
+
+  #[error("a grant or a revocation is never updated")]
+  UpdateRefused,
+
+  #[error("A grant or a revocation is a record and cannot be deleted; revoke a grant instead")]
+  DeleteRefused,
+
+  #[error("a grant index is a record and is never tombstoned")]
+  IndexTombstoneRefused,
+}
+
+/// The reasons the messaging integrity zome gives.
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum MessagingValidationError {
+  #[error("Messaging entries cannot be updated")]
+  UpdateRefused,
+
+  #[error("Encrypted message is {len} bytes, over the {limit} byte limit")]
+  CiphertextTooLong { len: usize, limit: usize },
+
+  #[error("Only the author of an entry may delete it")]
+  DeleteByNonAuthor,
+
+  #[error("An Inbox link must be authored by the author of the message it points to")]
+  InboxLinkAuthor,
+
+  #[error("Only the author of an Inbox link may delete it")]
+  InboxLinkDeleteByNonAuthor,
+
+  #[error("An Inbox link's tag must be empty, and this one is {0} bytes")]
+  InboxLinkTagNotEmpty(usize),
+
+  #[error("Sending a message is a member act: {0}")]
+  SendIsMemberAct(String),
+
+  #[error("An Inbox link's base must be an agent key")]
+  InboxLinkBase,
+
+  #[error("An Inbox link's target must be an action hash")]
+  InboxLinkTargetNotAction,
+
+  #[error("An Inbox link's target must be an app entry")]
+  InboxLinkTargetNotAppEntry,
+
+  #[error("An Inbox link's target record must contain its entry")]
+  InboxLinkTargetMissingEntry,
+
+  #[error("An Inbox link's target must be an EncryptedMessage")]
+  InboxLinkTargetNotMessage,
 }
 
 /// Every validation reason keeps the exact text it had when each zome built
@@ -666,14 +867,6 @@ mod validation_reason_tests {
       ServiceTypeValidationError::DescriptionEmpty,
       "ServiceType description cannot be empty",
     );
-    reads(
-      ServiceTypeValidationError::UpdateByNonAuthor,
-      "Only the original author can update the ServiceType.",
-    );
-    reads(
-      ServiceTypeValidationError::DeleteByNonAuthor,
-      "Only the original author can delete the ServiceType.",
-    );
   }
 
   #[test]
@@ -689,14 +882,6 @@ mod validation_reason_tests {
     reads(
       MediumOfExchangeValidationError::InvalidExchangeType,
       "MediumOfExchange exchange_type must be either 'base' or 'currency'",
-    );
-    reads(
-      MediumOfExchangeValidationError::UpdateByNonAuthor,
-      "Only the original author can update the MediumOfExchange.",
-    );
-    reads(
-      MediumOfExchangeValidationError::DeleteByNonAuthor,
-      "Only the original author can delete the MediumOfExchange.",
     );
   }
 
@@ -885,5 +1070,162 @@ mod validation_reason_tests {
       invalid(OfferValidationError::TitleEmpty).unwrap(),
       ValidateCallbackResult::Invalid("Offer title cannot be empty".to_string())
     );
+  }
+
+  #[test]
+  fn grant_reasons_keep_their_text() {
+    use GrantValidationError as G;
+    reads(G::UnknownRole("owner".into()), "Unknown role: owner");
+    reads(G::RootNotSignedByProgenitor, "the root grant is not signed by the progenitor key");
+    reads(G::RootNotWrittenByProgenitor, "the root grant is written by the progenitor");
+    reads(G::NotARoleGrant, "the grant named is not a role grant");
+    reads(G::GrantHasNoEntry, "the grant named has no entry");
+    reads(G::GrantUnreadable("bad bytes".into()), "the grant named does not read as one: bad bytes");
+    reads(G::NeedsGrant("Participate".into()), "this write needs a grant for Participate");
+    reads(G::HeldBySomeoneElse, "the grant carried is held by someone else");
+    reads(
+      G::DoesNotCover { role: "member".into(), ability: "Administer".into() },
+      "a member grant does not cover Administer here",
+    );
+    reads(G::ChainNotCreatesAndUpdates, "an entity's chain holds creates and updates only");
+    reads(G::TagCarriesNoGrant, "the link's tag does not carry a grant");
+    reads(
+      G::NeedsStewarding("steward".into()),
+      "a steward grant needs the stewarding module, and this network does not have it",
+    );
+    reads(G::ScopeNotTaken("admin".into()), "a admin grant does not take a scope");
+    reads(G::ScopeNeeded("coordinator".into()), "a coordinator grant needs a scope");
+    reads(
+      G::ProgenitorGrantsAdminsOnly,
+      "the progenitor key grants the first administrators, nothing else",
+    );
+    reads(G::NotHolderOfParent, "a grant is written by the holder of the grant it rests on");
+    reads(
+      G::MayNotGrant { granter: "member".into(), role: "admin".into() },
+      "a member may not grant admin here",
+    );
+    reads(
+      G::RevocationNotByHolder,
+      "a revocation is written by the holder of the grant it rests on",
+    );
+    reads(
+      G::MayNotRevoke { authority: "steward".into(), role: "admin".into() },
+      "a steward may not revoke a admin grant here",
+    );
+    reads(G::IndexLinkNotByGranter, "an index link is written by the agent who wrote the grant");
+    reads(
+      G::IndexHoldsOtherRole { index: "admin".into(), carried: "member".into() },
+      "this index holds admin grants, and the tag carries a member grant",
+    );
+    reads(G::IndexLinkTargetMismatch, "a grant index link points at the grant its tag carries");
+    reads(G::AgentIndexHoldsOthers, "an agent's grant index holds that agent's grants");
+    reads(G::HolderLinkBaseMismatch("admin".into()), "a admin index link starts at the grant's holder");
+    reads(G::RevocationLinkTarget, "a revocation link points at a revocation record");
+    reads(G::RevocationLinkNotByRevoker, "a revocation link is written by the revoker");
+    reads(G::RevocationLinkBase, "a revocation link starts at the grant it revokes");
+    reads(G::UpdateRefused, "a grant or a revocation is never updated");
+    reads(
+      G::DeleteRefused,
+      "A grant or a revocation is a record and cannot be deleted; revoke a grant instead",
+    );
+    reads(G::IndexTombstoneRefused, "a grant index is a record and is never tombstoned");
+  }
+
+  #[test]
+  fn role_act_reasons_keep_their_text() {
+    let why = || "the grant carried is held by someone else".to_string();
+    let tail = ": the grant carried is held by someone else";
+    reads(OfferValidationError::PostIsRoleAct(why()), &format!("Posting an offer is a role act{tail}"));
+    reads(OfferValidationError::ChangeIsRoleAct(why()), &format!("Changing an offer is a role act{tail}"));
+    reads(RequestValidationError::PostIsRoleAct(why()), &format!("Posting a request is a role act{tail}"));
+    reads(RequestValidationError::ChangeIsRoleAct(why()), &format!("Changing a request is a role act{tail}"));
+    reads(
+      ServiceTypeValidationError::ChangeIsRoleAct(why()),
+      &format!("Changing a service type is a role act{tail}"),
+    );
+    reads(
+      ServiceTypeValidationError::CreateIsRoleAct(why()),
+      &format!("Creating a service type is a role act{tail}"),
+    );
+    reads(
+      MediumOfExchangeValidationError::ChangeIsRoleAct(why()),
+      &format!("Changing a medium of exchange is a role act{tail}"),
+    );
+    reads(
+      MediumOfExchangeValidationError::CreateIsRoleAct(why()),
+      &format!("Creating a medium of exchange is a role act{tail}"),
+    );
+    reads(ExchangeValidationError::InterestIsRoleAct(why()), &format!("an interest is a role act{tail}"));
+    reads(ExchangeValidationError::AgreementIsRoleAct(why()), &format!("an agreement is a role act{tail}"));
+    reads(StatusValidationError::ChangeIsRoleAct(why()), &format!("a status change is a role act{tail}"));
+    reads(
+      StatusValidationError::AcceptedIndexWithoutGrant(why()),
+      &format!("the accepted index is written with an admin or steward grant{tail}"),
+    );
+    reads(
+      OrganizationValidationError::EditIsRoleAct(why()),
+      &format!("editing an organisation is a role act{tail}"),
+    );
+    reads(
+      OrganizationValidationError::MembershipIsRoleAct { what: "members".into(), reason: why() },
+      &format!("changing an organisation's members is a role act{tail}"),
+    );
+    reads(
+      MessagingValidationError::SendIsMemberAct(why()),
+      &format!("Sending a message is a member act{tail}"),
+    );
+  }
+
+  #[test]
+  fn link_shape_reasons_keep_their_text() {
+    reads(CommonValidationError::DeletedEntryMissing, "Original record for a delete must contain an entry");
+    reads(
+      CommonValidationError::UpdatesLinkBase { name: "a UserUpdates".into(), kind: "a user".into() },
+      "a UserUpdates link starts at the original record of a user",
+    );
+    reads(
+      CommonValidationError::UpdatesLinkTarget { name: "a UserUpdates".into(), kind: "a user".into() },
+      "a UserUpdates link points at an update of a user",
+    );
+    reads(
+      CommonValidationError::UpdatesLinkOtherRecord("a UserUpdates".into()),
+      "a UserUpdates link points at an update of the record it starts at",
+    );
+    reads(
+      CommonValidationError::UpdatesLinkAuthor("a UserUpdates".into()),
+      "a UserUpdates link is written by the author of the update it points at",
+    );
+    reads(StatusValidationError::EntityStatusLinkTarget, "An EntityStatus link points at a status record");
+    reads(
+      StatusValidationError::EntityStatusLinkAuthor,
+      "An EntityStatus link is written by the author of the status it points at",
+    );
+    reads(
+      OrganizationValidationError::MembershipLinkBase("members".into()),
+      "a link to an organisation's members starts at the organisation",
+    );
+    reads(
+      OrganizationValidationError::MembershipLinkTarget("coordinators".into()),
+      "a link to an organisation's coordinators points at a user",
+    );
+  }
+
+  #[test]
+  fn messaging_reasons_keep_their_text() {
+    use MessagingValidationError as M;
+    reads(M::UpdateRefused, "Messaging entries cannot be updated");
+    reads(
+      M::CiphertextTooLong { len: 3841, limit: 3840 },
+      "Encrypted message is 3841 bytes, over the 3840 byte limit",
+    );
+    reads(M::DeleteByNonAuthor, "Only the author of an entry may delete it");
+    reads(M::InboxLinkAuthor, "An Inbox link must be authored by the author of the message it points to");
+    reads(M::InboxLinkDeleteByNonAuthor, "Only the author of an Inbox link may delete it");
+    reads(M::InboxLinkTagNotEmpty(4), "An Inbox link's tag must be empty, and this one is 4 bytes");
+    reads(M::InboxLinkBase, "An Inbox link's base must be an agent key");
+    reads(M::InboxLinkTargetNotAction, "An Inbox link's target must be an action hash");
+    reads(M::InboxLinkTargetNotAppEntry, "An Inbox link's target must be an app entry");
+    reads(M::InboxLinkTargetMissingEntry, "An Inbox link's target record must contain its entry");
+    reads(M::InboxLinkTargetNotMessage, "An Inbox link's target must be an EncryptedMessage");
   }
 }

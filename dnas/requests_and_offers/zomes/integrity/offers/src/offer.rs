@@ -72,18 +72,15 @@ pub fn validate_offer_grant(
   author: &AgentPubKey,
   update: Option<&ActionHash>,
 ) -> ExternResult<ValidateCallbackResult> {
-  let (act, verdict) = match update {
-    None => (
-      "Posting an offer",
-      check_act(grant, author, &Ability::Participate, &None)?.map(|_| ()),
-    ),
-    Some(original) => (
-      "Changing an offer",
-      check_author_or_act(original, grant, author, &Ability::Administer, &None)?,
-    ),
+  let verdict = match update {
+    None => check_act(grant, author, &Ability::Participate, &None)?
+      .map(|_| ())
+      .map_err(|reason| OfferValidationError::PostIsRoleAct(reason.to_string())),
+    Some(original) => check_author_or_act(original, grant, author, &Ability::Administer, &None)?
+      .map_err(|reason| OfferValidationError::ChangeIsRoleAct(reason.to_string())),
   };
-  Ok(match verdict {
-    Ok(()) => ValidateCallbackResult::Valid,
-    Err(reason) => ValidateCallbackResult::Invalid(format!("{} is a role act: {}", act, reason)),
-  })
+  match verdict {
+    Ok(()) => Ok(ValidateCallbackResult::Valid),
+    Err(reason) => invalid(reason),
+  }
 }

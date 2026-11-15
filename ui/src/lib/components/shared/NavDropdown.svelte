@@ -135,11 +135,11 @@
                 {item.label}
                 {#if item.badge}
                   <span
-                    class="badge variant-filled-primary px-1.5 py-0 text-xs"
+                    class="variant-filled-primary badge px-1.5 py-0 text-xs"
                     aria-label={item.badgeLabel
                       ? item.badgeLabel(item.badge)
-                      : `${item.badge} waiting on you`}
-                  >{shown(item.badge)}</span>
+                      : `${item.badge} waiting on you`}>{shown(item.badge)}</span
+                  >
                 {/if}
               </div>
               {#if item.description}

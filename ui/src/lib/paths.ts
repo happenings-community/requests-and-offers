@@ -275,10 +275,11 @@ export function readServiceType(url: URL): string | null {
 /**
  * Where a flow was started, which decides where it returns to.
  *
- * **`from` alone cannot tell the two conversation arrivals apart.** The picker's "New
- * offer" and the propose page's "Post an offer" both carry the same counterparty, so both
- * produced the identical URL `/offers/create?from=<user>`, and the create page had no way
- * to know which it was. They want different endings: one shares the new listing into the
+ * **`from` alone cannot tell the two arrivals apart.** The picker's "New offer" and the
+ * propose page's "Post an offer", reached from the same conversation, both carry its
+ * counterparty, so both produced the identical URL `/offers/create?from=<user>`, and the
+ * create page had no way to know which it was. ("Post an offer" on a proposal started on
+ * the listing carries no `from` at all.) They want different endings: one shares the new listing into the
  * conversation, the other resumes the proposal with it as the reciprocal side.
  *
  * **A marker says which, rather than the details implying it.** `return=proposal` is

@@ -12,7 +12,7 @@ The bulletin board pivot (`ab462063`) left R&O able to show a listing and the me
 
 ## 2. What it is, and is not
 
-It is the coordination layer: who responded to which listing, what the two of them agreed, whether each did their part, what each thought of it. Negotiation happens off-app, by whatever means the two people choose, using the contact details the profile already exposes (#220). The record starts when they have agreed.
+It is the coordination layer: who responded to which listing, what the two of them agreed, whether each did their part, what each thought of it. Negotiation happens in a conversation where the network has messaging; where it has none, off-app, by whatever means the two people choose, using the contact details the profile already exposes (#220). The record starts when they have agreed.
 
 It is not an hREA agreement, a message thread, a dispute process, or a settlement. Each of those is a later layer that describes or extends this record; section 9 shows how.
 
@@ -33,7 +33,7 @@ The medium is the type of exchange, not the exchange itself. It decides what flo
 
 | Medium | What flows back | How it is named | If nothing suits |
 |---|---|---|---|
-| Service Exchange | A service from the other side | Chosen from their active offers | "None of these — get in touch" opens their contact details, so the proposer can ask about another skill they could list, or suggest a different medium. Nothing can be sent until a service is named. |
+| Service Exchange | A service from the other side | Chosen from their active offers | "None of these — get in touch" opens the conversation with them where there is messaging, and their contact details where there is not, so the proposer can ask about another skill they could list, or suggest a different medium. Nothing can be sent until a service is named. |
 | Free/Pay it Forward | Nothing | — | — |
 | A currency (HoloFuel) | An amount | Not yet carried: no listing publishes an amount, and nothing is typed in (#307) | — |
 | Let's Discuss | — | — | Not a medium. Discussing is messaging, from alpha.2. |

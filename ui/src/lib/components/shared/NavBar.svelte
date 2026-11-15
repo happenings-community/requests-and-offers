@@ -135,6 +135,16 @@
   }
 
   /**
+   * Exchanges waiting on this member, for a network without messaging: derived from the
+   * store's read model and `turnOf`, cleared by acting, not by looking.
+   */
+  const pendingCount = $derived(
+    exchangesStore.exchanges.filter(
+      (e) => turnOf(e, usersStore.currentUser?.original_action_hash) === 'you'
+    ).length
+  );
+
+  /**
    * The badge, from whatever messaging plugged in (brief H4, rule 2).
    *
    * **Shared chrome may ask whether messaging is here; it may not reach it.** Counting
@@ -147,16 +157,6 @@
    * It still counts conversations rather than items, and the same number My Messages shows,
    * read from one place so the two cannot disagree.
    */
-  /**
-   * Exchanges waiting on this member, for a network without messaging: derived from the
-   * store's read model and `turnOf`, cleared by acting, not by looking.
-   */
-  const pendingCount = $derived(
-    exchangesStore.exchanges.filter(
-      (e) => turnOf(e, usersStore.currentUser?.original_action_hash) === 'you'
-    ).length
-  );
-
   const unread = getUnreadCount();
   const unreadCount = $derived(unread());
 

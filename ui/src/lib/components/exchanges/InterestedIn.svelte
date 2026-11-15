@@ -7,6 +7,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { EXCHANGE_STRINGS as S, fill } from '$lib/strings/exchanges.strings';
   import { reasonOf } from '$lib/utils/error-shape';
+  import { plainZomeError } from '$lib/utils/zome-refusals';
   import ReachPerson from './ReachPerson.svelte';
   import { statusLabel } from '$lib/utils/exchange-ui';
   import { ListingStatus } from '$lib/types/holochain';
@@ -100,7 +101,8 @@
     try {
       await runEffect(exchangesStore.withdrawInterest(interest));
     } catch (e) {
-      withdrawError = reasonOf(e);
+      // Worded as the listing page words the same refusal.
+      withdrawError = plainZomeError(e).message;
       withdrawing = false;
       return;
     }

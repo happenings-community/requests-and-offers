@@ -239,16 +239,16 @@ In the browser's local storage, under the member's agent key, and nowhere else: 
 
 ### 7.5. Blocking
 
-A block is by person, not by agent. It is applied in two places:
+A block is by person, not by agent. It is applied in three places:
 
 - **What is read.** A blocked person's messages are left out of every thread, and a message of theirs that could not be read is not shown as a fault.
 - **What arrives by signal.** The sender is resolved to a person first. A nudge from someone blocked starts no read, and their receipt is not recorded. A sender who cannot be resolved is not known to be blocked, so their nudge still starts a read; what that read returns goes through the block list.
 
-- **What goes out.** Nothing is sent to a blocked person: no read receipt when their conversation is opened, and no read mark in the body of a message to them.
+- **What goes out.** No read receipt is sent to a blocked person when their conversation is opened, and no read mark rides in the body of a message to them. A member can still write to someone they have blocked: the block hides what comes in, it does not stop what the member chooses to send.
 
 Their interests and proposals still show as cards, because those are the exchange's records and the exchange pages show them anyway, but they never count towards the unopened badge.
 
-The blocked person is not told, and their messages are still stored: the zome knows nothing of the block. A block that storage refused to keep (private browsing, a full quota) holds until the page is reloaded.
+The blocked person is not told, and their messages are still stored: the zome knows nothing of the block. A block that storage refused to keep (private browsing, a full quota) holds until the page is reloaded, and the member is not told that it will not last.
 
 ### 7.6. Receipts
 
@@ -256,9 +256,9 @@ When a conversation's read mark advances and that conversation sends receipts, t
 
 ### 7.7. A network without messaging
 
-Whether a network has messaging is read from the DNA: it does when `messaging_integrity` is among its integrity zomes (`ui/src/lib/services/messagingPresence.svelte.ts`). Without it the interface shows no Messages entry, no "message this person" action and no unread count, and the `/messages` pages render nothing but a notice if opened by address, so no messaging call is made. Nothing in the exchange route leads there: a proposal started on a listing returns to the exchange, and My Exchanges carries the count of exchanges waiting on the member that My Messages carries elsewhere. `VITE_MESSAGING_DISABLED=true` forces that mode for testing.
+Whether a network has messaging is read from the DNA: it does when `messaging_integrity` is among its integrity zomes (`ui/src/lib/services/messagingPresence.svelte.ts`). Without it the interface shows no Messages entry, no "message this person" action and no unread count, and the `/messages` pages render nothing but a notice if opened by address, so no messaging call is made. Nothing in the exchange route leads there: a proposal started on a listing returns to the exchange, and My Exchanges carries a count of the exchanges waiting on the member, since there is no unopened-conversation count on My Messages to carry a proposal. `VITE_MESSAGING_DISABLED=true` forces that mode for testing.
 
 ### 7.8. Tests
 
-`ui/tests/unit/stores/messaging.store.test.ts` (the outbox and its three states, the send that is not repeated, a stored outbox surviving a failed read, blocks on reads and on signals, receipts in and out, the delta read), `ui/tests/unit/services/messaging.service.test.ts` (each call's function name and payload), `ui/tests/unit/routes/messages-pages.test.ts` (the pages mounted on the real store: the address followed and nothing carried from one person to the next, the open conversation kept read, names, discard, a refused send keeping its draft, a failed read not reported as a failed send, the cards: sharing, accepting, declining and withdrawing, one at a time and with nothing typed lost, a network without messaging), `ui/tests/unit/components/messaging/` (each card on its own: what it offers, what it sends, and what it says when a read or a send fails). Also `ui/tests/unit/routes/conversation-page.test.ts` and `blocking.test.ts`. The composer is exercised against a stood-in zome only: there is no e2e case for messaging, so nothing sends a message through the pages to a conductor.
+`ui/tests/unit/stores/messaging.store.test.ts` (the outbox and its three states, the send that is not repeated, a stored outbox surviving a failed read, blocks on reads and on signals, receipts in and out, the delta read), `ui/tests/unit/services/messaging.service.test.ts` (each call's function name and payload), `ui/tests/unit/routes/messages-pages.test.ts` (the pages mounted on the real store: the address followed and nothing carried from one person to the next, the open conversation kept read, names, discard, a refused send keeping its draft, a failed read not reported as a failed send, the cards: sharing, accepting, declining and withdrawing, one at a time and with nothing typed lost, a network without messaging), `ui/tests/unit/components/messaging/` (each card on its own: what it offers, what it sends, and what it says when a read or a send fails, and a fault row's details). Also `ui/tests/unit/routes/conversation-page.test.ts` and `blocking.test.ts` (the blocked page, its history and names), `ui/tests/unit/services/HolochainClientService.signals.test.ts` (signals through the real client: routing by zome, app signals only, a reconnect), `ui/tests/unit/components/shared/NavBar.test.ts` (the menu's counts with and without messaging), `ui/tests/unit/components/exchanges/InterestedIn.test.ts`, and `ui/tests/unit/routing.test.ts` with `routes/propose-page.test.ts` (where a proposal returns to). The composer is exercised against a stood-in zome only: there is no e2e case for messaging, so nothing sends a message through the pages to a conductor.
 

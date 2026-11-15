@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/svelte';
-import { paths } from '$lib/paths';
+import { paths, readOrigin, routeAfterPublish, readProposeParams, routeAfter } from '$lib/paths';
 import { visit } from '../../mocks/app-state';
 import ProposePage from '../../../src/routes/(public)/exchanges/propose/+page.svelte';
 
@@ -130,5 +130,42 @@ describe('the propose page’s guard on Send', () => {
 
     await screen.findAllByText('CAD');
     expect(screen.queryByTestId('interest-missing')).toBeNull();
+  });
+});
+
+/**
+ * Where a proposal ends depends on where it began, and the listing's author is not where
+ * it began. "Post an offer" carried the author as the conversation, so a proposal started
+ * on the listing came back from "Continue your proposal" as one started in a conversation,
+ * and sending it went to Messages: on a network without messaging, to the page that says
+ * there is none.
+ */
+describe('a proposal that goes by way of posting an offer', () => {
+  // "Post an offer" is offered where the other side is a service, so the medium is one.
+  beforeEach(() => {
+    getMediumOfExchange.mockResolvedValue({ name: 'Service Exchange', exchange_type: 'base' });
+  });
+
+  const followThrough = async () => {
+    render(ProposePage);
+    const post = (await screen.findByText(/post an offer/i)).closest('a')!;
+    const origin = readOrigin(new URL(post.getAttribute('href')!, 'http://localhost'));
+    const after = routeAfterPublish(origin, hash(9));
+    expect(after.kind).toBe('continueProposal');
+    const resumed = after.kind === 'continueProposal' ? after.href : '';
+    const { from } = readProposeParams(new URL(resumed, 'http://localhost'));
+    return routeAfter({ exchange: hash(10), from });
+  };
+
+  it('ends on the exchange when it was started on the listing', async () => {
+    visit(paths.exchangePropose({ listing: LISTING, type: 'Offer', interest: INTEREST }));
+    expect(await followThrough()).toBe(paths.exchangeDetail(hash(10)));
+  });
+
+  it('ends in the conversation when it was started in one', async () => {
+    visit(
+      paths.exchangePropose({ listing: LISTING, type: 'Offer', interest: INTEREST, from: AUTHOR })
+    );
+    expect(await followThrough()).toBe(paths.conversation(AUTHOR));
   });
 });

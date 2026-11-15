@@ -148,6 +148,8 @@ export const EXCHANGE_STRINGS = {
     since: 'Interested since {date}',
     /** DRAFT, for Anita. */
     loadFailed: "Couldn't read the listings you're interested in: {reason}",
+    // DRAFT, for Anita
+    withdrawFailed: "Your interest wasn't withdrawn: {reason}",
     count: '{count} members interested',
     noProposal: 'No proposal yet',
     archived: 'Archived by its author',

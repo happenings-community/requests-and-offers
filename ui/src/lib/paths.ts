@@ -292,7 +292,13 @@ export type Origin =
   | { kind: 'conversation'; counterparty: ActionHash }
   | {
       kind: 'proposal';
-      counterparty: ActionHash;
+      /**
+       * The conversation the proposal was started from, or `null` when it was started on
+       * the listing. Not "the other person": that is the listing's author, and putting it
+       * here sent a proposal started on the listing to Messages once it was sent, and on
+       * a network without messaging to the page that says there is none.
+       */
+      counterparty: ActionHash | null;
       listing: ActionHash;
       type: ListingType;
       interest: ActionHash;
@@ -301,11 +307,13 @@ export type Origin =
 /** Read the origin from any page's URL. */
 export function readOrigin(url: URL): Origin {
   const { from, listing, type, interest } = readProposeParams(url);
-  if (!from) return { kind: 'none' };
   const marked = url.searchParams.get(P.return) === RETURN_PROPOSAL;
+  // A proposal needs its own context, not a conversation: one started on the listing has
+  // none, and still returns to itself.
   if (marked && listing && type && interest) {
     return { kind: 'proposal', counterparty: from, listing, type, interest };
   }
+  if (!from) return { kind: 'none' };
   return { kind: 'conversation', counterparty: from };
 }
 
@@ -323,7 +331,7 @@ export function readReciprocal(url: URL): ActionHash | null {
 export function createListingFrom(type: ListingType, origin: Origin): string {
   if (origin.kind === 'proposal') {
     return paths.listingCreate(type, {
-      from: origin.counterparty,
+      from: origin.counterparty ?? undefined,
       returnTo: 'proposal',
       listing: origin.listing,
       listingType: origin.type,
@@ -357,7 +365,7 @@ export function routeAfterPublish(origin: Origin, published: ActionHash | null):
         listing: origin.listing,
         type: origin.type,
         interest: origin.interest,
-        from: origin.counterparty,
+        from: origin.counterparty ?? undefined,
         reciprocal: published ?? undefined
       })
     };
@@ -406,7 +414,9 @@ export type BackLink =
   | { wording: 'default'; href: string };
 
 export function routeBack(origin: Origin, fallback: string): BackLink {
-  if (origin.kind === 'none') return { wording: 'default', href: fallback };
+  if (origin.kind === 'none' || origin.counterparty === null) {
+    return { wording: 'default', href: fallback };
+  }
   return {
     wording: 'conversation',
     href: paths.conversation(origin.counterparty),

@@ -102,18 +102,19 @@
   /**
    * Where "Post an offer" goes.
    *
-   * The ordinary create page, carrying the listing's author so it can offer a way back to
-   * the conversation afterwards. One create flow, as everywhere else.
+   * The ordinary create page, carrying the proposal so it can offer "Continue your
+   * proposal" afterwards. One create flow, as everywhere else.
    */
   const postOfferHref = $derived.by(() => {
-    // The proposal's own context travels, so the create page can offer "Continue your
-    // proposal" rather than just a way back: publishing here is a step inside proposing.
+    // The proposal's own context travels: publishing here is a step inside proposing.
+    // The conversation travels only if the page was reached from one (`from`), never the
+    // listing's author: that turned a proposal started on the listing into one that
+    // ended in Messages.
     const { listing: hash, listingType, interest } = params;
-    const counterparty = other?.original_action_hash;
-    if (!hash || !listingType || !interest || !counterparty) return paths.offerCreate();
+    if (!hash || !listingType || !interest) return paths.offerCreate();
     return createListingFrom('Offer', {
       kind: 'proposal',
-      counterparty,
+      counterparty: params.from,
       listing: hash,
       type: listingType,
       interest

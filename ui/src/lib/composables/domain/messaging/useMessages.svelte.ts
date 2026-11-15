@@ -21,13 +21,14 @@ import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
  * `useExchangesManagement.svelte.ts`.
  */
 
-export const FILTERS: { key: ThreadFilter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'unopened', label: 'Unopened' },
-  { key: 'offers', label: 'Offers' },
-  { key: 'requests', label: 'Requests' },
-  { key: 'exchanges', label: 'Exchanges' },
-  { key: 'archived', label: 'Archived' }
+/** The Show filter's choices, in order. Their words are in the strings file. */
+export const FILTERS: { key: ThreadFilter }[] = [
+  { key: 'all' },
+  { key: 'unopened' },
+  { key: 'offers' },
+  { key: 'requests' },
+  { key: 'exchanges' },
+  { key: 'archived' }
 ];
 
 export function useMessages() {
@@ -60,8 +61,13 @@ export function useMessages() {
   async function resolveNames(list: UIThread[]): Promise<void> {
     for (const thread of list) {
       if (thread.key in names) continue;
-      const user = await runEffect(usersStore.getUserByActionHash(thread.counterparty));
-      names[thread.key] = user?.name ?? C.someone;
+      // Each on its own: one lookup that fails used to leave every row after it "A member".
+      try {
+        const user = await runEffect(usersStore.getUserByActionHash(thread.counterparty));
+        names[thread.key] = user?.name ?? C.someone;
+      } catch {
+        // Not recorded, so the next refresh tries this one again.
+      }
     }
   }
 
@@ -70,8 +76,12 @@ export function useMessages() {
     for (const fault of list) {
       const key = encodeHashToBase64(fault.from);
       if (key in names) continue;
-      const user = await runEffect(usersStore.getUserByAgentPubKey(fault.from));
-      names[key] = user?.name ?? C.someone;
+      try {
+        const user = await runEffect(usersStore.getUserByAgentPubKey(fault.from));
+        names[key] = user?.name ?? C.someone;
+      } catch {
+        // As above: tried again on the next refresh.
+      }
     }
   }
 

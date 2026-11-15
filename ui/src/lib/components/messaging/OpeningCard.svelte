@@ -35,7 +35,9 @@
   const heading = $derived(
     mine
       ? fill(isOffer ? S.card.interest.youInOffer : S.card.interest.youInRequest, { name })
-      : fill(isOffer ? S.card.interest.theyInYourOffer : S.card.interest.theyInYourRequest, { name })
+      : fill(isOffer ? S.card.interest.theyInYourOffer : S.card.interest.theyInYourRequest, {
+          name
+        })
   );
 
   const listingHref = $derived(
@@ -51,11 +53,11 @@
     <span class="font-semibold">{heading}</span>
   </div>
   <div class="flex flex-wrap gap-2 pt-3">
-    <a class="btn btn-sm variant-ghost" href={listingHref}>{E.interest.view}</a>
+    <a class="variant-ghost btn btn-sm" href={listingHref}>{E.interest.view}</a>
     {#if mine}
       <button
         type="button"
-        class="btn btn-sm variant-ghost"
+        class="variant-ghost btn btn-sm"
         {disabled}
         onclick={() => onWithdraw(interest.interest_hash)}
       >

@@ -5,6 +5,8 @@ import { localKey } from '$lib/utils/messaging-local';
 import { setPage } from '../../mocks/app-stores';
 import BlockedPage from '../../../src/routes/(public)/messages/blocked/+page.svelte';
 import ConversationPage from '../../../src/routes/(public)/messages/[user]/+page.svelte';
+import messagingStore from '$lib/stores/messaging.store.svelte';
+import { decodeHashFromBase64 } from '@holochain/client';
 
 /**
  * **A block, and an unblock, show on the screen the member did it on.**
@@ -54,6 +56,11 @@ vi.mock('$lib/services/HolochainClientService.svelte', async () => {
   };
 });
 
+/** A case can make one person's name fail to look up. */
+const { lookups } = vi.hoisted(() => ({
+  lookups: { failFor: undefined as ((user: Uint8Array) => boolean) | undefined }
+}));
+
 vi.mock('$lib/stores/users.store.svelte', async () => {
   const { Effect } = await import('effect');
   return {
@@ -64,8 +71,10 @@ vi.mock('$lib/stores/users.store.svelte', async () => {
         status: { status_type: 'accepted' }
       },
       getUserByAgentPubKey: () => Effect.succeed(null),
-      getUserByActionHash: () =>
-        Effect.succeed({ name: 'Anita Rossi', original_action_hash: hashes.ANITA })
+      getUserByActionHash: (user: Uint8Array) =>
+        lookups.failFor?.(user)
+          ? Effect.fail(new Error('get_user: no answer'))
+          : Effect.succeed({ name: 'Anita Rossi', original_action_hash: hashes.ANITA })
     }
   };
 });
@@ -107,6 +116,7 @@ const anita = encodeHashToBase64(ANITA);
 beforeEach(() => {
   cleanup();
   localStorage.clear();
+  lookups.failFor = undefined;
   setPage({ user: anita });
 });
 
@@ -128,6 +138,53 @@ describe('the blocked members page', () => {
     expect(screen.getByText("You haven't blocked anyone.")).toBeTruthy();
     const stored = JSON.parse(localStorage.getItem(KEY) ?? '{}') as { blocked: string[] };
     expect(stored.blocked, 'and the block really is lifted').toEqual([]);
+  });
+});
+
+describe('the blocked members page, its history and names', () => {
+  /**
+   * Through the store, not straight into storage: the store is one object across these
+   * cases and keeps what it last read, so storage changed behind it is not seen until it
+   * next writes.
+   */
+  const store = (blocked: string[], history: { user: string; blocked: boolean; at: number }[]) => {
+    localStorage.setItem(KEY, JSON.stringify({ schemaVersion: 2, blocked, blockHistory: history }));
+    // Any write brings the store's copy level with storage; this one changes nothing.
+    messagingStore.setArchived(decodeHashFromBase64(anita), false);
+  };
+
+  it('says what happened on each line of the history', async () => {
+    store(
+      [],
+      [
+        { user: anita, blocked: true, at: 1_760_000_000_000 },
+        { user: anita, blocked: false, at: 1_760_000_100_000 }
+      ]
+    );
+    render(BlockedPage);
+
+    // Newest first.
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('listitem').map((l) => l.textContent?.replace(/\s+/g, ' ').trim())
+      ).toEqual([
+        expect.stringContaining('Anita Rossi unblocked'),
+        expect.stringContaining('Anita Rossi blocked')
+      ])
+    );
+  });
+
+  /** A failed lookup left "Loading…" on the page for good. */
+  it('shows the list when a name will not look up, with a placeholder for that one', async () => {
+    const other = encodeHashToBase64(new Uint8Array([132, 32, 36, ...Array(36).fill(8)]));
+    lookups.failFor = (user) => encodeHashToBase64(user) === other;
+    store([other, anita], []);
+    render(BlockedPage);
+
+    await waitFor(() => expect(screen.getByText('A member')).toBeTruthy());
+    expect(screen.getAllByText('Anita Rossi').length, 'the other name resolved').toBeGreaterThan(0);
+    expect(screen.queryByText(/Loading/)).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Unblock' })).toHaveLength(2);
   });
 });
 

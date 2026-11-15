@@ -3,6 +3,7 @@ import { Effect as E } from 'effect';
 import { encodeHashToBase64 } from '@holochain/client';
 import { localKey } from '$lib/utils/messaging-local';
 import { createMessagingStore, type MessagingStore } from '$lib/stores/messaging.store.svelte';
+import { unopenedConversations } from '$lib/utils/messaging-threads';
 
 /**
  * The messaging store around the outbox and the local state, with the zome stood in for.
@@ -117,10 +118,13 @@ vi.mock('$lib/stores/exchanges.store.svelte', async () => {
     default: {
       getMyInterests: () => myInterests(),
       getInterestsForListing: () => Effect.succeed([]),
-      loadMyExchanges: () => Effect.succeed([])
+      loadMyExchanges: () => Effect.succeed(exchangesNow.list)
     }
   };
 });
+
+/** My exchanges as the exchanges store would give them; empty unless a case sets them. */
+const { exchangesNow } = vi.hoisted(() => ({ exchangesNow: { list: [] as unknown[] } }));
 
 const { listings } = vi.hoisted(() => ({
   listings: async () => {
@@ -773,6 +777,122 @@ describe('an outbox this device already holds', () => {
 
     expect(sendMessage, "sent on the member's word").toHaveBeenCalledTimes(1);
     expect(store.outbox).toHaveLength(0);
+  });
+});
+
+describe('a blocked person is told nothing', () => {
+  /** A proposal Anita wrote to me: a card, so her conversation exists though she is blocked. */
+  const herProposal = (atMs: number) => ({
+    agreement_hash: new Uint8Array(Array(39).fill(50)),
+    status: 'Proposed',
+    created_at: atMs,
+    agreement: {
+      listing: new Uint8Array(Array(39).fill(40)),
+      listing_type: 'Offer',
+      interest: new Uint8Array(Array(39).fill(41)),
+      counterparty: hashes.ME,
+      provider: ANITA,
+      receiver: hashes.ME,
+      primary: { direction: 'Provide', resource_conforms_to: 'x', resource_kind: 'Service' },
+      reciprocal: { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Gift' },
+      medium: 'Gift',
+      terms: '',
+      delivery_timeframe: ''
+    }
+  });
+  afterEach(() => {
+    exchangesNow.list = [];
+  });
+
+  it("a blocked person's proposal still shows, but does not count as unopened", async () => {
+    exchangesNow.list = [herProposal(T_SENT)];
+    const store = await freshStore();
+    await E.runPromise(store.loadConversations());
+    expect(unopenedConversations(store.threads), 'counted before the block').toBe(1);
+
+    store.setBlocked(ANITA, true);
+    await vi.waitFor(() => expect(unopenedConversations(store.threads)).toBe(0));
+    expect(store.threads, 'the card is still there').toHaveLength(1);
+  });
+
+  it('opening a blocked person’s conversation sends them no receipt', async () => {
+    exchangesNow.list = [herProposal(T_SENT)];
+    const store = await freshStore();
+    store.setBlocked(ANITA, true);
+    await E.runPromise(store.loadConversations());
+
+    store.markThreadRead(ANITA);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(sendReceipt).not.toHaveBeenCalled();
+  });
+
+  it('nor does a message to them carry the mark', async () => {
+    exchangesNow.list = [herProposal(T_SENT)];
+    const store = await freshStore();
+    await E.runPromise(store.loadConversations());
+    store.markThreadRead(ANITA);
+    sendMessage.mockReturnValue(E.succeed([]));
+
+    await E.runPromise(store.send(ANITA, 'before'));
+    expect(sendMessage.mock.calls[0][0], 'carried while not blocked').toMatchObject({
+      readUpTo: micros(T_SENT)
+    });
+
+    store.setBlocked(ANITA, true);
+    await E.runPromise(store.send(ANITA, 'after'));
+    expect((sendMessage.mock.calls[1][0] as { readUpTo?: number }).readUpTo).toBeUndefined();
+  });
+});
+
+describe('a block storage refused to keep', () => {
+  /** Private browsing, or a full quota: every write to storage throws. */
+  const refuseWrites = () =>
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+
+  it('holds until a reload, through every read of the conversations', async () => {
+    getInbox.mockReturnValue(
+      E.succeed([
+        {
+          type: 'Read',
+          hash: hashes.ME,
+          from: ANITA_AGENT,
+          to: MY_AGENT,
+          at: micros(T_SENT),
+          content: 'hello'
+        }
+      ])
+    );
+    userByAgent.mockReturnValue({ original_action_hash: ANITA });
+    const store = await freshStore();
+    await E.runPromise(store.loadConversations());
+    expect(store.threads).toHaveLength(1);
+    const refused = refuseWrites();
+
+    try {
+      store.setBlocked(ANITA, true);
+      await E.runPromise(store.loadConversations());
+      await E.runPromise(store.loadConversations());
+
+      expect(store.isBlocked(ANITA), 'still blocked').toBe(true);
+      expect(store.threads, 'and her message still hidden').toHaveLength(0);
+    } finally {
+      refused.mockRestore();
+    }
+  });
+
+  it('is written once storage takes it again, and then storage decides', async () => {
+    const store = await freshStore();
+    const refused = refuseWrites();
+    store.setBlocked(ANITA, true);
+    refused.mockRestore();
+
+    store.setBlocked(ANITA, false);
+    await E.runPromise(store.loadConversations());
+
+    expect(store.isBlocked(ANITA), 'the later unblock is what holds').toBe(false);
   });
 });
 

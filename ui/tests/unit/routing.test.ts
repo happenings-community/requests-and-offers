@@ -85,6 +85,27 @@ describe('readOrigin: which arrival this was', () => {
   });
 });
 
+describe('a proposal started on the listing, with no conversation', () => {
+  const ON_LISTING: Origin = { ...PROPOSAL, counterparty: null };
+
+  it('is still a proposal to come back to', () => {
+    const read = readOrigin(url(createListingFrom('Offer', ON_LISTING)));
+    expect(read.kind).toBe('proposal');
+    expect(read.kind === 'proposal' && read.counterparty).toBeNull();
+  });
+
+  it('comes back to the propose page with no conversation in the address', () => {
+    const after = routeAfterPublish(ON_LISTING, hash(7));
+    const href = after.kind === 'continueProposal' ? after.href : '';
+    expect(href).toContain('/exchanges/propose');
+    expect(url(href).searchParams.get('from')).toBeNull();
+  });
+
+  it('has the page’s own Back, not a conversation’s', () => {
+    expect(routeBack(ON_LISTING, '/exchanges').wording).toBe('default');
+  });
+});
+
 describe('routeAfterPublish: what is offered once a listing is published', () => {
   const PUBLISHED = hash(7);
 

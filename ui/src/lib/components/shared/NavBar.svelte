@@ -13,6 +13,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
+  import { turnOf } from '$lib/utils/exchange-ui';
   import { runEffect } from '$lib/utils/effect';
   import { ADMIN_SHORTCUT_ARIA } from '$lib/utils/admin-shortcut';
   import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
@@ -99,12 +100,14 @@
       {
         href: paths.exchanges(),
         label: 'My Exchanges',
-        // **No number here** (Sam, 4 October). A proposal arriving is one thing to deal
-        // with, and it is already counted as an unopened conversation; a second badge
-        // over the same event made it look like two. An exchange waiting on this member
-        // says "Your turn" on its own row instead, which clears when they act rather
-        // than when they look.
-        badge: undefined,
+        // **No number here where there is messaging** (Sam, 4 October). A proposal
+        // arriving is one thing to deal with, and there it is already counted as an
+        // unopened conversation; a second badge over the same event made it look like
+        // two. An exchange waiting on this member says "Your turn" on its own row instead.
+        // **Without messaging nothing else counts it**, so this keeps the number it had:
+        // the exchanges waiting on this member.
+        badge: messagingPresence.isAbsent ? pendingCount : undefined,
+        badgeLabel: (n: number) => `${n} waiting on you`,
         icon: '🤝',
         description: 'Agreements you are part of'
       },
@@ -122,6 +125,8 @@
               href: paths.messages(),
               label: 'My Messages',
               badge: unreadCount,
+              badgeLabel: (n: number) =>
+                n === 1 ? '1 unopened conversation' : `${n} unopened conversations`,
               icon: '✉️',
               description: 'Your conversations with other members'
             }
@@ -142,6 +147,16 @@
    * It still counts conversations rather than items, and the same number My Messages shows,
    * read from one place so the two cannot disagree.
    */
+  /**
+   * Exchanges waiting on this member, for a network without messaging: derived from the
+   * store's read model and `turnOf`, cleared by acting, not by looking.
+   */
+  const pendingCount = $derived(
+    exchangesStore.exchanges.filter(
+      (e) => turnOf(e, usersStore.currentUser?.original_action_hash) === 'you'
+    ).length
+  );
+
   const unread = getUnreadCount();
   const unreadCount = $derived(unread());
 

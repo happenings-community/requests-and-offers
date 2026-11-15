@@ -290,6 +290,9 @@ export const MESSAGING_STRINGS = {
     title: 'Blocked members',
     now: 'Blocked now',
     history: 'History',
+    // DRAFT, for Anita. What each line of the history says happened.
+    wasBlocked: 'blocked',
+    wasUnblocked: 'unblocked',
     empty: "You haven't blocked anyone."
   },
 

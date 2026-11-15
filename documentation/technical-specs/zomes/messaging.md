@@ -244,7 +244,11 @@ A block is by person, not by agent. It is applied in two places:
 - **What is read.** A blocked person's messages are left out of every thread, and a message of theirs that could not be read is not shown as a fault.
 - **What arrives by signal.** The sender is resolved to a person first. A nudge from someone blocked starts no read, and their receipt is not recorded. A sender who cannot be resolved is not known to be blocked, so their nudge still starts a read; what that read returns goes through the block list.
 
-The blocked person is not told, and their messages are still stored: the zome knows nothing of the block.
+- **What goes out.** Nothing is sent to a blocked person: no read receipt when their conversation is opened, and no read mark in the body of a message to them.
+
+Their interests and proposals still show as cards, because those are the exchange's records and the exchange pages show them anyway, but they never count towards the unopened badge.
+
+The blocked person is not told, and their messages are still stored: the zome knows nothing of the block. A block that storage refused to keep (private browsing, a full quota) holds until the page is reloaded.
 
 ### 7.6. Receipts
 
@@ -252,7 +256,7 @@ When a conversation's read mark advances and that conversation sends receipts, t
 
 ### 7.7. A network without messaging
 
-Whether a network has messaging is read from the DNA: it does when `messaging_integrity` is among its integrity zomes (`ui/src/lib/services/messagingPresence.svelte.ts`). Without it the interface shows no Messages entry, no "message this person" action and no unread count, and the `/messages` pages render nothing but a notice if opened by address, so no messaging call is made. `VITE_MESSAGING_DISABLED=true` forces that mode for testing.
+Whether a network has messaging is read from the DNA: it does when `messaging_integrity` is among its integrity zomes (`ui/src/lib/services/messagingPresence.svelte.ts`). Without it the interface shows no Messages entry, no "message this person" action and no unread count, and the `/messages` pages render nothing but a notice if opened by address, so no messaging call is made. Nothing in the exchange route leads there: a proposal started on a listing returns to the exchange, and My Exchanges carries the count of exchanges waiting on the member that My Messages carries elsewhere. `VITE_MESSAGING_DISABLED=true` forces that mode for testing.
 
 ### 7.8. Tests
 

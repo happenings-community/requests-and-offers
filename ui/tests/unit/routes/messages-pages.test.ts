@@ -1431,6 +1431,37 @@ describe('the list of conversations', () => {
     expect(await screen.findByText('Anita Rossi')).toBeTruthy();
   });
 
+  /** The first name that failed to look up left every row after it unnamed. */
+  it('names the other conversations when one name will not look up', async () => {
+    const term = { resource_kind: 'Gift', resource_conforms_to: 'Gift' };
+    myExchanges.mockReturnValue([
+      {
+        agreement_hash: hashes.M2,
+        status: 'Proposed',
+        created_at: T,
+        agreement: {
+          counterparty: hashes.ME,
+          provider: hashes.BELA,
+          receiver: hashes.ME,
+          primary: term,
+          reciprocal: term
+        }
+      }
+    ]);
+    // Anita's is the newer, so hers is looked up first, and it fails.
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T + 10, 'hello')]));
+    const isBela = (user: Uint8Array) => user.every((byte, i) => byte === hashes.BELA[i]);
+    userByHash.mockImplementation((user: Uint8Array) =>
+      isBela(user)
+        ? E.succeed({ name: 'Bela Kovac', original_action_hash: hashes.BELA })
+        : E.fail(new Error('get_user: no answer'))
+    );
+
+    render(MessagesPage);
+
+    expect(await screen.findByText('Bela Kovac')).toBeTruthy();
+  });
+
   /** A failed read is not an empty inbox. */
   it('does not say there are no conversations when the read failed', async () => {
     // A store that has shown nothing yet: clear whatever an earlier case left in it.

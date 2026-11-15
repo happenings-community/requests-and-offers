@@ -38,8 +38,14 @@
     for (const key of keys) {
       if (key in names) continue;
       const hash = hashOf(key);
-      const user = hash ? await runEffect(usersStore.getUserByActionHash(hash)) : null;
-      names[key] = user?.name ?? C.someone;
+      // One name that will not resolve keeps its placeholder and does not stop the rest:
+      // a failed lookup used to leave "Loading…" on the page for good.
+      try {
+        const user = hash ? await runEffect(usersStore.getUserByActionHash(hash)) : null;
+        names[key] = user?.name ?? C.someone;
+      } catch {
+        names[key] = C.someone;
+      }
     }
     loading = false;
   }
@@ -102,9 +108,7 @@
         {#each history as event, i (`${event.user}-${event.at}-${i}`)}
           <li class="flex flex-wrap gap-2 text-surface-600 dark:text-surface-300">
             <span class="font-medium">{nameOf(event.user)}</span>
-            <span
-              >{event.blocked ? S.block.button.toLowerCase() : S.block.unblock.toLowerCase()}</span
-            >
+            <span>{event.blocked ? S.blocked.wasBlocked : S.blocked.wasUnblocked}</span>
             <span class="ml-auto text-surface-500">{when(event.at)}</span>
           </li>
         {/each}

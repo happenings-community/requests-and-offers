@@ -197,12 +197,33 @@ export function createMessagingStore(): MessagingStore {
    */
   let mirror = $state<MessagingLocalState | null>(null);
 
-  const localState = (): MessagingLocalState => mirror ?? readFor(myAgentKey());
+  /**
+   * What storage refused to keep, laid over what it holds every time the mirror is filled.
+   *
+   * Kept in the mirror alone, it lasted only until the next load, which refills the mirror
+   * from storage: so a block made in private browsing was lifted by the very read that
+   * Block starts, and the blocked person's messages came back. A field leaves here once a
+   * write of it succeeds.
+   */
+  let unsaved: Partial<MessagingLocalState> = {};
+  const fromStorage = (key: AgentPubKey | null): MessagingLocalState => ({
+    ...readFor(key),
+    ...unsaved
+  });
+
+  const localState = (): MessagingLocalState => mirror ?? fromStorage(myAgentKey());
 
   const write = (patch: Partial<MessagingLocalState>): boolean => {
     const key = myAgentKey();
     const ok = writeFor(key, patch);
-    mirror = ok ? readFor(key) : { ...localState(), ...patch };
+    if (ok) {
+      unsaved = Object.fromEntries(
+        Object.entries(unsaved).filter(([field]) => !(field in patch))
+      ) as Partial<MessagingLocalState>;
+    } else {
+      unsaved = { ...unsaved, ...patch };
+    }
+    mirror = fromStorage(key);
     return ok;
   };
 
@@ -446,7 +467,7 @@ export function createMessagingStore(): MessagingStore {
 
         // Filled from storage on every load, so a change made on another tab, or by a
         // write this screen did not see, reaches the screen with the next poll.
-        const local = (mirror = readFor(myAgentKey()));
+        const local = (mirror = fromStorage(myAgentKey()));
         const archivedKeys = new Set<ThreadKey>(local.archived);
         // What storage holds, plus anything held in memory that storage refused to keep.
         outboxAdopted = true;
@@ -483,6 +504,9 @@ export function createMessagingStore(): MessagingStore {
         // no longer the state of the screen.
         error = null;
 
+        // A blocked person's cards (their interests and proposals) still show: they are
+        // the exchange's records, and the exchange pages show them anyway. But they never
+        // count as unopened, or blocking someone would leave the badge lit by them.
         threads = buildThreads({
           me,
           inbox: visibleInbox,
@@ -492,7 +516,7 @@ export function createMessagingStore(): MessagingStore {
           agentToUser,
           readUpTo: local.readUpTo,
           archivedKeys
-        });
+        }).map((t) => (blocked.has(t.key) ? { ...t, unread: 0 } : t));
         faults = visibleFaults;
 
         // **The mark that rides in a message body.** A reader's `read_up_to` reaches this
@@ -618,7 +642,11 @@ export function createMessagingStore(): MessagingStore {
       overall: local.receipts,
       myReadUpTo: local.readUpTo[key] ?? 0
     });
-    const readUpTo = plan.readUpTo === undefined ? undefined : toMicros(plan.readUpTo);
+    // Not to a blocked person, by either path: the body carries the mark as a receipt does.
+    const readUpTo =
+      plan.readUpTo === undefined || local.blocked.includes(key)
+        ? undefined
+        : toMicros(plan.readUpTo);
     return withServices((service) =>
       service.sendMessage({ toUser: counterparty, content, sendId, listing, readUpTo }).pipe(
         E.asVoid,
@@ -895,6 +923,10 @@ export function createMessagingStore(): MessagingStore {
 
     write({ readUpTo: { ...local.readUpTo, [thread.key]: newest } });
     threads = threads.map((t) => (t.key === thread.key ? { ...t, unread: 0 } : t));
+
+    // **Nothing goes to a blocked person**, a receipt least of all: it would tell them
+    // this device is awake and reading what they sent. The mark still moves here.
+    if (isBlocked(counterparty)) return;
 
     // **Only when the mark advances, and only if this chat sends them.** Re-sending an
     // unchanged mark would tell the other person this agent is online without having

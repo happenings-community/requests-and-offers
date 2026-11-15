@@ -12,6 +12,7 @@
   import { ListingStatus } from '$lib/types/holochain';
   import type { UIInterest } from '$lib/types/ui';
   import { COMMON_STRINGS as C } from '$lib/strings/common.strings';
+  import { paths } from '$lib/paths';
 
   /** One row: the interest, plus what we had to fetch to describe it. */
   type Row = {
@@ -84,9 +85,28 @@
         })
       : '';
 
+  /**
+   * A withdrawal on its way. One at a time: a second press was a second call, and the
+   * list read again under the first.
+   */
+  let withdrawing = $state(false);
+  /** Why a withdrawal was refused. It was an unhandled rejection, with nothing said. */
+  let withdrawError = $state<string | null>(null);
+
   async function withdraw(interest: ActionHash) {
-    await runEffect(exchangesStore.withdrawInterest(interest));
+    if (withdrawing) return;
+    withdrawing = true;
+    withdrawError = null;
+    try {
+      await runEffect(exchangesStore.withdrawInterest(interest));
+    } catch (e) {
+      withdrawError = reasonOf(e);
+      withdrawing = false;
+      return;
+    }
+    // Held through the re-read, so the row is not pressed again before it has gone.
     await load();
+    withdrawing = false;
     onchange?.();
   }
 </script>
@@ -109,6 +129,11 @@
       <p class="text-surface-500">{S.interested.empty}</p>
     </div>
   {:else}
+    {#if withdrawError}
+      <p class="text-sm text-error-500" role="alert">
+        {fill(S.interested.withdrawFailed, { reason: withdrawError })}
+      </p>
+    {/if}
     <ul class="space-y-3">
       {#each rows as row (encodeHashToBase64(row.interest.interest_hash))}
         {@const exchange = exchangeOn(row.interest.listing)}
@@ -142,13 +167,13 @@
             />
             <a
               class="variant-ghost btn btn-sm"
-              href="/{row.interest.listing_type === 'Offer'
-                ? 'offers'
-                : 'requests'}/{encodeHashToBase64(row.interest.listing)}">{S.interest.view}</a
+              href={paths.listingDetail(row.interest.listing, row.interest.listing_type)}
+              >{S.interest.view}</a
             >
             <button
               type="button"
               class="variant-ghost btn btn-sm"
+              disabled={withdrawing}
               onclick={() => withdraw(row.interest.interest_hash)}>{S.interest.withdraw}</button
             >
           </div>

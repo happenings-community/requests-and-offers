@@ -158,11 +158,11 @@ During creation, the `requests_coordinator` zome must:
 pub fn get_latest_request_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>>
 ```
 
-Retrieves the latest record for a request, following any update links.
+Retrieves the latest record for a request, following any update links. A revision's hash is accepted too: the read resolves it to the chain root first, where the update links are. Asked with a revision, it used to return that revision as if it were the latest (#229).
 
 **Parameters:**
 
-- `original_action_hash`: The original action hash of the request
+- `original_action_hash`: The original action hash of the request, or any revision's
 
 **Returns:**
 
@@ -215,18 +215,18 @@ During an update, the `requests_coordinator` zome replaces the `RequestToService
 ### Delete Request
 
 ```rust
-pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<Record>
+pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool>
 ```
 
-Deletes a request and all associated links, including `RequestToServiceType` links.
+Deletes a request, every revision of it, and all associated links: its place in the requests, member and organisation lists, the active and archived lists, and the service type and medium of exchange links, which each edit makes from its own revision. A revision's hash is accepted and resolved to the chain root first. Before #229 a delete matched only the hash it was given and deleted only that record, so an edited request stayed in the active list and under its service type, and its other revisions could still be read.
 
 **Parameters:**
 
-- `original_action_hash`: The action hash of the request to delete
+- `original_action_hash`: The action hash of the request to delete, or any revision's
 
 **Returns:**
 
-- `Record`: The deleted request record
+- `bool`: `true` once deleted
 - `Error`: If deletion fails
 
 **Access Control:**

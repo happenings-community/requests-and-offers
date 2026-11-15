@@ -162,7 +162,7 @@ Input/Output structs are defined in Rust for type safety and clarity.
   - **Returns**: `Some(Record)` if found, `None` otherwise.
 
 - **`get_latest_medium_of_exchange_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>>`**
-  - **Description**: Gets the latest version of a medium of exchange given the original action hash.
+  - **Description**: Gets the latest version of a medium of exchange given the original action hash, or any revision's, which it resolves to the chain root first (#229).
   - **Access Control**: Public.
   - **Returns**: Latest version `Record` or original if no updates.
 

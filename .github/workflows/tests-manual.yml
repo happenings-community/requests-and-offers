@@ -94,6 +94,7 @@ jobs:
         target:
           - misc
           - link_canonicalisation
+          - chain_root_reads
           - users
           - users_link_attacks
           - organizations

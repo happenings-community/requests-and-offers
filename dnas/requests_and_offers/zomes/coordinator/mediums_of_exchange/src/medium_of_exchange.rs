@@ -227,6 +227,9 @@ pub fn get_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternResu
 pub fn get_latest_medium_of_exchange_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
+  // A client may hold a revision: the update links hang off the chain root, and from a
+  // revision none are found, so the revision came back as if it were the latest (#229).
+  let original_action_hash = resolve_chain_root(original_action_hash);
   let latest_action_hash = latest_medium_of_exchange_action_hash(original_action_hash)?;
   get(latest_action_hash, GetOptions::default())
 }
@@ -511,7 +514,7 @@ pub fn get_requests_for_medium_of_exchange(
     GetStrategy::Network,
   )?;
 
-  get_records_for_medium_of_exchange(links, "request")
+  get_records_for_medium_of_exchange(links)
 }
 
 /// Get offers linked to a medium of exchange
@@ -527,23 +530,24 @@ pub fn get_offers_for_medium_of_exchange(
     GetStrategy::Network,
   )?;
 
-  get_records_for_medium_of_exchange(links, "offer")
+  get_records_for_medium_of_exchange(links)
 }
 
 // Helper function to get records for a medium of exchange
-fn get_records_for_medium_of_exchange(links: Vec<Link>, entity: &str) -> ExternResult<Vec<Record>> {
-  let records: Result<Vec<Record>, WasmError> = links
-    .into_iter()
-    .map(|link| {
-      let record = get(
-        link.target.into_action_hash().unwrap(),
-        GetOptions::default(),
-      )?;
-      record.ok_or(CommonError::EntryNotFound(format!("Could not find {} record", entity)).into())
-    })
-    .collect();
-
-  records
+/// The records the links point at. A target that reads nothing is skipped, as the offer
+/// and request lists do (#233): a deleted listing's links and its records are removed by
+/// different authorities, so for a while a link can outlive its record, and that one
+/// listing must not fail the whole list.
+fn get_records_for_medium_of_exchange(links: Vec<Link>) -> ExternResult<Vec<Record>> {
+  let mut records = Vec::new();
+  for link in links {
+    if let Some(hash) = link.target.into_action_hash() {
+      if let Some(record) = get(hash, GetOptions::default())? {
+        records.push(record);
+      }
+    }
+  }
+  Ok(records)
 }
 
 /// Get medium of exchange for an entity (request or offer)

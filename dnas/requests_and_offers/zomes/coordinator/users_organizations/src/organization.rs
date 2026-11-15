@@ -2,8 +2,8 @@ use hdk::prelude::*;
 use users_organizations_integrity::*;
 use utils::{
   errors::{AdministrationError, CommonError, OrganizationsError, UsersError},
-  find_original_action_hash, EntityActionHash, OriginalActionHash, OrganizationContactInput,
-  OrganizationUserInput, PreviousActionHash,
+  find_original_action_hash, resolve_chain_root, EntityActionHash, OrganizationContactInput,
+  OrganizationUserInput, OriginalActionHash, PreviousActionHash,
 };
 
 use crate::{
@@ -70,6 +70,9 @@ pub fn create_organization(organization: Organization) -> ExternResult<Record> {
 pub fn get_latest_organization_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
+  // A client may hold a revision: the update links hang off the chain root, and from a
+  // revision none are found, so the revision came back as if it were the latest (#229).
+  let original_action_hash = resolve_chain_root(original_action_hash);
   let link_type_filter = LinkTypes::OrganizationUpdates
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;

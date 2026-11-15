@@ -136,6 +136,14 @@ pub fn get_service_type(service_type_hash: ActionHash) -> ExternResult<Option<Re
 pub fn get_latest_service_type_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
+  // A client may hold a revision: the update links hang off the chain root, and from a
+  // revision none are found, so the revision came back as if it were the latest (#229).
+  latest_service_type_record(resolve_chain_root(original_action_hash))
+}
+
+/// The latest revision of the service type whose chain root is `original_action_hash`.
+/// For the lists, whose links point at roots already, so they do not walk each chain.
+fn latest_service_type_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
   let link_type_filter = LinkTypes::ServiceTypeUpdates
     .try_into_filter()
     .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
@@ -284,7 +292,7 @@ fn get_service_types_by_status(status_path: &str) -> ExternResult<Vec<Record>> {
   let mut records = Vec::new();
   for link in links {
     if let Some(target_hash) = link.target.into_action_hash() {
-      if let Some(record) = get_latest_service_type_record(target_hash.clone())? {
+      if let Some(record) = latest_service_type_record(target_hash.clone())? {
         records.push(record);
       }
     }
@@ -615,19 +623,20 @@ pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<St
   Ok("pending".to_string())
 }
 
-fn get_records_for_service_type(links: Vec<Link>, entity: &str) -> ExternResult<Vec<Record>> {
-  let records: Result<Vec<Record>, WasmError> = links
-    .into_iter()
-    .map(|link| {
-      let record = get(
-        link.target.into_action_hash().unwrap(),
-        GetOptions::default(),
-      )?;
-      record.ok_or(CommonError::EntryNotFound(format!("Could not find {} record", entity)).into())
-    })
-    .collect();
-
-  records
+/// The records the links point at. A target that reads nothing is skipped, as the offer
+/// and request lists do (#233): a deleted listing's links and its records are removed by
+/// different authorities, so for a while a link can outlive its record, and that one
+/// listing must not fail the whole list.
+fn get_records_for_service_type(links: Vec<Link>) -> ExternResult<Vec<Record>> {
+  let mut records = Vec::new();
+  for link in links {
+    if let Some(hash) = link.target.into_action_hash() {
+      if let Some(record) = get(hash, GetOptions::default())? {
+        records.push(record);
+      }
+    }
+  }
+  Ok(records)
 }
 
 /// Get requests linked to a service type
@@ -641,7 +650,7 @@ pub fn get_requests_for_service_type(service_type_hash: ActionHash) -> ExternRes
     GetStrategy::Network,
   )?;
 
-  get_records_for_service_type(links, "request")
+  get_records_for_service_type(links)
 }
 
 /// Get offers linked to a service type
@@ -655,7 +664,7 @@ pub fn get_offers_for_service_type(service_type_hash: ActionHash) -> ExternResul
     GetStrategy::Network,
   )?;
 
-  get_records_for_service_type(links, "offer")
+  get_records_for_service_type(links)
 }
 
 /// Get users linked to a service type
@@ -669,7 +678,7 @@ pub fn get_users_for_service_type(service_type_hash: ActionHash) -> ExternResult
     GetStrategy::Network,
   )?;
 
-  get_records_for_service_type(links, "user")
+  get_records_for_service_type(links)
 }
 
 #[hdk_extern]

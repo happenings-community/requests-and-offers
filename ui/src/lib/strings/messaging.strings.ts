@@ -103,6 +103,13 @@ export const MESSAGING_STRINGS = {
      */
     tooLongBy: 'Too long by {percent}%. Split it into {count} messages.',
     /**
+     * DRAFT, for Anita. What a screen reader is told as the limit nears and is passed. No
+     * figure: these are said once when the state changes, and a figure in them would be
+     * out of date by the next keystroke. The counter on screen keeps the figure.
+     */
+    limitNear: 'Close to the limit for one message.',
+    tooLongSplit: 'Too long for one message. Split it into {count} messages.',
+    /**
      * Sending one of your own listings into a conversation as a card.
      *
      * The card is how it reaches the other person: it travels as a card-only message
@@ -111,6 +118,9 @@ export const MESSAGING_STRINGS = {
      */
     shareListing: 'Share a listing',
     shareListingIntro: 'Pick one of your listings to send as a card.',
+    /** DRAFT, for Anita. Your own listings could not be read for the picker. */
+    shareListingsFailed:
+      "Your listings couldn't be read: {reason}. Close this and open it again to retry.",
     sharedByYou: 'You shared a listing',
     sharedByThem: '{name} shared a listing',
     /**

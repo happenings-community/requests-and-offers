@@ -220,6 +220,7 @@ export function useConversation(address: string | (() => string)) {
       }
       name = user.name ?? C.someone;
       myUser = usersStore.currentUser?.original_action_hash;
+      if (shareableWanted) void loadShareable();
       receiptSetting = messagingStore.receiptSettingFor(counterparty);
       // Opening a conversation is what marks it read. Nothing else does, so a nav badge
       // and a row always agree about what has been seen.
@@ -402,12 +403,30 @@ export function useConversation(address: string | (() => string)) {
 
   /** My own published listings, for the Share a listing picker. */
   let shareable = $state<Array<{ hash: ActionHash; title: string; type: 'Request' | 'Offer' }>>([]);
+  /** Whether `shareable` has been read, so an empty picker means "none", not "not yet". */
+  let shareableRead = $state(false);
+  /** Why the last read of my listings failed, so a failure is not shown as having none. */
+  let shareableError = $state<string | null>(null);
+  /** The picker was opened before the member was known; read once they are. */
+  let shareableWanted = false;
 
   async function loadShareable(): Promise<void> {
-    if (!myUser) return;
+    if (!myUser) {
+      // Not yet known while the conversation is still being read. Saying "none" now was
+      // saying it before anything had been read.
+      shareableWanted = true;
+      return;
+    }
+    shareableWanted = false;
+    shareableError = null;
+    const read = <T>(listings: Promise<T[]>) =>
+      listings.catch((e: unknown) => {
+        shareableError ??= reasonOf(e);
+        return [] as T[];
+      });
     const [requests, offers] = [
-      await runEffect(requestsStore.getMyListings(myUser)).catch(() => []),
-      await runEffect(offersStore.getMyListings(myUser)).catch(() => [])
+      await read(runEffect(requestsStore.getMyListings(myUser))),
+      await read(runEffect(offersStore.getMyListings(myUser)))
     ];
     shareable = [
       ...requests.map((r) => ({
@@ -421,6 +440,7 @@ export function useConversation(address: string | (() => string)) {
         type: 'Offer' as const
       }))
     ].filter((l) => !!l.hash);
+    shareableRead = true;
   }
 
   /**
@@ -467,6 +487,12 @@ export function useConversation(address: string | (() => string)) {
     },
     get waiting() {
       return waiting;
+    },
+    get shareableRead() {
+      return shareableRead;
+    },
+    get shareableError() {
+      return shareableError;
     },
     get shareable() {
       return shareable;

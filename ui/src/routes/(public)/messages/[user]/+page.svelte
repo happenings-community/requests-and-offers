@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, untrack } from 'svelte';
+  import { onDestroy, tick, untrack } from 'svelte';
   import { page } from '$app/stores';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import { useConversation } from '$lib/composables/domain/messaging/useConversation.svelte';
@@ -83,6 +83,21 @@
   let confirmingBlock = $state(false);
 
   /**
+   * Where the focus goes as the inline Block confirmation opens and closes.
+   *
+   * The buttons are swapped out from under the focus, so without this a keyboard or
+   * screen-reader member was left on nothing. Opening puts them on Cancel, the safe
+   * choice; cancelling returns them to Block; blocking puts them on Unblock.
+   */
+  let blockButton = $state<HTMLButtonElement | null>(null);
+  let cancelBlockButton = $state<HTMLButtonElement | null>(null);
+  let unblockButton = $state<HTMLButtonElement | null>(null);
+  async function focusAfter(target: () => HTMLButtonElement | null) {
+    await tick();
+    target()?.focus();
+  }
+
+  /**
    * The composer's byte budget.
    *
    * **Bytes, not characters**, because that is what the zome measures: `content.len()`
@@ -99,6 +114,20 @@
   const used = $derived(percentUsed(conversation.draft));
   const over = $derived(percentOver(conversation.draft));
   const pieces = $derived(messagesNeeded(conversation.draft));
+  /**
+   * What a screen reader is told about the limit. The counter itself was a live region,
+   * so it was read out on every keystroke near the end. This says only which state the
+   * message is in, so it changes, and is read out, when the counter appears, when the
+   * message goes over, and when the number of messages it needs changes. It carries no
+   * figure, which would be stale by the next keystroke; the counter on screen has that.
+   */
+  const limitAnnouncement = $derived(
+    !showCounter
+      ? ''
+      : tooLong
+        ? fill(S.conversation.tooLongSplit, { count: pieces })
+        : S.conversation.limitNear
+  );
 
   const whenOf = (at: number) => formatMessageTime(at);
 </script>
@@ -124,30 +153,53 @@
           <button
             type="button"
             class="variant-ghost btn btn-sm"
-            onclick={() => messagingStore.setBlocked(conversation.counterparty, false)}
-            >{S.block.unblock}</button
+            bind:this={unblockButton}
+            onclick={() => {
+              messagingStore.setBlocked(conversation.counterparty, false);
+              void focusAfter(() => blockButton);
+            }}>{S.block.unblock}</button
           >
         {:else if confirmingBlock}
-          <!-- Inline, not a modal, as the design has it. -->
-          <span class="text-sm">{fill(S.block.confirm.body, { name: conversation.name })}</span>
-          <button
-            type="button"
-            class="variant-filled-error btn btn-sm"
-            onclick={() => {
-              messagingStore.setBlocked(conversation.counterparty, true);
-              confirmingBlock = false;
-            }}>{fill(S.block.confirm.yes, { name: conversation.name })}</button
+          <!--
+          Inline, not a modal, as the design has it. Grouped under its question, so the focus
+          landing on Cancel says what is being cancelled.
+          -->
+          <div
+            class="flex flex-wrap items-center gap-2"
+            role="group"
+            aria-labelledby="block-question"
           >
-          <button
-            type="button"
-            class="variant-ghost btn btn-sm"
-            onclick={() => (confirmingBlock = false)}>{S.proposal.declineForm.cancel}</button
-          >
+            <span class="text-sm" id="block-question"
+              >{fill(S.block.confirm.body, { name: conversation.name })}</span
+            >
+            <button
+              type="button"
+              class="variant-filled-error btn btn-sm"
+              onclick={() => {
+                messagingStore.setBlocked(conversation.counterparty, true);
+                confirmingBlock = false;
+                void focusAfter(() => unblockButton);
+              }}>{fill(S.block.confirm.yes, { name: conversation.name })}</button
+            >
+            <button
+              type="button"
+              class="variant-ghost btn btn-sm"
+              bind:this={cancelBlockButton}
+              onclick={() => {
+                confirmingBlock = false;
+                void focusAfter(() => blockButton);
+              }}>{S.proposal.declineForm.cancel}</button
+            >
+          </div>
         {:else}
           <button
             type="button"
             class="variant-ghost btn btn-sm"
-            onclick={() => (confirmingBlock = true)}>{S.block.button}</button
+            bind:this={blockButton}
+            onclick={() => {
+              confirmingBlock = true;
+              void focusAfter(() => cancelBlockButton);
+            }}>{S.block.button}</button
           >
         {/if}
 
@@ -336,6 +388,11 @@
       <section class="card flex flex-col gap-2 p-4" data-testid="share-listing">
         <h2 class="h4">{S.conversation.shareListing}</h2>
         <p class="text-sm text-surface-500">{S.conversation.shareListingIntro}</p>
+        {#if conversation.shareableError}
+          <p class="text-sm text-error-700 dark:text-error-300" role="alert">
+            {fill(S.conversation.shareListingsFailed, { reason: conversation.shareableError })}
+          </p>
+        {/if}
         {#each conversation.shareable as item (encodeHashToBase64(item.hash))}
           <button
             type="button"
@@ -359,7 +416,15 @@
             <span class="min-w-0 flex-1 truncate">{item.title}</span>
           </button>
         {:else}
-          <p class="text-surface-500 text-sm">{S.picker.none}</p>
+          <!--
+          "None" only once they have been read, and read without a fault: it said so while
+          the listings were loading, and when they could not be read at all.
+          -->
+          {#if !conversation.shareableRead}
+            <p class="text-surface-500 text-sm">{C.loading}</p>
+          {:else if !conversation.shareableError}
+            <p class="text-surface-500 text-sm">{S.picker.none}</p>
+          {/if}
         {/each}
       </section>
     {/if}
@@ -422,7 +487,6 @@
             <span
               class="text-sm {tooLong ? 'text-error-700 dark:text-error-300' : 'text-surface-500'}"
               data-testid="limit-counter"
-              aria-live="polite"
             >
               {#if tooLong}
                 {fill(S.conversation.tooLongBy, { percent: over, count: pieces })}
@@ -431,6 +495,9 @@
               {/if}
             </span>
           {/if}
+          <span class="sr-only" aria-live="polite" data-testid="limit-announcement"
+            >{limitAnnouncement}</span
+          >
           <button type="button" class="variant-ghost btn" onclick={() => (picking = !picking)}>
             {E.listing.makeProposal}
           </button>

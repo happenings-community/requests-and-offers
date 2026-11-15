@@ -4,6 +4,7 @@ import { createRawSnippet } from 'svelte';
 import { Effect as E } from 'effect';
 import { encodeHashToBase64 } from '@holochain/client';
 import { localKey } from '$lib/utils/messaging-local';
+import { MESSAGING_STRINGS } from '$lib/strings/messaging.strings';
 import messagingStore from '$lib/stores/messaging.store.svelte';
 import { cardsGoing, cardRefusals } from '$lib/composables/domain/messaging/useConversation.svelte';
 import messagingPresence from '$lib/services/messagingPresence.svelte';
@@ -146,7 +147,11 @@ vi.mock('$lib/stores/requests.store.svelte', async () => {
   const { Effect } = await import('effect');
   return {
     default: {
-      getMyListings: () => Effect.succeed(myRequests()),
+      // An Effect stands in for a read still going; anything else is what it returns.
+      getMyListings: () => {
+        const mine = myRequests();
+        return Effect.isEffect(mine) ? mine : Effect.succeed(mine);
+      },
       getRequest: () => Effect.succeed(requestByHash()),
       getOffer: () => Effect.succeed(null)
     }
@@ -476,6 +481,132 @@ describe('the conversation page', () => {
 
     expect(screen.queryByRole('button', { name: /^Block .+/ })).toBeNull();
     expect(screen.getByRole('button', { name: 'Block' })).toBeTruthy();
+  });
+
+  /**
+   * The confirmation replaces the button that opened it, so the focus was left on nothing
+   * and a keyboard member had to find their way back from the top of the page.
+   */
+  it('keeps the focus on the Block controls as they change', async () => {
+    render(ConversationPage);
+    await composerFor('Anita Rossi');
+    try {
+      await fireEvent.click(screen.getByRole('button', { name: 'Block' }));
+      await waitFor(() =>
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cancel' }))
+      );
+      // And Cancel is heard with the question it belongs to.
+      const question = screen.getByRole('group', { name: /won't see messages from Anita Rossi/ });
+      expect(question.contains(document.activeElement)).toBe(true);
+
+      await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      await waitFor(() =>
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Block' }))
+      );
+
+      await fireEvent.click(screen.getByRole('button', { name: 'Block' }));
+      await fireEvent.click(screen.getByRole('button', { name: 'Block Anita Rossi' }));
+      await waitFor(() =>
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Unblock' }))
+      );
+
+      await fireEvent.click(screen.getByRole('button', { name: 'Unblock' }));
+      await waitFor(() =>
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Block' }))
+      );
+    } finally {
+      messagingStore.setBlocked(ANITA, false);
+    }
+  });
+
+  /** The counter was a live region, so near the end every keystroke was read out. */
+  it('tells a screen reader about the limit when it changes, not on every keystroke', async () => {
+    render(ConversationPage);
+    const box = await composerFor('Anita Rossi');
+    const announced = () => screen.getByTestId('limit-announcement').textContent?.trim();
+    const counter = () => screen.getByTestId('limit-counter');
+
+    expect(announced()).toBe('');
+
+    await fireEvent.input(box, { target: { value: 'a'.repeat(16 * 1024 - 400) } });
+    await waitFor(() => expect(announced()).toBe('Close to the limit for one message.'));
+    expect(counter().getAttribute('aria-live')).toBeNull();
+
+    // A figure in the announcement would be stale here: the counter has moved on.
+    await fireEvent.input(box, { target: { value: 'a'.repeat(16 * 1024 - 10) } });
+    expect(counter().textContent).toContain('99%');
+    expect(announced()).toBe('Close to the limit for one message.');
+
+    await fireEvent.input(box, { target: { value: 'a'.repeat(16 * 1024 + 10) } });
+    await waitFor(() =>
+      expect(announced()).toBe('Too long for one message. Split it into 2 messages.')
+    );
+
+    await fireEvent.input(box, { target: { value: 'a'.repeat(32 * 1024 + 10) } });
+    await waitFor(() =>
+      expect(announced()).toBe('Too long for one message. Split it into 3 messages.')
+    );
+
+    await fireEvent.input(box, { target: { value: 'short' } });
+    await waitFor(() => expect(announced()).toBe(''));
+  });
+
+  /** It said there were none while the member's listings were still being read. */
+  it('does not say there are no listings to share before they have been read', async () => {
+    render(ConversationPage);
+    await composerFor('Anita Rossi');
+    myRequests.mockReturnValue(E.never);
+    await fireEvent.click(screen.getByRole('button', { name: 'Share a listing' }));
+
+    const picker = await screen.findByTestId('share-listing');
+    expect(picker.textContent).toContain('Loading…');
+    expect(picker.textContent).not.toContain(MESSAGING_STRINGS.picker.none);
+  });
+
+  /**
+   * The composer shows before this page's own read is done when the store already holds
+   * the conversation, and the picker opened then knew no member yet, so it said "none".
+   */
+  it('reads the listings once the member is known, when the picker is opened before', async () => {
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, 'first')]));
+    await E.runPromise(messagingStore.loadConversations());
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    userByHash.mockImplementation(() =>
+      E.promise(() => held).pipe(E.as({ name: 'Anita Rossi', original_action_hash: hashes.ANITA }))
+    );
+    myRequests.mockReturnValue([{ original_action_hash: hashes.M2, title: 'Bike repair' }]);
+    render(ConversationPage);
+    await screen.findByRole('textbox');
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Share a listing' }));
+    const picker = await screen.findByTestId('share-listing');
+    expect(picker.textContent).not.toContain(MESSAGING_STRINGS.picker.none);
+
+    release();
+    expect(await screen.findByRole('button', { name: /Bike repair/ })).toBeTruthy();
+  });
+
+  it('says why when the listings could not be read, not that there are none', async () => {
+    render(ConversationPage);
+    await composerFor('Anita Rossi');
+    myRequests.mockReturnValue(E.fail(new Error('the conductor did not answer')));
+    await fireEvent.click(screen.getByRole('button', { name: 'Share a listing' }));
+
+    const picker = await screen.findByTestId('share-listing');
+    await waitFor(() => expect(picker.textContent).toContain('the conductor did not answer'));
+    // Both reads done, so the picker has said all it is going to.
+    await waitFor(() => expect(picker.textContent).not.toContain('Loading…'));
+    expect(picker.textContent).not.toContain(MESSAGING_STRINGS.picker.none);
+  });
+
+  it('says there are none once the listings have been read', async () => {
+    render(ConversationPage);
+    await composerFor('Anita Rossi');
+    await fireEvent.click(screen.getByRole('button', { name: 'Share a listing' }));
+
+    const picker = await screen.findByTestId('share-listing');
+    await waitFor(() => expect(picker.textContent).toContain(MESSAGING_STRINGS.picker.none));
   });
 
   it('does not carry an open proposal picker from one person to the next', async () => {

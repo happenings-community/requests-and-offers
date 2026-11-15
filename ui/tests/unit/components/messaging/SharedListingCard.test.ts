@@ -86,3 +86,19 @@ describe('a shared listing card', () => {
     expect(screen.queryByRole('link')).toBeNull();
   });
 });
+
+describe('a long word in a shared listing', () => {
+  /**
+   * A listing title with no spaces breaks inside the card rather than pushing the
+   * conversation wider. **To make it go red:** drop `[overflow-wrap:anywhere]` from the card.
+   */
+  it('wraps inside the card', async () => {
+    getRequest.mockReturnValue(E.succeed({ title: 'b'.repeat(500), creator: LISTING }));
+    mount();
+
+    expect(await screen.findByText('b'.repeat(500))).toBeTruthy();
+    expect(screen.getByTestId('shared-listing-card').className).toContain(
+      '[overflow-wrap:anywhere]'
+    );
+  });
+});

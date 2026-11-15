@@ -246,6 +246,36 @@ describe('the conversation page', () => {
     await waitFor(() => expect(readMark(), 'read up to the new one').toBe(T + 60_000));
   });
 
+  /**
+   * A word wider than its bubble (a pasted link, or 3 KiB of one letter) breaks inside the
+   * bubble rather than running off the side of the window. Seen on the walk of #488, with
+   * a sent message; a message still waiting to send is drawn by the same kind of line.
+   * The test environment lays nothing out, so this checks the class that does it; the
+   * walk checked the drawing. `anywhere`, not `break-word`: only `anywhere` lowers the
+   * width the page reserves for the word, so a narrow window does not scroll sideways.
+   *
+   * **To make it go red:** drop `[overflow-wrap:anywhere]` from either line.
+   */
+  it('wraps a word wider than its bubble, in a message or one still waiting', async () => {
+    const long = 'a'.repeat(3000);
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, long)]));
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        schemaVersion: 2,
+        outbox: [
+          { id: 'held-long', to: anita, content: `b${long}`, queuedAt: T + 1, state: 'waiting' }
+        ]
+      })
+    );
+    // Nothing gets through, so the held one stays waiting.
+    sendMessage.mockReturnValue(E.fail(new Error('send_message: no answer')));
+    render(ConversationPage);
+
+    expect((await screen.findByText(long)).className).toContain('[overflow-wrap:anywhere]');
+    expect((await screen.findByText(`b${long}`)).className).toContain('[overflow-wrap:anywhere]');
+  });
+
   /** A send with no answer takes a full timeout, and the box stays open meanwhile. */
   it('keeps what is typed while a send is still going', async () => {
     sendMessage.mockReturnValue(E.sleep('60 millis').pipe(E.as([])));

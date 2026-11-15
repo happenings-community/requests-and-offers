@@ -180,7 +180,7 @@
           <p class="text-xs uppercase tracking-wide text-surface-500">
             {isProposal(state) ? 'Proposal' : 'Agreement'}
           </p>
-          <p class="whitespace-pre-line">{a.terms}</p>
+          <p class="whitespace-pre-line [overflow-wrap:anywhere]">{a.terms}</p>
         {/if}
       </div>
     {/if}

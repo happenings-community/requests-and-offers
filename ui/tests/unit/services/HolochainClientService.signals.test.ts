@@ -82,6 +82,23 @@ describe('zome signals reaching the app', () => {
     expect(messaging).not.toHaveBeenCalled();
   });
 
+  /**
+   * A system signal shaped like an app one. Without the type check it would reach the
+   * messaging subscribers; the test above passes either way, because a real system signal
+   * has no zome name today.
+   */
+  it('ignores a system signal even when it carries a zome name', async () => {
+    const client = fakeClient();
+    connect.mockResolvedValue(client);
+    await service.connectClient();
+    const messaging = vi.fn();
+    service.onZomeSignal('messaging', messaging);
+
+    client.emit({ type: 'system', value: { zome_name: 'messaging', payload: { type: 'Nudge' } } });
+
+    expect(messaging).not.toHaveBeenCalled();
+  });
+
   it('delivers to a subscriber who came before the connection', async () => {
     const messaging = vi.fn();
     service.onZomeSignal('messaging', messaging);

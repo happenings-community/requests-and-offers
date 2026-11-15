@@ -50,9 +50,10 @@ Pattern established: `Context.Tag` services → Effect-native stores → `Schema
 |-------|-------|--------|
 | Backend (Sweettest / Rust) | 87 cases across 15 files | Off the pull-request path: run with the `run:sweettest` label or the Heavy tests workflow |
 | Frontend unit tests (Vitest) | 932 tests across 68 files | All passing, on every pull request |
+| Frontend integration tests (Vitest) | 43 tests across 4 files | All passing |
 | E2E / Playwright | 11 specs, an ordered journey on one sandbox conductor ([#10](https://github.com/happenings-community/requests-and-offers/issues/10)) | Off the pull-request path: run with the `run:e2e` label or the Heavy tests workflow |
 
-How these counts were taken, so they can be refreshed: `grep -rhE '#\[(tokio::test|test)' tests/sweettest/tests | wc -l`, `cd ui && bun run test:unit` (with `VITE_MOCK_BUTTONS_ENABLED` unset), and `ls ui/tests/e2e/specs`.
+How these counts were taken, so they can be refreshed: `grep -rhE '#\[(tokio::test|test)' tests/sweettest/tests | wc -l`, `cd ui && bun run test:unit` and `cd ui && bun run test:integration` (with `VITE_MOCK_BUTTONS_ENABLED` unset), and `ls ui/tests/e2e/specs`.
 
 ---
 

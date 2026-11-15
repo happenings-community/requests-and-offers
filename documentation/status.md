@@ -24,7 +24,7 @@ Pattern established: `Context.Tag` services → Effect-native stores → `Schema
 - Progenitor pattern — secure designated network creator for trusted bootstrapping
 - Action hash type safety — compile-time distinct types preventing hash kind confusion
 - Active/Archived/Deleted listing status management across requests and offers
-- Sweettest integration tests (87 cases across 15 files; replaced Tryorama in v0.5.0)
+- Sweettest integration tests (87 cases across 20 files, 5 of them under `administration/`; replaced Tryorama in v0.5.0)
 
 **Frontend (SvelteKit + Effect-TS):**
 - Svelte 5 Runes (`$state`, `$derived`, `$effect`) throughout
@@ -48,7 +48,7 @@ Pattern established: `Context.Tag` services → Effect-native stores → `Schema
 
 | Layer | Count | Status |
 |-------|-------|--------|
-| Backend (Sweettest / Rust) | 87 cases across 15 files | Off the pull-request path: run with the `run:sweettest` label or the Heavy tests workflow |
+| Backend (Sweettest / Rust) | 87 cases across 20 files | Off the pull-request path: run with the `run:sweettest` label or the Heavy tests workflow |
 | Frontend unit tests (Vitest) | 932 tests across 68 files | All passing, on every pull request |
 | Frontend integration tests (Vitest) | 43 tests across 4 files | All passing |
 | E2E / Playwright | 11 specs, an ordered journey on one sandbox conductor ([#10](https://github.com/happenings-community/requests-and-offers/issues/10)) | Off the pull-request path: run with the `run:e2e` label or the Heavy tests workflow |
@@ -82,7 +82,7 @@ Fixed since this page last listed them: #56, #133, #134, #115, #120, #136, #138 
 
 ## In Progress
 
-The alpha 2 work is tracked on its milestone, [v0.6.0-alpha.2](https://github.com/happenings-community/requests-and-offers/milestone/17). The two hREA items this table used to list are done: entity mapping ([#1](https://github.com/happenings-community/requests-and-offers/issues/1)) and the hREA integration epic ([#64](https://github.com/happenings-community/requests-and-offers/issues/64)).
+The alpha 2 work is tracked on its milestone, [v0.6.0-alpha.2](https://github.com/happenings-community/requests-and-offers/milestone/17). The two hREA items this table used to list are closed: entity mapping ([#1](https://github.com/happenings-community/requests-and-offers/issues/1)) is done, and the hREA integration epic ([#64](https://github.com/happenings-community/requests-and-offers/issues/64)) was closed as not planned.
 
 ---
 

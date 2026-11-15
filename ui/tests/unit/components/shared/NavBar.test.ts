@@ -22,7 +22,10 @@ vi.mock('@skeletonlabs/skeleton', () => ({
   popup: () => ({ destroy: vi.fn() })
 }));
 vi.mock('$lib/services/messagingPresence.svelte', () => ({ default: presence }));
-vi.mock('$lib/extensions/unread-count', () => ({ getUnreadCount: () => () => unread.count }));
+vi.mock('$lib/extensions/unread-count', async (importActual) => ({
+  ...(await importActual<typeof import('$lib/extensions/unread-count')>()),
+  getUnreadCount: () => () => unread.count
+}));
 vi.mock('$lib/components/network/NetworkStatusPopup.svelte', async () => ({
   default: (await import('../../../mocks/Empty.svelte')).default
 }));
@@ -63,7 +66,7 @@ describe('the Profile menu', () => {
     render(NavBar);
     await openProfileMenu();
 
-    expect(screen.getByLabelText('2 unopened conversations')).toBeTruthy();
+    expect(screen.getByText('2 unopened conversations')).toBeTruthy();
     expect(screen.queryByLabelText(/waiting on you/)).toBeNull();
   });
 
@@ -72,7 +75,7 @@ describe('the Profile menu', () => {
     render(NavBar);
     await openProfileMenu();
 
-    expect(screen.getByLabelText('1 waiting on you')).toBeTruthy();
+    expect(screen.getByText('1 waiting on you')).toBeTruthy();
     expect(screen.queryByText('My Messages')).toBeNull();
   });
 });

@@ -33,3 +33,11 @@ export function setUnreadCount(provider: UnreadCountProvider): void {
 export function getUnreadCount(): UnreadCountProvider {
   return getContext<UnreadCountProvider | undefined>(UNREAD_COUNT_KEY) ?? (() => undefined);
 }
+
+/**
+ * What the count means, for a screen reader. Kept beside the count so the nav bar and the
+ * drawer, which both show it, say the same thing; a bare number told a listener nothing.
+ */
+export function unreadCountLabel(n: number): string {
+  return n === 1 ? '1 unopened conversation' : `${n} unopened conversations`;
+}

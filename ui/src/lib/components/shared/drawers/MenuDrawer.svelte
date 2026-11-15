@@ -3,7 +3,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import messagingPresence from '$lib/services/messagingPresence.svelte';
-  import { getUnreadCount } from '$lib/extensions/unread-count';
+  import { getUnreadCount, unreadCountLabel } from '$lib/extensions/unread-count';
   import { paths } from '$lib/paths';
   import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
 
@@ -138,7 +138,12 @@
             <span class="text-xl">✉️</span>
             <span>My Messages</span>
             {#if unreadCount}
-              <span class="variant-filled-secondary badge ml-auto">{unreadCount}</span>
+              <!-- Said in words: a bare number told a screen reader nothing. -->
+              <span class="variant-filled-secondary badge ml-auto"
+                ><span aria-hidden="true">{unreadCount}</span><span class="sr-only"
+                  >{unreadCountLabel(unreadCount)}</span
+                ></span
+              >
             {/if}
           </a>
         {/if}

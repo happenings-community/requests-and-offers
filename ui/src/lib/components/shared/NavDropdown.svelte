@@ -134,11 +134,13 @@
               <div class="flex items-center gap-2 font-medium text-gray-900">
                 {item.label}
                 {#if item.badge}
-                  <span
-                    class="variant-filled-primary badge px-1.5 py-0 text-xs"
-                    aria-label={item.badgeLabel
-                      ? item.badgeLabel(item.badge)
-                      : `${item.badge} waiting on you`}>{shown(item.badge)}</span
+                  <!-- The number is for the eye; the words, for a screen reader. -->
+                  <span class="variant-filled-primary badge px-1.5 py-0 text-xs"
+                    ><span aria-hidden="true">{shown(item.badge)}</span><span class="sr-only"
+                      >{item.badgeLabel
+                        ? item.badgeLabel(item.badge)
+                        : `${item.badge} waiting on you`}</span
+                    ></span
                   >
                 {/if}
               </div>

@@ -1,7 +1,7 @@
 <script lang="ts">
   import Bars from '$lib/components/shared/svg/bars.svelte';
   import messagingPresence from '$lib/services/messagingPresence.svelte';
-  import { getUnreadCount } from '$lib/extensions/unread-count';
+  import { getUnreadCount, unreadCountLabel } from '$lib/extensions/unread-count';
   import {
     getDrawerStore,
     popup,
@@ -125,8 +125,7 @@
               href: paths.messages(),
               label: 'My Messages',
               badge: unreadCount,
-              badgeLabel: (n: number) =>
-                n === 1 ? '1 unopened conversation' : `${n} unopened conversations`,
+              badgeLabel: unreadCountLabel,
               icon: '✉️',
               description: 'Your conversations with other members'
             }

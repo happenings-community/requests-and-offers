@@ -21,7 +21,8 @@ vi.mock('$lib/services/messagingPresence.svelte', () => ({ default: presence }))
 
 // The count reaches the drawer through the extension point, which is Svelte context and
 // can only be set from inside a component; stood in for here.
-vi.mock('$lib/extensions/unread-count', () => ({
+vi.mock('$lib/extensions/unread-count', async (importActual) => ({
+  ...(await importActual<typeof import('$lib/extensions/unread-count')>()),
   getUnreadCount: () => () => unread.count
 }));
 
@@ -48,6 +49,12 @@ describe('the mobile menu', () => {
     expect(link.getAttribute('href')).toBe('/messages');
     expect(link.textContent).toContain('My Messages');
     expect(link.textContent).toContain('3');
+    // Said in words: a bare 3 told a screen reader nothing.
+    expect(screen.getByText('3 unopened conversations')).toBeTruthy();
+    expect(
+      screen.getByText('3').getAttribute('aria-hidden'),
+      'and the bare number is not read'
+    ).toBe('true');
   });
 
   it('has no My Messages on a network without messaging', () => {

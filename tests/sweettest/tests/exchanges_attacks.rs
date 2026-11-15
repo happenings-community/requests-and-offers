@@ -738,3 +738,27 @@ async fn a_second_live_interest_is_refused_past_the_coordinator() {
         .await
         .expect("after withdrawing, an interest through the probe is accepted");
 }
+
+/// The bound of the chain read cannot be moved by naming a later Create as the user.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_second_live_interest_cannot_name_a_later_create_as_its_user() {
+    let w = world().await;
+    let own: Record = w.conductors[1]
+        .call(&w.bob.zome("offers"), "create_offer", sample_offer("Bob's own offer", w.service_type.clone()))
+        .await;
+    let own = own.signed_action.hashed.hash.clone();
+    w.sync().await;
+    let second = w.conductors[1]
+        .call_fallible::<_, ActionHash>(
+            &w.bob.zome("exchanges_probe"),
+            "probe_create_interest",
+            Interest { listing: w.offer.clone(), listing_type: "Offer".into(), user: own },
+        )
+        .await
+        .map_err(|e| format!("{e:?}"));
+    refused(
+        second,
+        "this member already has an interest in this listing",
+        "a second live interest naming a later Create as its user",
+    );
+}

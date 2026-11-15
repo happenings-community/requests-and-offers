@@ -277,11 +277,13 @@ fn validate_interest(
 /// Whether the author already holds an interest in the same listing that they
 /// have not withdrawn, earlier on their chain.
 ///
-/// Reads from the action before this one back to the author's own user
-/// create, which the interest names: no interest of theirs can sit before
-/// it. The bound is a position on the chain, not a time, so a backdated
-/// timestamp cannot slip under it, and starting from the previous action keeps
-/// the read to actions already on the chain. The chain comes newest first, so
+/// Reads from the action before this one back to the author's genesis. The
+/// read is never bounded by a hash the interest carries: validation only checks
+/// that `user` is a Create of the author's, so a bound taken from it could be
+/// moved past the first interest by naming any later Create. The bound is a
+/// position on the chain, not a time, so a backdated timestamp cannot slip under
+/// it, and starting from the previous action keeps the read to actions already
+/// on the chain. The chain comes newest first, so
 /// a withdrawal is seen before the interest it withdraws.
 fn live_interest_before(
   action: &TypedAction<CreateData>,
@@ -293,7 +295,7 @@ fn live_interest_before(
   let interest_type = AppEntryDef::try_from(UnitEntryTypes::Interest)?;
   let activity = must_get_agent_activity(
     action.author().clone(),
-    ChainFilter::until_hash(prev_action, interest.user.clone()).include_cached_entries(),
+    ChainFilter::new(prev_action).include_cached_entries(),
   )?;
   let mut withdrawn: Vec<ActionHash> = Vec::new();
   for item in activity {

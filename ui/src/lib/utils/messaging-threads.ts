@@ -128,7 +128,9 @@ export function isDevicesNotFound(reason: string | undefined | null): boolean {
  * - `devicesNotFound` — the zome refused before committing anything, so retrying is
  *   safe and the app does it by itself.
  * - `noAnswer` — a timeout, or the connection going, with no reply either way. The call
- *   **may** have committed. Never retried automatically; the member is asked.
+ *   **may** have committed. The outbox holds it and, before sending it again, asks the
+ *   chain for its send id (`find_sent`): found means it went. Only when that question
+ *   cannot be answered is the member asked.
  * - `refused` — the zome answered and said no. Nothing was written, but trying the same
  *   thing again would fail the same way, so the member sees the reason instead.
  */

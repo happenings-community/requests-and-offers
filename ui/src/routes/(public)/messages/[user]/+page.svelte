@@ -500,12 +500,18 @@
           <span class="sr-only" aria-live="polite" data-testid="limit-announcement"
             >{limitAnnouncement}</span
           >
-          <button type="button" class="variant-ghost btn" onclick={() => (picking = !picking)}>
+          <button
+            type="button"
+            class="variant-ghost btn"
+            aria-expanded={picking}
+            onclick={() => (picking = !picking)}
+          >
             {E.listing.makeProposal}
           </button>
           <button
             type="button"
             class="variant-ghost btn"
+            aria-expanded={sharing}
             onclick={() => {
               sharing = !sharing;
               if (sharing) conversation.loadShareable();

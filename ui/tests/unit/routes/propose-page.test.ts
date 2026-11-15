@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/svelte';
+import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
 import { paths, readOrigin, routeAfterPublish, readProposeParams, routeAfter } from '$lib/paths';
 import { visit } from '../../mocks/app-state';
 import ProposePage from '../../../src/routes/(public)/exchanges/propose/+page.svelte';
@@ -167,5 +167,77 @@ describe('a proposal that goes by way of posting an offer', () => {
       paths.exchangePropose({ listing: LISTING, type: 'Offer', interest: INTEREST, from: AUTHOR })
     );
     expect(await followThrough()).toBe(paths.conversation(AUTHOR));
+  });
+});
+
+/**
+ * A label names one control and holds nothing a person presses. The medium's label held a
+ * gift notice when there was no control, and the Service Exchange label held links,
+ * `ReachPerson`'s buttons and warnings (Sacha, #308 review).
+ * **To make them go red:** put either container back as a `<label>`; for the hint,
+ * drop `aria-describedby` from the Service Exchange picker.
+ */
+describe('the propose page’s labels', () => {
+  /**
+   * A guard on the new structure rather than a proof of the fix: with a medium to pick,
+   * the old page already named its select. Red if the medium's `<label for>` stops
+   * pointing at the select, or if the block becomes a `<label>` again.
+   */
+  it('names the medium picker, and puts nothing pressable inside a label', async () => {
+    openWith(INTEREST);
+    const { container } = render(ProposePage);
+    await screen.findAllByText('CAD');
+
+    expect(screen.getByLabelText('Requested medium of exchange').tagName).toBe('SELECT');
+    expect(container.querySelectorAll('label a, label button, label label').length).toBe(0);
+  });
+
+  it('has no label without a control when the listing names no medium', async () => {
+    getOffer.mockResolvedValue({
+      original_action_hash: LISTING,
+      title: 'Garden clearance',
+      description: 'A morning of it',
+      creator: AUTHOR,
+      service_type_hash: hash(5),
+      medium_of_exchange_hashes: []
+    });
+    openWith(INTEREST);
+    const { container } = render(ProposePage);
+    await screen.findByText(/names no medium of exchange/);
+
+    const labels = [...container.querySelectorAll('label')] as HTMLLabelElement[];
+    expect(labels.filter((label) => label.control === null)).toEqual([]);
+  });
+
+  /**
+   * The case the review named: the other side has offers, the member picks "None of
+   * these", and the way to reach them (`ReachPerson`) and a warning appear beside the
+   * picker. They sat inside its label before.
+   */
+  it('keeps the way to reach them out of the label when none of their offers suits', async () => {
+    getMediumOfExchange.mockResolvedValue({ name: 'Service Exchange', exchange_type: 'base' });
+    getUserActiveOffers.mockResolvedValue([{ title: 'Hedge trimming' }]);
+    openWith(INTEREST);
+    const { container } = render(ProposePage);
+    // Found by its option, not its label, so this reaches the assertions below whatever
+    // the label's shape: the label is what is under test.
+    const picker = (await screen.findByRole('option', { name: 'Hedge trimming' })).closest(
+      'select'
+    ) as HTMLSelectElement;
+    await fireEvent.change(picker, { target: { value: '__none__' } });
+    await screen.findByText(/Nothing here suits/);
+
+    expect(container.querySelectorAll('label a, label button, label p, label div').length).toBe(0);
+    const hint = document.getElementById(picker.getAttribute('aria-describedby') ?? '');
+    expect(hint?.textContent, 'the picker is described by its hint').toMatch(/already offer/);
+  });
+
+  it('keeps links out of labels when a Service Exchange needs an offer posted', async () => {
+    getMediumOfExchange.mockResolvedValue({ name: 'Service Exchange', exchange_type: 'base' });
+    openWith(INTEREST);
+    const { container } = render(ProposePage);
+    await screen.findByText(/post an offer/i);
+
+    expect(container.querySelectorAll('label a, label button, label p, label div').length).toBe(0);
   });
 });

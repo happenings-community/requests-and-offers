@@ -453,8 +453,11 @@ export function createMessagingStore(): MessagingStore {
 
         const sent = yield* service.getSent();
 
+        // The background read, which leaves the exchanges store's loading flag alone,
+        // as `refreshMyExchanges` is meant for polling. Nothing on screen reads that
+        // flag today, so this keeps the store honest rather than changing what shows.
         const exchanges = yield* exchangesStore
-          .loadMyExchanges()
+          .refreshMyExchanges()
           .pipe(E.mapError(asFault('reading your exchanges')));
         const interests = yield* loadInterests(me);
 

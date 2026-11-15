@@ -118,7 +118,12 @@
   <title>My Exchanges</title>
 </svelte:head>
 
-<section class="container mx-auto space-y-6 p-4">
+<!--
+  flex-1: the root layout centres a page shorter than the window, and Interested in is
+  shorter than Exchanges, so switching tabs moved the whole page up and down (the walk of
+  15 November). Filling the height keeps it at the top whichever tab is open.
+-->
+<section class="container mx-auto flex-1 space-y-6 p-4">
   <header class="space-y-1">
     <h1 class="h1">My Exchanges</h1>
     <p class="text-surface-500">Deals you're proposing, working through, and have completed</p>

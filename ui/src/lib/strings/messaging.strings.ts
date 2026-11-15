@@ -60,6 +60,11 @@ export const MESSAGING_STRINGS = {
     youPrefix: 'You:',
     archive: 'Archive',
     unarchive: 'Move back to Messages',
+    /**
+     * DRAFT, for Anita. What a screen reader says for a row's Archive or Move back to
+     * Messages button: the visible words first, then whose conversation it moves.
+     */
+    archiveLabel: '{action}, the conversation with {name}',
     empty: {
       title: 'No conversations yet',
       body: 'When you show interest in a listing, or someone shows interest in yours, your conversation with them starts here.',

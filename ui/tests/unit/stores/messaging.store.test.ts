@@ -118,13 +118,20 @@ vi.mock('$lib/stores/exchanges.store.svelte', async () => {
     default: {
       getMyInterests: () => myInterests(),
       getInterestsForListing: () => Effect.succeed([]),
-      loadMyExchanges: () => Effect.succeed(exchangesNow.list)
+      loadMyExchanges: () => {
+        exchangesNow.flagged += 1;
+        return Effect.succeed(exchangesNow.list);
+      },
+      refreshMyExchanges: () => Effect.succeed(exchangesNow.list)
     }
   };
 });
 
 /** My exchanges as the exchanges store would give them; empty unless a case sets them. */
-const { exchangesNow } = vi.hoisted(() => ({ exchangesNow: { list: [] as unknown[] } }));
+const { exchangesNow } = vi.hoisted(() => ({
+  /** `flagged` counts reads that would set the exchanges store's loading flag. */
+  exchangesNow: { list: [] as unknown[], flagged: 0 }
+}));
 
 const { listings } = vi.hoisted(() => ({
   listings: async () => {
@@ -400,6 +407,22 @@ describe('receipts (F5)', () => {
     await E.runPromise(store.loadConversations());
 
     expect(store.theirReadUpTo(ANITA), 'read, as far as I had sent').toBe(T_SENT);
+  });
+});
+
+describe('the background read (Sacha, #308 review)', () => {
+  /**
+   * The poll runs every 15 seconds while a member is signed in. Reading exchanges with
+   * the store's loading flag made My Exchanges' loading state flicker with it.
+   * **To make it go red:** read with `loadMyExchanges` in `loadConversations`.
+   */
+  it('reads exchanges without setting the exchanges loading flag', async () => {
+    exchangesNow.flagged = 0;
+    const store = await freshStore();
+
+    await E.runPromise(store.loadConversations());
+
+    expect(exchangesNow.flagged).toBe(0);
   });
 });
 

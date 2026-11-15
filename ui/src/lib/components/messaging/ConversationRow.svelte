@@ -12,6 +12,7 @@
   const { thread, name, onArchive }: Props = $props();
 
   const href = $derived(paths.conversation(thread.counterparty));
+  const action = $derived(thread.archived ? S.messages.unarchive : S.messages.archive);
   const initial = $derived(name.trim().charAt(0).toUpperCase() || '?');
 
   /** The newest message, which is what the row previews. */
@@ -92,8 +93,9 @@
   <button
     type="button"
     class="variant-ghost btn btn-sm shrink-0"
+    aria-label={fill(S.messages.archiveLabel, { action, name })}
     onclick={() => onArchive(thread, !thread.archived)}
   >
-    {thread.archived ? S.messages.unarchive : S.messages.archive}
+    {action}
   </button>
 </div>

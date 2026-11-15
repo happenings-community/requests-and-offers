@@ -130,17 +130,12 @@
    *
    * What that replaced: a service picker, a free-text medium, a free hours box, a free
    * amount box, and a 300-character free-text "the agreement, exactly". All gone.
+   *
+   * A listing names one service type (#256), so `services` holds that one name, or
+   * nothing when the listing names none or its name could not be read.
    */
   const service = $derived(services.join(', '));
 
-  /**
-   * Carried from the listing, joined when it names several.
-   *
-   * #256 ("one listing names one service") will make several impossible, and this does
-   * not stack on it: with one service the string is that service, before and after, so
-   * nothing changes when #256 merges. Joining rather than picking the first is what keeps
-   * it from silently dropping half of what a listing says.
-   */
   /**
    * **Only a request publishes a time estimate.** `RequestInDHT` has
    * `time_estimate_hours`; `OfferInDHT` has no such field, so a proposal from an offer
@@ -422,15 +417,18 @@
         </div>
       {/if}
 
-      <label class="label">
-        <span>Requested medium of exchange</span>
+      <!-- A container, not a label: it also holds notices with no control to name. -->
+      <div class="label">
         {#if mediums.length > 0}
-          <select class="select" bind:value={medium}>
+          <label for="propose-medium">Requested medium of exchange</label>
+          <select id="propose-medium" class="select" bind:value={medium}>
             {#each mediums as m (m.name)}<option value={m.name}>{m.name}</option>{/each}
           </select>
         {:else if termsLoad === 'loading'}
+          <span>Requested medium of exchange</span>
           <p class="text-sm text-surface-500">{S.form.termsLoading}</p>
         {:else if termsLoad === 'ready'}
+          <span>Requested medium of exchange</span>
           <!-- Only once the mediums are known. Shown while they were still loading, this
                offered a gift proposal for a listing that wanted paying. -->
           <p class="alert variant-soft-surface text-sm">
@@ -438,13 +436,20 @@
             return. To ask for something back, add a medium to the listing.
           </p>
         {/if}
-      </label>
+      </div>
 
       {#if medium === 'Service Exchange'}
-        <label class="label">
-          <span>Chosen service offer for proposal</span>
+        <!-- A container, not a label: it holds links, buttons and notices beside the one
+             control it names, and a label may hold only that control. -->
+        <div class="label">
           {#if giverOffers.length > 0}
-            <select class="select" bind:value={returnService}>
+            <label for="propose-return-service">Chosen service offer for proposal</label>
+            <select
+              id="propose-return-service"
+              class="select"
+              aria-describedby="propose-return-service-hint"
+              bind:value={returnService}
+            >
               <option value="" disabled
                 >Choose one of {myRole === 'provider' ? `${otherName}'s` : 'your'} offers</option
               >
@@ -470,6 +475,7 @@
               />
             {/if}
           {:else if myRole === 'provider'}
+            <span>Chosen service offer for proposal</span>
             <p class="alert variant-soft-warning text-sm">
               A Service Exchange names a real offer on both sides, and {otherName} has no active offer
               to name. Agree what it will be between you, and ask them to post it as an offer; this proposal
@@ -481,6 +487,7 @@
               stuck on this page with nothing to press, so the way out is here: the
               ordinary create page, with a link back to the conversation afterwards.
             -->
+            <span>Chosen service offer for proposal</span>
             <div class="alert variant-soft-warning flex flex-col items-start gap-3 text-sm">
               <p>{S.form.needOffer}</p>
               <a class="variant-filled-primary btn btn-sm" href={postOfferHref}>
@@ -489,13 +496,13 @@
             </div>
           {/if}
           {#if giverOffers.length > 0}
-            <span class="text-xs text-surface-500">
+            <span id="propose-return-service-hint" class="text-xs text-surface-500">
               What {myRole === 'provider' ? otherName : 'you'} already offer{myRole === 'provider'
                 ? 's'
                 : ''}.
             </span>
           {/if}
-        </label>
+        </div>
       {:else if medium === 'Free/Pay it Forward'}
         <p class="text-sm text-surface-500">This is a gift. Nothing is expected in return.</p>
       {/if}

@@ -136,6 +136,7 @@ vi.mock('$lib/stores/exchanges.store.svelte', async () => {
       getMyInterests: () => Effect.succeed(myInterests()),
       getInterestsForListing: () => Effect.succeed([]),
       loadMyExchanges: () => Effect.succeed(myExchanges()),
+      refreshMyExchanges: () => Effect.succeed(myExchanges()),
       respond: (...a: unknown[]) => respond(...a),
       cancel: (...a: unknown[]) => cancel(...a),
       withdrawInterest: (...a: unknown[]) => withdrawInterest(...a)
@@ -244,6 +245,24 @@ describe('the conversation page', () => {
 
     expect(await screen.findByText('second')).toBeTruthy();
     await waitFor(() => expect(readMark(), 'read up to the new one').toBe(T + 60_000));
+  });
+
+  /**
+   * Make a proposal and Share a listing open a panel below them, and say whether it is
+   * open. **To make it go red:** drop `aria-expanded` from either button.
+   */
+  it('says whether the proposal and share panels are open', async () => {
+    render(ConversationPage);
+    await screen.findByRole('heading', { name: 'Anita Rossi' });
+    const propose = screen.getByRole('button', { name: 'Make a proposal' });
+    const share = screen.getByRole('button', { name: 'Share a listing' });
+    expect(propose.getAttribute('aria-expanded')).toBe('false');
+    expect(share.getAttribute('aria-expanded')).toBe('false');
+
+    await fireEvent.click(propose);
+    expect(propose.getAttribute('aria-expanded')).toBe('true');
+    await fireEvent.click(share);
+    expect(share.getAttribute('aria-expanded')).toBe('true');
   });
 
   /** A send with no answer takes a full timeout, and the box stays open meanwhile. */
@@ -1551,6 +1570,21 @@ describe('the conversation page', () => {
 });
 
 describe('the list of conversations', () => {
+  /**
+   * Each row's archive button names whose conversation it moves, so a screen reader's
+   * list of buttons is not "Archive, Archive, Archive". **To make it go red:** drop the
+   * hidden name from `ConversationRow`.
+   */
+  it("names the person on each row's archive button", async () => {
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, 'hello')]));
+    render(MessagesPage);
+    await screen.findByText('Anita Rossi');
+
+    expect(
+      screen.getByRole('button', { name: 'Archive, the conversation with Anita Rossi' })
+    ).toBeTruthy();
+  });
+
   /** Names were resolved once, after the first read. */
   it('names a conversation that first appears after the page has opened', async () => {
     render(MessagesPage);

@@ -85,7 +85,8 @@ vi.mock('$lib/stores/exchanges.store.svelte', async () => {
     default: {
       getMyInterests: () => Effect.succeed([]),
       getInterestsForListing: () => Effect.succeed([]),
-      loadMyExchanges: () => Effect.succeed([])
+      loadMyExchanges: () => Effect.succeed([]),
+      refreshMyExchanges: () => Effect.succeed([])
     }
   };
 });

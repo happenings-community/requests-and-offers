@@ -18,6 +18,7 @@
   import BackToConversation from '$lib/components/messaging/BackToConversation.svelte';
   import FirstContactLink from '$lib/components/messaging/FirstContactLink.svelte';
   import messagingStore from '$lib/stores/messaging.store.svelte';
+  import { useMessagingWhileSignedIn } from '$lib/composables/domain/messaging/useMessagingWhileSignedIn.svelte';
   import { unopenedConversations } from '$lib/utils/messaging-threads';
   import { initializeHotReload } from '@theweave/api';
   import weaveStore from '$lib/stores/weave.store.svelte';
@@ -198,23 +199,8 @@
    * online event and the nudge-and-receipt listener are started once, with the poll,
    * and stopped with it.
    */
-  $effect(() => {
-    if (messagingPresence.isAbsent || !usersStore.currentUser) return;
-    const refresh = () =>
-      runEffect(messagingStore.loadConversations())
-        .then(() => {
-          counted = true;
-        })
-        .catch(() => {});
-    void refresh();
-    const interval = setInterval(refresh, 15000);
-    const stopRetrying = messagingStore.startRetrying();
-    const stopListening = messagingStore.listen();
-    return () => {
-      clearInterval(interval);
-      stopRetrying();
-      stopListening();
-    };
+  useMessagingWhileSignedIn(() => {
+    counted = true;
   });
 
   // Step 1: Connect to Holochain. connectToHolochain waits on the client service's own

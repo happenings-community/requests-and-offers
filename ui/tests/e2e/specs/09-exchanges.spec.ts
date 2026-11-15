@@ -29,9 +29,16 @@ test.describe.serial('09 — exchanges', () => {
     await expect(page.getByRole('heading', { name: 'My Exchanges', exact: true })).toBeVisible({
       timeout: 15_000
     });
+    // Toggle buttons, not tabs: they filter the one list below rather than each owning a
+    // panel. The two tabs on this page are Exchanges and Interested in.
+    const groups = page.getByRole('group', { name: 'Exchange groups' });
     for (const group of ['Proposals', 'Active', 'Completed', 'All']) {
-      await expect(page.getByRole('tab', { name: new RegExp(group) })).toBeVisible();
+      await expect(groups.getByRole('button', { name: new RegExp(group) })).toBeVisible();
     }
+    await expect(page.getByRole('tab', { name: /Exchanges/ })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
     await expect(page.getByText('No active exchanges yet.')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('link', { name: 'Browse listings to start one' })).toBeVisible();
   });

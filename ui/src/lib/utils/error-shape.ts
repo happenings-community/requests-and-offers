@@ -15,10 +15,10 @@
  * Read `name` and `message` off whatever was thrown, **without `instanceof`**.
  *
  * `instanceof` is the wrong tool here for two reasons, and the first is not theoretical.
- * This worktree holds **ten copies of `@holochain/client`**: ours at 0.20.5 and nine at
- * 0.20.0, under `@theweave/*`, `@holochain-open-dev/*` and `vf-graphql-holochain`. Inside
- * Moss the error may be built by one of those, and `instanceof HolochainError` against
- * our copy would miss it. Even `instanceof Error` is not safe: an error crossing a realm,
+ * The install holds **several copies of `@holochain/client`**: ours (the version
+ * `ui/package.json` pins) and older ones that `@theweave/*` and `@holochain-open-dev/*`
+ * bring with them. Inside Moss the error may be built by one of those, and
+ * `instanceof HolochainError` against our copy would miss it. Even `instanceof Error` is not safe: an error crossing a realm,
  * or arriving structured-cloned from a worker, is a plain object with the right fields
  * and the wrong prototype.
  *

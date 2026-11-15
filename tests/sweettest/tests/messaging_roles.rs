@@ -1270,3 +1270,66 @@ async fn a_polling_reader_is_told_which_messages_are_role_messages() {
     assert_eq!(third.visible, vec![personal_hash]);
     assert_eq!(third.skipped, vec![role_hash]);
 }
+
+/// A case message at the size limit, in the worst characters, with the largest envelope
+/// that can be sent today: the `Admin` role, a 64-byte case id, a 64-byte send id, and on
+/// the reply an opener's `User` hash and a hand-over offer, the event that carries a hash.
+/// It reaches both holders and the reply reaches the opener, each opened through Lair's
+/// 8 KiB channel. A named-permission role would add about 75 bytes more; that is in
+/// `MAX_CIPHERTEXT_BYTES`'s arithmetic, but no role of that kind can be sent yet.
+///
+/// This shows the limit holds; it passes on the old 16 KiB zomes too, which would also
+/// carry 3 KiB. `a_message_one_byte_over_the_size_limit_is_refused` is the one that goes
+/// red on them.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_case_message_at_the_size_limit_reaches_every_holder_and_back() {
+    let (conductors, alice, bob, carol, _alice_user, bob_user, carol_user) =
+        two_admins_and_a_member().await;
+    // Every byte of `é` is over 0x80, which Lair carries at two bytes each.
+    let content = "é".repeat(1536);
+    assert_eq!(content.len(), 3 * 1024, "the limit, in bytes");
+    let case_id = "c".repeat(64);
+
+    let mut opening = serde_json::to_value(open_case(&case_id, &content)).unwrap();
+    opening["sendId"] = serde_json::Value::String("x".repeat(64));
+    conductors[2]
+        .call::<_, Vec<SentMessage>>(&carol.zome("messaging"), "send_role_message", opening)
+        .await;
+    await_consistency_s(15, [&alice, &bob, &carol])
+        .await
+        .unwrap();
+
+    for (i, cell, who) in [(0usize, &alice, "Alice"), (1, &bob, "Bob")] {
+        let cases = role_inbox(&conductors[i], cell).await;
+        assert_eq!(cases.len(), 1, "{who} has Carol's case");
+        assert_eq!(cases[0].messages[0].content, content, "{who} reads it whole");
+    }
+
+    let mut reply = serde_json::to_value(on_case(
+        &case_id,
+        &carol_user,
+        &content,
+        Some(CaseEvent::HandOverOffer { to: bob_user }),
+    ))
+    .unwrap();
+    reply["sendId"] = serde_json::Value::String("y".repeat(64));
+    conductors[0]
+        .call::<_, Vec<SentMessage>>(&alice.zome("messaging"), "send_role_message", reply)
+        .await;
+    await_consistency_s(15, [&alice, &bob, &carol])
+        .await
+        .unwrap();
+
+    let mine: Vec<RoleCorrespondence> = conductors[2]
+        .call(&carol.zome("messaging"), "get_my_role_correspondence", ())
+        .await;
+    let messages = &mine[0].cases[0].messages;
+    assert_eq!(messages.len(), 2, "Carol has her report and the reply");
+    assert!(
+        messages
+            .iter()
+            .all(|m| m.content == content),
+        "both read whole; got lengths {:?}",
+        messages.iter().map(|m| m.content.len()).collect::<Vec<_>>()
+    );
+}

@@ -104,7 +104,7 @@
       withdrawing = false;
       return;
     }
-    // Held through the re-read, so the row is not pressed again before it has gone.
+    // Held through the re-read as well (which also hides the list while it runs).
     await load();
     withdrawing = false;
     onchange?.();

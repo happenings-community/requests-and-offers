@@ -23,6 +23,8 @@ The infrastructure shares **one conductor and one agent identity across the whol
 | `06-organizations` | create via form, pending-visibility rule, dashboard approval, coordinator edit, status history |
 | `07-users-directory` | public directory and profile page |
 | `08-hrea` | hREA test interface smoke (the hApp bundles the hREA role) |
+| `09-exchanges` | My Exchanges' groups and empty state; the author's side of the interest block on their own listing |
+| `10-messaging` | My Messages in the Profile menu, Messages with no conversations, Blocked members with nobody on it |
 
 ## Smoke layer
 

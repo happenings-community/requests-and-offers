@@ -9,9 +9,10 @@
     type PopupSettings
   } from '@skeletonlabs/skeleton';
   import NavDropdown from '$lib/components/shared/NavDropdown.svelte';
-  import { getUserPictureUrl } from '$lib/utils';
-  import { MY_MESSAGES, myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
-  import { isUserApproved } from '$lib/utils';
+  import NavIcon from '$lib/components/shared/svg/NavIcon.svelte';
+  import { page } from '$app/state';
+  import { getUserPictureUrl, isUserApproved } from '$lib/utils';
+  import { myProfileItems } from '$lib/navigation/my-menu';
   import NetworkStatusPopup from '$lib/components/network/NetworkStatusPopup.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -73,36 +74,9 @@
     drawerStore.open(drawerSettings);
   }
 
-  // Navigation menu configurations
-  // My Activity. **No number on My Exchanges where there is messaging** (Sam, 4 October).
-  // A proposal arriving is one thing to deal with, and there it is already counted as an
-  // unopened conversation; a second badge over the same event made it look like two. An
-  // exchange waiting on this member says "Your turn" on its own row instead. **Without
-  // messaging nothing else counts it**, so it keeps the number: the exchanges waiting on
-  // this member.
-  //
-  // **My Messages is only here when this network has messaging** (R121, brief H4), with
-  // the unread count, and only for an accepted member like the rest of My Activity, since
-  // Messages is behind the Members only wall. Presence is read from the DNA through H2's
-  // module, which is the one question shared chrome may ask. Not read yet counts as
-  // present, so the item is there from the first frame and disappears only if the DNA says
-  // this network has no messaging. Messages is an activity, not part of who you are, so it
-  // is here rather than under your picture (Sam, 16 November).
-  function activityItems() {
-    return myActivityItems(isUserApproved(currentUser), !messagingPresence.isAbsent).map((item) => {
-      if (item.href === paths.exchanges()) {
-        return {
-          ...item,
-          badge: messagingPresence.isAbsent ? pendingCount : undefined,
-          badgeLabel: (n: number) => `${n} waiting on you`
-        };
-      }
-      if (item.href === MY_MESSAGES.href) {
-        return { ...item, badge: unreadCount, badgeLabel: unreadCountLabel };
-      }
-      return item;
-    });
-  }
+  /** The page this link leads to is the one open, or one beneath it. */
+  const isCurrent = (href: string) =>
+    page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);
 
   /**
    * Exchanges waiting on this member, for a network without messaging: derived from the
@@ -129,6 +103,31 @@
    */
   const unread = getUnreadCount();
   const unreadCount = $derived(unread());
+
+  // **My Exchanges and My Listings are links on the bar, and Messages an envelope**
+  // (Sam, 16 November): they are among the most visited screens, and a dropdown named
+  // for the member hid them. The menu under the member's picture is their profile.
+  //
+  // **No number on My Exchanges where there is messaging** (Sam, 4 October). A proposal
+  // arriving is one thing to deal with, and there it is already counted as an unopened
+  // conversation on the envelope; a second badge over the same event made it look like
+  // two. An exchange waiting on this member says "Your turn" on its own row instead.
+  // **Without messaging nothing else counts it**, so My Exchanges keeps the number: the
+  // exchanges waiting on this member.
+  // **The member's own screens are for accepted members** (#349 review, Sam 17 November):
+  // My Exchanges, My Listings and Messages all sit behind the Members only wall, so a
+  // pending or suspended member gets no links that end there.
+  const accepted = $derived(isUserApproved(currentUser));
+  const exchangesBadge = $derived(messagingPresence.isAbsent ? pendingCount : 0);
+
+  // **The envelope is only here when this network has messaging** (R121, brief H4). Read
+  // from the DNA through H2's module, which is the one question shared chrome may ask.
+  // Not read yet counts as present, so it is there from the first frame and disappears
+  // only if the DNA says this network has no messaging. It has no word on screen, so its
+  // name, and the count in words, are in its label and its tooltip.
+  const messagesLabel = $derived(
+    unreadCount ? `Messages, ${unreadCountLabel(unreadCount)}` : 'Messages'
+  );
 
   onMount(() => {
     const refresh = () => {
@@ -165,10 +164,8 @@
       label: 'Organizations',
       icon: '🏢',
       description: 'Explore organizations and teams'
-    }
-  ];
-
-  const resourceItems = [
+    },
+    // Resources held only this, so it joined Community.
     {
       href: paths.serviceTypes(),
       label: 'Service Types',
@@ -178,22 +175,20 @@
   ];
 
   // Connection status helpers
-  function getConnectionIcon(status: typeof finalConnectionStatus): string {
+  function getConnectionColour(status: typeof finalConnectionStatus): string {
     switch (status) {
       case 'connected':
-        return '🟢';
+        return 'bg-green-400';
       case 'checking':
-        return '🟡';
-      case 'disconnected':
-        return '🟠';
       case 'alone':
-        return '🟡';
+        return 'bg-yellow-300';
+      case 'disconnected':
+        return 'bg-orange-400';
       case 'offline':
-        return '🔴';
       case 'error':
-        return '🔴';
+        return 'bg-red-500';
       default:
-        return '🟡';
+        return 'bg-yellow-300';
     }
   }
 
@@ -222,7 +217,10 @@
   <div class="flex items-center">
     <a href="/" class="flex items-center gap-3 transition-opacity hover:opacity-80">
       <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="h-12 w-12" />
-      <span class="hidden whitespace-nowrap text-lg font-bold text-white sm:block"
+      <!-- The title: beside the hamburger on a narrow screen, and on the desktop bar only
+           where there is room for it beside the member's own screens. -->
+      <span
+        class="hidden whitespace-nowrap text-lg font-bold text-white sm:block lg:hidden 2xl:block"
         >Requests & Offers</span
       >
     </a>
@@ -248,16 +246,60 @@
       </a>
     </div>
 
-    <!-- Secondary Navigation -->
-    <div class="flex items-center gap-2 text-white xl:gap-4">
-      {#if activityItems().length}
-        <NavDropdown title="My Activity" items={activityItems()} />
+    <!-- Secondary Navigation: the member's own screens, then Community -->
+    <div class="flex items-center gap-1 text-white xl:gap-3">
+      {#if accepted}
+        <a
+          href={paths.exchanges()}
+          class="inline-flex items-center gap-1.5 whitespace-nowrap rounded px-2 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 aria-[current=page]:bg-white/15"
+          aria-current={isCurrent(paths.exchanges()) ? 'page' : undefined}
+          title="My Exchanges"
+          data-testid="nav-exchanges"
+        >
+          <NavIcon name="exchanges" />
+          <!-- The word only where the bar has room for it; a screen reader always has it. -->
+          <span class="sr-only xl:not-sr-only">My Exchanges</span>
+          {#if exchangesBadge}
+            <span class="badge bg-white px-1.5 py-0 text-xs font-semibold text-primary-700"
+              ><span aria-hidden="true">{exchangesBadge > 9 ? '9+' : exchangesBadge}</span><span
+                class="sr-only">{exchangesBadge} waiting on you</span
+              ></span
+            >
+          {/if}
+        </a>
+        <a
+          href={paths.myListings()}
+          class="inline-flex items-center gap-1.5 whitespace-nowrap rounded px-2 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 aria-[current=page]:bg-white/15"
+          aria-current={isCurrent(paths.myListings()) ? 'page' : undefined}
+          title="My Listings"
+        >
+          <NavIcon name="listings" />
+          <span class="sr-only xl:not-sr-only">My Listings</span>
+        </a>
       {/if}
 
-      <NavDropdown title="Community" items={communityItems} />
-
-      <NavDropdown title="Resources" items={resourceItems} alignRight={true} />
+      <NavDropdown title="Community" icon="community" items={communityItems} alignRight={true} />
     </div>
+
+    <!-- Messages: an envelope, beside the status and the member's picture -->
+    {#if accepted && !messagingPresence.isAbsent}
+      <a
+        href={paths.messages()}
+        class="relative inline-flex h-10 w-10 items-center justify-center rounded text-white transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 aria-[current=page]:bg-white/15"
+        aria-label={messagesLabel}
+        title={messagesLabel}
+        aria-current={isCurrent(paths.messages()) ? 'page' : undefined}
+        data-testid="nav-messages"
+      >
+        <NavIcon name="mail" class="h-6 w-6" />
+        {#if unreadCount}
+          <span
+            class="badge absolute -right-1 -top-0.5 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700 ring-2 ring-primary-500"
+            aria-hidden="true">{unreadCount > 9 ? '9+' : unreadCount}</span
+          >
+        {/if}
+      </a>
+    {/if}
 
     <!-- Connection Status Indicator: a button, so it reads as one -->
     <button
@@ -267,9 +309,12 @@
       title="Network details"
       use:popup={popupStatus}
     >
-      <span class="text-sm" aria-hidden="true">
-        {getConnectionIcon(finalConnectionStatus)}
-      </span>
+      <!-- A drawn dot, not an emoji: emoji do not render in every desktop build. -->
+      <span
+        class="block h-3 w-3 rounded-full {getConnectionColour(finalConnectionStatus)}"
+        aria-hidden="true"
+        data-status={finalConnectionStatus}
+      ></span>
     </button>
 
     <!-- Admin Access -->
@@ -299,8 +344,7 @@
 
     <!-- The member's own menu: their picture and name, top right -->
     {#if currentUser}
-      <!-- A test id rather than the name, which differs from member to member -->
-      <div class="text-white" data-testid="member-menu">
+      <div class="text-white">
         <NavDropdown
           title={currentUser.name}
           avatar={myPicture}

@@ -4,8 +4,8 @@ import MenuDrawer from '$lib/components/shared/drawers/MenuDrawer.svelte';
 
 /**
  * **The drawer is the only menu on a narrow screen**, so it carries the same My Messages
- * entry the nav bar's My Activity menu does, present only when this network has messaging
- * and for an accepted member (review of 16 October, F14; #349; Sam, 16 November).
+ * entry the nav bar's envelope is, present only when this network has messaging
+ * (review of 16 October, F14).
  */
 
 const { presence, unread, member } = vi.hoisted(() => ({
@@ -73,9 +73,16 @@ describe('the mobile menu', () => {
     expect(screen.queryByTestId('drawer-messages')).toBeNull();
   });
 
-  it('has no My Activity, and no My Messages, for a member who is not accepted (#349 review)', () => {
+  it('keeps Service Types under Community, as the nav bar does', () => {
+    render(MenuDrawer);
+
+    expect(screen.queryByRole('heading', { name: 'Resources' })).toBeNull();
+    const community = screen.getByRole('heading', { name: 'Community' }).parentElement!;
+    expect(community.textContent).toContain('Service Types');
+  });
+
+  it('has no My Activity for a member who is not accepted (#349 review)', () => {
     member.status = 'pending';
-    unread.count = 3;
     render(MenuDrawer);
 
     expect(screen.queryByTestId('drawer-messages')).toBeNull();

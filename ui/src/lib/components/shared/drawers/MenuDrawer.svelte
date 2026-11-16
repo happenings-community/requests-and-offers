@@ -2,9 +2,8 @@
   import { getDrawerStore } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
-  import { getUserPictureUrl } from '$lib/utils';
+  import { getUserPictureUrl, isUserApproved } from '$lib/utils';
   import { MY_MESSAGES, myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
-  import { isUserApproved } from '$lib/utils';
   import messagingPresence from '$lib/services/messagingPresence.svelte';
   import { getUnreadCount, unreadCountLabel } from '$lib/extensions/unread-count';
   import { paths } from '$lib/paths';
@@ -20,11 +19,11 @@
     needsSelfAcceptance(agentIsAdministrator, currentUser?.status?.status_type)
   );
 
-  // My Messages: the same entry the nav bar's My Activity menu has, asked for the same
-  // way: whether this network has messaging comes from the one presence module, and the
-  // count from the extension point, so the drawer knows nothing of messaging itself. On a
-  // narrow screen this is the only menu, and without the entry the only way to Messages was
-  // a Go to chat link or the address bar.
+  // My Messages: the same entry as the nav bar's envelope, asked for
+  // the same way: whether this network has messaging comes from the one presence module,
+  // and the count from the extension point, so the drawer knows nothing of messaging
+  // itself. On a narrow screen this is the only menu, and without the entry the only way
+  // to Messages was a Go to chat link or the address bar.
   const unread = getUnreadCount();
   const unreadCount = $derived(unread());
 
@@ -158,13 +157,7 @@
           <span class="text-lg">🏢</span>
           <span>Organizations</span>
         </a>
-      </div>
-    </div>
-
-    <!-- Resources -->
-    <div class="space-y-3">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Resources</h3>
-      <div class="space-y-2">
+        <!-- Resources held only this, so it joined Community, as in the nav bar. -->
         <a
           href={paths.serviceTypes()}
           onclick={closeDrawer}

@@ -508,7 +508,7 @@ pub fn get_requests_for_medium_of_exchange(
 ) -> ExternResult<Vec<Record>> {
   let link_type_filter = LinkTypes::MediumOfExchangeToRequest
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(medium_of_exchange_hash, link_type_filter),
     GetStrategy::Network,
@@ -524,7 +524,7 @@ pub fn get_offers_for_medium_of_exchange(
 ) -> ExternResult<Vec<Record>> {
   let link_type_filter = LinkTypes::MediumOfExchangeToOffer
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(medium_of_exchange_hash, link_type_filter),
     GetStrategy::Network,

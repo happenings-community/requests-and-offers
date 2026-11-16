@@ -282,7 +282,7 @@ fn get_service_types_by_status(status_path: &str) -> ExternResult<Vec<Record>> {
   // Get all links from the path
   let link_type_filter = LinkTypes::AllServiceTypes
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(path_hash, link_type_filter),
     GetStrategy::Network,
@@ -644,7 +644,7 @@ fn get_records_for_service_type(links: Vec<Link>) -> ExternResult<Vec<Record>> {
 pub fn get_requests_for_service_type(service_type_hash: ActionHash) -> ExternResult<Vec<Record>> {
   let link_type_filter = LinkTypes::ServiceTypeToRequest
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(service_type_hash, link_type_filter),
     GetStrategy::Network,
@@ -658,7 +658,7 @@ pub fn get_requests_for_service_type(service_type_hash: ActionHash) -> ExternRes
 pub fn get_offers_for_service_type(service_type_hash: ActionHash) -> ExternResult<Vec<Record>> {
   let link_type_filter = LinkTypes::ServiceTypeToOffer
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(service_type_hash, link_type_filter),
     GetStrategy::Network,
@@ -672,7 +672,7 @@ pub fn get_offers_for_service_type(service_type_hash: ActionHash) -> ExternResul
 pub fn get_users_for_service_type(service_type_hash: ActionHash) -> ExternResult<Vec<Record>> {
   let link_type_filter = LinkTypes::ServiceTypeToUser
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(service_type_hash, link_type_filter),
     GetStrategy::Network,

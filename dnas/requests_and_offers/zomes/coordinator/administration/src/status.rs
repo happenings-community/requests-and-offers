@@ -156,7 +156,7 @@ pub fn get_latest_status_record_for_entity(
 
   let link_type_filter = LinkTypes::EntityStatus
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(resolved_original_action_hash.0.clone(), link_type_filter),
     GetStrategy::Network,
@@ -187,7 +187,7 @@ pub fn get_latest_status_for_entity(input: EntityActionHash) -> ExternResult<Opt
 
   let link_type_filter = LinkTypes::EntityStatus
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(resolved_original_action_hash.0.clone(), link_type_filter),
     GetStrategy::Network,
@@ -510,7 +510,7 @@ pub fn suspend_entity_indefinitely(input: SuspendEntityInput) -> ExternResult<bo
 pub fn unsuspend_entity_if_time_passed(input: UpdateInput) -> ExternResult<bool> {
   let link_type_filter = LinkTypes::EntityStatus
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let link = get_links(
     LinkQuery::new(
       input.entity_original_action_hash.0.clone(),

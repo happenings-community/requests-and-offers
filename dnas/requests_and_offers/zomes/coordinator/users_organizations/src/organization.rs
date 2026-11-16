@@ -75,7 +75,7 @@ pub fn get_latest_organization_record(
   let original_action_hash = resolve_chain_root(original_action_hash);
   let link_type_filter = LinkTypes::OrganizationUpdates
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(original_action_hash.clone(), link_type_filter),
     GetStrategy::Network,

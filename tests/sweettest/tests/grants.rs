@@ -3075,7 +3075,7 @@ async fn an_inbox_link_is_its_authors_record_of_their_own_message() {
 ///
 /// **To make it go red:** in `deliver`, attach `None` when `can_i` finds no
 /// grant instead of returning `NoMemberGrantYet`: the send then fails on the
-/// validation message ("a message is a role act"), not on this one.
+/// validation reason ("Sending a message is a member act: ..."), not on this one.
 #[tokio::test(flavor = "multi_thread")]
 async fn an_accepted_member_with_no_grant_is_told_so_and_sends_nothing() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;

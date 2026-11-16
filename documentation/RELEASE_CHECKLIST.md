@@ -251,7 +251,7 @@ cd ../..
 
 ## 🛑 Production Checks (BLOCKING)
 
-Agreed at the 27 October 2026 dev meeting for alpha 2 and every release after it. A tag publishes the release straight away (as a prerelease when the version has a hyphen, never as a draft), so whatever must be proven before publishing has to be proven before the tag.
+Agreed at the 27 October 2026 dev meeting for alpha 2 and every release after it. A tag publishes the release straight away (as a full release marked Latest, alphas included, never as a draft), so whatever must be proven before publishing has to be proven before the tag.
 
 - [ ] **Never on a Friday.** Tag Monday to Thursday, early enough in the day that the releaser can watch the first installs. Nobody works the weekend to rescue a release.
 - [ ] **Run the built app before publishing.** Dispatch **Release** from the Actions tab with the tag string (the dry run described under Automated Release). It publishes nothing and uploads a `release-artefacts` run artefact holding the `.happ`, the `.webhapp` and `release-manifest.json`. Download it, put the `.webhapp` into the wrapper's `pouch/`, build the wrapper for your platform (its `scripts/fetch-webhapp.js` refuses a `pouch/` webhapp while `kangaroo.config.ts` names a `webhapp.url`, which the `release` branch does, so build from a checkout without that field), and launch it with a scratch profile on the desktop seed (`desktop.networkSeed` in that manifest). Build Acceptance A's checks apply: `Conductor ready`, then `Happ installed`, then the UI. Only then push the tag.

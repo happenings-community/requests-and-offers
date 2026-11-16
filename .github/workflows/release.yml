@@ -186,12 +186,11 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "webhapp_sha256=$(jq -r .webhapp.sha256 release-manifest.json)" >> "$GITHUB_OUTPUT"
           echo "title_suffix=$(jq -r .titleSuffix release-network.json)" >> "$GITHUB_OUTPUT"
-          # SemVer says a hyphen introduces a prerelease identifier, and every
-          # alpha this project has cut carries one. Nothing else decides this.
-          case "$version" in
-            *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
-            *)   echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
-          esac
+          # Every release is published as a full release marked Latest, alphas
+          # included, so the repository's "Latest" badge names the newest build
+          # testers should install (decided 2026-11-16). A hyphenated version is
+          # still a SemVer prerelease; only its GitHub flag changes.
+          echo "prerelease=false" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v6
         with:
@@ -237,13 +236,14 @@ jobs:
               release-manifest.json \
               edge-node-config.json
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" \
-              --title "v$VERSION$TITLE_SUFFIX" --notes-file release-notes.md
+              --title "v$VERSION$TITLE_SUFFIX" --notes-file release-notes.md --latest
           else
             # PRERELEASE is unquoted on purpose: empty must vanish, not become "".
             gh release create "$TAG" \
               --repo "$GITHUB_REPOSITORY" \
               --title "v$VERSION$TITLE_SUFFIX" \
               --notes-file release-notes.md \
+              --latest \
               $PRERELEASE \
               workdir/requests_and_offers.happ \
               workdir/requests_and_offers.webhapp \
@@ -283,7 +283,7 @@ jobs:
       # The wrapper's publish workflow only uploads to `v$VERSION`; it never
       # creates the release. So it is created right after the push, on the
       # pushed commit, which makes its tag hold the config that built the
-      # installers, as a prerelease when the version is one. The installer
+      # installers, marked Latest like the main release. The installer
       # builds take minutes before their first upload, so the release exists
       # by then; created before the push instead, it would sit published and
       # empty, and tag a commit without the webhapp.
@@ -336,6 +336,7 @@ jobs:
               --target "$(git rev-parse HEAD)" \
               --title "v$VERSION" \
               --notes "Desktop installers for Requests and Offers v$VERSION. Release notes: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" \
+              --latest \
               $PRERELEASE
           fi
         shell: bash

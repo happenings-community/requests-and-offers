@@ -418,6 +418,7 @@ Retrieves the organization associated with a request, if any.
 - Description must be between 10 and 1000 characters. Supports markdown formatting (rendered on frontend with `marked` + `DOMPurify`).
 - Exactly one service type, `service_type_hash`, which must be approved. This holds by convention for now: the coordinator and the form require it, but integrity validation does not check it yet. Enforcing it in validation is tracked in #257 and lands with the Holochain 0.7 migration.
 - Links array must be present (can be empty).
+- **Grant** (#378). A request carries, in its `grant` field, the grant it rests on, held by its author. Posting one needs a member grant, which acceptance issues. Changing one needs its creator, who carries no grant, or an admin grant. The rule runs on the entry op, the record op and the op an update's original receives. The coordinator sets the field; it is never taken from the client. A tombstone carries no grant and is not checked by validation (see `documentation/architecture/validation.md`).
 
 ## Client Integration
 

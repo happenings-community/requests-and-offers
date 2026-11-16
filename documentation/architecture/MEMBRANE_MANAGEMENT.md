@@ -213,7 +213,7 @@ Access is itself accountable — principle 7 extended from the decision layer to
 
 ### Why not reuse `AgentAdministrators` for permissions
 
-`check_if_agent_is_administrator` returns true if an agent holds *any* `AgentAdministrators` link (it ignores entity scope; every caller passes `entity: "network"`, so there is one admin domain). Granting a permission through that link would make the holder read as a **full network admin** to every satellite zome — privilege escalation by accident. A separate `PermissionHolder` link avoids it entirely, at zero blast radius. Scoping the admin check by entity — turning the latent generic-over-`entity` admin model into a real role system — is a separate, decoupled refactor for later, not a prerequisite.
+`check_if_agent_is_administrator` returns true if an agent holds a live admin grant (since #377 it asks `can`, not the `AgentAdministrators` roster link; it ignores entity scope, every caller passes `entity: "network"`, so there is one admin domain). Granting a permission through that link would make the holder read as a **full network admin** to every satellite zome — privilege escalation by accident. A separate `PermissionHolder` link avoids it entirely, at zero blast radius. Scoping the admin check by entity — turning the latent generic-over-`entity` admin model into a real role system — is a separate, decoupled refactor for later, not a prerequisite.
 
 ### The enforcement boundary, stated plainly
 

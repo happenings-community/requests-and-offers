@@ -44,7 +44,8 @@ pub struct ServiceType {
   - `name`: Must not be empty. Max length (e.g., 100 chars) can be enforced.
   - `description`: Must not be empty. Max length (e.g., 500 chars) can be enforced.
   - `technical`: Boolean field for technical classification (no validation needed).
-- **Updates/Deletes**: Standard Holochain author validation (original author or agent with specific capabilities can update/delete).
+- **Grant** (#378): a `ServiceType` carries, in its `grant` field, the grant it rests on, held by its author. A create needs an admin grant, or else a member grant: an accepted member suggests a service type and it waits for an administrator. An update needs an admin grant. The rule runs on the entry op, the record op and the op an update's original receives. The coordinator sets the field; it is never taken from the client.
+- **Deletes**: a delete carries no entry, so no grant. `delete_service_type` checks for an administrator in the coordinator; validation does not check a tombstone (see `documentation/architecture/validation.md`).
 
 ### 2.3. Link Types
 
@@ -103,7 +104,7 @@ Input/Output structs (e.g., `SuggestServiceTypeInput`) are defined in Rust for c
 
 #### Admin-Facing Functions
 
-(Admin role is determined by a separate mechanism, e.g., membership in an admin group or a capability grant.)
+(An administrator is an agent who holds a live `admin` grant; see [administration](administration.md), "The chain of grants".)
 
     -   **`admin_create_service_type(input: ServiceType) -> ExternResult<Record>`**
     -   **Description**: Allows an administrator to directly create and approve a `ServiceType`.

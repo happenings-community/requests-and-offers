@@ -406,6 +406,7 @@ Retrieves the organization associated with an offer, if any.
 - Exchange preference must be specified.
 - Interaction type must be specified.
 - Links array must be present (can be empty).
+- **Grant** (#378). An offer carries, in its `grant` field, the grant it rests on, held by its author. Posting one needs a member grant, which acceptance issues. Changing one needs its creator, who carries no grant, or an admin grant. The rule runs on the entry op, the record op and the op an update's original receives. The coordinator sets the field; it is never taken from the client. A tombstone carries no grant and is not checked by validation (see `documentation/architecture/validation.md`).
 
 ## Client Integration
 

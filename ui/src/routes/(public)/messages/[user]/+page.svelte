@@ -71,11 +71,20 @@
   // Leaving Messages altogether: an answer still on its way has no screen to land on.
   onDestroy(() => conversation.leave());
 
-  // Whatever arrives while this conversation is open has been seen: keep the read mark,
-  // and so the nav badge and the receipt, level with the timeline as it grows.
+  // Whatever arrives while this conversation is open and on screen has been seen: keep
+  // the read mark, and so the nav badge and the receipt, level with the timeline as it
+  // grows. markRead does nothing while the page is hidden; coming back to it marks what
+  // arrived meanwhile.
   $effect(() => {
     void conversation.timeline.length;
     untrack(() => conversation.markRead());
+  });
+  $effect(() => {
+    const onShown = () => {
+      if (document.visibilityState === 'visible') conversation.markRead();
+    };
+    document.addEventListener('visibilitychange', onShown);
+    return () => document.removeEventListener('visibilitychange', onShown);
   });
 
   let picking = $state(false);

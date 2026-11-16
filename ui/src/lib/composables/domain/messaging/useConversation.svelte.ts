@@ -39,6 +39,10 @@ export const cardsGoing = new SvelteMap<string, symbol>();
  */
 export const cardRefusals = new SvelteMap<string, { reason: string; about?: string }>();
 
+/** The page is on screen. Without a document (server rendering), nobody is looking. */
+const pageVisible = (): boolean =>
+  typeof document !== 'undefined' && document.visibilityState === 'visible';
+
 /**
  * One conversation: the person, the timeline, the composer and anything still waiting to
  * go out.
@@ -223,8 +227,9 @@ export function useConversation(address: string | (() => string)) {
       if (shareableWanted) void loadShareable();
       receiptSetting = messagingStore.receiptSettingFor(counterparty);
       // Opening a conversation is what marks it read. Nothing else does, so a nav badge
-      // and a row always agree about what has been seen.
-      messagingStore.markThreadRead(counterparty);
+      // and a row always agree about what has been seen. Only on screen: one opened in
+      // a hidden tab is marked when the member comes to it (the page calls markRead).
+      if (pageVisible()) messagingStore.markThreadRead(counterparty);
       if (thread) await resolveTitles(thread.interests);
       if (stale()) return;
       loaded = true;
@@ -302,7 +307,12 @@ export function useConversation(address: string | (() => string)) {
   const discard = (id: string) => messagingStore.discardUnsent(id);
 
   /**
-   * Keep the open conversation read as it grows.
+   * Keep the open conversation read as it grows, while it is on screen.
+   *
+   * A conversation left open in a hidden tab or a minimised window has been seen by
+   * nobody, and a read mark advanced there would send a receipt: the other person would
+   * see "Read" for a message nobody saw, and learn that this device is awake. So nothing
+   * is marked while the page is hidden, and the page calls this again when it is shown.
    *
    * Opening marks it read, but the poll and nudges add messages while it is open, and
    * those stayed unread (counted in the nav badge, no receipt sent) until the member left
@@ -310,7 +320,7 @@ export function useConversation(address: string | (() => string)) {
    * nothing unless the mark actually advances.
    */
   const markRead = () => {
-    if (loaded && decoded) messagingStore.markThreadRead(counterparty);
+    if (loaded && decoded && pageVisible()) messagingStore.markThreadRead(counterparty);
   };
 
   /**

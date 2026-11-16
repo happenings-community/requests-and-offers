@@ -36,7 +36,8 @@ const {
   requestByHash,
   respond,
   cancel,
-  withdrawInterest
+  withdrawInterest,
+  sendReceipt
 } = vi.hoisted(() => {
   const hash = (n: number) => new Uint8Array(Array(39).fill(n));
   return {
@@ -62,6 +63,8 @@ const {
     respond: vi.fn(),
     cancel: vi.fn(),
     withdrawInterest: vi.fn(),
+    /** A read receipt to the other person: what a hidden page must not send. */
+    sendReceipt: vi.fn(),
     /** Set to stand in for one lookup of a member by hash; otherwise the default below. */
     userByHash: vi.fn()
   };
@@ -82,7 +85,7 @@ vi.mock('$lib/services/zomes/messaging.service', async () => {
         skipped: []
       })),
     getSent: () => getSent(),
-    sendReceipt: () => Effect.void
+    sendReceipt: (...a: unknown[]) => sendReceipt(...a)
   };
   return { MessagingServiceTag, MessagingServiceLive: Layer.succeed(MessagingServiceTag, service) };
 });
@@ -188,6 +191,18 @@ const fromAnita = (hash: Uint8Array, atMs: number, content: string) => ({
   at: atMs * 1000,
   content
 });
+/** What `document.visibilityState` says; jsdom's own cannot be set. */
+let visibility: DocumentVisibilityState = 'visible';
+Object.defineProperty(document, 'visibilityState', {
+  configurable: true,
+  get: () => visibility
+});
+/** The window is hidden or shown again, as a tab switch or a minimise does it. */
+const setVisibility = (state: DocumentVisibilityState) => {
+  visibility = state;
+  document.dispatchEvent(new Event('visibilitychange'));
+};
+
 const readMark = () =>
   (JSON.parse(localStorage.getItem(KEY) ?? '{}') as { readUpTo?: Record<string, number> })
     .readUpTo?.[anita] ?? 0;
@@ -214,6 +229,9 @@ beforeEach(() => {
     call.mockReturnValue(E.succeed(undefined));
   }
   userByHash.mockReset();
+  sendReceipt.mockReset();
+  sendReceipt.mockReturnValue(E.void);
+  visibility = 'visible';
   signedIn.current = { original_action_hash: hashes.ME, status: { status_type: 'accepted' } };
   setPage({ user: anita });
 });
@@ -245,6 +263,55 @@ describe('the conversation page', () => {
 
     expect(await screen.findByText('second')).toBeTruthy();
     await waitFor(() => expect(readMark(), 'read up to the new one').toBe(T + 60_000));
+  });
+
+  /**
+   * A conversation left open in a hidden tab or a minimised window has been seen by
+   * nobody. Marking it read there sent a receipt: the other person saw "Read" for a
+   * message nobody saw, and learned that this device was awake (Sacha's review of 16
+   * November). **To make it go red:** drop `pageVisible()` from `markRead` in
+   * `useConversation`.
+   */
+  it('marks nothing read, and sends no receipt, while the page is hidden', async () => {
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, 'first')]));
+    render(ConversationPage);
+    expect(await screen.findByText('first')).toBeTruthy();
+    await waitFor(() => expect(readMark()).toBe(T));
+    await waitFor(() => expect(sendReceipt).toHaveBeenCalledTimes(1));
+
+    setVisibility('hidden');
+    getInbox.mockReturnValue(
+      E.succeed([fromAnita(hashes.M1, T, 'first'), fromAnita(hashes.M2, T + 60_000, 'second')])
+    );
+    await E.runPromise(messagingStore.loadConversations());
+    expect(await screen.findByText('second')).toBeTruthy();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(readMark(), 'not read while hidden').toBe(T);
+    expect(sendReceipt, 'no receipt while hidden').toHaveBeenCalledTimes(1);
+
+    setVisibility('visible');
+    await waitFor(() => expect(readMark(), 'read once shown').toBe(T + 60_000));
+    expect(sendReceipt).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * Opening is what marks a conversation read, so opening one in a hidden tab marked it
+   * too. **To make it go red:** drop `pageVisible()` from the mark in `initialize`.
+   */
+  it('marks a conversation opened in a hidden tab read only once it is shown', async () => {
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, 'first')]));
+    visibility = 'hidden';
+    render(ConversationPage);
+    expect(await screen.findByText('first')).toBeTruthy();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(readMark(), 'not read while hidden').toBe(0);
+    expect(sendReceipt).not.toHaveBeenCalled();
+
+    setVisibility('visible');
+    await waitFor(() => expect(readMark(), 'read once shown').toBe(T));
+    expect(sendReceipt).toHaveBeenCalledTimes(1);
   });
 
   /**

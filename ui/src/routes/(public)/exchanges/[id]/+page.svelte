@@ -85,7 +85,8 @@
 </svelte:head>
 
 {#snippet reviewCard(label: string, r: (ReviewInDHT & { created_at: number }) | undefined)}
-  <div class="card space-y-1 p-4">
+  <!-- A member's comment, so a long word wraps (inherited by every line in the card). -->
+  <div class="card space-y-1 p-4 [overflow-wrap:anywhere]" data-testid="review-card">
     <p class="font-semibold">{label}</p>
     {#if r}
       <p>{'*'.repeat(r.rating)}{'.'.repeat(5 - r.rating)} {r.rating} of 5</p>
@@ -171,7 +172,8 @@
     </div>
 
     {#if a.terms || a.delivery_timeframe}
-      <div class="card space-y-2 p-4">
+      <!-- The members' own words: when, and the terms. A long word wraps in either. -->
+      <div class="card space-y-2 p-4 [overflow-wrap:anywhere]" data-testid="agreement-words">
         {#if a.delivery_timeframe}<p>
             <span class="font-semibold">When:</span>
             {a.delivery_timeframe}
@@ -180,13 +182,14 @@
           <p class="text-xs uppercase tracking-wide text-surface-500">
             {isProposal(state) ? 'Proposal' : 'Agreement'}
           </p>
-          <p class="whitespace-pre-line [overflow-wrap:anywhere]">{a.terms}</p>
+          <p class="whitespace-pre-line">{a.terms}</p>
         {/if}
       </div>
     {/if}
 
     {#if closure}
-      <div class="alert variant-soft-surface">
+      <!-- A decline or cancellation can carry a member's note, so a long word wraps. -->
+      <div class="alert variant-soft-surface [overflow-wrap:anywhere]" data-testid="closure">
         <p>{CLOSURE_LABEL[closure.kind]} on {formatWhen(closure.at)}.</p>
         {#if closure.note}<p class="text-sm">{closure.note}</p>{/if}
       </div>

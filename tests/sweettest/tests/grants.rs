@@ -78,6 +78,173 @@ async fn grants_of(
         .collect()
 }
 
+async fn grant_for_role(
+    conductor: &SweetConductor,
+    cell: &SweetCell,
+    agent: &AgentPubKey,
+    role: &str,
+) -> ActionHash {
+    grants_of(conductor, cell, agent)
+        .await
+        .into_iter()
+        .find(|(_, g)| g.role == role)
+        .unwrap_or_else(|| panic!("{agent:?} should hold a {role} grant"))
+        .0
+}
+
+fn a_request(title: &str, grant: Option<ActionHash>) -> Request {
+    Request {
+        title: title.to_string(),
+        description: "forged past the coordinator".to_string(),
+        contact_preference: "Email".to_string(),
+        date_range: None,
+        time_estimate_hours: None,
+        time_preference: "Morning".to_string(),
+        time_zone: None,
+        interaction_type: "Virtual".to_string(),
+        links: vec![],
+        status: "Active".to_string(),
+        grant,
+    }
+}
+
+fn an_offer(title: &str, grant: Option<ActionHash>) -> Offer {
+    Offer {
+        title: title.to_string(),
+        description: "forged past the coordinator".to_string(),
+        time_preference: "Morning".to_string(),
+        time_zone: None,
+        interaction_type: "Virtual".to_string(),
+        links: vec![],
+        status: "Active".to_string(),
+        grant,
+    }
+}
+
+/// Mirror of `Interest` from `exchanges_integrity`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct Interest {
+    listing: ActionHash,
+    listing_type: String,
+    user: ActionHash,
+    grant: Option<ActionHash>,
+}
+holochain_serialized_bytes::holochain_serial!(Interest);
+
+/// Mirror of `MediumOfExchange` from `mediums_of_exchange_integrity`, with the
+/// grant field a forged update has to carry.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct MediumWithGrant {
+    code: String,
+    name: String,
+    description: Option<String>,
+    exchange_type: String,
+    resource_spec_hrea_id: Option<String>,
+    grant: Option<ActionHash>,
+}
+holochain_serialized_bytes::holochain_serial!(MediumWithGrant);
+
+/// An organisation and one of its people, as the membership calls take them.
+fn pair(organization: &ActionHash, user: &ActionHash) -> serde_json::Value {
+    serde_json::json!({
+        "organization_original_action_hash": organization,
+        "user_original_action_hash": user,
+    })
+}
+
+/// Whether the coordinator link names this user, as the interface asks it.
+async fn is_coordinator(
+    conductor: &SweetConductor,
+    cell: &SweetCell,
+    organization: &ActionHash,
+    user: &ActionHash,
+) -> bool {
+    conductor
+        .call(
+            &cell.zome("users_organizations"),
+            "is_organization_coordinator",
+            pair(organization, user),
+        )
+        .await
+}
+
+/// The grant that lets `agent` do something to an organisation, or none.
+async fn grant_over(
+    conductor: &SweetConductor,
+    cell: &SweetCell,
+    agent: &AgentPubKey,
+    ability: &str,
+    organization: &ActionHash,
+) -> Option<ActionHash> {
+    conductor
+        .call(
+            &cell.zome("administration"),
+            "can",
+            serde_json::json!({ "agent": agent, "ability": ability, "scope": organization }),
+        )
+        .await
+}
+
+/// An administrator moves an organisation to a status, from whatever it holds now.
+async fn set_organization_status(
+    conductor: &SweetConductor,
+    admin: &SweetCell,
+    organization: &ActionHash,
+    status_type: &str,
+    reason: Option<&str>,
+) {
+    let latest: Option<Record> = conductor
+        .call(
+            &admin.zome("administration"),
+            "get_latest_status_record_for_entity",
+            serde_json::json!({
+                "entity": ENTITY_ORGANIZATIONS,
+                "entity_original_action_hash": organization,
+            }),
+        )
+        .await;
+    let latest = latest.expect("the organisation has a status").action_address().clone();
+    let _: Record = conductor
+        .call(
+            &admin.zome("administration"),
+            "update_entity_status",
+            serde_json::json!({
+                "entity": ENTITY_ORGANIZATIONS,
+                "entity_original_action_hash": organization,
+                "status_original_action_hash": latest,
+                "status_previous_action_hash": latest,
+                "new_status": {
+                    "status_type": status_type,
+                    "reason": reason,
+                    "suspended_until": null
+                }
+            }),
+        )
+        .await;
+}
+
+/// `delete_organization` through the app, with the refusal as text.
+async fn delete_organization(
+    conductor: &SweetConductor,
+    cell: &SweetCell,
+    organization: &ActionHash,
+) -> Result<ActionHash, String> {
+    reason(
+        conductor
+            .call_fallible(
+                &cell.zome("users_organizations"),
+                "delete_organization",
+                organization.clone(),
+            )
+            .await,
+    )
+}
+
+fn reason<T, E: std::fmt::Debug>(outcome: Result<T, E>) -> Result<T, String> {
+    outcome.map_err(|e| format!("{e:?}"))
+}
+
+/// Mallory writes an entry of the given type with the bytes as given.
 async fn forge_entry<E: TryInto<SerializedBytes>>(
     conductor: &SweetConductor,
     mallory: &SweetCell,
@@ -225,10 +392,6 @@ struct StatusShapedLikeARevocation {
 }
 holochain_serialized_bytes::holochain_serial!(StatusShapedLikeARevocation);
 
-fn reason<T, E: std::fmt::Debug>(outcome: Result<T, E>) -> Result<T, String> {
-    outcome.map_err(|e| format!("{e:?}"))
-}
-
 fn refused(outcome: &Result<ActionHash, String>, expected: &str, what: &str) {
     match outcome {
         Ok(hash) => panic!("{what} should be refused, but was written as {hash}"),
@@ -243,8 +406,20 @@ fn refused(outcome: &Result<ActionHash, String>, expected: &str, what: &str) {
 
 /// `Status`, the first entry type of `administration_integrity`.
 const STATUS: u8 = 0;
+const REQUEST: u8 = 0;
+const OFFER: u8 = 0;
+/// `Interest`, the first entry type of `exchanges_integrity`.
+const INTEREST: u8 = 0;
+/// `UserUpdates` and `OrganizationUpdates` in `users_organizations_integrity::LinkTypes`.
+const USER_UPDATES_LINK: u8 = 0;
+const ORGANIZATION_UPDATES_LINK: u8 = 6;
+/// `OrganizationMembers`, after `OrganizationCoordinators`.
+const ORGANIZATION_MEMBERS_LINK: u8 = 9;
+const SERVICE_TYPE: u8 = 0;
 /// After `Status`: `utils::grants::ROLE_GRANT_ENTRY_INDEX`.
 const ROLE_GRANT: u8 = 1;
+/// `OrganizationCoordinators` in `users_organizations_integrity::LinkTypes`.
+const ORGANIZATION_COORDINATORS_LINK: u8 = 8;
 /// `AgentAdministrators` in `administration_integrity::LinkTypes`.
 const AGENT_ADMINISTRATORS_LINK: u8 = 1;
 /// `AllGrants`, between `AgentGrants` and `GrantRevocations`.
@@ -254,6 +429,988 @@ const AGENT_GRANTS_LINK: u8 = 6;
 const GRANT_REVOCATIONS_LINK: u8 = 8;
 
 // ── Cases ───────────────────────────────────────────────────────────────────
+
+/// A listing carries the member grant its author holds, and nothing else does.
+///
+/// Four forgeries and one honest write, all past the coordinator: no grant;
+/// someone else's grant; a grant of the wrong role; a grant whose authority
+/// could not give it. Then Mallory's own member grant, which Alice reads.
+///
+/// **To make this go red:** make `utils::grants::check_act` return `Ok(Ok(..))`
+/// before it looks at anything. Every forgery is then written.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_listing_carries_the_member_grant_its_author_holds() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let users = everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let requests = zome_index(&conductors[2], &mallory, "requests_integrity").await;
+    let administration = zome_index(&conductors[2], &mallory, "administration_integrity").await;
+
+    // No grant.
+    let no_grant = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("no grant", None)).await;
+    refused(&no_grant, "needs a grant for Participate", "a listing with no grant");
+
+    // Someone else's grant.
+    let bobs = grant_for_role(&conductors[1], bob, bob.agent_pubkey(), "member").await;
+    let borrowed = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("borrowed", Some(bobs))).await;
+    refused(&borrowed, "held by someone else", "a listing with Bob's grant");
+
+    // A grant of the wrong role: Alice makes Mallory an administrator.
+    conductors[0]
+        .call::<_, bool>(
+            &alice.zome("administration"),
+            "add_administrator",
+            serde_json::json!({
+                "entity": ENTITY_NETWORK,
+                "entity_original_action_hash": users[2],
+                "agent_pubkeys": [mallory.agent_pubkey()],
+            }),
+        )
+        .await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let admin = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "admin").await;
+    let wrong_role = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("as admin", Some(admin))).await;
+    refused(&wrong_role, "does not cover Participate", "a listing with an admin grant");
+
+    // A grant whose authority could not give it: a member grant resting on a
+    // member grant. The grant itself is refused, so nothing can rest on it.
+    let mine = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "member").await;
+    let self_made = forge_entry(
+        &conductors[2],
+        &mallory,
+        administration,
+        ROLE_GRANT,
+        RoleGrant {
+            role: "member".to_string(),
+            holder: mallory.agent_pubkey().clone(),
+            scope: None,
+            authority: Authority::Grant(mine.clone()),
+        },
+    )
+    .await;
+    refused(&self_made, "a member may not grant member", "a grant resting on a member grant");
+    let on_bobs = forge_entry(
+        &conductors[2],
+        &mallory,
+        administration,
+        ROLE_GRANT,
+        RoleGrant {
+            role: "member".to_string(),
+            holder: mallory.agent_pubkey().clone(),
+            scope: None,
+            authority: Authority::Grant(
+                grant_for_role(&conductors[1], bob, bob.agent_pubkey(), "member").await,
+            ),
+        },
+    )
+    .await;
+    refused(&on_bobs, "written by the holder of the grant it rests on", "a grant resting on Bob's grant");
+
+    // The honest write: her own member grant.
+    let honest = forge_entry(&conductors[2], &mallory, requests, REQUEST, a_request("honest", Some(mine))).await;
+    let hash = honest.unwrap_or_else(|e| panic!("a listing with its author's member grant should be written; got {e}"));
+    await_consistency_s(30, [alice, bob, &mallory]).await.unwrap();
+    let read: Option<Record> = conductors[0]
+        .call(&alice.zome("requests"), "get_request", hash)
+        .await;
+    assert!(read.is_some(), "Alice should read the listing Mallory wrote with her grant");
+}
+
+/// A listing is edited by its author, who needs no grant, or by an
+/// administrator, whose update carries the admin grant. Anyone else is refused.
+///
+/// **To make this go red:** make `validate_request_grant` in
+/// `requests_integrity/src/request.rs` return `Valid` for an update. Mallory's
+/// forged edit is then written.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_listing_is_edited_by_its_author_or_an_administrator() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let st = a_service_type(&conductors[0], alice, "Gardening").await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    let record: Record = conductors[1]
+        .call(&bob.zome("requests"), "create_request", sample_request("Bob's listing", st.clone()))
+        .await;
+    let original = record.action_address().clone();
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    // Mallory, neither author nor administrator, past the coordinator.
+    let forged = forge_update(&conductors[2], &mallory, &original, a_request("Mallory's edit", None)).await;
+    refused(&forged, "needs a grant for Administer", "an edit by a member who is not the author");
+
+    let edit = |title: &str| {
+        let mut input = sample_request(title, st.clone());
+        input.request.title = title.to_string();
+        serde_json::json!({
+            "original_action_hash": original,
+            "previous_action_hash": original,
+            "updated_request": input.request,
+            "service_type_hash": st,
+            "medium_of_exchange_hashes": [],
+        })
+    };
+    // The author.
+    let by_bob: Record = conductors[1]
+        .call(&bob.zome("requests"), "update_request", edit("Bob's edit"))
+        .await;
+    // Alice updates Bob's revision, so it has to have reached her first.
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    // An administrator, with her grant.
+    let by_alice: Record = conductors[0]
+        .call(
+            &alice.zome("requests"),
+            "update_request",
+            serde_json::json!({
+                "original_action_hash": original,
+                "previous_action_hash": by_bob.action_address(),
+                "updated_request": sample_request("Alice's edit", st.clone()).request,
+                "service_type_hash": st,
+                "medium_of_exchange_hashes": [],
+            }),
+        )
+        .await;
+    let written: Request = by_alice.entry().to_app_option().unwrap().expect("a request");
+    assert_eq!(written.title, "Alice's edit");
+    assert!(written.grant.is_some(), "the administrator's edit carries her grant");
+    let bobs: Request = by_bob.entry().to_app_option().unwrap().expect("a request");
+    assert!(bobs.grant.is_none(), "the author's edit carries no grant");
+}
+
+/// Approval is what makes an organisation's creator its coordinator: before
+/// it the creator cannot act as one, after it they can, and `can` finds the
+/// grant. A coordinator of another organisation is refused, past the
+/// coordinator, on both the record and the membership links. At the end an
+/// administrator revokes the creator's grant on its own, leaving the link, and
+/// gives it back through the same call that adds a coordinator.
+///
+/// **To make this go red:** in `users_organizations_integrity`, make
+/// `validate_organization_write` return `Valid` for an update (the forged edit
+/// is written), or make `validate_create_link_organization_membership` return
+/// `Valid` before it reads the tag (the forged links are). In the coordinator,
+/// drop `require_coordinate` from `add_member_to_organization`: the pending
+/// creator is then refused for the organisation's status, not for the role.
+/// Or let `register_approved_coordinator` take a coordinator's grant: Bob's
+/// direct call then writes the links.
+#[tokio::test(flavor = "multi_thread")]
+async fn approval_makes_the_creator_coordinator_and_only_of_that_organisation() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let users = everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+
+    let org: Record = conductors[1]
+        .call(&bob.zome("users_organizations"), "create_organization", sample_organization("Bob's"))
+        .await;
+    let org = org.action_address().clone();
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    let mallory_as_member = serde_json::json!({
+        "organization_original_action_hash": org,
+        "user_original_action_hash": users[2],
+    });
+    // Pending: Bob is not a coordinator and cannot add a member.
+    let before: bool = conductors[1]
+        .call(
+            &bob.zome("users_organizations"),
+            "is_organization_coordinator",
+            serde_json::json!({
+                "organization_original_action_hash": org,
+                "user_original_action_hash": users[1],
+            }),
+        )
+        .await;
+    assert!(!before, "the creator is not a coordinator while the organisation is pending");
+    let early = reason(
+        conductors[1]
+            .call_fallible::<_, bool>(&bob.zome("users_organizations"), "add_member_to_organization", mallory_as_member.clone())
+            .await,
+    );
+    match early {
+        Ok(_) => panic!("a pending organisation's creator should not be able to add members"),
+        Err(text) => assert!(
+            text.contains("Not a coordinator"),
+            "a pending organisation's creator should be refused as not a coordinator; got {text}"
+        ),
+    }
+
+    // Approval.
+    accept_entity(&conductors[0], alice, ENTITY_ORGANIZATIONS, org.clone()).await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let after: bool = conductors[1]
+        .call(
+            &bob.zome("users_organizations"),
+            "is_organization_coordinator",
+            serde_json::json!({
+                "organization_original_action_hash": org,
+                "user_original_action_hash": users[1],
+            }),
+        )
+        .await;
+    assert!(after, "approval makes the creator coordinator");
+    let can: Option<ActionHash> = conductors[1]
+        .call(
+            &bob.zome("administration"),
+            "can",
+            serde_json::json!({ "agent": bob.agent_pubkey(), "ability": "Coordinate", "scope": org }),
+        )
+        .await;
+    assert!(can.is_some(), "`can` finds the coordinator grant");
+
+    // The call that writes an approval's links is the approver's. A coordinator
+    // adds people through the calls that check the user and write the grant.
+    let direct = reason(
+        conductors[1]
+            .call_fallible::<_, bool>(
+                &bob.zome("users_organizations"),
+                "register_approved_coordinator",
+                serde_json::json!({
+                    "organization_original_action_hash": org,
+                    "user_original_action_hash": users[2],
+                }),
+            )
+            .await,
+    );
+    match direct {
+        Ok(_) => panic!("a coordinator should not be able to write an approval's links"),
+        Err(text) => assert!(
+            text.contains("Unauthorized"),
+            "a coordinator writing an approval's links should be refused as unauthorized; got {text}"
+        ),
+    }
+    let added: bool = conductors[1]
+        .call(&bob.zome("users_organizations"), "add_member_to_organization", mallory_as_member)
+        .await;
+    assert!(added);
+
+    // Mallory founds her own organisation and is its coordinator.
+    let hers: Record = conductors[2]
+        .call(&mallory.zome("users_organizations"), "create_organization", sample_organization("Mallory's"))
+        .await;
+    let hers = hers.action_address().clone();
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    accept_entity(&conductors[0], alice, ENTITY_ORGANIZATIONS, hers.clone()).await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let her_grant = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "org_coordinator").await;
+
+    // Her grant does not reach Bob's organisation: the record, then the link.
+    let mut edit = sample_organization("Bob's, renamed");
+    edit.name = "Bob's, renamed".to_string();
+    let forged_edit = forge_update(
+        &conductors[2],
+        &mallory,
+        &org,
+        Organization {
+            name: edit.name,
+            description: edit.description,
+            full_legal_name: edit.full_legal_name,
+            logo: None,
+            email: edit.email,
+            urls: edit.urls,
+            location: edit.location,
+            grant: Some(her_grant.clone()),
+        },
+    )
+    .await;
+    refused(&forged_edit, "does not cover Coordinate here", "an edit with another organisation's coordinator grant");
+
+    let users_organizations = zome_index(&conductors[2], &mallory, "users_organizations_integrity").await;
+    let forged_link = reason(
+        conductors[2]
+            .call_fallible::<_, ActionHash>(
+                &mallory.zome("forge"),
+                "forge_link",
+                serde_json::json!({
+                    "base": org,
+                    "target": users[2],
+                    "zome_index": users_organizations,
+                    "link_type": ORGANIZATION_COORDINATORS_LINK,
+                    "tag": her_grant.get_raw_39(),
+                }),
+            )
+            .await,
+    );
+    refused(&forged_link, "changing an organisation's coordinators is a role act", "a coordinator link with another organisation's grant");
+
+    // The member link runs the same rule.
+    let forged_member = forge_link(
+        &conductors[2],
+        &mallory,
+        org.clone().into(),
+        users[2].clone().into(),
+        users_organizations,
+        ORGANIZATION_MEMBERS_LINK,
+        her_grant.get_raw_39().to_vec(),
+    )
+    .await;
+    refused(&forged_member, "changing an organisation's members is a role act", "a member link with another organisation's grant");
+
+    // A coordinator link starts at an organisation.
+    let from_a_user = forge_link(
+        &conductors[2],
+        &mallory,
+        users[2].clone().into(),
+        users[2].clone().into(),
+        users_organizations,
+        ORGANIZATION_COORDINATORS_LINK,
+        her_grant.get_raw_39().to_vec(),
+    )
+    .await;
+    refused(&from_a_user, "a link to an organisation's coordinators starts at the organisation", "a coordinator link that starts at a user");
+
+    // Her grant is good for her own organisation, and a coordinator link there
+    // still has to point at a user.
+    let not_a_user = reason(
+        conductors[2]
+            .call_fallible::<_, ActionHash>(
+                &mallory.zome("forge"),
+                "forge_link",
+                serde_json::json!({
+                    "base": hers,
+                    "target": org,
+                    "zome_index": users_organizations,
+                    "link_type": ORGANIZATION_COORDINATORS_LINK,
+                    "tag": her_grant.get_raw_39(),
+                }),
+            )
+            .await,
+    );
+    refused(&not_a_user, "a link to an organisation's coordinators points at a user", "a coordinator link that points at an organisation");
+
+    // Bob's own edit, now that it is approved, carries his coordinator grant.
+    let by_bob: Record = conductors[1]
+        .call(
+            &bob.zome("users_organizations"),
+            "update_organization",
+            serde_json::json!({
+                "original_action_hash": org,
+                "previous_action_hash": org,
+                "updated_organization": sample_organization("Bob's, by Bob"),
+            }),
+        )
+        .await;
+    let bobs: Organization = by_bob.entry().to_app_option().unwrap().expect("an organisation");
+    let bobs_grant = grant_for_role(&conductors[1], bob, bob.agent_pubkey(), "org_coordinator").await;
+    assert_eq!(
+        bobs.grant,
+        Some(bobs_grant.clone()),
+        "after approval the creator's edit carries his coordinator grant"
+    );
+    // Alice updates Bob's revision, so it has to have reached her first.
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let by_alice: Record = conductors[0]
+        .call(
+            &alice.zome("users_organizations"),
+            "update_organization",
+            serde_json::json!({
+                "original_action_hash": org,
+                "previous_action_hash": by_bob.action_address(),
+                "updated_organization": sample_organization("Bob's, tidied"),
+            }),
+        )
+        .await;
+    let written: Organization = by_alice.entry().to_app_option().unwrap().expect("an organisation");
+    assert!(written.grant.is_some(), "the administrator's edit carries her grant");
+
+    // Alice revokes Bob's coordinator grant on its own. His coordinator link
+    // stays, so he is still listed, and holds no grant.
+    let _: ActionHash = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "revoke_role",
+            serde_json::json!({ "grant": bobs_grant, "reason": "revoked on its own" }),
+        )
+        .await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    assert!(is_coordinator(&conductors[1], bob, &org, &users[1]).await);
+    assert!(
+        grant_over(&conductors[1], bob, bob.agent_pubkey(), "Dissolve", &org)
+            .await
+            .is_none(),
+        "the revoked grant no longer answers"
+    );
+    // Adding him again writes the grant back and leaves the link alone.
+    let restored: bool = conductors[0]
+        .call(
+            &alice.zome("users_organizations"),
+            "add_coordinator_to_organization",
+            pair(&org, &users[1]),
+        )
+        .await;
+    assert!(restored);
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    assert!(
+        grant_over(&conductors[1], bob, bob.agent_pubkey(), "Dissolve", &org)
+            .await
+            .is_some(),
+        "a listed coordinator with no grant gets one back"
+    );
+    let again = reason(
+        conductors[0]
+            .call_fallible::<_, bool>(
+                &alice.zome("users_organizations"),
+                "add_coordinator_to_organization",
+                pair(&org, &users[1]),
+            )
+            .await,
+    );
+    match again {
+        Ok(_) => panic!("adding a coordinator who holds the grant and the link should be refused"),
+        Err(text) => assert!(
+            text.contains("Already a coordinator"),
+            "adding a coordinator twice should be refused as already one; got {text}"
+        ),
+    }
+}
+
+/// An offer carries the member grant its author holds, as a request does.
+///
+/// `offers_integrity` runs the same rule as `requests_integrity`; this is the
+/// forged write that shows it, so the two listing types cannot drift apart.
+///
+/// **To make this go red:** make `validate_offer_grant` in
+/// `offers_integrity/src/offer.rs` return `Valid` for a create (both forged
+/// creates are then written) or for an update (the forged edit is).
+#[tokio::test(flavor = "multi_thread")]
+async fn an_offer_carries_the_member_grant_its_author_holds() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let offers = zome_index(&conductors[2], &mallory, "offers_integrity").await;
+
+    let no_grant = forge_entry(&conductors[2], &mallory, offers, OFFER, an_offer("no grant", None)).await;
+    refused(&no_grant, "needs a grant for Participate", "an offer with no grant");
+
+    let bobs = grant_for_role(&conductors[1], bob, bob.agent_pubkey(), "member").await;
+    let borrowed = forge_entry(&conductors[2], &mallory, offers, OFFER, an_offer("borrowed", Some(bobs))).await;
+    refused(&borrowed, "held by someone else", "an offer with Bob's grant");
+
+    let mine = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "member").await;
+    let honest = forge_entry(&conductors[2], &mallory, offers, OFFER, an_offer("honest", Some(mine))).await;
+    let hash = honest.unwrap_or_else(|e| panic!("an offer with its author's member grant should be written; got {e}"));
+    await_consistency_s(30, [alice, bob, &mallory]).await.unwrap();
+    let read: Option<Record> = conductors[0]
+        .call(&alice.zome("offers"), "get_offer", hash)
+        .await;
+    assert!(read.is_some(), "Alice should read the offer Mallory wrote with her grant");
+
+    // And an offer is changed by its author or an administrator, as a request is.
+    let st = a_service_type(&conductors[0], alice, "Gardening").await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let bobs_offer: Record = conductors[1]
+        .call(&bob.zome("offers"), "create_offer", sample_offer("Bob's offer", st))
+        .await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let forged = forge_update(
+        &conductors[2],
+        &mallory,
+        bobs_offer.action_address(),
+        an_offer("Mallory's edit", None),
+    )
+    .await;
+    refused(&forged, "needs a grant for Administer", "an edit of an offer by a member who is not its author");
+}
+
+/// An interest carries the member grant its author holds: showing interest in
+/// a listing is the first act of an exchange, and an accepted member's.
+///
+/// Mallory forges three interests in a real listing, all naming her own user:
+/// with no grant, with Bob's, and with her own. Only the last is written.
+///
+/// **To make this go red:** remove the `check_act` call from
+/// `validate_interest` in `exchanges_integrity/src/lib.rs`. Both forgeries
+/// are then written.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_interest_carries_the_member_grant_its_author_holds() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let users = everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let requests = zome_index(&conductors[2], &mallory, "requests_integrity").await;
+    let exchanges = zome_index(&conductors[2], &mallory, "exchanges_integrity").await;
+    let mine = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "member").await;
+    let bobs = grant_for_role(&conductors[1], bob, bob.agent_pubkey(), "member").await;
+
+    // A real listing to be interested in.
+    let listing = forge_entry(
+        &conductors[2],
+        &mallory,
+        requests,
+        REQUEST,
+        a_request("a listing", Some(mine.clone())),
+    )
+    .await
+    .unwrap_or_else(|e| panic!("the listing should be written; got {e}"));
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    let interest = |grant: Option<ActionHash>| Interest {
+        listing: listing.clone(),
+        listing_type: "Request".to_string(),
+        user: users[2].clone(),
+        grant,
+    };
+
+    let no_grant = forge_entry(&conductors[2], &mallory, exchanges, INTEREST, interest(None)).await;
+    refused(
+        &no_grant,
+        "an interest is a role act: this write needs a grant for Participate",
+        "an interest with no grant",
+    );
+
+    let borrowed = forge_entry(&conductors[2], &mallory, exchanges, INTEREST, interest(Some(bobs))).await;
+    refused(
+        &borrowed,
+        "an interest is a role act: the grant carried is held by someone else",
+        "an interest with Bob's grant",
+    );
+
+    let honest = forge_entry(&conductors[2], &mallory, exchanges, INTEREST, interest(Some(mine))).await;
+    honest.unwrap_or_else(|e| panic!("an interest with its author's member grant should be written; got {e}"));
+    await_consistency_s(30, [alice, bob, &mallory]).await.unwrap();
+}
+
+/// A service type and a medium of exchange are changed on an admin grant, and
+/// a member grant, which is enough to suggest one, is not enough to change one.
+///
+/// Alice creates one of each. Mallory, an accepted member, forges an update of
+/// each carrying her own member grant. Both are refused for the role.
+///
+/// **To make this go red:** in `validate_service_type_grant`
+/// (`service_types_integrity/src/lib.rs`) or `validate_medium_of_exchange_grant`
+/// (`mediums_of_exchange_integrity/src/lib.rs`), check the update for
+/// `Ability::Participate` in place of `Ability::Administer`. That forged
+/// update is then written.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_service_type_and_a_medium_of_exchange_are_changed_on_an_admin_grant_only() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let service_type = a_service_type(&conductors[0], alice, "Gardening").await;
+    let medium: Record = conductors[0]
+        .call(
+            &alice.zome("mediums_of_exchange"),
+            "create_medium_of_exchange",
+            sample_medium_of_exchange("HRS", "Hours"),
+        )
+        .await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let mine = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "member").await;
+
+    let forged_service_type = forge_update(
+        &conductors[2],
+        &mallory,
+        &service_type,
+        ServiceType {
+            name: "Gardening, taken over".to_string(),
+            description: "Rewritten by a member who is not an administrator".to_string(),
+            technical: false,
+            grant: Some(mine.clone()),
+        },
+    )
+    .await;
+    refused(
+        &forged_service_type,
+        "Changing a service type is a role act: a member grant does not cover Administer here",
+        "an update of a service type on a member grant",
+    );
+
+    let forged_medium = forge_update(
+        &conductors[2],
+        &mallory,
+        medium.action_address(),
+        MediumWithGrant {
+            code: "HRS".to_string(),
+            name: "Hours, taken over".to_string(),
+            description: None,
+            exchange_type: "currency".to_string(),
+            resource_spec_hrea_id: None,
+            grant: Some(mine),
+        },
+    )
+    .await;
+    refused(
+        &forged_medium,
+        "Changing a medium of exchange is a role act: a member grant does not cover Administer here",
+        "an update of a medium of exchange on a member grant",
+    );
+}
+
+/// Approval makes the creator coordinator once. A creator who has since been
+/// removed as coordinator is not made one again when the organisation comes
+/// back from a suspension, and cannot delete it as its creator either.
+///
+/// Bob founds an organisation and Alice approves it. Bob makes Mallory a
+/// coordinator; Mallory removes Bob. Alice suspends the organisation and
+/// accepts it again. Bob is still not a coordinator; Mallory still is.
+///
+/// Between the two, Bob's edit of it through the app is refused: from the
+/// first approval on, an edit rests on a grant, the creator's included.
+///
+/// **To make this go red:** in `approve_organization`
+/// (`coordinator/administration/src/status.rs`), ask `live_grants_of` for a
+/// coordinator grant in place of `was_ever_granted`. Bob's revoked grant is
+/// then not counted, and the second approval makes him coordinator again. Or,
+/// in `update_organization`, let the creator through whether or not the
+/// organisation has a coordinator: Bob's edit is then written.
+#[tokio::test(flavor = "multi_thread")]
+async fn approval_makes_the_creator_coordinator_once() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let users = everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+
+    let org: Record = conductors[1]
+        .call(&bob.zome("users_organizations"), "create_organization", sample_organization("Bob's"))
+        .await;
+    let org = org.action_address().clone();
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    accept_entity(&conductors[0], alice, ENTITY_ORGANIZATIONS, org.clone()).await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    assert!(
+        is_coordinator(&conductors[1], bob, &org, &users[1]).await,
+        "the first approval makes the creator coordinator"
+    );
+
+    // Bob makes Mallory a coordinator, on his own grant.
+    let added: bool = conductors[1]
+        .call(
+            &bob.zome("users_organizations"),
+            "add_coordinator_to_organization",
+            pair(&org, &users[2]),
+        )
+        .await;
+    assert!(added);
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    assert!(
+        grant_over(&conductors[2], &mallory, mallory.agent_pubkey(), "Coordinate", &org)
+            .await
+            .is_some(),
+        "a coordinator added by a coordinator holds a grant for the organisation"
+    );
+
+    // Mallory removes Bob, on hers: his grant is revoked and his link goes.
+    let removed: bool = conductors[2]
+        .call(
+            &mallory.zome("users_organizations"),
+            "remove_organization_coordinator",
+            pair(&org, &users[1]),
+        )
+        .await;
+    assert!(removed);
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    assert!(!is_coordinator(&conductors[1], bob, &org, &users[1]).await);
+    assert!(
+        grant_over(&conductors[1], bob, bob.agent_pubkey(), "Coordinate", &org)
+            .await
+            .is_none(),
+        "a removed coordinator holds no live grant for the organisation"
+    );
+
+    // Its creator, no longer a coordinator, no longer edits it.
+    let edit_by_its_creator: Result<Record, String> = reason(
+        conductors[1]
+            .call_fallible(
+                &bob.zome("users_organizations"),
+                "update_organization",
+                serde_json::json!({
+                    "original_action_hash": org,
+                    "previous_action_hash": org,
+                    "updated_organization": sample_organization("Bob's, again"),
+                }),
+            )
+            .await,
+    );
+    match edit_by_its_creator {
+        Ok(record) => panic!(
+            "an edit by a creator who is no longer a coordinator should be refused, but was written as {}",
+            record.action_address()
+        ),
+        Err(text) => assert!(
+            text.contains("Not a coordinator"),
+            "an edit by a creator who is no longer a coordinator should be refused as not a coordinator; got {text}"
+        ),
+    }
+
+    // Suspended. Its creator, no longer a coordinator, cannot delete it.
+    set_organization_status(
+        &conductors[0],
+        alice,
+        &org,
+        "suspended indefinitely",
+        Some("under review"),
+    )
+    .await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let by_its_creator = delete_organization(&conductors[1], bob, &org).await;
+    refused(
+        &by_its_creator,
+        "Not a coordinator",
+        "a delete by a creator who is no longer a coordinator",
+    );
+
+    // Accepted again: the second approval gives Bob nothing back.
+    accept_entity(&conductors[0], alice, ENTITY_ORGANIZATIONS, org.clone()).await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    assert!(
+        !is_coordinator(&conductors[1], bob, &org, &users[1]).await,
+        "a second approval must not make a removed creator coordinator again"
+    );
+    assert!(
+        grant_over(&conductors[1], bob, bob.agent_pubkey(), "Coordinate", &org)
+            .await
+            .is_none(),
+        "a second approval must not write the removed creator a new grant"
+    );
+    assert!(
+        is_coordinator(&conductors[2], &mallory, &org, &users[2]).await,
+        "the coordinator who stayed is still one"
+    );
+    assert!(
+        grant_over(&conductors[2], &mallory, mallory.agent_pubkey(), "Coordinate", &org)
+            .await
+            .is_some(),
+        "and still holds her grant"
+    );
+}
+
+/// Who deletes an organisation: a coordinator of it, alone, or the creator of
+/// a proposal that was never approved. Nobody outside it, an administrator
+/// included.
+///
+/// Bob proposes an organisation. Mallory, a member, and Alice, the
+/// administrator, are each refused; Bob withdraws it himself. He proposes a
+/// second, Alice approves it and is still refused; Bob makes Mallory a
+/// coordinator and she deletes it on her own. Both coordinator grants are
+/// revoked with it.
+///
+/// **To make this go red:** in `roles_for` (`utils/src/grants.rs`), add
+/// `Role::Admin` to `Ability::Dissolve`. Alice's delete of the approved
+/// organisation then goes through. Or drop the creator's branch from
+/// `require_dissolve` in `coordinator/users_organizations/src/organization.rs`:
+/// Bob can then not withdraw his own proposal.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_organisation_is_deleted_by_a_coordinator_alone_and_by_nobody_outside_it() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let users = everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+
+    // A proposal, not yet approved.
+    let proposal: Record = conductors[1]
+        .call(&bob.zome("users_organizations"), "create_organization", sample_organization("Proposed"))
+        .await;
+    let proposal = proposal.action_address().clone();
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    let by_a_member = delete_organization(&conductors[2], &mallory, &proposal).await;
+    refused(&by_a_member, "Not a coordinator", "a delete of someone else's proposal");
+    let by_the_administrator = delete_organization(&conductors[0], alice, &proposal).await;
+    refused(
+        &by_the_administrator,
+        "Not a coordinator",
+        "an administrator's delete of a proposal",
+    );
+    delete_organization(&conductors[1], bob, &proposal)
+        .await
+        .unwrap_or_else(|e| panic!("its creator should be able to withdraw a proposal; got {e}"));
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    // An approved organisation.
+    let org: Record = conductors[1]
+        .call(&bob.zome("users_organizations"), "create_organization", sample_organization("Approved"))
+        .await;
+    let org = org.action_address().clone();
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    accept_entity(&conductors[0], alice, ENTITY_ORGANIZATIONS, org.clone()).await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    assert!(
+        grant_over(&conductors[1], bob, bob.agent_pubkey(), "Dissolve", &org)
+            .await
+            .is_some(),
+        "its coordinator may delete it"
+    );
+    assert!(
+        grant_over(&conductors[0], alice, alice.agent_pubkey(), "Dissolve", &org)
+            .await
+            .is_none(),
+        "an administrator's grant does not cover deleting an organisation"
+    );
+    let by_the_administrator = delete_organization(&conductors[0], alice, &org).await;
+    refused(
+        &by_the_administrator,
+        "Not a coordinator",
+        "an administrator's delete of an approved organisation",
+    );
+
+    // A second coordinator, who is not its creator, deletes it alone.
+    let added: bool = conductors[1]
+        .call(
+            &bob.zome("users_organizations"),
+            "add_coordinator_to_organization",
+            pair(&org, &users[2]),
+        )
+        .await;
+    assert!(added);
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    delete_organization(&conductors[2], &mallory, &org)
+        .await
+        .unwrap_or_else(|e| panic!("a coordinator should be able to delete the organisation alone; got {e}"));
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    for (conductor, cell, who) in [(&conductors[1], bob, "Bob"), (&conductors[2], &mallory, "Mallory")] {
+        assert!(
+            grant_over(conductor, cell, cell.agent_pubkey(), "Coordinate", &org)
+                .await
+                .is_none(),
+            "{who}'s coordinator grant should be revoked with the organisation"
+        );
+    }
+}
+
+/// The link from a record to one of its updates is what readers follow to the
+/// latest revision. It is never deleted, and it is only ever the real update's
+/// author pointing the record's original at that update.
+///
+/// Bob's organisation is approved and edited once, and Bob edits his profile
+/// once, so each has an update link. Mallory, past the coordinator:
+///
+/// - deletes each update link: refused;
+/// - points Bob's organisation at a user, and at an organisation of her own
+///   (a create, not an update): refused;
+/// - points it at an update of her own organisation: refused, another chain;
+/// - points it at Bob's real update, as a newer link: refused, not hers;
+/// - points her own user at Bob's organisation: refused.
+///
+/// **To make this go red:** in `users_organizations_integrity/src/lib.rs`,
+/// remove an update-link arm under `OpLink::DeleteLink` (that delete is then
+/// written), or return `Valid` at the top of `validate_update_link` (every
+/// forged link is).
+#[tokio::test(flavor = "multi_thread")]
+async fn an_update_link_is_never_deleted_and_points_at_a_real_update_by_its_author() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let users = everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let users_organizations = zome_index(&conductors[2], &mallory, "users_organizations_integrity").await;
+
+    // Bob's organisation, approved, edited once.
+    let created: Record = conductors[1]
+        .call(&bob.zome("users_organizations"), "create_organization", sample_organization("Bob's"))
+        .await;
+    let org = created.action_address().clone();
+    // Mallory's own, edited once while it is still her proposal.
+    let hers: Record = conductors[2]
+        .call(&mallory.zome("users_organizations"), "create_organization", sample_organization("Mallory's"))
+        .await;
+    let hers = hers.action_address().clone();
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    accept_entity(&conductors[0], alice, ENTITY_ORGANIZATIONS, org.clone()).await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let bobs_update: Record = conductors[1]
+        .call(
+            &bob.zome("users_organizations"),
+            "update_organization",
+            serde_json::json!({
+                "original_action_hash": org,
+                "previous_action_hash": org,
+                "updated_organization": sample_organization("Bob's, renamed"),
+            }),
+        )
+        .await;
+    let bobs_update = bobs_update.action_address().clone();
+    let her_update: Record = conductors[2]
+        .call(
+            &mallory.zome("users_organizations"),
+            "update_organization",
+            serde_json::json!({
+                "original_action_hash": hers,
+                "previous_action_hash": hers,
+                "updated_organization": sample_organization("Mallory's, renamed"),
+            }),
+        )
+        .await;
+    let her_update = her_update.action_address().clone();
+    // Bob edits his profile once.
+    let _: Record = conductors[1]
+        .call(
+            &bob.zome("users_organizations"),
+            "update_user",
+            serde_json::json!({
+                "original_action_hash": users[1],
+                "previous_action_hash": users[1],
+                "updated_user": sample_user("Bob, renamed"),
+            }),
+        )
+        .await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+
+    // Neither update link is deleted.
+    for (base, link_type, expected, what) in [
+        (
+            &org,
+            ORGANIZATION_UPDATES_LINK,
+            "OrganizationUpdates links cannot be deleted",
+            "a delete of an organisation's update link",
+        ),
+        (
+            &users[1],
+            USER_UPDATES_LINK,
+            "UserUpdates links cannot be deleted",
+            "a delete of a user's update link",
+        ),
+    ] {
+        let links = links_of(&conductors[2], &mallory, base.clone().into(), users_organizations, link_type).await;
+        assert_eq!(links.len(), 1, "one edit, one update link ({what})");
+        let deleted = forge_delete_link(&conductors[2], &mallory, links[0].create_link_hash.clone()).await;
+        refused(&deleted, expected, what);
+    }
+
+    // Forged update links from Bob's organisation.
+    let from_bobs = |target: ActionHash| {
+        forge_link(
+            &conductors[2],
+            &mallory,
+            org.clone().into(),
+            target.into(),
+            users_organizations,
+            ORGANIZATION_UPDATES_LINK,
+            vec![],
+        )
+    };
+    refused(
+        &from_bobs(users[2].clone()).await,
+        "an OrganizationUpdates link points at an update of an Organization",
+        "an organisation update link that points at a user",
+    );
+    refused(
+        &from_bobs(hers.clone()).await,
+        "an OrganizationUpdates link points at an update of an Organization",
+        "an organisation update link that points at another organisation's create",
+    );
+    refused(
+        &from_bobs(her_update).await,
+        "an OrganizationUpdates link points at an update of the record it starts at",
+        "an organisation update link that points at an update of another organisation",
+    );
+    refused(
+        &from_bobs(bobs_update).await,
+        "an OrganizationUpdates link is written by the author of the update it points at",
+        "a second link to Bob's update, written by Mallory",
+    );
+
+    let to_an_organisation = forge_link(
+        &conductors[2],
+        &mallory,
+        users[2].clone().into(),
+        org.clone().into(),
+        users_organizations,
+        USER_UPDATES_LINK,
+        vec![],
+    )
+    .await;
+    refused(
+        &to_an_organisation,
+        "a UserUpdates link points at an update of a User",
+        "a user update link that points at an organisation",
+    );
+}
 
 /// A status is never deleted, by anyone: the delete is refused by validation.
 #[tokio::test(flavor = "multi_thread")]
@@ -276,6 +1433,79 @@ async fn a_status_is_never_deleted() {
             .await,
     );
     refused(&deleted, "Status cannot be deleted", "deleting a status");
+}
+
+/// Removal never undoes a grant: a revoked administrator's grant still
+/// validates a forged write, which is a known limit. The app is
+/// where removal bites: `can` returns none and the coordinator refuses them.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_revoked_grant_still_validates_but_the_app_refuses_its_holder() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+    let users = everyone_accepted(&conductors, &[alice, &mallory]).await;
+
+    let mallory_admin = EntityActionHashAgents {
+        entity: ENTITY_NETWORK.to_string(),
+        entity_original_action_hash: users[1].clone(),
+        agent_pubkeys: vec![mallory.agent_pubkey().clone()],
+    };
+    conductors[0]
+        .call::<_, bool>(&alice.zome("administration"), "add_administrator", mallory_admin.clone())
+        .await;
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    let admin_grant = grant_for_role(&conductors[1], &mallory, mallory.agent_pubkey(), "admin").await;
+    conductors[0]
+        .call::<_, bool>(&alice.zome("administration"), "remove_administrator", mallory_admin)
+        .await;
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+
+    let can: Option<ActionHash> = conductors[1]
+        .call(
+            &mallory.zome("administration"),
+            "can",
+            serde_json::json!({ "agent": mallory.agent_pubkey(), "ability": "Administer", "scope": null }),
+        )
+        .await;
+    assert!(can.is_none(), "`can` ignores a revoked grant");
+    let through_the_app = reason(
+        conductors[1]
+            .call_fallible::<_, Record>(
+                &mallory.zome("service_types"),
+                "create_service_type",
+                serde_json::json!({ "service_type": { "name": "Lifts", "description": "To the station", "technical": false } }),
+            )
+            .await,
+    );
+    match through_the_app {
+        Ok(record) => panic!(
+            "the coordinator should refuse a removed administrator, but wrote {}",
+            record.action_address()
+        ),
+        Err(text) => assert!(
+            text.contains("Unauthorized"),
+            "the coordinator should refuse a removed administrator as unauthorized; got {text}"
+        ),
+    }
+
+    // The limit: validation cannot see the revocation.
+    let service_types = zome_index(&conductors[1], &mallory, "service_types_integrity").await;
+    let forged = forge_entry(
+        &conductors[1],
+        &mallory,
+        service_types,
+        SERVICE_TYPE,
+        ServiceType {
+            name: "Lifts".to_string(),
+            description: "forced through after removal".to_string(),
+            technical: false,
+            grant: Some(admin_grant),
+        },
+    )
+    .await;
+    assert!(
+        forged.is_ok(),
+        "a forged write under a revoked grant still validates; that is the stated limit, caught on read. Got {forged:?}"
+    );
 }
 
 /// With a progenitor key in the DNA properties, a root grant is the

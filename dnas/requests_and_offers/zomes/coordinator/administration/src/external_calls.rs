@@ -1,6 +1,7 @@
-//! Calls into the `users_organizations` zome, for the grants a status change
-//! issues: a member's agents. The organisation side (the creator's
-//! coordinator grant on approval) arrives with the next PR in the stack.
+//! Calls into the `users_organizations` zome, for what a status change
+//! issues: a member grant for each of a member's agents on acceptance, and, on
+//! an organisation's first approval, the membership and coordinator links that
+//! go with its creator's coordinator grant.
 
 use hdk::prelude::*;
 use utils::external_local_call;
@@ -11,5 +12,27 @@ pub fn get_user_agents(user_original_action_hash: ActionHash) -> ExternResult<Ve
     "get_user_agents",
     "users_organizations",
     user_original_action_hash,
+  )
+}
+
+/// The user entity behind an agent, as links.
+pub fn get_agent_user(agent_pubkey: AgentPubKey) -> ExternResult<Vec<Link>> {
+  external_local_call("get_agent_user", "users_organizations", agent_pubkey)
+}
+
+/// Input for `register_approved_coordinator` in `users_organizations`.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ApprovedCoordinatorInput {
+  pub organization_original_action_hash: ActionHash,
+  pub user_original_action_hash: ActionHash,
+}
+
+/// Writes the membership and coordinator links an approval creates. Each
+/// carries the approver's own grant in its tag.
+pub fn register_approved_coordinator(input: ApprovedCoordinatorInput) -> ExternResult<bool> {
+  external_local_call(
+    "register_approved_coordinator",
+    "users_organizations",
+    input,
   )
 }

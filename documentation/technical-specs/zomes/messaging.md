@@ -212,7 +212,7 @@ The zome stores, delivers and reads. Everything a member would call "my messages
 ### 7.1. Screens
 
 - **`/messages`**: one row per person, built from messages, interests and exchanges with them. Filters by kind; archived conversations; a row for each message that arrived and could not be read, naming its sender.
-- **`/messages/[user]`**: the conversation with one member. Messages, shared listings, interests and proposals in time order, and a composer for an accepted member. Opening it marks it read, and it stays read as messages arrive while it is open.
+- **`/messages/[user]`**: the conversation with one member. Messages, shared listings, interests and proposals in time order, and a composer for an accepted member. Opening it marks it read, and it stays read as messages arrive while it is open, but only while the page is visible: a conversation left open in a hidden tab or a minimised window marks nothing, and sends no receipt, until the member comes back to it. The desktop app leaves Electron's background throttling on, so a minimised window reports hidden; a window only covered by another may still count as visible, depending on the platform.
 - **`/messages/blocked`**: who is blocked now, and the history of blocks and unblocks.
 
 ### 7.2. Reading
@@ -254,7 +254,7 @@ The blocked person is not told, and their messages are still stored: the zome kn
 
 ### 7.6. Receipts
 
-When a conversation's read mark advances and that conversation sends receipts, the interface calls `send_receipt` and carries the same mark in the body of the member's next message there. A message that was held and goes later from the outbox carries no mark. A receipt that arrives is clamped to the last message this member actually sent that person. "Read" is shown only where a receipt arrived.
+The read mark advances only while the conversation is on screen (the page is visible), so a hidden tab or a minimised window neither marks a message read nor tells its sender this device is awake. When a conversation's read mark advances and that conversation sends receipts, the interface calls `send_receipt` and carries the same mark in the body of the member's next message there. A message that was held and goes later from the outbox carries no mark. A receipt that arrives is clamped to the last message this member actually sent that person. "Read" is shown only where a receipt arrived.
 
 ### 7.7. A network without messaging
 

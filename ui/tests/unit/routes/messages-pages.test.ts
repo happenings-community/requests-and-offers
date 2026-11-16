@@ -36,7 +36,8 @@ const {
   requestByHash,
   respond,
   cancel,
-  withdrawInterest
+  withdrawInterest,
+  sendReceipt
 } = vi.hoisted(() => {
   const hash = (n: number) => new Uint8Array(Array(39).fill(n));
   return {
@@ -62,6 +63,8 @@ const {
     respond: vi.fn(),
     cancel: vi.fn(),
     withdrawInterest: vi.fn(),
+    /** A read receipt to the other person: what a hidden page must not send. */
+    sendReceipt: vi.fn(),
     /** Set to stand in for one lookup of a member by hash; otherwise the default below. */
     userByHash: vi.fn()
   };
@@ -82,7 +85,7 @@ vi.mock('$lib/services/zomes/messaging.service', async () => {
         skipped: []
       })),
     getSent: () => getSent(),
-    sendReceipt: () => Effect.void
+    sendReceipt: (...a: unknown[]) => sendReceipt(...a)
   };
   return { MessagingServiceTag, MessagingServiceLive: Layer.succeed(MessagingServiceTag, service) };
 });
@@ -153,7 +156,11 @@ vi.mock('$lib/stores/requests.store.svelte', async () => {
         const mine = myRequests();
         return Effect.isEffect(mine) ? mine : Effect.succeed(mine);
       },
-      getRequest: () => Effect.succeed(requestByHash()),
+      // An Effect stands in for a read still going, as for getMyListings.
+      getRequest: () => {
+        const request = requestByHash();
+        return Effect.isEffect(request) ? request : Effect.succeed(request);
+      },
       getOffer: () => Effect.succeed(null)
     }
   };
@@ -188,6 +195,18 @@ const fromAnita = (hash: Uint8Array, atMs: number, content: string) => ({
   at: atMs * 1000,
   content
 });
+/** What `document.visibilityState` says; jsdom's own cannot be set. */
+let visibility: DocumentVisibilityState = 'visible';
+Object.defineProperty(document, 'visibilityState', {
+  configurable: true,
+  get: () => visibility
+});
+/** The window is hidden or shown again, as a tab switch or a minimise does it. */
+const setVisibility = (state: DocumentVisibilityState) => {
+  visibility = state;
+  document.dispatchEvent(new Event('visibilitychange'));
+};
+
 const readMark = () =>
   (JSON.parse(localStorage.getItem(KEY) ?? '{}') as { readUpTo?: Record<string, number> })
     .readUpTo?.[anita] ?? 0;
@@ -214,6 +233,9 @@ beforeEach(() => {
     call.mockReturnValue(E.succeed(undefined));
   }
   userByHash.mockReset();
+  sendReceipt.mockReset();
+  sendReceipt.mockReturnValue(E.void);
+  visibility = 'visible';
   signedIn.current = { original_action_hash: hashes.ME, status: { status_type: 'accepted' } };
   setPage({ user: anita });
 });
@@ -275,6 +297,132 @@ describe('the conversation page', () => {
 
     expect((await screen.findByText(long)).className).toContain('[overflow-wrap:anywhere]');
     expect((await screen.findByText(`b${long}`)).className).toContain('[overflow-wrap:anywhere]');
+  });
+
+  /**
+   * A conversation left open in a hidden tab or a minimised window has been seen by
+   * nobody. Marking it read there sent a receipt: the other person saw "Read" for a
+   * message nobody saw, and learned that this device was awake (Sacha's review of 16
+   * November). **To make it go red:** drop `pageVisible()` from `markRead` in
+   * `useConversation`.
+   */
+  it('marks nothing read, and sends no receipt, while the page is hidden', async () => {
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, 'first')]));
+    render(ConversationPage);
+    expect(await screen.findByText('first')).toBeTruthy();
+    await waitFor(() => expect(readMark()).toBe(T));
+    await waitFor(() => expect(sendReceipt).toHaveBeenCalledTimes(1));
+
+    setVisibility('hidden');
+    getInbox.mockReturnValue(
+      E.succeed([fromAnita(hashes.M1, T, 'first'), fromAnita(hashes.M2, T + 60_000, 'second')])
+    );
+    await E.runPromise(messagingStore.loadConversations());
+    expect(await screen.findByText('second')).toBeTruthy();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(readMark(), 'not read while hidden').toBe(T);
+    expect(sendReceipt, 'no receipt while hidden').toHaveBeenCalledTimes(1);
+
+    setVisibility('visible');
+    await waitFor(() => expect(readMark(), 'read once shown').toBe(T + 60_000));
+    expect(sendReceipt).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * Opening is what marks a conversation read, so opening one in a hidden tab marked it
+   * too. **To make it go red:** drop `pageVisible()` from the mark in `initialize`.
+   */
+  it('marks a conversation opened in a hidden tab read only once it is shown', async () => {
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, 'first')]));
+    visibility = 'hidden';
+    render(ConversationPage);
+    expect(await screen.findByText('first')).toBeTruthy();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(readMark(), 'not read while hidden').toBe(0);
+    expect(sendReceipt).not.toHaveBeenCalled();
+
+    setVisibility('visible');
+    await waitFor(() => expect(readMark(), 'read once shown').toBe(T));
+    expect(sendReceipt).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Shown while it was still loading (here, reading the title of a listing an interest
+   * names), a conversation opened hidden found nothing to mark: the mark on opening had
+   * already said hidden, and the one on showing found it not loaded yet. It is marked
+   * once it has loaded. **To make it go red:** drop the `markRead()` after `loaded = true`
+   * in `useConversation`, leaving only the mark on opening, as before.
+   */
+  it('marks a conversation read that was shown while it was still loading', async () => {
+    let release: () => void = () => {};
+    const titleRead = new Promise<void>((resolve) => (release = resolve));
+    myInterests.mockReturnValue([
+      {
+        interest_hash: hashes.M1,
+        listing: hashes.M2,
+        listing_type: 'Request',
+        user: hashes.ME,
+        created_at: T - 1
+      }
+    ]);
+    requestByHash.mockReturnValue({ title: 'Bike repair', creator: ANITA });
+    getInbox.mockReturnValue(E.succeed([fromAnita(new Uint8Array(39).fill(8), T, 'first')]));
+    // The conversation is already in the store, as the layout's poll leaves it, so the
+    // timeline is whole from the first frame and never grows.
+    await E.runPromise(messagingStore.loadConversations());
+    let reached: () => void = () => {};
+    const titleAsked = new Promise<void>((resolve) => (reached = resolve));
+    // Opening reads the listing twice: the store's read of the conversations first, then
+    // the page's own read of its title. Only the second is held.
+    let reads = 0;
+    const bikeRepair = { title: 'Bike repair', creator: ANITA };
+    requestByHash.mockImplementation(() => {
+      reads += 1;
+      if (reads === 1) return bikeRepair;
+      reached();
+      return E.promise(() => titleRead).pipe(E.as(bikeRepair));
+    });
+    visibility = 'hidden';
+    render(ConversationPage);
+    await titleAsked;
+
+    // Shown while the page is reading the title, past the mark on opening.
+    setVisibility('visible');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(readMark(), 'nothing to mark until it has loaded').toBe(0);
+
+    release();
+    await waitFor(() => expect(readMark(), 'read once loaded').toBe(T));
+    expect(sendReceipt).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * A conversation left before it had finished loading is not marked when its read
+   * finishes, nor when the member next comes back to the tab from anywhere else in the
+   * app. The read of the member is held, so the page is always left mid-load. **To make
+   * it go red:** drop `!left` from `markRead` in `useConversation`. (It goes red too with
+   * the mark on opening as it was before this, which had no check on leaving; and the
+   * page also removes its listener when it is left, which this cannot tell apart.)
+   */
+  it('marks nothing once the page has been left', async () => {
+    let release: () => void = () => {};
+    const memberRead = new Promise<void>((resolve) => (release = resolve));
+    userByHash.mockImplementation(() =>
+      E.promise(() => memberRead).pipe(E.as({ name: 'Anita Rossi', original_action_hash: ANITA }))
+    );
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, 'first')]));
+    visibility = 'hidden';
+    render(ConversationPage);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    cleanup();
+
+    setVisibility('visible');
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(readMark()).toBe(0);
+    expect(sendReceipt).not.toHaveBeenCalled();
   });
 
   /**

@@ -8,10 +8,11 @@ import MenuDrawer from '$lib/components/shared/drawers/MenuDrawer.svelte';
  * (review of 16 October, F14).
  */
 
-const { presence, unread, member } = vi.hoisted(() => ({
+const { presence, unread, member, exchanges } = vi.hoisted(() => ({
   member: { status: 'accepted' },
   presence: { isAbsent: false },
-  unread: { count: undefined as number | undefined }
+  unread: { count: undefined as number | undefined },
+  exchanges: { list: [] as unknown[] }
 }));
 
 vi.mock('@skeletonlabs/skeleton', () => ({
@@ -42,11 +43,24 @@ vi.mock('$lib/stores/administration.store.svelte', () => ({
   default: { agentIsAdministrator: false }
 }));
 
+vi.mock('$lib/stores/exchanges.store.svelte', () => ({
+  default: {
+    get exchanges() {
+      return exchanges.list;
+    }
+  }
+}));
+vi.mock('$lib/utils/exchange-ui', () => ({
+  // Whose turn it is, as `turnOf` would answer for these two: one waits on me.
+  turnOf: (e: { waitsOnMe: boolean }) => (e.waitsOnMe ? 'you' : 'them')
+}));
+
 beforeEach(() => {
   cleanup();
   member.status = 'accepted';
   presence.isAbsent = false;
   unread.count = undefined;
+  exchanges.list = [{ waitsOnMe: true }, { waitsOnMe: false }];
 });
 
 describe('the mobile menu', () => {
@@ -87,5 +101,21 @@ describe('the mobile menu', () => {
 
     expect(screen.queryByTestId('drawer-messages')).toBeNull();
     expect(screen.queryByText('My Activity')).toBeNull();
+  });
+
+  it('counts exchanges waiting on me on My Exchanges where there is no messaging, as the bar does', () => {
+    presence.isAbsent = true;
+    render(MenuDrawer);
+
+    const link = screen.getByRole('link', { name: /My Exchanges/ });
+    expect(link.textContent).toContain('1 waiting on you');
+  });
+
+  it('puts no count on My Exchanges where there is messaging', () => {
+    render(MenuDrawer);
+
+    expect(screen.getByRole('link', { name: /My Exchanges/ }).textContent).not.toMatch(
+      /waiting on you/
+    );
   });
 });

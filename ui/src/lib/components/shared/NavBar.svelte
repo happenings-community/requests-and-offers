@@ -1,7 +1,6 @@
 <script lang="ts">
   import Bars from '$lib/components/shared/svg/bars.svelte';
   import messagingPresence from '$lib/services/messagingPresence.svelte';
-  import { getUnreadCount, unreadCountLabel } from '$lib/extensions/unread-count';
   import {
     getDrawerStore,
     popup,
@@ -10,6 +9,8 @@
   } from '@skeletonlabs/skeleton';
   import NavDropdown from '$lib/components/shared/NavDropdown.svelte';
   import NavIcon from '$lib/components/shared/svg/NavIcon.svelte';
+  import NavTip from '$lib/components/shared/NavTip.svelte';
+  import { useNavCounts, shownCount } from '$lib/navigation/nav-counts.svelte';
   import { page } from '$app/state';
   import { getUserPictureUrl, isUserApproved } from '$lib/utils';
   import { myProfileItems } from '$lib/navigation/my-menu';
@@ -17,7 +18,6 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
-  import { turnOf } from '$lib/utils/exchange-ui';
   import { runEffect } from '$lib/utils/effect';
   import { ADMIN_SHORTCUT_ARIA } from '$lib/utils/admin-shortcut';
   import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
@@ -78,47 +78,17 @@
   const isCurrent = (href: string) =>
     page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);
 
-  /**
-   * Exchanges waiting on this member, for a network without messaging: derived from the
-   * store's read model and `turnOf`, cleared by acting, not by looking.
-   */
-  const pendingCount = $derived(
-    exchangesStore.exchanges.filter(
-      (e) => turnOf(e, usersStore.currentUser?.original_action_hash) === 'you'
-    ).length
-  );
-
-  /**
-   * The badge, from whatever messaging plugged in (brief H4, rule 2).
-   *
-   * **Shared chrome may ask whether messaging is here; it may not reach it.** Counting
-   * unopened conversations means reading the messaging store and keeping a poll alive, so
-   * messaging supplies the number and the root layout plugs it in. `undefined` means
-   * nothing is plugged in, which is both a network without messaging and the moment before
-   * the first poll returns: no badge either way, since a confident 0 would be a claim
-   * nobody has checked.
-   *
-   * It still counts conversations rather than items, and the same number My Messages shows,
-   * read from one place so the two cannot disagree.
-   */
-  const unread = getUnreadCount();
-  const unreadCount = $derived(unread());
-
   // **My Exchanges and My Listings are links on the bar, and Messages an envelope**
   // (Sam, 16 November): they are among the most visited screens, and a dropdown named
   // for the member hid them. The menu under the member's picture is their profile.
   //
-  // **No number on My Exchanges where there is messaging** (Sam, 4 October). A proposal
-  // arriving is one thing to deal with, and there it is already counted as an unopened
-  // conversation on the envelope; a second badge over the same event made it look like
-  // two. An exchange waiting on this member says "Your turn" on its own row instead.
-  // **Without messaging nothing else counts it**, so My Exchanges keeps the number: the
-  // exchanges waiting on this member.
   // **The member's own screens are for accepted members** (#349 review, Sam 17 November):
   // My Exchanges, My Listings and Messages all sit behind the Members only wall, so a
   // pending or suspended member gets no links that end there.
   const accepted = $derived(isUserApproved(currentUser));
-  const exchangesBadge = $derived(messagingPresence.isAbsent ? pendingCount : 0);
+  // The counts (unopened conversations on the envelope; exchanges waiting on My Exchanges
+  // only where there is no messaging) come from one place, which the drawer reads too.
+  const counts = useNavCounts();
 
   // **The envelope is only here when this network has messaging** (R121, brief H4). Read
   // from the DNA through H2's module, which is the one question shared chrome may ask.
@@ -126,7 +96,12 @@
   // only if the DNA says this network has no messaging. It has no word on screen, so its
   // name, and the count in words, are in its label and its tooltip.
   const messagesLabel = $derived(
-    unreadCount ? `Messages, ${unreadCountLabel(unreadCount)}` : 'Messages'
+    counts.unreadCount ? `Messages, ${counts.totalLabel}` : 'Messages'
+  );
+
+  // The menu button is the whole bar on a narrow window, so it carries the count too.
+  const menuButtonLabel = $derived(
+    counts.total ? `Open navigation menu, ${counts.totalLabel}` : 'Open navigation menu'
   );
 
   onMount(() => {
@@ -251,30 +226,30 @@
       {#if accepted}
         <a
           href={paths.exchanges()}
-          class="inline-flex items-center gap-1.5 whitespace-nowrap rounded px-2 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 aria-[current=page]:bg-white/15"
+          class="group relative inline-flex items-center gap-1.5 whitespace-nowrap rounded px-2 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 aria-[current=page]:bg-white/15"
           aria-current={isCurrent(paths.exchanges()) ? 'page' : undefined}
-          title="My Exchanges"
           data-testid="nav-exchanges"
         >
           <NavIcon name="exchanges" />
           <!-- The word only where the bar has room for it; a screen reader always has it. -->
           <span class="sr-only xl:not-sr-only">My Exchanges</span>
-          {#if exchangesBadge}
+          <NavTip text="My Exchanges" class="xl:hidden" />
+          {#if counts.exchangesBadge}
             <span class="badge bg-white px-1.5 py-0 text-xs font-semibold text-primary-700"
-              ><span aria-hidden="true">{exchangesBadge > 9 ? '9+' : exchangesBadge}</span><span
-                class="sr-only">{exchangesBadge} waiting on you</span
+              ><span aria-hidden="true">{shownCount(counts.exchangesBadge)}</span><span
+                class="sr-only">{counts.exchangesBadge} waiting on you</span
               ></span
             >
           {/if}
         </a>
         <a
           href={paths.myListings()}
-          class="inline-flex items-center gap-1.5 whitespace-nowrap rounded px-2 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 aria-[current=page]:bg-white/15"
+          class="group relative inline-flex items-center gap-1.5 whitespace-nowrap rounded px-2 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 aria-[current=page]:bg-white/15"
           aria-current={isCurrent(paths.myListings()) ? 'page' : undefined}
-          title="My Listings"
         >
           <NavIcon name="listings" />
           <span class="sr-only xl:not-sr-only">My Listings</span>
+          <NavTip text="My Listings" class="xl:hidden" />
         </a>
       {/if}
 
@@ -285,17 +260,17 @@
     {#if accepted && !messagingPresence.isAbsent}
       <a
         href={paths.messages()}
-        class="relative inline-flex h-10 w-10 items-center justify-center rounded text-white transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 aria-[current=page]:bg-white/15"
+        class="group relative inline-flex h-10 w-10 items-center justify-center rounded text-white transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 aria-[current=page]:bg-white/15"
         aria-label={messagesLabel}
-        title={messagesLabel}
         aria-current={isCurrent(paths.messages()) ? 'page' : undefined}
         data-testid="nav-messages"
       >
         <NavIcon name="mail" class="h-6 w-6" />
-        {#if unreadCount}
+        <NavTip text={messagesLabel} />
+        {#if counts.unreadCount}
           <span
             class="badge absolute -right-1 -top-0.5 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700 ring-2 ring-primary-500"
-            aria-hidden="true">{unreadCount > 9 ? '9+' : unreadCount}</span
+            aria-hidden="true">{shownCount(counts.unreadCount)}</span
           >
         {/if}
       </a>
@@ -363,11 +338,18 @@
 
   <!-- Mobile Menu Button -->
   <button
-    class="variant-filled-secondary btn shadow-md transition-shadow hover:shadow-lg lg:hidden"
+    class="variant-filled-secondary btn relative shadow-md transition-shadow hover:shadow-lg lg:hidden"
     onclick={openDrawer}
-    aria-label="Open navigation menu"
+    aria-label={menuButtonLabel}
+    data-testid="menu-button"
   >
     <Bars svgClass="fill-white h-6 w-6" />
+    {#if counts.total}
+      <span
+        class="badge absolute -right-1.5 -top-1.5 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700 ring-2 ring-primary-500"
+        aria-hidden="true">{shownCount(counts.total)}</span
+      >
+    {/if}
   </button>
 </nav>
 

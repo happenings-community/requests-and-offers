@@ -5,7 +5,7 @@
   import { getUserPictureUrl, isUserApproved } from '$lib/utils';
   import { MY_MESSAGES, myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
   import messagingPresence from '$lib/services/messagingPresence.svelte';
-  import { getUnreadCount, unreadCountLabel } from '$lib/extensions/unread-count';
+  import { useNavCounts } from '$lib/navigation/nav-counts.svelte';
   import { paths } from '$lib/paths';
   import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
 
@@ -19,13 +19,13 @@
     needsSelfAcceptance(agentIsAdministrator, currentUser?.status?.status_type)
   );
 
-  // My Messages: the same entry as the nav bar's envelope, asked for
-  // the same way: whether this network has messaging comes from the one presence module,
-  // and the count from the extension point, so the drawer knows nothing of messaging
+  // My Messages: the same entry as the nav bar's envelope, asked for the same way:
+  // whether this network has messaging comes from the one presence module, and the counts
+  // from the one place the nav bar reads them, so the drawer knows nothing of messaging
   // itself. On a narrow screen this is the only menu, and without the entry the only way
-  // to Messages was a Go to chat link or the address bar.
-  const unread = getUnreadCount();
-  const unreadCount = $derived(unread());
+  // to Messages was a Go to chat link or the address bar. My Exchanges carries the
+  // exchanges waiting on the member where there is no messaging, as on the bar.
+  const counts = useNavCounts();
 
   function closeDrawer() {
     drawerStore.close();
@@ -115,6 +115,11 @@
         <div class="space-y-2">
           {#each activity as item (item.href)}
             {@const isMessages = item.href === MY_MESSAGES.href}
+            {@const badge = isMessages
+              ? counts.unreadCount
+              : item.href === paths.exchanges()
+                ? counts.exchangesBadge
+                : 0}
             <a
               href={item.href}
               onclick={closeDrawer}
@@ -123,11 +128,11 @@
             >
               <span class="text-lg">{item.icon}</span>
               <span>{item.label}</span>
-              {#if isMessages && unreadCount}
+              {#if badge}
                 <!-- Said in words: a bare number told a screen reader nothing. -->
                 <span class="variant-filled-secondary badge ml-auto"
-                  ><span aria-hidden="true">{unreadCount}</span><span class="sr-only"
-                    >{unreadCountLabel(unreadCount)}</span
+                  ><span aria-hidden="true">{badge}</span><span class="sr-only"
+                    >{isMessages ? counts.totalLabel : `${badge} waiting on you`}</span
                   ></span
                 >
               {/if}

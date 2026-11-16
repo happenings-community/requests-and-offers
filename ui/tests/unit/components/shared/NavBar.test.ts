@@ -85,7 +85,8 @@ describe('the nav bar', () => {
     const link = envelope();
     expect(link?.getAttribute('href')).toBe('/messages');
     expect(link?.getAttribute('aria-label')).toBe('Messages, 2 unopened conversations');
-    expect(link?.getAttribute('title'), 'the tooltip says the same').toBe(
+    // The app draws the tooltip: Electron on macOS does not show a title reliably.
+    expect(link?.querySelector('[data-testid="nav-tip"]')?.textContent).toBe(
       'Messages, 2 unopened conversations'
     );
     expect(exchangesLink().textContent).not.toMatch(/waiting on you/);
@@ -113,6 +114,8 @@ describe('the nav bar', () => {
     expect(screen.queryByRole('link', { name: /My Exchanges/ })).toBeNull();
     expect(screen.queryByRole('link', { name: /My Listings/ })).toBeNull();
     expect(screen.queryByTestId('nav-messages')).toBeNull();
+    // Nor a count on the menu button that stands in for the bar on a narrow screen.
+    expect(screen.getByRole('button', { name: 'Open navigation menu' })).toBeTruthy();
   });
 
   it('puts My Exchanges and My Listings on the bar, with no My Activity or Resources menu', () => {
@@ -122,11 +125,13 @@ describe('the nav bar', () => {
     expect(screen.getByRole('link', { name: 'My Listings' }).getAttribute('href')).toBe(
       '/my-listings'
     );
-    // Below xl the bar shows the icons only: the words stay for a screen reader and the
-    // tooltip says them on hover.
+    // Below xl the bar shows the icons only: the words stay for a screen reader, and the
+    // app's own tooltip says them on hover and on keyboard focus.
     for (const link of [exchangesLink(), screen.getByRole('link', { name: 'My Listings' })]) {
       expect(link.querySelector('.sr-only.xl\\:not-sr-only')).toBeTruthy();
-      expect(link.getAttribute('title')).toMatch(/^My (Exchanges|Listings)$/);
+      expect(link.querySelector('[data-testid="nav-tip"]')?.textContent).toMatch(
+        /^My (Exchanges|Listings)$/
+      );
     }
     expect(screen.queryByRole('button', { name: /my activity/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /resources/i })).toBeNull();
@@ -164,5 +169,34 @@ describe('the nav bar', () => {
     const status = screen.getByRole('button', { name: /^Connection status/ });
     expect(status.querySelector('[data-status]')).toBeTruthy();
     expect(status.textContent?.trim()).toBe('');
+  });
+
+  it('puts the unopened count on the menu button, which is the whole bar on a narrow window', () => {
+    unread.count = 3;
+    render(NavBar);
+
+    const button = screen.getByTestId('menu-button');
+    expect(button.getAttribute('aria-label')).toBe(
+      'Open navigation menu, 3 unopened conversations'
+    );
+    expect(button.textContent).toContain('3');
+  });
+
+  it('puts the exchanges waiting on me on the menu button where there is no messaging', () => {
+    presence.isAbsent = true;
+    unread.count = 3;
+    render(NavBar);
+
+    expect(screen.getByTestId('menu-button').getAttribute('aria-label')).toBe(
+      'Open navigation menu, 1 waiting on you'
+    );
+  });
+
+  it('leaves the menu button plain when nothing is waiting', () => {
+    render(NavBar);
+
+    const button = screen.getByTestId('menu-button');
+    expect(button.getAttribute('aria-label')).toBe('Open navigation menu');
+    expect(button.textContent?.trim()).toBe('');
   });
 });

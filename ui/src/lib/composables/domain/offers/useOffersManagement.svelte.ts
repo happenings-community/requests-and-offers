@@ -3,6 +3,7 @@ import type { UIOffer, BaseComposableState, UIUser } from '$lib/types/ui';
 // Note: Using local error types for now during bridge implementation
 import offersStore from '$lib/stores/offers.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
+import { formatUserName } from '$lib/schemas/users.schemas';
 import administrationStore from '$lib/stores/administration.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils';
@@ -262,7 +263,8 @@ export function useOffersManagement(): UseOffersManagement {
   // Get user display name helper
   function getUserDisplayName(user: UIUser | null): string {
     if (!user) return 'Anonymous';
-    return user.nickname || 'Anonymous';
+    // The nickname is optional (#139): fall back to the member's name.
+    return user.nickname || formatUserName(user.name) || 'Anonymous';
   }
 
   // Check if user can create offers (accepted users or administrators)

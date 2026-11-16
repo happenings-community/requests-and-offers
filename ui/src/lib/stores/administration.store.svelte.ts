@@ -739,18 +739,9 @@ export const createAdministrationStore = (): E.Effect<
           E.all(
             links.map((link) =>
               pipe(
+                // getLatestUser reads the member's status itself; a second read here
+                // doubled the calls of every refresh (#411 review: 30 of 62).
                 usersStore.getLatestUser(link.target),
-                E.flatMap((user) => {
-                  if (!user) return E.succeed(null);
-                  return pipe(
-                    getLatestStatusForEntity(link.target, AdministrationEntity.Users),
-                    E.map((status) => ({ ...user, status: status || undefined }) as UIUser),
-                    E.catchAll(() => {
-                      // Return user without status rather than null if status fetch fails
-                      return E.succeed({ ...user, status: undefined } as UIUser);
-                    })
-                  );
-                }),
                 E.catchAll(() => E.succeed(null))
               )
             )
@@ -777,24 +768,9 @@ export const createAdministrationStore = (): E.Effect<
           E.all(
             links.map((link) =>
               pipe(
+                // getLatestOrganization reads the organization's status itself; a second
+                // read here doubled the calls of every refresh (#411 review).
                 organizationsStore.getLatestOrganization(link.target),
-                E.flatMap((organization) => {
-                  if (!organization) return E.succeed(null);
-                  return pipe(
-                    getLatestStatusForEntity(link.target, AdministrationEntity.Organizations),
-                    E.map(
-                      (status) =>
-                        ({ ...organization, status: status || undefined }) as UIOrganization
-                    ),
-                    E.catchAll(() => {
-                      // Return organization without status rather than null if status fetch fails
-                      return E.succeed({
-                        ...organization,
-                        status: undefined
-                      } as UIOrganization);
-                    })
-                  );
-                }),
                 E.catchAll(() => E.succeed(null))
               )
             )

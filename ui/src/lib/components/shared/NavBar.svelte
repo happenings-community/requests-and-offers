@@ -100,7 +100,6 @@
     counts.unreadCount ? `Messages, ${counts.totalLabel}` : 'Messages'
   );
 
-
   onMount(() => {
     const refresh = () => {
       if (!usersStore.currentUser) return;
@@ -127,9 +126,13 @@
   // The Admin menu (#359), with who is waiting to be accepted. Read from the
   // store's lists, which the admin pages fill too; refreshed while the member
   // is an administrator, once a minute, so a new application shows without a
-  // visit to the dashboard. The refresh is the background kind: no loading
-  // flag, and its answer is dropped if the administrator wrote a status while
-  // it was on its way, so a tick never undoes a suspend on screen (#340).
+  // visit to the dashboard. The refresh is the background kind for the
+  // administration store: no loading flag there, and its answer is dropped if
+  // the administrator wrote a status while it was on its way, so a tick never
+  // undoes a suspend on screen (#340). It reads each entry through the users
+  // and organisations stores, whose loading flags do rise during a tick; nothing
+  // an administrator with a profile sees hides behind them (review of 15 November).
+  // A read that only counts, whatever the network's size, is #499.
   const adminItems = $derived(
     adminMenuItems(adminWaiting(administrationStore.allUsers, administrationStore.allOrganizations))
   );

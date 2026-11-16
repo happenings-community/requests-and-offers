@@ -13,8 +13,14 @@ import { visit } from '../../../mocks/app-state';
  * on every network left a network without messaging with no sign of a proposal at all.
  */
 
-const { presence, unread, exchanges, member } = vi.hoisted(() => ({
+const { presence, unread, exchanges, member, admin } = vi.hoisted(() => ({
   member: { status: 'accepted' },
+  admin: {
+    agentIsAdministrator: false,
+    allUsers: [] as unknown[],
+    allOrganizations: [] as unknown[],
+    refreshLists: () => ({})
+  },
   presence: { isAbsent: false },
   unread: { count: undefined as number | undefined },
   exchanges: { list: [] as unknown[] }
@@ -42,9 +48,7 @@ vi.mock('$lib/stores/users.store.svelte', () => ({
     }
   }
 }));
-vi.mock('$lib/stores/administration.store.svelte', () => ({
-  default: { agentIsAdministrator: false }
-}));
+vi.mock('$lib/stores/administration.store.svelte', () => ({ default: admin }));
 vi.mock('$lib/stores/exchanges.store.svelte', () => ({
   default: {
     get exchanges() {
@@ -72,6 +76,8 @@ beforeEach(() => {
   cleanup();
   visit('/');
   member.status = 'accepted';
+  admin.agentIsAdministrator = false;
+  admin.allUsers = [];
   presence.isAbsent = false;
   unread.count = undefined;
   exchanges.list = [{ waitsOnMe: true }, { waitsOnMe: false }];
@@ -198,5 +204,37 @@ describe('the nav bar', () => {
     const button = screen.getByTestId('menu-button');
     expect(button.getAttribute('aria-label')).toBe('Open navigation menu');
     expect(button.textContent?.trim()).toBe('');
+  });
+
+  describe('as an administrator with one member waiting', () => {
+    beforeEach(() => {
+      admin.agentIsAdministrator = true;
+      admin.allUsers = [
+        { status: { status_type: 'pending' } },
+        { status: { status_type: 'accepted' } }
+      ];
+    });
+
+    it('counts who is waiting on the Admin menu, with no aria-keyshortcuts and the Alt+A hint as its description', () => {
+      render(NavBar);
+
+      const button = screen.getByRole('button', { name: 'Admin menu, 1 waiting to be accepted' });
+      // Alt+A moves between a page and its admin view; it does not open this menu.
+      expect(button.hasAttribute('aria-keyshortcuts')).toBe(false);
+      expect(document.getElementById(button.getAttribute('aria-describedby')!)?.textContent).toBe(
+        'Alt+A switches between a page and its admin view'
+      );
+    });
+
+    it("adds who is waiting to the menu button, after the member's own count", () => {
+      unread.count = 2;
+      render(NavBar);
+
+      const menuButton = screen.getByTestId('menu-button');
+      expect(menuButton.getAttribute('aria-label')).toBe(
+        'Open navigation menu, 2 unopened conversations, 1 waiting to be accepted'
+      );
+      expect(menuButton.textContent).toContain('3');
+    });
   });
 });

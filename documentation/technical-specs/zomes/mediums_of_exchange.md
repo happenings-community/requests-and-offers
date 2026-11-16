@@ -217,12 +217,12 @@ Input/Output structs are defined in Rust for type safety and clarity.
 #### Cross-Entity Discovery Functions
 
 - **`get_requests_for_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternResult<Vec<Record>>`**
-  - **Description**: Retrieves all requests linked to a specific medium of exchange.
+  - **Description**: Retrieves all requests linked to a specific medium of exchange. A link whose record no longer reads is skipped, so one deleted listing does not fail the list.
   - **Access Control**: Public.
   - **Returns**: A vector of Request `Record`s.
 
 - **`get_offers_for_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternResult<Vec<Record>>`**
-  - **Description**: Retrieves all offers linked to a specific medium of exchange.
+  - **Description**: Retrieves all offers linked to a specific medium of exchange. A link whose record no longer reads is skipped, as for requests.
   - **Access Control**: Public.
   - **Returns**: A vector of Offer `Record`s.
 

@@ -218,7 +218,7 @@ During an update, the `requests_coordinator` zome replaces the `RequestToService
 pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool>
 ```
 
-Deletes a request, every revision of it, and all associated links: its place in the requests, member and organisation lists, the active and archived lists, and the service type and medium of exchange links, which each edit makes from its own revision. A revision's hash is accepted and resolved to the chain root first. Before #229 a delete matched only the hash it was given and deleted only that record, so an edited request stayed in the active list and under its service type, and its other revisions could still be read.
+Deletes a request, every revision of it, and all associated links: its place in the requests, member and organisation lists, the active and archived lists, and the service type and medium of exchange links, which each edit makes from its own revision. A revision's hash is accepted and walked back to the chain root first; if it cannot be, the delete fails rather than delete only what it was given. Before #229 a delete matched only the hash it was given and deleted only that record, so an edited request stayed in the active list and under its service type, and its other revisions could still be read.
 
 **Parameters:**
 

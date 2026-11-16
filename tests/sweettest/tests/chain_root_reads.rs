@@ -10,7 +10,10 @@
 //! which an edit moves to the newest revision, nor the service type and medium links each
 //! edit makes from its revision, and it deleted only the one record it was given. Each
 //! delete case is one the unpatched zomes leave listed: two edits deleted through the
-//! first revision, or one edit deleted through the root.
+//! first revision, or one edit deleted through the root. Three more: an archived listing
+//! deleted leaves the archived list; a listing whose edit named a medium again leaves the
+//! medium's list, with no link left from the revision; and a service type's list holding
+//! a link whose listing no longer reads skips it, where it failed the whole list.
 
 use holochain::prelude::*;
 use holochain::sweettest::*;
@@ -512,4 +515,148 @@ async fn a_medium_of_exchange_read_through_its_first_revision_is_its_latest() {
     let latest: MediumOfExchange =
         latest.expect("found").entry().to_app_option().unwrap().expect("entry");
     assert_eq!(latest.name, "Second edit", "read from a revision, the latest is the second edit");
+}
+
+// ── What a listing delete removes, case by case ──────────────
+
+/// An approved medium of exchange, to name on a listing.
+async fn an_approved_medium(
+    conductors: &SweetConductorBatch,
+    alice: &SweetCell,
+    bob: &SweetCell,
+    code: &str,
+) -> ActionHash {
+    let suggested: Record = conductors[0]
+        .call(
+            &alice.zome("mediums_of_exchange"),
+            "suggest_medium_of_exchange",
+            sample_medium_of_exchange(code, code),
+        )
+        .await;
+    let medium = hash_of(&suggested);
+    await_consistency_s(15, [alice, bob]).await.unwrap();
+    let _: () = conductors[0]
+        .call(&alice.zome("mediums_of_exchange"), "approve_medium_of_exchange", medium.clone())
+        .await;
+    await_consistency_s(15, [alice, bob]).await.unwrap();
+    medium
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_archived_offer_deleted_leaves_the_archived_list() {
+    let (conductors, alice, bob, _, st_hash) = alice_ready().await;
+
+    let created: Record = conductors[0]
+        .call(&alice.zome("offers"), "create_offer", sample_offer("Created", st_hash.clone()))
+        .await;
+    let root = hash_of(&created);
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    let _: bool = conductors[0]
+        .call(&alice.zome("offers"), "archive_offer", root.clone())
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    let archived: Vec<Record> = conductors[1]
+        .call(&bob.zome("offers"), "get_archived_offers", ())
+        .await;
+    assert_eq!(archived.len(), 1, "archived before the delete");
+
+    let _: bool = conductors[0]
+        .call(&alice.zome("offers"), "delete_offer", root)
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let archived: Vec<Record> = conductors[1]
+        .call(&bob.zome("offers"), "get_archived_offers", ())
+        .await;
+    assert!(archived.is_empty(), "not in the archived list");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_offer_edited_with_a_medium_and_deleted_leaves_the_medium_list() {
+    let (conductors, alice, bob, _, st_hash) = alice_ready().await;
+    let medium = an_approved_medium(&conductors, &alice, &bob, "HOURS").await;
+
+    let mut input = sample_offer("Created", st_hash.clone());
+    input.medium_of_exchange_hashes = vec![medium.clone()];
+    let created: Record = conductors[0]
+        .call(&alice.zome("offers"), "create_offer", input)
+        .await;
+    let root = hash_of(&created);
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    // The edit names the medium again, so its link is made from the revision.
+    let edited: Record = conductors[0]
+        .call(
+            &alice.zome("offers"),
+            "update_offer",
+            serde_json::json!({
+                "original_action_hash": root,
+                "previous_action_hash": root,
+                "updated_offer": sample_offer("Edited", st_hash.clone()).offer,
+                "service_type_hash": st_hash,
+                "medium_of_exchange_hashes": [medium]
+            }),
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let _: bool = conductors[0]
+        .call(&alice.zome("offers"), "delete_offer", root)
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let for_medium: Vec<Record> = conductors[1]
+        .call(&bob.zome("mediums_of_exchange"), "get_offers_for_medium_of_exchange", medium)
+        .await;
+    assert!(for_medium.is_empty(), "not under its medium of exchange");
+    // The list skips a listing that reads nothing, so it cannot tell a removed link from
+    // one left pointing at a deleted revision. The revision's own links can.
+    let from_revision: Vec<ActionHash> = conductors[1]
+        .call(
+            &bob.zome("mediums_of_exchange"),
+            "get_mediums_of_exchange_for_entity",
+            serde_json::json!({ "original_action_hash": hash_of(&edited), "entity": "offer" }),
+        )
+        .await;
+    assert!(from_revision.is_empty(), "no medium link left from the revision");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_service_type_list_skips_a_link_whose_listing_reads_nothing() {
+    let (conductors, alice, bob, _, st_hash) = alice_ready().await;
+
+    let kept: Record = conductors[0]
+        .call(&alice.zome("offers"), "create_offer", sample_offer("Kept", st_hash.clone()))
+        .await;
+    let gone: Record = conductors[0]
+        .call(&alice.zome("offers"), "create_offer", sample_offer("Gone", st_hash.clone()))
+        .await;
+    let gone = hash_of(&gone);
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    let _: bool = conductors[0]
+        .call(&alice.zome("offers"), "delete_offer", gone.clone())
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    // A link that outlived its listing, as one does while the link's authority and the
+    // record's have not caught up with each other.
+    let _: () = conductors[0]
+        .call(
+            &alice.zome("service_types"),
+            "link_to_service_type",
+            ServiceTypeLinkInput {
+                service_type_hash: st_hash.clone(),
+                action_hash: gone,
+                entity: "offer".to_string(),
+            },
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let for_type: Vec<Record> = conductors[1]
+        .call(&bob.zome("service_types"), "get_offers_for_service_type", st_hash)
+        .await;
+    assert_eq!(
+        for_type.iter().map(hash_of).collect::<Vec<_>>(),
+        vec![hash_of(&kept)],
+        "the list holds the listing that reads, and skips the one that does not"
+    );
 }

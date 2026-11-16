@@ -1,10 +1,12 @@
 use hdk::prelude::*;
 use requests_integrity::*;
 use utils::{
+  chain_hashes, delete_chain,
   errors::{AdministrationError, CommonError, UsersError},
-  resolve_chain_root, EntityActionHash, GetMediumOfExchangeForEntityInput,
-  GetServiceTypeForEntityInput, MediumOfExchangeLinkInput, OriginalActionHash, PreviousActionHash,
-  ServiceTypeLinkInput, UpdateMediumOfExchangeLinksInput, UpdateServiceTypeLinksInput,
+  find_original_action_hash, get_update_links, resolve_chain_root, EntityActionHash,
+  GetMediumOfExchangeForEntityInput, GetServiceTypeForEntityInput, MediumOfExchangeLinkInput,
+  OriginalActionHash, PreviousActionHash, ServiceTypeLinkInput, UpdateMediumOfExchangeLinksInput,
+  UpdateServiceTypeLinksInput,
 };
 
 use crate::external_calls::{
@@ -439,7 +441,9 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
 pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
   // A client may hold a revision. Every link this removes points at the chain root, so
   // from a revision none matched and the deleted request stayed listed.
-  let original_action_hash = resolve_chain_root(original_action_hash);
+  // A delete does not go ahead on a guess: if the chain cannot be walked to its root, it
+  // fails.
+  let original_action_hash = find_original_action_hash(original_action_hash)?.0;
   let original_record = get(original_action_hash.clone(), GetOptions::default())?.ok_or(
     CommonError::EntryNotFound("Could not find the original request".to_string()),
   )?;
@@ -457,26 +461,15 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
   // The request's update links, and with them every revision of it. Read before anything
   // is removed: each edit links its service type and mediums from the new revision and
   // moves the active list to it, so all of them are cleaned up below, not only the root.
-  let link_type_filter = LinkTypes::RequestUpdates
-    .try_into_filter()
-    .map_err(|e| CommonError::LinkError(e.to_string()))?;
-  let update_links = get_links(
-    LinkQuery::new(original_action_hash.clone(), link_type_filter),
-    GetStrategy::Network,
-  )?;
-  let mut revisions = vec![original_action_hash.clone()];
-  revisions.extend(
-    update_links
-      .iter()
-      .filter_map(|link| link.target.clone().into_action_hash()),
-  );
+  let update_links = get_update_links(original_action_hash.clone(), LinkTypes::RequestUpdates)?;
+  let revisions = chain_hashes(&original_action_hash, &update_links);
 
   // Delete all requests links
   let path = Path::from("requests");
   let path_hash = path.path_entry_hash()?;
   let link_type_filter = LinkTypes::AllRequests
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let requests_links = get_links(
     LinkQuery::new(path_hash.clone(), link_type_filter),
     GetStrategy::Network,
@@ -494,7 +487,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
   // Delete user links
   let link_type_filter = LinkTypes::RequestCreator
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let user_links = get_links(
     LinkQuery::new(original_action_hash.clone(), link_type_filter),
     GetStrategy::Network,
@@ -506,7 +499,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
       // Find and delete the UserRequests link
       let link_type_filter = LinkTypes::UserRequests
         .try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+        .map_err(|e| CommonError::LinkError(e.to_string()))?;
       let user_requests_links = get_links(
         LinkQuery::new(user_hash.clone(), link_type_filter),
         GetStrategy::Network,
@@ -528,7 +521,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
 
   let link_type_filter = LinkTypes::RequestOrganization
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let org_links = get_links(
     LinkQuery::new(original_action_hash.clone(), link_type_filter),
     GetStrategy::Network,
@@ -541,7 +534,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
       // Find and delete the OrganizationRequests link
       let link_type_filter = LinkTypes::OrganizationRequests
         .try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+        .map_err(|e| CommonError::LinkError(e.to_string()))?;
       let org_requests_links = get_links(
         LinkQuery::new(org_hash.clone(), link_type_filter),
         GetStrategy::Network,
@@ -604,10 +597,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
 
   // Finally delete the request: each revision, so none is read on its own once the root
   // is gone, then the root.
-  for revision in revisions.iter().skip(1) {
-    delete_entry(revision.clone())?;
-  }
-  delete_entry(original_action_hash.clone())?;
+  delete_chain(&revisions)?;
 
   Ok(true)
 }

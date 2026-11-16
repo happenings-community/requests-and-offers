@@ -31,7 +31,9 @@ let progenitor_configured = DnaProperties::get_progenitor_pubkey()?.is_some();
 let should_auto_register = if progenitor_configured {
     is_prog  // production: only the progenitor auto-registers
 } else {
-    no_admins_yet.is_empty()  // dev mode: first user auto-registers
+    // dev mode: first user auto-registers. Asked of the grants, not the roster:
+    // administration::is_there_an_administrator
+    !an_administrator_exists
 };
 
 if should_auto_register {
@@ -41,20 +43,21 @@ if should_auto_register {
 
 ### Step 3: Progenitor bypass in add_administrator
 
-The `add_administrator` function in the `administration` coordinator zome accepts the call from any agent who is either the progenitor or an existing administrator:
+The `add_administrator` function in the `administration` coordinator zome writes an admin grant for each agent key that does not already hold one. What the grant rests on is settled by `authority_for` (`grants.rs`):
 
 ```rust
-// administration::administration.rs — simplified
-let is_admin = get_administrators()?.contains(&caller);
-let is_prog  = check_if_progenitor()?;
-let no_admins = get_administrators()?.is_empty();
-
-if !is_admin && !is_prog && !no_admins {
-    return Err(wasm_error!("Unauthorized"));
+// administration::grants.rs — simplified
+if let Some(grant) = can_local(&me, &Ability::Grant(Role::Admin), &None)? {
+    return Ok(Authority::Grant(grant));           // an existing administrator
 }
+let bootstrap = !progenitor_configured && live_administrators()?.is_empty();
+if check_if_progenitor()? || bootstrap {
+    return Ok(Authority::Progenitor { signature }); // the root
+}
+Err(AdministrationError::Unauthorized.into())
 ```
 
-This means the progenitor can add themselves (and others) to the admin list even before any admin record exists.
+So the progenitor can make themselves the first administrator before any administrator exists, and on a network with no key the first user can, while no agent holds a live admin grant. Both questions are asked of the grants, not of the roster links.
 
 ## Two Deployment Modes
 

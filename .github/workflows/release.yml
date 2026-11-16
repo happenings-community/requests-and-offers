@@ -285,10 +285,15 @@ jobs:
       # The wrapper's publish workflow only uploads to `v$VERSION`; it never
       # creates the release. So it is created right after the push, on the
       # pushed commit, which makes its tag hold the config that built the
-      # installers, marked Latest like the main release. The installer
-      # builds take minutes before their first upload, so the release exists
-      # by then; created before the push instead, it would sit published and
-      # empty, and tag a commit without the webhapp.
+      # installers. It is created as a DRAFT: neither the releases page nor
+      # the updater of installed apps sees a draft, and the installers stay
+      # hidden until the network's first admin holds the seat; a maintainer
+      # then publishes it by hand, marked Latest (RELEASE_CHECKLIST.md,
+      # Production Checks). The publish workflow's `gh release upload` finds
+      # a draft by its pending tag. The installer builds take minutes before
+      # their first upload, so the release exists by then; created before the
+      # push instead, it would tag a commit without the webhapp. A re-run
+      # leaves an existing release as it is, draft or published.
       - name: Point the wrapper at this release and create its release
         env:
           # A token with contents: write on the wrapper repository. Soushi adds
@@ -338,7 +343,7 @@ jobs:
               --target "$(git rev-parse HEAD)" \
               --title "v$VERSION" \
               --notes "Desktop installers for Requests and Offers v$VERSION. Release notes: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" \
-              --latest \
+              --draft \
               $PRERELEASE
           fi
         shell: bash

@@ -18,4 +18,4 @@ Then load and apply the Holochain **PackageAndDeploy** workflow at `~/.claude/sk
 Parse `$ARGUMENTS` for the following:
 
 - **Version** (e.g. `v0.2.4`): use as the target version. If omitted, determine the next version from `CHANGELOG.md` and `dnas/requests_and_offers/dna.yaml`.
-- **`--pre-release`** flag: when present, create a GitHub pre-release (`gh release create --prerelease`), skip the Homebrew formula update step, and label the release with the appropriate pre-release suffix (alpha/beta/rc) based on the current version in `CHANGELOG.md`.
+- **`--pre-release`** flag: when present, skip the Homebrew formula update step and label the release with the appropriate pre-release suffix (alpha/beta/rc) based on the current version in `CHANGELOG.md`. It no longer flags the GitHub release: every release, alphas included, is published as a full release marked Latest by `.github/workflows/release.yml` (decided 2026-11-16).

@@ -228,7 +228,9 @@ jobs:
         run: |
           set -euo pipefail
           # A re-run after a later job failed finds the release already there:
-          # replace its files and notes rather than failing on create.
+          # replace its files and notes rather than failing on create. It also
+          # clears a prerelease flag left by a run from before 2026-11-16, since
+          # GitHub refuses to mark a prerelease as Latest.
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
               workdir/requests_and_offers.happ \
@@ -236,7 +238,7 @@ jobs:
               release-manifest.json \
               edge-node-config.json
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" \
-              --title "v$VERSION$TITLE_SUFFIX" --notes-file release-notes.md --latest
+              --title "v$VERSION$TITLE_SUFFIX" --notes-file release-notes.md --prerelease=false --latest
           else
             # PRERELEASE is unquoted on purpose: empty must vanish, not become "".
             gh release create "$TAG" \

@@ -48,10 +48,16 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
 /// `must_get_valid_record` trusts the record authority's verdict. A rule run
 /// on the entry op alone is never seen by the authority that answers for
 /// the record.
-fn validate_entry(app_entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
+fn validate_entry(
+  app_entry: EntryTypes,
+  author: &AgentPubKey,
+  update_of: Option<&ActionHash>,
+) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
     EntryTypes::User(user) => validate_user(user),
-    EntryTypes::Organization(organization) => validate_organization(organization),
+    EntryTypes::Organization(organization) => {
+      validate_organization_write(organization, author, update_of)
+    }
   }
 }
 
@@ -74,14 +80,39 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
-        return validate_entry(app_entry);
+      OpEntry::CreateEntry { app_entry, action } => {
+        return validate_entry(app_entry, action.author(), None);
+      }
+      OpEntry::UpdateEntry { app_entry, action } => {
+        return validate_entry(
+          app_entry,
+          action.author(),
+          Some(&action.original_action_address),
+        );
       }
       _ => (),
     },
+    // The same rules again for the authorities of the *original*: an update is
+    // also delivered, as its own op, to whoever holds the record it changes,
+    // and that authority never sees the record op below. Left to fall through,
+    // it would show an update whose own record authority had refused it.
+    FlatOp::Update(OpUpdate::Entry { app_entry, action }) => {
+      return validate_entry(
+        app_entry,
+        action.author(),
+        Some(&action.original_action_address),
+      );
+    }
     FlatOp::CreateRecord(store_record) => match store_record {
-      OpRecord::CreateEntry { app_entry, .. } | OpRecord::UpdateEntry { app_entry, .. } => {
-        return validate_entry(app_entry);
+      OpRecord::CreateEntry { app_entry, action } => {
+        return validate_entry(app_entry, action.author(), None);
+      }
+      OpRecord::UpdateEntry { app_entry, action } => {
+        return validate_entry(
+          app_entry,
+          action.author(),
+          Some(&action.original_action_address),
+        );
       }
       OpRecord::DeleteEntry { action } => {
         let original_record = must_get_valid_record(action.deletes_address.clone())?;
@@ -137,21 +168,80 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       }
       _ => (),
     },
-    FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
-      return validate_create_identity_link(
-        &link_type,
-        &action.base_address,
-        &action.target_address,
-        action.author(),
-      );
-    }
-    // the links that say who a member is are never tombstoned, by anyone (documentation/architecture/validation.md)
+    FlatOp::Link(OpLink::CreateLink { link_type, action }) => match link_type {
+      LinkTypes::OrganizationMembers => {
+        return validate_create_link_organization_membership(
+          action.author(),
+          &action.base_address,
+          &action.target_address,
+          &action.tag,
+          "members",
+        );
+      }
+      LinkTypes::OrganizationCoordinators => {
+        return validate_create_link_organization_membership(
+          action.author(),
+          &action.base_address,
+          &action.target_address,
+          &action.tag,
+          "coordinators",
+        );
+      }
+      // The update-chain rules (`validate_update_link`).
+      LinkTypes::UserUpdates => {
+        return validate_create_link_user_updates(
+          action.author(),
+          &action.base_address,
+          &action.target_address,
+        );
+      }
+      LinkTypes::OrganizationUpdates => {
+        return validate_create_link_organization_updates(
+          action.author(),
+          &action.base_address,
+          &action.target_address,
+        );
+      }
+      // The two links that say who a member is (#473).
+      LinkTypes::UserAgents | LinkTypes::MyUser => {
+        return validate_create_identity_link(
+          &link_type,
+          &action.base_address,
+          &action.target_address,
+          action.author(),
+        );
+      }
+      _ => (),
+    },
     FlatOp::Link(OpLink::DeleteLink {
-      link_type: LinkTypes::UserAgents | LinkTypes::MyUser,
-      ..
-    }) => {
-      return invalid("UserAgents and MyUser links are never deleted");
-    }
+      link_type,
+      action,
+      original_action,
+    }) => match link_type {
+      LinkTypes::UserUpdates => {
+        return validate_delete_link_user_updates(
+          action.clone(),
+          original_action.clone(),
+          action.base_address.clone(),
+          original_action.target_address.clone(),
+          original_action.tag.clone(),
+        );
+      }
+      LinkTypes::OrganizationUpdates => {
+        return validate_delete_link_organization_updates(
+          action.clone(),
+          original_action.clone(),
+          action.base_address.clone(),
+          original_action.target_address.clone(),
+          original_action.tag.clone(),
+        );
+      }
+      // the links that say who a member is are never tombstoned, by anyone (documentation/architecture/validation.md)
+      LinkTypes::UserAgents | LinkTypes::MyUser => {
+        return invalid("UserAgents and MyUser links are never deleted");
+      }
+      _ => (),
+    },
     _ => (),
   }
   Ok(ValidateCallbackResult::Valid)
@@ -164,34 +254,93 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 /// key it returns. A link anchored at someone else's User would hand its
 /// writer that member's messages, so both links must belong to the User's
 /// own author.
-fn is_user_authored_by(hash: &AnyLinkableHash, author: &AgentPubKey) -> ExternResult<bool> {
+/// The record at a link's end and which of this zome's entries it carries, or
+/// none when it is not one of them. The kind is read from the entry type the
+/// action declares, not from what the bytes happen to decode as: two entry
+/// types with the same fields would otherwise pass for each other.
+pub(crate) fn entry_at(hash: &AnyLinkableHash) -> ExternResult<Option<(Record, EntryTypes)>> {
   let Some(action_hash) = hash.clone().into_action_hash() else {
-    return Ok(false);
+    return Ok(None);
   };
   let record = must_get_valid_record(action_hash)?;
-  // only a User's original create: integrity does not tie an update's author to the original's,
-  // so a revision written by someone else must never count as that member's User
-  if !matches!(record.action().data, ActionData::Create(_)) {
-    return Ok(false);
-  }
   let Ok(creation) = TypedAction::<EntryCreationData>::try_from(record.action().clone()) else {
-    return Ok(false);
+    return Ok(None);
   };
   let EntryType::App(app_entry_type) = creation.entry_type() else {
-    return Ok(false);
+    return Ok(None);
   };
   let Some(entry) = record.entry().as_option() else {
-    return Ok(false);
+    return Ok(None);
   };
-  let is_user = matches!(
-    EntryTypes::deserialize_from_type(
-      *app_entry_type.zome_index,
-      app_entry_type.entry_index,
-      entry
-    )?,
-    Some(EntryTypes::User(_))
-  );
-  Ok(is_user && record.action().author() == author)
+  let kind = EntryTypes::deserialize_from_type(
+    *app_entry_type.zome_index,
+    app_entry_type.entry_index,
+    entry,
+  )?;
+  Ok(kind.map(|kind| (record, kind)))
+}
+
+/// The rule for a link from a record to one of its updates (`UserUpdates`,
+/// `OrganizationUpdates`). Readers take the newest such link as the record's
+/// latest revision, so the link has to be as good as the update it names:
+///
+/// - it starts at the record's `Create`, of the kind `is_kind` accepts;
+/// - it points at an `Update` of the same kind, in the chain that `Create` roots;
+/// - it is written by that update's author.
+///
+/// The update itself has passed its own rule, so for an organisation that is its
+/// creator or a grant holder. Without the last two, anyone could point a record
+/// at an entry of their own, or back at someone else's old revision. A revision's
+/// own author can still link it again; `validation.md` lists that.
+pub(crate) fn validate_update_link(
+  link_author: &AgentPubKey,
+  base: &AnyLinkableHash,
+  target: &AnyLinkableHash,
+  is_kind: fn(&EntryTypes) -> bool,
+  name: &str,
+  kind: &str,
+) -> ExternResult<ValidateCallbackResult> {
+  match entry_at(base)? {
+    Some((record, entry)) if is_kind(&entry) && matches!(record.action().data, ActionData::Create(_)) => {}
+    _ => {
+      return invalid(&format!(
+        "{name} link starts at the original record of {kind}"
+      ))
+    }
+  }
+  let update = match entry_at(target)? {
+    Some((record, entry)) if is_kind(&entry) && matches!(record.action().data, ActionData::Update(_)) => {
+      record
+    }
+    _ => return invalid(&format!("{name} link points at an update of {kind}")),
+  };
+  let Some(target_hash) = target.clone().into_action_hash() else {
+    return invalid(&format!("{name} link points at an update of {kind}"));
+  };
+  match utils::grants::chain_root(&target_hash)? {
+    Ok((root, _)) if AnyLinkableHash::from(root.clone()) == *base => {}
+    Ok(_) => {
+      return invalid(&format!(
+        "{name} link points at an update of the record it starts at"
+      ))
+    }
+    Err(reason) => return invalid(&reason),
+  }
+  if update.action().author() != link_author {
+    return invalid(&format!(
+      "{name} link is written by the author of the update it points at"
+    ));
+  }
+  Ok(ValidateCallbackResult::Valid)
+}
+
+fn is_user_authored_by(hash: &AnyLinkableHash, author: &AgentPubKey) -> ExternResult<bool> {
+  Ok(match entry_at(hash)? {
+    Some((record, EntryTypes::User(_))) => {
+      matches!(record.action().data, ActionData::Create(_)) && record.action().author() == author
+    }
+    _ => false,
+  })
 }
 
 fn invalid(reason: &str) -> ExternResult<ValidateCallbackResult> {
@@ -236,7 +385,9 @@ mod record_op_tests {
   //! and `must_get_valid_record` asks the record authority. So every rule the
   //! entry op runs must give the same verdict on the record op.
   use hdi::prelude::*;
-  use utils::validation_harness::{create_ops, set_zome_types, update_ops};
+  use utils::validation_harness::{
+    create_ops, set_zome_types, update_op_for_the_original, update_ops,
+  };
 
   use crate::{validate, EntryTypes, LinkTypes, Organization, User};
 
@@ -268,6 +419,7 @@ mod record_op_tests {
       email: "hello@example.org".to_string(),
       urls: vec![],
       location: "Colchester".to_string(),
+      grant: None,
     }
     .try_into()
     .unwrap()
@@ -319,5 +471,27 @@ mod record_op_tests {
       ValidateCallbackResult::Invalid("Full legal name must not be empty".into())
     );
     assert_eq!(record, entry);
+  }
+
+  /// Goes red if the `FlatOp::Update` arm is removed from `validate`.
+  #[test]
+  fn a_user_update_the_entry_op_refuses_is_refused_on_the_op_the_original_receives() {
+    set_zome_types(EntryTypes::ENUM_LEN, LinkTypes::ENUM_LEN);
+    let verdict = validate(update_op_for_the_original(USER, nameless_user())).unwrap();
+    assert_eq!(
+      verdict,
+      ValidateCallbackResult::Invalid("User name cannot be empty".into())
+    );
+  }
+
+  /// Goes red if the `FlatOp::Update` arm is removed from `validate`.
+  #[test]
+  fn an_organization_update_the_entry_op_refuses_is_refused_on_the_op_the_original_receives() {
+    set_zome_types(EntryTypes::ENUM_LEN, LinkTypes::ENUM_LEN);
+    let verdict = validate(update_op_for_the_original(ORGANIZATION, organization_without_legal_name())).unwrap();
+    assert_eq!(
+      verdict,
+      ValidateCallbackResult::Invalid("Full legal name must not be empty".into())
+    );
   }
 }

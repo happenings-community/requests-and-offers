@@ -1,7 +1,8 @@
 use hdk::prelude::*;
 use utils::{
-  external_local_call, EntityActionHash, EntityAgent, OriginalActionHash,
-  UpdateServiceTypeLinksInput,
+  external_local_call,
+  grants::{GrantRoleInput, RevokeRolesOfInput},
+  EntityActionHash, EntityAgent, OriginalActionHash, UpdateServiceTypeLinksInput,
 };
 
 /// Checks if a given agent is an administrator for a specified entity.
@@ -94,4 +95,15 @@ pub fn check_if_entity_is_accepted(original_action_hash: EntityActionHash) -> Ex
 /// Updates service type links for an entity.
 pub fn update_service_type_links(input: UpdateServiceTypeLinksInput) -> ExternResult<()> {
   external_local_call("update_service_type_links", "service_types", input)
+}
+
+/// Gives an agent a role, resting on the caller's own grant (the administration zome
+/// settles the authority). Returns the grant's hash.
+pub fn grant_role(input: GrantRoleInput) -> ExternResult<ActionHash> {
+  external_local_call("grant_role", "administration", input)
+}
+
+/// Withdraws every live grant of one role an agent holds in a scope.
+pub fn revoke_roles_of(input: RevokeRolesOfInput) -> ExternResult<usize> {
+  external_local_call("revoke_roles_of", "administration", input)
 }

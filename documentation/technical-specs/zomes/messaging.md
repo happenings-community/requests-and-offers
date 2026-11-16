@@ -212,7 +212,7 @@ The zome stores, delivers and reads. Everything a member would call "my messages
 ### 7.1. Screens
 
 - **`/messages`**: one row per person, built from messages, interests and exchanges with them. Filters by kind; archived conversations; a row for each message that arrived and could not be read, naming its sender.
-- **`/messages/[user]`**: the conversation with one member. Messages, shared listings, interests and proposals in time order, and a composer for an accepted member. Opening it marks it read, and it stays read as messages arrive while it is open, but only while the page is visible: a conversation left open in a hidden tab or a minimised window marks nothing, and sends no receipt, until the member comes back to it.
+- **`/messages/[user]`**: the conversation with one member. Messages, shared listings, interests and proposals in time order, and a composer for an accepted member. Opening it marks it read, and it stays read as messages arrive while it is open, but only while the page is visible: a conversation left open in a hidden tab or a minimised window marks nothing, and sends no receipt, until the member comes back to it. The desktop app leaves Electron's background throttling on, so a minimised window reports hidden; a window only covered by another may still count as visible, depending on the platform.
 - **`/messages/blocked`**: who is blocked now, and the history of blocks and unblocks.
 
 ### 7.2. Reading

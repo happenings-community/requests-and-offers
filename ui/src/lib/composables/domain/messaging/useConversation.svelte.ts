@@ -227,12 +227,15 @@ export function useConversation(address: string | (() => string)) {
       if (shareableWanted) void loadShareable();
       receiptSetting = messagingStore.receiptSettingFor(counterparty);
       // Opening a conversation is what marks it read. Nothing else does, so a nav badge
-      // and a row always agree about what has been seen. Only on screen: one opened in
-      // a hidden tab is marked when the member comes to it (the page calls markRead).
-      if (pageVisible()) messagingStore.markThreadRead(counterparty);
+      // and a row always agree about what has been seen. Only on screen and not left: one
+      // opened in a hidden tab is marked when the member comes to it (the page calls
+      // markRead), and one shown while the titles below were still being read is marked
+      // once they are, by the markRead after them.
+      if (pageVisible() && !left) messagingStore.markThreadRead(counterparty);
       if (thread) await resolveTitles(thread.interests);
       if (stale()) return;
       loaded = true;
+      markRead();
     } catch (e) {
       if (!stale()) loadError = reasonOf(e);
     }
@@ -313,6 +316,7 @@ export function useConversation(address: string | (() => string)) {
    * nobody, and a read mark advanced there would send a receipt: the other person would
    * see "Read" for a message nobody saw, and learn that this device is awake. So nothing
    * is marked while the page is hidden, and the page calls this again when it is shown.
+   * Nor once the member has left: a read still finishing then marks nothing.
    *
    * Opening marks it read, but the poll and nudges add messages while it is open, and
    * those stayed unread (counted in the nav badge, no receipt sent) until the member left
@@ -320,7 +324,7 @@ export function useConversation(address: string | (() => string)) {
    * nothing unless the mark actually advances.
    */
   const markRead = () => {
-    if (loaded && decoded && pageVisible()) messagingStore.markThreadRead(counterparty);
+    if (loaded && decoded && !left && pageVisible()) messagingStore.markThreadRead(counterparty);
   };
 
   /**

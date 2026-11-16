@@ -156,7 +156,11 @@ vi.mock('$lib/stores/requests.store.svelte', async () => {
         const mine = myRequests();
         return Effect.isEffect(mine) ? mine : Effect.succeed(mine);
       },
-      getRequest: () => Effect.succeed(requestByHash()),
+      // An Effect stands in for a read still going, as for getMyListings.
+      getRequest: () => {
+        const request = requestByHash();
+        return Effect.isEffect(request) ? request : Effect.succeed(request);
+      },
       getOffer: () => Effect.succeed(null)
     }
   };
@@ -312,6 +316,83 @@ describe('the conversation page', () => {
     setVisibility('visible');
     await waitFor(() => expect(readMark(), 'read once shown').toBe(T));
     expect(sendReceipt).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Shown while it was still loading (here, reading the title of a listing an interest
+   * names), a conversation opened hidden found nothing to mark: the mark on opening had
+   * already said hidden, and the one on showing found it not loaded yet. It is marked
+   * once it has loaded. **To make it go red:** drop the `markRead()` after `loaded = true`
+   * in `useConversation`, leaving only the mark on opening, as before.
+   */
+  it('marks a conversation read that was shown while it was still loading', async () => {
+    let release: () => void = () => {};
+    const titleRead = new Promise<void>((resolve) => (release = resolve));
+    myInterests.mockReturnValue([
+      {
+        interest_hash: hashes.M1,
+        listing: hashes.M2,
+        listing_type: 'Request',
+        user: hashes.ME,
+        created_at: T - 1
+      }
+    ]);
+    requestByHash.mockReturnValue({ title: 'Bike repair', creator: ANITA });
+    getInbox.mockReturnValue(E.succeed([fromAnita(new Uint8Array(39).fill(8), T, 'first')]));
+    // The conversation is already in the store, as the layout's poll leaves it, so the
+    // timeline is whole from the first frame and never grows.
+    await E.runPromise(messagingStore.loadConversations());
+    let reached: () => void = () => {};
+    const titleAsked = new Promise<void>((resolve) => (reached = resolve));
+    // Opening reads the listing twice: the store's read of the conversations first, then
+    // the page's own read of its title. Only the second is held.
+    let reads = 0;
+    const bikeRepair = { title: 'Bike repair', creator: ANITA };
+    requestByHash.mockImplementation(() => {
+      reads += 1;
+      if (reads === 1) return bikeRepair;
+      reached();
+      return E.promise(() => titleRead).pipe(E.as(bikeRepair));
+    });
+    visibility = 'hidden';
+    render(ConversationPage);
+    await titleAsked;
+
+    // Shown while the page is reading the title, past the mark on opening.
+    setVisibility('visible');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(readMark(), 'nothing to mark until it has loaded').toBe(0);
+
+    release();
+    await waitFor(() => expect(readMark(), 'read once loaded').toBe(T));
+    expect(sendReceipt).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * A conversation left before it had finished loading is not marked when its read
+   * finishes, nor when the member next comes back to the tab from anywhere else in the
+   * app. The read of the member is held, so the page is always left mid-load. **To make
+   * it go red:** drop `!left` from `markRead` in `useConversation`. (It goes red too with
+   * the mark on opening as it was before this, which had no check on leaving; and the
+   * page also removes its listener when it is left, which this cannot tell apart.)
+   */
+  it('marks nothing once the page has been left', async () => {
+    let release: () => void = () => {};
+    const memberRead = new Promise<void>((resolve) => (release = resolve));
+    userByHash.mockImplementation(() =>
+      E.promise(() => memberRead).pipe(E.as({ name: 'Anita Rossi', original_action_hash: ANITA }))
+    );
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, 'first')]));
+    visibility = 'hidden';
+    render(ConversationPage);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    cleanup();
+
+    setVisibility('visible');
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(readMark()).toBe(0);
+    expect(sendReceipt).not.toHaveBeenCalled();
   });
 
   /**

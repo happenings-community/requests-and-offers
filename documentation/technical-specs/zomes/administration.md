@@ -194,6 +194,7 @@ pub fn get_latest_status_record(original_action_hash: ActionHash) -> ExternResul
 ```
 
 - Gets most recent status record
+- Accepts a revision's hash too, resolving it to the chain root first (#229)
 - Returns optional record
 
 ##### `get_latest_status`

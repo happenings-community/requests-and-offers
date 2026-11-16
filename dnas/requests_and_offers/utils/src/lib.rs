@@ -84,6 +84,46 @@ pub fn resolve_chain_root(action_hash: ActionHash) -> ActionHash {
   }
 }
 
+/// The update links an entry's root holds: one per edit, each naming a revision.
+///
+/// Every `update_*` links from the chain root, so `root` must be the root (see
+/// [`resolve_chain_root`]). Read these before anything is removed: once the root is
+/// deleted, nothing else names the revisions.
+pub fn get_update_links(
+  root: ActionHash,
+  update_links: impl LinkTypeFilterExt,
+) -> ExternResult<Vec<Link>> {
+  let link_type_filter = update_links
+    .try_into_filter()
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
+  get_links(LinkQuery::new(root, link_type_filter), GetStrategy::Network)
+}
+
+/// An entry's whole chain, root first, then each revision its update links name.
+pub fn chain_hashes(root: &ActionHash, update_links: &[Link]) -> Vec<ActionHash> {
+  let mut hashes = vec![root.clone()];
+  hashes.extend(
+    update_links
+      .iter()
+      .filter_map(|link| link.target.clone().into_action_hash()),
+  );
+  hashes
+}
+
+/// Deletes an entry's whole chain: each revision, then the root. Deleting the root
+/// alone leaves every revision readable by its own hash, and a client holding one (a
+/// list shows the latest) would go on reading the entry. `hashes` is root first, as
+/// [`chain_hashes`] gives it. Returns the root's delete.
+pub fn delete_chain(hashes: &[ActionHash]) -> ExternResult<ActionHash> {
+  let (root, revisions) = hashes.split_first().ok_or(CommonError::InvalidData(
+    "a chain to delete has no root".to_string(),
+  ))?;
+  for revision in revisions {
+    delete_entry(revision.clone())?;
+  }
+  delete_entry(root.clone())
+}
+
 pub fn get_all_revisions_for_entry(
   original_action_hash: OriginalActionHash,
   link_types: impl LinkTypeFilterExt,

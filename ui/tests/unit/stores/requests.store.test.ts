@@ -176,6 +176,24 @@ describe('Requests Store', () => {
     expect(store.requests.length).toBe(1);
   });
 
+  /**
+   * After an edit the latest record is a revision, with a hash of its own. getRequest
+   * kept that hash as the listing's original, so whatever was done with it next
+   * (deleting, reading it again, linking to it) was done to the revision.
+   */
+  it('keeps the hash it was asked for as the original when the latest is a revision', async () => {
+    const root = (await createMockRecord()).signed_action.hashed.hash;
+    const revision = await createMockRecord(await createTestRequest());
+    vi.spyOn(mockRequestsService, 'getLatestRequestRecord').mockReturnValue(
+      Effect.succeed(revision)
+    );
+
+    const request = await runEffect(store.getRequest(root));
+
+    expect(request?.original_action_hash).toEqual(root);
+    expect(request?.previous_action_hash).toEqual(revision.signed_action.hashed.hash);
+  });
+
   it('should get latest request', async () => {
     const mockRecord = await createMockRecord();
     const mockHash = mockRecord.signed_action.hashed.hash;

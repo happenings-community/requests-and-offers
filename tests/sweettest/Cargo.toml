@@ -81,6 +81,10 @@ name = "link_canonicalisation"
 path = "tests/link_canonicalisation.rs"
 
 [[test]]
+name = "chain_root_reads"
+path = "tests/chain_root_reads.rs"
+
+[[test]]
 name = "exchanges"
 path = "tests/exchanges.rs"
 

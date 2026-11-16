@@ -6,8 +6,8 @@ use utils::{
   grants::{
     can_i, grant_tag, require_grant, Ability, CanInput, GrantRoleInput, RevokeRolesOfInput, Role,
   },
-  EntityActionHash, OriginalActionHash, OrganizationContactInput, OrganizationUserInput,
-  PreviousActionHash,
+  resolve_chain_root, EntityActionHash, OriginalActionHash, OrganizationContactInput,
+  OrganizationUserInput, PreviousActionHash,
 };
 
 use crate::{
@@ -131,9 +131,12 @@ pub fn register_approved_coordinator(input: ApprovedCoordinatorInput) -> ExternR
 pub fn get_latest_organization_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
+  // A client may hold a revision: the update links hang off the chain root, and from a
+  // revision none are found, so the revision came back as if it were the latest (#229).
+  let original_action_hash = resolve_chain_root(original_action_hash);
   let link_type_filter = LinkTypes::OrganizationUpdates
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(original_action_hash.clone(), link_type_filter),
     GetStrategy::Network,

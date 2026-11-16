@@ -2,8 +2,8 @@ use hdk::prelude::*;
 use users_organizations_integrity::*;
 use utils::errors::{CommonError, UsersError};
 use utils::{
-  check_if_progenitor, external_local_call, find_original_action_hash, DnaProperties,
-  EntityActionHashAgents, OriginalActionHash, PreviousActionHash,
+  check_if_progenitor, external_local_call, find_original_action_hash, resolve_chain_root,
+  DnaProperties, EntityActionHashAgents, OriginalActionHash, PreviousActionHash,
 };
 
 use crate::external_calls::create_status;
@@ -87,9 +87,12 @@ pub fn create_user(input: User) -> ExternResult<Record> {
 
 #[hdk_extern]
 pub fn get_latest_user_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+  // A client may hold a revision: the update links hang off the chain root, and from a
+  // revision none are found, so the revision came back as if it were the latest (#229).
+  let original_action_hash = resolve_chain_root(original_action_hash);
   let link_type_filter = LinkTypes::UserUpdates
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(original_action_hash.clone(), link_type_filter),
     GetStrategy::Network,

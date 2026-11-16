@@ -173,6 +173,11 @@ Input/Output structs (e.g., `SuggestServiceTypeInput`) are defined in Rust for c
   - **Access Control**: Public.
   - **Returns**: `Some(Record)` if found, `None` otherwise.
 
+- **`get_latest_service_type_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>>`**
+  - **Description**: Retrieves the latest revision of a service type, following its update links. A revision's hash is accepted too: the read resolves it to the chain root first (#229).
+  - **Access Control**: Public.
+  - **Returns**: The latest `Record`, or `None` if not found.
+
 - **`get_pending_service_types() -> ExternResult<Vec<Record>>`**
   - **Description**: Retrieves all `ServiceType` entries currently linked to the `service_types.status.pending` anchor.
   - **Access Control**: Admin only.

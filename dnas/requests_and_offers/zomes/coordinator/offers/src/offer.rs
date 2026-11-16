@@ -1,7 +1,9 @@
 use hdk::prelude::*;
 use offers_integrity::*;
 use utils::{
+  chain_hashes, delete_chain,
   errors::{AdministrationError, CommonError, UsersError},
+  find_original_action_hash, get_update_links,
   grants::{require_grant, Ability},
   resolve_chain_root, EntityActionHash, GetMediumOfExchangeForEntityInput,
   GetServiceTypeForEntityInput, MediumOfExchangeLinkInput, OriginalActionHash, PreviousActionHash,
@@ -128,6 +130,9 @@ pub fn get_offer(action_hash: ActionHash) -> ExternResult<Option<Record>> {
 
 #[hdk_extern]
 pub fn get_latest_offer_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+  // A client may hold a revision: the update links hang off the chain root, and from a
+  // revision none are found, so the revision came back as if it were the latest (#229).
+  let original_action_hash = resolve_chain_root(original_action_hash);
   let latest_action_hash = latest_offer_action_hash(original_action_hash)?;
   get(latest_action_hash, GetOptions::default())
 }
@@ -313,14 +318,10 @@ pub fn get_user_active_offers(user_hash: ActionHash) -> ExternResult<Vec<Record>
   let filtered = all_offers
     .into_iter()
     .filter(|record| {
-      // Get the latest offer entry
-      if let Ok(Some(latest)) = get_latest_offer_record(record.signed_action.hashed.hash.clone()) {
-        if let Ok(offer) = latest.try_into() {
-          let offer: Offer = offer;
-          return offer.status == ListingStatus::Active;
-        }
-      }
-      false
+      // get_user_offers returns each offer's latest revision already. Reading it again
+      // walked each chain back to its root, once per offer.
+      let offer: Result<Offer, _> = record.clone().try_into();
+      matches!(offer, Ok(offer) if offer.status == ListingStatus::Active)
     })
     .collect();
   Ok(filtered)
@@ -332,14 +333,10 @@ pub fn get_user_archived_offers(user_hash: ActionHash) -> ExternResult<Vec<Recor
   let filtered = all_offers
     .into_iter()
     .filter(|record| {
-      // Get the latest offer entry
-      if let Ok(Some(latest)) = get_latest_offer_record(record.signed_action.hashed.hash.clone()) {
-        if let Ok(offer) = latest.try_into() {
-          let offer: Offer = offer;
-          return offer.status == ListingStatus::Archived;
-        }
-      }
-      false
+      // get_user_offers returns each offer's latest revision already. Reading it again
+      // walked each chain back to its root, once per offer.
+      let offer: Result<Offer, _> = record.clone().try_into();
+      matches!(offer, Ok(offer) if offer.status == ListingStatus::Archived)
     })
     .collect();
   Ok(filtered)
@@ -470,6 +467,10 @@ pub fn update_offer(input: UpdateOfferInput) -> ExternResult<Record> {
 
 #[hdk_extern]
 pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
+  // A client may hold a revision. Every link this removes points at the chain root, so
+  // from a revision none matched and the deleted offer stayed listed. A delete does not
+  // go ahead on a guess: if the chain cannot be walked to its root, it fails.
+  let original_action_hash = find_original_action_hash(original_action_hash)?.0;
   let original_record = get(original_action_hash.clone(), GetOptions::default())?.ok_or(
     CommonError::EntryNotFound("Could not find the original offer".to_string()),
   )?;
@@ -484,12 +485,18 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
     return Err(UsersError::NotAuthor.into());
   }
 
+  // The offer's update links, and with them every revision of it. Read before anything
+  // is removed: each edit links its service type and mediums from the new revision and
+  // moves the active list to it, so all of them are cleaned up below, not only the root.
+  let update_links = get_update_links(original_action_hash.clone(), LinkTypes::OfferUpdates)?;
+  let revisions = chain_hashes(&original_action_hash, &update_links);
+
   // Delete all offers links
   let path = Path::from("offers");
   let path_hash = path.path_entry_hash()?;
   let link_type_filter = LinkTypes::AllOffers
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let offers_links = get_links(
     LinkQuery::new(path_hash.clone(), link_type_filter),
     GetStrategy::Network,
@@ -507,7 +514,7 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
   // Delete user links
   let link_type_filter = LinkTypes::OfferCreator
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let user_links = get_links(
     LinkQuery::new(original_action_hash.clone(), link_type_filter),
     GetStrategy::Network,
@@ -519,7 +526,7 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
       // Find and delete the UserOffers link
       let link_type_filter = LinkTypes::UserOffers
         .try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+        .map_err(|e| CommonError::LinkError(e.to_string()))?;
       let user_offers_links = get_links(
         LinkQuery::new(user_hash.clone(), link_type_filter),
         GetStrategy::Network,
@@ -541,7 +548,7 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
 
   let link_type_filter = LinkTypes::OfferOrganization
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let org_links = get_links(
     LinkQuery::new(original_action_hash.clone(), link_type_filter),
     GetStrategy::Network,
@@ -554,7 +561,7 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
       // Find and delete the OrganizationOffers link
       let link_type_filter = LinkTypes::OrganizationOffers
         .try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+        .map_err(|e| CommonError::LinkError(e.to_string()))?;
       let org_offers_links = get_links(
         LinkQuery::new(org_hash.clone(), link_type_filter),
         GetStrategy::Network,
@@ -574,33 +581,50 @@ pub fn delete_offer(original_action_hash: ActionHash) -> ExternResult<bool> {
     }
   }
 
-  // Delete service type links using the service_types zome
-  delete_all_service_type_links_for_entity(GetServiceTypeForEntityInput {
-    original_action_hash: OriginalActionHash(original_action_hash.clone()),
-    entity: "offer".to_string(),
-  })?;
+  // Delete service type and medium of exchange links, from the root and from each
+  // revision, which an edit links from.
+  for revision in &revisions {
+    delete_all_service_type_links_for_entity(GetServiceTypeForEntityInput {
+      original_action_hash: OriginalActionHash(revision.clone()),
+      entity: "offer".to_string(),
+    })?;
+    delete_all_medium_of_exchange_links_for_entity(GetMediumOfExchangeForEntityInput {
+      original_action_hash: OriginalActionHash(revision.clone()),
+      entity: "offer".to_string(),
+    })?;
+  }
 
-  // Delete medium of exchange links using the mediums_of_exchange zome
-  delete_all_medium_of_exchange_links_for_entity(GetMediumOfExchangeForEntityInput {
-    original_action_hash: OriginalActionHash(original_action_hash.clone()),
-    entity: "offer".to_string(),
-  })?;
-
-  // Delete any update links
-  let link_type_filter = LinkTypes::OfferUpdates
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let update_links = get_links(
-    LinkQuery::new(original_action_hash.clone(), link_type_filter),
-    GetStrategy::Network,
-  )?;
-
+  // Delete the update links
   for link in update_links {
     delete_link(link.create_link_hash, GetOptions::default())?;
   }
 
-  // Finally delete the offer entry
-  delete_entry(original_action_hash.clone())?;
+  // The active and archived lists. An edit moves the active link to the newest
+  // revision, so after one it points at no hash the links above are matched on, and
+  // the deleted offer stayed in the active list.
+  for (path, link_type) in [
+    ("offers.active", LinkTypes::ActiveOffers),
+    ("offers.archived", LinkTypes::ArchivedOffers),
+  ] {
+    let link_type_filter = link_type
+      .try_into_filter()
+      .map_err(|e| CommonError::LinkError(e.to_string()))?;
+    let status_links = get_links(
+      LinkQuery::new(Path::from(path).path_entry_hash()?, link_type_filter),
+      GetStrategy::Network,
+    )?;
+    for link in status_links {
+      if let Some(hash) = link.target.clone().into_action_hash() {
+        if revisions.contains(&hash) {
+          delete_link(link.create_link_hash, GetOptions::default())?;
+        }
+      }
+    }
+  }
+
+  // Finally delete the offer: each revision, so none is read on its own once the root
+  // is gone, then the root.
+  delete_chain(&revisions)?;
 
   Ok(true)
 }

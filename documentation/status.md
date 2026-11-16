@@ -24,7 +24,7 @@ Pattern established: `Context.Tag` services → Effect-native stores → `Schema
 - Progenitor pattern — secure designated network creator for trusted bootstrapping
 - Action hash type safety — compile-time distinct types preventing hash kind confusion
 - Active/Archived/Deleted listing status management across requests and offers
-- Sweettest integration tests (87 cases across 20 files, 5 of them under `administration/`; replaced Tryorama in v0.5.0)
+- Sweettest integration tests (101 cases across 21 files, 5 of them under `administration/`; replaced Tryorama in v0.5.0)
 
 **Frontend (SvelteKit + Effect-TS):**
 - Svelte 5 Runes (`$state`, `$derived`, `$effect`) throughout
@@ -48,8 +48,8 @@ Pattern established: `Context.Tag` services → Effect-native stores → `Schema
 
 | Layer | Count | Status |
 |-------|-------|--------|
-| Backend (Sweettest / Rust) | 87 cases across 20 files | Off the pull-request path: run with the `run:sweettest` label or the Heavy tests workflow |
-| Frontend unit tests (Vitest) | 932 tests across 68 files | All passing, on every pull request |
+| Backend (Sweettest / Rust) | 101 cases across 21 files | Off the pull-request path: run with the `run:sweettest` label or the Heavy tests workflow |
+| Frontend unit tests (Vitest) | 934 tests across 68 files | All passing, on every pull request |
 | Frontend integration tests (Vitest) | 43 tests across 4 files | All passing |
 | E2E / Playwright | 11 specs, an ordered journey on one sandbox conductor ([#10](https://github.com/happenings-community/requests-and-offers/issues/10)) | Off the pull-request path: run with the `run:e2e` label or the Heavy tests workflow |
 

@@ -1,7 +1,9 @@
 use hdk::prelude::*;
 use requests_integrity::*;
 use utils::{
+  chain_hashes, delete_chain,
   errors::{AdministrationError, CommonError, UsersError},
+  find_original_action_hash, get_update_links,
   grants::{require_grant, Ability},
   resolve_chain_root, EntityActionHash, GetMediumOfExchangeForEntityInput,
   GetServiceTypeForEntityInput, MediumOfExchangeLinkInput, OriginalActionHash, PreviousActionHash,
@@ -127,6 +129,9 @@ pub fn get_request(action_hash: ActionHash) -> ExternResult<Option<Record>> {
 
 #[hdk_extern]
 pub fn get_latest_request_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+  // A client may hold a revision: the update links hang off the chain root, and from a
+  // revision none are found, so the revision came back as if it were the latest (#229).
+  let original_action_hash = resolve_chain_root(original_action_hash);
   let latest_action_hash = latest_request_action_hash(original_action_hash)?;
   get(latest_action_hash, GetOptions::default())
 }
@@ -307,15 +312,10 @@ pub fn get_user_active_requests(user_hash: ActionHash) -> ExternResult<Vec<Recor
   let filtered = all_requests
     .into_iter()
     .filter(|record| {
-      // Get the latest request entry
-      if let Ok(Some(latest)) = get_latest_request_record(record.signed_action.hashed.hash.clone())
-      {
-        if let Ok(request) = latest.try_into() {
-          let request: Request = request;
-          return request.status == ListingStatus::Active;
-        }
-      }
-      false
+      // get_user_requests returns each request's latest revision already. Reading it again
+      // walked each chain back to its root, once per request.
+      let request: Result<Request, _> = record.clone().try_into();
+      matches!(request, Ok(request) if request.status == ListingStatus::Active)
     })
     .collect();
   Ok(filtered)
@@ -327,15 +327,10 @@ pub fn get_user_archived_requests(user_hash: ActionHash) -> ExternResult<Vec<Rec
   let filtered = all_requests
     .into_iter()
     .filter(|record| {
-      // Get the latest request entry
-      if let Ok(Some(latest)) = get_latest_request_record(record.signed_action.hashed.hash.clone())
-      {
-        if let Ok(request) = latest.try_into() {
-          let request: Request = request;
-          return request.status == ListingStatus::Archived;
-        }
-      }
-      false
+      // get_user_requests returns each request's latest revision already. Reading it again
+      // walked each chain back to its root, once per request.
+      let request: Result<Request, _> = record.clone().try_into();
+      matches!(request, Ok(request) if request.status == ListingStatus::Archived)
     })
     .collect();
   Ok(filtered)
@@ -465,6 +460,11 @@ pub fn update_request(input: UpdateRequestInput) -> ExternResult<Record> {
 
 #[hdk_extern]
 pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
+  // A client may hold a revision. Every link this removes points at the chain root, so
+  // from a revision none matched and the deleted request stayed listed.
+  // A delete does not go ahead on a guess: if the chain cannot be walked to its root, it
+  // fails.
+  let original_action_hash = find_original_action_hash(original_action_hash)?.0;
   let original_record = get(original_action_hash.clone(), GetOptions::default())?.ok_or(
     CommonError::EntryNotFound("Could not find the original request".to_string()),
   )?;
@@ -479,12 +479,18 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
     return Err(UsersError::NotAuthor.into());
   }
 
+  // The request's update links, and with them every revision of it. Read before anything
+  // is removed: each edit links its service type and mediums from the new revision and
+  // moves the active list to it, so all of them are cleaned up below, not only the root.
+  let update_links = get_update_links(original_action_hash.clone(), LinkTypes::RequestUpdates)?;
+  let revisions = chain_hashes(&original_action_hash, &update_links);
+
   // Delete all requests links
   let path = Path::from("requests");
   let path_hash = path.path_entry_hash()?;
   let link_type_filter = LinkTypes::AllRequests
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let requests_links = get_links(
     LinkQuery::new(path_hash.clone(), link_type_filter),
     GetStrategy::Network,
@@ -502,7 +508,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
   // Delete user links
   let link_type_filter = LinkTypes::RequestCreator
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let user_links = get_links(
     LinkQuery::new(original_action_hash.clone(), link_type_filter),
     GetStrategy::Network,
@@ -514,7 +520,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
       // Find and delete the UserRequests link
       let link_type_filter = LinkTypes::UserRequests
         .try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+        .map_err(|e| CommonError::LinkError(e.to_string()))?;
       let user_requests_links = get_links(
         LinkQuery::new(user_hash.clone(), link_type_filter),
         GetStrategy::Network,
@@ -536,7 +542,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
 
   let link_type_filter = LinkTypes::RequestOrganization
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let org_links = get_links(
     LinkQuery::new(original_action_hash.clone(), link_type_filter),
     GetStrategy::Network,
@@ -549,7 +555,7 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
       // Find and delete the OrganizationRequests link
       let link_type_filter = LinkTypes::OrganizationRequests
         .try_into_filter()
-        .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+        .map_err(|e| CommonError::LinkError(e.to_string()))?;
       let org_requests_links = get_links(
         LinkQuery::new(org_hash.clone(), link_type_filter),
         GetStrategy::Network,
@@ -569,33 +575,50 @@ pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool> {
     }
   }
 
-  // Delete service type links using the service_types zome
-  delete_all_service_type_links_for_entity(GetServiceTypeForEntityInput {
-    original_action_hash: OriginalActionHash(original_action_hash.clone()),
-    entity: "request".to_string(),
-  })?;
+  // Delete service type and medium of exchange links, from the root and from each
+  // revision, which an edit links from.
+  for revision in &revisions {
+    delete_all_service_type_links_for_entity(GetServiceTypeForEntityInput {
+      original_action_hash: OriginalActionHash(revision.clone()),
+      entity: "request".to_string(),
+    })?;
+    delete_all_medium_of_exchange_links_for_entity(GetMediumOfExchangeForEntityInput {
+      original_action_hash: OriginalActionHash(revision.clone()),
+      entity: "request".to_string(),
+    })?;
+  }
 
-  // Delete medium of exchange links using the mediums_of_exchange zome
-  delete_all_medium_of_exchange_links_for_entity(GetMediumOfExchangeForEntityInput {
-    original_action_hash: OriginalActionHash(original_action_hash.clone()),
-    entity: "request".to_string(),
-  })?;
-
-  // Delete any update links
-  let link_type_filter = LinkTypes::RequestUpdates
-    .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
-  let update_links = get_links(
-    LinkQuery::new(original_action_hash.clone(), link_type_filter),
-    GetStrategy::Network,
-  )?;
-
+  // Delete the update links
   for link in update_links {
     delete_link(link.create_link_hash, GetOptions::default())?;
   }
 
-  // Finally delete the request entry
-  delete_entry(original_action_hash.clone())?;
+  // The active and archived lists. An edit moves the active link to the newest
+  // revision, so after one it points at no hash the links above are matched on, and
+  // the deleted request stayed in the active list.
+  for (path, link_type) in [
+    ("requests.active", LinkTypes::ActiveRequests),
+    ("requests.archived", LinkTypes::ArchivedRequests),
+  ] {
+    let link_type_filter = link_type
+      .try_into_filter()
+      .map_err(|e| CommonError::LinkError(e.to_string()))?;
+    let status_links = get_links(
+      LinkQuery::new(Path::from(path).path_entry_hash()?, link_type_filter),
+      GetStrategy::Network,
+    )?;
+    for link in status_links {
+      if let Some(hash) = link.target.clone().into_action_hash() {
+        if revisions.contains(&hash) {
+          delete_link(link.create_link_hash, GetOptions::default())?;
+        }
+      }
+    }
+  }
+
+  // Finally delete the request: each revision, so none is read on its own once the root
+  // is gone, then the root.
+  delete_chain(&revisions)?;
 
   Ok(true)
 }

@@ -6,7 +6,7 @@ use utils::{
   errors::{CommonError, StatusError},
   find_original_action_hash, get_all_revisions_for_entry,
   grants::{grant_tag, Ability, Authority, Role},
-  EntityActionHash, OriginalActionHash, PreviousActionHash,
+  resolve_chain_root, EntityActionHash, OriginalActionHash, PreviousActionHash,
 };
 
 use crate::{
@@ -96,9 +96,19 @@ fn get_entity_status_link(input: EntityActionHash) -> ExternResult<Link> {
 /// latest, or no updates were ever made).
 #[hdk_extern]
 pub fn get_latest_status_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+  // A client may hold a revision: the update links hang off the chain root, and from a
+  // revision none are found, so the revision came back as if it were the latest (#229).
+  latest_status_record(resolve_chain_root(original_action_hash))
+}
+
+/// The latest revision of the status whose chain root is `original_action_hash`, or of
+/// the status itself when given its newest revision, which is what the rotating
+/// `EntityStatus` link points at. For the internal callers that hold that target, so they
+/// do not walk the whole status chain on every read.
+fn latest_status_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
   let link_type_filter = LinkTypes::StatusUpdates
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(original_action_hash.clone(), link_type_filter),
     GetStrategy::Network,
@@ -121,7 +131,11 @@ pub fn get_latest_status_record(original_action_hash: ActionHash) -> ExternResul
 /// status action hash, or `Ok(None)` if the record has no app entry.
 #[hdk_extern]
 pub fn get_latest_status(original_action_hash: ActionHash) -> ExternResult<Option<Status>> {
-  let latest_status_record = get_latest_status_record(original_action_hash)?;
+  status_of(get_latest_status_record(original_action_hash)?)
+}
+
+/// The `Status` in a status record, for `get_latest_status` and the internal readers.
+fn status_of(latest_status_record: Option<Record>) -> ExternResult<Option<Status>> {
   let latest_status_option: Option<Status> = latest_status_record
     .ok_or(CommonError::RecordNotFound("status".to_string()))?
     .entry()
@@ -146,14 +160,14 @@ pub fn get_latest_status_record_for_entity(
 
   let link_type_filter = LinkTypes::EntityStatus
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(resolved_original_action_hash.0.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
 
   if let Some(first_link) = links.first() {
-    get_latest_status_record(
+    latest_status_record(
       first_link
         .clone()
         .target
@@ -177,20 +191,20 @@ pub fn get_latest_status_for_entity(input: EntityActionHash) -> ExternResult<Opt
 
   let link_type_filter = LinkTypes::EntityStatus
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(resolved_original_action_hash.0.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
 
   let latest_status: Option<Status> = if let Some(first_link) = links.first() {
-    get_latest_status(
+    status_of(latest_status_record(
       first_link
         .target
         .clone()
         .into_action_hash()
         .ok_or(CommonError::ActionHashNotFound("status".to_string()))?,
-    )?
+    )?)?
   } else {
     None
   };
@@ -524,7 +538,7 @@ pub fn suspend_entity_indefinitely(input: SuspendEntityInput) -> ExternResult<bo
 pub fn unsuspend_entity_if_time_passed(input: UpdateInput) -> ExternResult<bool> {
   let link_type_filter = LinkTypes::EntityStatus
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let link = get_links(
     LinkQuery::new(
       input.entity_original_action_hash.0.clone(),
@@ -544,7 +558,7 @@ pub fn unsuspend_entity_if_time_passed(input: UpdateInput) -> ExternResult<bool>
     .into_action_hash()
     .ok_or(CommonError::ActionHashNotFound("status".to_string()))?;
 
-  let mut status = get_latest_status(status_action_hash)?
+  let mut status = status_of(latest_status_record(status_action_hash)?)?
     .ok_or(CommonError::EntryNotFound("status".to_string()))?;
 
   if status.status_type == "suspended temporarily" {

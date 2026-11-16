@@ -138,9 +138,9 @@ The bulletin board MVP is done, and the 0.6.0 alphas build the exchange process 
 
 ### Shipped
 
-- **Bulletin Board**: Requests and offers, each with one approved service type and a medium of exchange
+- **Bulletin Board**: Requests and offers, each with one approved service type
 - **Members and Organizations**: Profiles, organizations, and an administration that reviews applications with reasons
-- **Search & Browse**: Find requests and offers by keywords and tags
+- **Search & Browse**: Find requests and offers by title or description, and browse them by service type
 - **Exchange Process**: Interest, proposals and counter-proposals, agreements, and completion by each party, mirrored into hREA as Valueflows commitments and events
 
 ### In Progress

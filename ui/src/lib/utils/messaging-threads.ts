@@ -217,7 +217,7 @@ const ZOME_FAILED_PREFIX = 'Wasm runtime error while working with Ribosome';
  * interface answers any such error with `ExternalApiWireError::internal`
  * (`src/conductor/api/api_external/app_interface.rs`, `src/conductor/api/error.rs`), so
  * it reaches the client as `internal_error`, rendered with `Display`: this prefix, then
- * the runtime error with our `Guest("…")` sentence inside it, which `reasonOf` unwraps.
+ * the runtime error with our `Guest("…")` sentence inside it, which `guestReason` unwraps.
  *
  * **It carries "nothing was written"** because of where it is raised: before that `?`,
  * and the call's writes are flushed only after it, so nothing is stored. That holds for

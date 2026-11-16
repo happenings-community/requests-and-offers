@@ -131,25 +131,28 @@ requests-and-offers/
 
 See [Architecture Overview](documentation/architecture.md) for detailed system design.
 
-## 🔄 MVP Transition
+## 🗺️ Where the Project Stands
 
-This project is currently transitioning to a simplified MVP approach:
+The bulletin board MVP is done, and the 0.6.0 alphas build the exchange process on top of it.
+[CHANGELOG.md](CHANGELOG.md) records each change as it lands.
 
-### Simplified MVP Features
+### Shipped
 
-- **Bulletin Board**: Simple request/offer listing system
-- **Direct Contact**: Clear display of contact information for communication
-- **User Management**: Archive/delete own listings
+- **Bulletin Board**: Requests and offers, each with one approved service type and a medium of exchange
+- **Members and Organizations**: Profiles, organizations, and an administration that reviews applications with reasons
 - **Search & Browse**: Find requests and offers by keywords and tags
+- **Exchange Process**: Interest, proposals and counter-proposals, agreements, and completion by each party, mirrored into hREA as Valueflows commitments and events
 
-### Post-MVP Features (Coming Later)
+### In Progress
 
-- **Exchange Process**: Proposal, agreement, and review workflows
-- **In-App Messaging**: Secure communication between users
-- **Reputation System**: Review and rating mechanisms
-- **Advanced Matching**: Algorithmic request/offer matching
+- **In-App Messaging**: Encrypted conversations between members, and proposals started from a listing
 
-See [MVP Documentation](documentation/requirements/mvp.md) for details on the simplified approach.
+### Later
+
+- **Reputation System**: Reviews and ratings after an exchange
+- **Advanced Matching**: Algorithmic request and offer matching
+
+The original scope is in [MVP Documentation](documentation/requirements/mvp.md), and the designs for the later features are in [post-MVP requirements](documentation/requirements/post-mvp/README.md).
 
 ## 🤝 Community & Licensing
 

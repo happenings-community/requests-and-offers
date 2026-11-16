@@ -732,6 +732,36 @@ export const createAdministrationStore = (): E.Effect<
       )(setters);
 
     /** Every user with their latest status, read from the DHT. */
+    // **A status this administrator wrote stands until a read returns one at least as new**
+    // (#411, walk of 16 November). A status is read through a link that each write
+    // replaces, from the network, so for about a minute after a write a read can still
+    // answer with the status before it; applied, it put an accepted or suspended member
+    // back where they were until the network caught up. Keyed by the entity's original
+    // action hash, with the write's time in milliseconds, as reads give it.
+    const recentWrites = new Map<string, { status: UIStatus; at: number }>();
+
+    const rememberWrite = (entity: ActionHash, record: HolochainRecord): void => {
+      const status = createUIStatusFromRecord(record);
+      if (!status) return;
+      const at = Math.floor(record.signed_action.hashed.content.header.timestamp / 1000);
+      recentWrites.set(entity.toString(), { status, at });
+    };
+
+    const preferRecentWrites = <T extends { original_action_hash?: ActionHash; status?: UIStatus }>(
+      entries: T[]
+    ): T[] =>
+      entries.map((entry) => {
+        const key = entry.original_action_hash?.toString();
+        const written = key ? recentWrites.get(key) : undefined;
+        if (!key || !written) return entry;
+        // The network has caught up with the write, or someone has written since.
+        if ((entry.status?.created_at ?? 0) >= written.at) {
+          recentWrites.delete(key);
+          return entry;
+        }
+        return { ...entry, status: written.status };
+      });
+
     const readAllUsers = (): E.Effect<UIUser[], AdministrationError> =>
       pipe(
         administrationService.getAllUsersLinks(),
@@ -747,7 +777,7 @@ export const createAdministrationStore = (): E.Effect<
             )
           )
         ),
-        E.map((users) => users.filter((u): u is UIUser => u !== null)),
+        E.map((users) => preferRecentWrites(users.filter((u): u is UIUser => u !== null))),
         E.catchAll((error) =>
           E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.FETCH_USERS))
         )
@@ -776,7 +806,9 @@ export const createAdministrationStore = (): E.Effect<
             )
           )
         ),
-        E.map((organizations) => organizations.filter((o): o is UIOrganization => o !== null)),
+        E.map((organizations) =>
+          preferRecentWrites(organizations.filter((o): o is UIOrganization => o !== null))
+        ),
         E.catchAll((error) =>
           E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.FETCH_ORGANIZATIONS))
         )
@@ -1036,6 +1068,7 @@ export const createAdministrationStore = (): E.Effect<
             }
           }),
           E.tap(async (record) => {
+            rememberWrite(entity_original_action_hash, record);
             // Find the user entity to emit the updated event
             const userIndex = allUsers.findIndex(
               (u) => u.original_action_hash?.toString() === entity_original_action_hash.toString()
@@ -1091,6 +1124,7 @@ export const createAdministrationStore = (): E.Effect<
             }
           }),
           E.tap(async (record) => {
+            rememberWrite(entity_original_action_hash, record);
             // Find the organization entity to emit the updated event
             const orgIndex = allOrganizations.findIndex(
               (o) => o.original_action_hash?.toString() === entity_original_action_hash.toString()

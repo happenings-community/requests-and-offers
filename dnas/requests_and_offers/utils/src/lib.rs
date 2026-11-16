@@ -1,5 +1,6 @@
 pub mod dna_properties;
 pub mod errors;
+pub mod grants;
 pub mod types;
 /// Host-only helpers for calling an integrity zome's `validate` with one op.
 #[cfg(not(target_arch = "wasm32"))]
@@ -144,10 +145,6 @@ where
       .into(),
     ),
   }
-}
-
-pub fn timetamp_now() -> Timestamp {
-  Timestamp::from_micros(chrono::UTC::now().timestamp_subsec_micros() as i64)
 }
 
 pub fn is_image(bytes: SerializedBytes) -> bool {

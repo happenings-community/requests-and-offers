@@ -52,7 +52,7 @@ bun start:web          # Browser tabs, one URL per member; both open the conduct
 ```bash
 bun test               # All tests
 bun test:ui            # Frontend tests
-bun test:unit          # Unit tests (requires Nix)
+bun test:unit          # Unit tests (no Nix needed)
 bun test:integration   # Integration tests
 ```
 
@@ -64,7 +64,7 @@ bun build:happ         # Build complete hApp
 bun package            # Package for distribution
 ```
 
-> **Note**: Unit tests require Nix environment due to hREA integration. Use `nix develop --command bun test:unit` for autonomous execution.
+> **Note**: Unit tests do not need Nix; building zomes, the hApp and Sweettest does. Use `nix develop --command bun build:happ` for those.
 
 ## 🔧 Development Features System
 
@@ -149,7 +149,7 @@ This project is currently transitioning to a simplified MVP approach:
 - **Reputation System**: Review and rating mechanisms
 - **Advanced Matching**: Algorithmic request/offer matching
 
-See [MVP Documentation](documentation/mvp/README.md) for details on the simplified approach.
+See [MVP Documentation](documentation/requirements/mvp.md) for details on the simplified approach.
 
 ## 🤝 Community & Licensing
 

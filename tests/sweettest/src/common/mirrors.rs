@@ -41,6 +41,8 @@ pub struct Organization {
     pub email: String,
     pub urls: Vec<String>,
     pub location: String,
+    #[serde(default)]
+    pub grant: Option<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(Organization);
 
@@ -52,8 +54,38 @@ pub struct Status {
     pub status_type: String,
     pub reason: Option<String>,
     pub suspended_until: Option<String>,
+    #[serde(default)]
+    pub grant: Option<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(Status);
+
+// ── Grant mirrors ───────────────────────────
+
+/// Mirror of `Authority` from `utils::grants`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum Authority {
+    Progenitor { signature: Signature },
+    Grant(ActionHash),
+}
+
+/// Mirror of `RoleGrant` from `utils::grants`, registered in `administration_integrity`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RoleGrant {
+    pub role: String,
+    pub holder: AgentPubKey,
+    pub scope: Option<ActionHash>,
+    pub authority: Authority,
+}
+holochain_serialized_bytes::holochain_serial!(RoleGrant);
+
+/// Mirror of `GrantBody` from `utils::grants`: what the progenitor signs.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GrantBody {
+    pub role: String,
+    pub holder: AgentPubKey,
+    pub scope: Option<ActionHash>,
+}
+holochain_serialized_bytes::holochain_serial!(GrantBody);
 
 // ── Service Type mirrors ──────────────────────────────────────
 
@@ -63,6 +95,8 @@ pub struct ServiceType {
     pub name: String,
     pub description: String,
     pub technical: bool,
+    #[serde(default)]
+    pub grant: Option<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(ServiceType);
 
@@ -81,6 +115,8 @@ pub struct Request {
     pub interaction_type: String,
     pub links: Vec<String>,
     pub status: String,
+    #[serde(default)]
+    pub grant: Option<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(Request);
 
@@ -103,6 +139,8 @@ pub struct Offer {
     pub interaction_type: String,
     pub links: Vec<String>,
     pub status: String,
+    #[serde(default)]
+    pub grant: Option<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(Offer);
 

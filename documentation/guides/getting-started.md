@@ -204,7 +204,7 @@ The application integrates with hREA (Holochain Resource-Event-Agent) framework:
 
    ```bash
    # Backend tests
-   bun test:service-types
+   bun run test:sweettest:service-types
 
    # Frontend tests
    cd ui && bun test:unit -- service-types
@@ -246,7 +246,7 @@ The application integrates with hREA (Holochain Resource-Event-Agent) framework:
 
 ## Need Help?
 
-- **Development Questions**: Check our comprehensive [AI Development Rules](../ai/rules/README.md)
+- **Development Questions**: Check the root `CLAUDE.md` and `.claude/skills/` for project patterns
 - **Community**: Join our [Discord](https://discord.gg/happening)
 - **Project Info**: Visit [hAppenings Community](https://happenings.community/)
 - **Issues**: Report on [GitHub](https://github.com/Happening-Community/requests-and-offers/issues)

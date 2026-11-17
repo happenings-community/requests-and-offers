@@ -484,6 +484,10 @@ export const createRequestsStore = (): E.Effect<
                   E.tap((request) =>
                     E.sync(() => {
                       if (request) {
+                        // The record is the latest revision, whose own hash is not the
+                        // listing's. Keep the hash it was asked for, as getLatestRequest
+                        // does; previous_action_hash stays the revision's.
+                        request.original_action_hash = requestHash;
                         E.runSync(cache.set(requestHash.toString(), request));
                         syncCacheToState(request, 'add');
                       }

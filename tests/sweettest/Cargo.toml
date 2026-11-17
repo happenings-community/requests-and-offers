@@ -81,6 +81,10 @@ name = "link_canonicalisation"
 path = "tests/link_canonicalisation.rs"
 
 [[test]]
+name = "chain_root_reads"
+path = "tests/chain_root_reads.rs"
+
+[[test]]
 name = "exchanges"
 path = "tests/exchanges.rs"
 
@@ -93,6 +97,10 @@ name = "exchanges_attacks_review"
 path = "tests/exchanges_attacks_review.rs"
 
 [[test]]
+name = "users_link_attacks"
+path = "tests/users_link_attacks.rs"
+
+[[test]]
 name = "mediums_of_exchange"
 path = "tests/mediums_of_exchange.rs"
 
@@ -103,3 +111,7 @@ path = "tests/messaging.rs"
 [[test]]
 name = "record_op_premise"
 path = "tests/record_op_premise.rs"
+
+[[test]]
+name = "grants"
+path = "tests/grants.rs"

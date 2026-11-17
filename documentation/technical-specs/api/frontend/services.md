@@ -67,7 +67,7 @@ export const makeDomainService = Effect.gen(function* () {
 #### Interface
 
 ```typescript
-export interface ServiceTypeService {
+export interface ServiceTypesService {
   readonly createServiceType: (
     input: CreateServiceTypeInput,
   ) => Effect.Effect<UIServiceType, ServiceTypeError>;
@@ -104,21 +104,21 @@ export interface ServiceTypeService {
 
 ```typescript
 // Dependency injection
-export const ServiceTypeService =
-  Context.GenericTag<ServiceTypeService>("ServiceTypeService");
+export const ServiceTypesService =
+  Context.GenericTag<ServiceTypesService>("ServiceTypesService");
 
 // Layer definition
-export const ServiceTypeServiceLive = Layer.effect(
-  ServiceTypeService,
+export const ServiceTypesServiceLive = Layer.effect(
+  ServiceTypesService,
   makeServiceTypeService,
 ).pipe(Layer.provide(HolochainClientServiceLive));
 
 // Usage in stores or composables
 const serviceTypes = await Effect.runPromise(
   Effect.gen(function* () {
-    const service = yield* ServiceTypeService;
+    const service = yield* ServiceTypesService;
     return yield* service.getAllServiceTypes();
-  }).pipe(Effect.provide(ServiceTypeServiceLive)),
+  }).pipe(Effect.provide(ServiceTypesServiceLive)),
 );
 ```
 
@@ -129,7 +129,7 @@ const serviceTypes = await Effect.runPromise(
 #### Interface
 
 ```typescript
-export interface RequestService {
+export interface RequestsService {
   readonly createRequest: (
     input: CreateRequestInput,
   ) => Effect.Effect<UIRequest, RequestError>;
@@ -166,7 +166,7 @@ export interface RequestService {
 #### Interface
 
 ```typescript
-export interface OfferService {
+export interface OffersService {
   readonly createOffer: (
     input: CreateOfferInput,
   ) => Effect.Effect<UIOffer, OfferError>;
@@ -226,7 +226,7 @@ export interface UsersService {
 #### Interface
 
 ```typescript
-export interface OrganizationService {
+export interface OrganizationsService {
   readonly createOrganization: (
     input: CreateOrganizationInput,
   ) => Effect.Effect<UIOrganization, OrganizationError>;
@@ -434,8 +434,8 @@ export class DomainError extends Data.TaggedError("DomainError")<{
 ```typescript
 // Composing multiple services
 const complexOperation = Effect.gen(function* () {
-  const serviceTypeService = yield* ServiceTypeService;
-  const requestService = yield* RequestService;
+  const serviceTypeService = yield* ServiceTypesService;
+  const requestService = yield* RequestsServiceTag;
 
   const serviceType = yield* serviceTypeService.getServiceType(serviceTypeHash);
   if (!serviceType) {

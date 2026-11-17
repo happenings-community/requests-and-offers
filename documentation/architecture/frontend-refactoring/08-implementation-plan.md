@@ -168,7 +168,7 @@ PR 3.2 is deliberately observation-only: decode and log, change nothing. It prov
 
 ## Fit with the release train
 
-The project is on v0.5.2 in alpha testing, with v0.6.0 in flight. Nothing in Phases 0 through 2 changes user-visible behaviour, so all of it can land on `dev` alongside feature work. Phase 3 does change behaviour and touches the DNA, so it wants its own minor version.
+The project is on v0.6.0-alpha.1 in alpha testing, with v0.6.0 final in flight. Nothing in Phases 0 through 2 changes user-visible behaviour, so all of it can land on `dev` alongside feature work. Phase 3 does change behaviour and touches the DNA, so it wants its own minor version.
 
 | Phase | Target |
 |---|---|

@@ -516,7 +516,7 @@ const isLoading = serviceTypesStore.isLoading();
 
 // Execute operations
 await Effect.runPromise(
-  serviceTypesStore.fetchEntities.pipe(Effect.provide(ServiceTypeServiceLive)),
+  serviceTypesStore.fetchEntities.pipe(Effect.provide(ServiceTypesServiceLive)),
 );
 
 // Create new entity
@@ -526,7 +526,7 @@ await Effect.runPromise(
       name: "Web Development",
       description: "Frontend and backend web development services",
     })
-    .pipe(Effect.provide(ServiceTypeServiceLive)),
+    .pipe(Effect.provide(ServiceTypesServiceLive)),
 );
 ```
 
@@ -654,7 +654,7 @@ const eventEmitters = createEventEmitters<UIServiceType>("serviceTypes");
 const createEntity = (input: CreateServiceTypeInput) =>
   withLoadingState(
     Effect.gen(function* () {
-      const service = yield* ServiceTypeService;
+      const service = yield* ServiceTypesService;
       const newEntity = yield* service.createServiceType(input);
       handleNewRecord(newEntity);
       eventEmitters.entityCreated(newEntity); // Event emission
@@ -723,7 +723,7 @@ describe("ServiceTypes Store - Helper Functions", () => {
 ```typescript
 describe("ServiceTypes Store - Effect Operations", () => {
   it("should fetch entities successfully", async () => {
-    const MockServiceTypeService = Layer.succeed(ServiceTypeService, {
+    const MockServiceTypeService = Layer.succeed(ServiceTypesService, {
       getAllServiceTypes: () => Effect.succeed([createMockUIServiceType()]),
     });
 

@@ -46,7 +46,7 @@ There is currently **no CI workflow running this suite** (`.github/workflows/` h
 
 ## Selector gotchas (hard-won)
 
-- **Skeleton `TabGroup` tabs are `role="tab"`, not buttons.** My Listings' tab switcher, by contrast, uses real buttons.
+- **Skeleton `TabGroup` tabs are `role="tab"`, not buttons.** My Listings' view switcher (the three count cards), by contrast, is toggle buttons with `aria-pressed`: select a view with `getByRole('button', { name: /Active offers/ })`.
 - **Two confirm mechanisms coexist**: native `window.confirm` (detail-page deletes and the service-type table deletes — use `page.once('dialog', …)`), and the custom `ConfirmModal` component (ActionBar moderation, cards, and the MoE delete). Skeleton's built-in `type: 'confirm'` is no longer used anywhere in `ui/src`, and `ui/tests/unit/utils/no-raw-html.test.ts` keeps it that way.
 - **`ServiceTypeSelector` renders an unkeyed `{#each}` over a list that re-sorts after async loads** — a click can race the re-render and toggle the wrong item. Always filter via its search box down to one option first, then check, then assert the selection chip.
 - **`TimeZoneSelect` is a Skeleton popup combobox** on every form (user, offer, request) — drive it with the keyboard-based `selectTimezone()` helper.

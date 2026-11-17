@@ -259,10 +259,9 @@ fn validate_term(term: &ExchangeTerm, side: &str) -> Option<String> {
 // ---------------------------------------------------------------------------
 
 /// An interest names its author's own user, on a listing that exists, carries
-/// its author's member grant (#378), and its author holds no other live interest
-/// on that listing (#354). A withdrawn
-/// interest does not count, so a member may show interest again after
-/// withdrawing.
+/// its author's member grant (#378), and its author holds no other live
+/// interest on that listing (#354). A withdrawn interest does not count, so a
+/// member may show interest again after withdrawing.
 fn validate_interest(
   action: &TypedAction<CreateData>,
   interest: &Interest,

@@ -924,5 +924,9 @@ async fn one_live_interest_per_listing() {
             json!({ "listing": offer_hash, "listing_type": "Offer" }),
         )
         .await;
-    assert!(third.is_err(), "the renewed interest is live, so another is refused");
+    let refusal = format!("{:?}", third.expect_err("the renewed interest is live, so another is refused"));
+    assert!(
+        refusal.contains("already shown interest in this listing"),
+        "the third interest is refused for the rule, not for something else: {refusal}"
+    );
 }

@@ -4,6 +4,7 @@
   import { isHolochainConnected } from '$lib/utils/holochain-client.utils';
   import { formatUserName } from '$lib/schemas/users.schemas';
   import { myMenuItems } from '$lib/navigation/my-menu';
+  import { isUserApproved } from '$lib/utils';
 
   let error: string | null = $state(null);
   let isLoading = $state(true);
@@ -54,7 +55,7 @@
     'bg-secondary-500 hover:bg-secondary-600'
   ];
   const userActivityCards = $derived(
-    myMenuItems(!!currentUser).map((item, i) => ({
+    myMenuItems(!!currentUser, isUserApproved(currentUser)).map((item, i) => ({
       title: item.label,
       description: item.description,
       icon: item.icon,

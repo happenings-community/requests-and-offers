@@ -97,23 +97,23 @@
     </div>
   {/if}
 
-  <div class="grid gap-4 md:grid-cols-3" role="tablist" aria-label="Listing views">
+  <!-- Toggle buttons, not tabs: no arrow-key movement and no panel to point at -->
+  <div class="grid gap-4 md:grid-cols-3" role="group" aria-label="Listing views">
     {#each VIEWS as v (v.key)}
       <button
         class="card space-y-2 p-4 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {view ===
         v.key
           ? `ring-2 ${v.ring}`
           : ''}"
-        role="tab"
-        aria-selected={view === v.key}
+        aria-pressed={view === v.key}
         onclick={() => (view = v.key)}
       >
-        <div class="flex items-start justify-between">
+        <span class="flex items-start justify-between">
           <span class="text-2xl">{v.icon}</span>
           <span class="text-3xl font-bold">{loading ? '…' : counts[v.key]}</span>
-        </div>
-        <h2 class="h4">{v.label}</h2>
-        <p class="text-sm text-surface-500">{v.blurb}</p>
+        </span>
+        <span class="h4 block">{v.label}</span>
+        <span class="block text-sm text-surface-500">{v.blurb}</span>
       </button>
     {/each}
   </div>

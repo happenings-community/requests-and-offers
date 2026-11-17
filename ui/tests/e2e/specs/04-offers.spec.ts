@@ -183,6 +183,11 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
     await expect(page.getByRole('heading', { name: OFFER_TITLE_EDITED }).first()).toBeVisible({
       timeout: 15_000
     });
+
+    // The edit form is behind the listing now. Back goes to the offers list, not
+    // back into the form (#349 review).
+    await page.getByTestId('back-button').click();
+    await expect(page).toHaveURL(/\/offers\/?(\?|$)/, { timeout: 15_000 });
   });
 
   // KNOWN APP GAP: list surfaces (my-listings, /offers, /admin/offers) render
@@ -192,7 +197,7 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
   test('my listings shows the active offer', async ({ page }) => {
     await openMyListings(page);
 
-    await page.getByRole('tab', { name: /Active offers/ }).click();
+    await page.getByRole('button', { name: /Active offers/ }).click();
     await expect(page.locator(`text=${OFFER_TITLE}`).first()).toBeVisible({
       timeout: 15_000
     });
@@ -211,7 +216,7 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
 
   test('user archives the offer from my listings', async ({ page }) => {
     await openMyListings(page);
-    await page.getByRole('tab', { name: /Active offers/ }).click();
+    await page.getByRole('button', { name: /Active offers/ }).click();
     await expect(page.locator(`text=${OFFER_TITLE}`).first()).toBeVisible({
       timeout: 15_000
     });
@@ -226,7 +231,7 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
     await page.getByRole('button', { name: 'Archive', exact: true }).last().click();
 
     // The offer leaves Active offers and shows under Archived.
-    await page.getByRole('tab', { name: /Archived/ }).click();
+    await page.getByRole('button', { name: /Archived/ }).click();
     await expect(page.locator(`text=${OFFER_TITLE}`).first()).toBeVisible({
       timeout: 15_000
     });
@@ -238,7 +243,7 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
 
   test('user deletes the archived offer', async ({ page }) => {
     await openMyListings(page);
-    await page.getByRole('tab', { name: /Archived/ }).click();
+    await page.getByRole('button', { name: /Archived/ }).click();
     await expect(page.locator(`text=${OFFER_TITLE}`).first()).toBeVisible({
       timeout: 15_000
     });

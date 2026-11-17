@@ -3,8 +3,8 @@ import { myActivityItems, myMenuItems, myProfileItems } from '$lib/navigation/my
 
 describe('the member’s own menus (#344)', () => {
   it('puts listings and exchanges under My Activity, with no separate requests or offers', () => {
-    expect(myActivityItems().map((i) => i.label)).toEqual(['My Listings', 'My Exchanges']);
-    expect(myActivityItems().some((i) => i.href.includes('filter=my'))).toBe(false);
+    expect(myActivityItems(true).map((i) => i.label)).toEqual(['My Listings', 'My Exchanges']);
+    expect(myActivityItems(true).some((i) => i.href.includes('filter=my'))).toBe(false);
   });
 
   it('puts your profile under your picture, or Create Profile until there is one', () => {
@@ -16,10 +16,16 @@ describe('the member’s own menus (#344)', () => {
   });
 
   it('gives the home page all three, profile first', () => {
-    expect(myMenuItems(true).map((i) => i.label)).toEqual([
+    expect(myMenuItems(true, true).map((i) => i.label)).toEqual([
       'My Profile',
       'My Listings',
       'My Exchanges'
     ]);
+  });
+
+  it('keeps My Activity to accepted members, since both pages are members only (#349 review)', () => {
+    expect(myActivityItems(false)).toEqual([]);
+    expect(myMenuItems(true, false).map((i) => i.label)).toEqual(['My Profile']);
+    expect(myMenuItems(false, false).map((i) => i.label)).toEqual(['Create Profile']);
   });
 });

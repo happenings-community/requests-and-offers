@@ -31,8 +31,13 @@ export function myProfileItems(hasProfile: boolean): MyMenuItem[] {
   ];
 }
 
-/** My Activity: what you are doing on the network. */
-export function myActivityItems(): MyMenuItem[] {
+/**
+ * My Activity: what you are doing on the network. Both pages are for accepted
+ * members, so a pending or suspended member gets no links that end at the
+ * Members only wall (#349 review).
+ */
+export function myActivityItems(accepted: boolean): MyMenuItem[] {
+  if (!accepted) return [];
   return [
     {
       href: '/my-listings',
@@ -50,6 +55,6 @@ export function myActivityItems(): MyMenuItem[] {
 }
 
 /** Everything of your own, profile first: the home page's cards. */
-export function myMenuItems(hasProfile: boolean): MyMenuItem[] {
-  return [...myProfileItems(hasProfile), ...myActivityItems()];
+export function myMenuItems(hasProfile: boolean, accepted: boolean): MyMenuItem[] {
+  return [...myProfileItems(hasProfile), ...myActivityItems(accepted)];
 }

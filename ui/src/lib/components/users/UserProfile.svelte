@@ -206,12 +206,15 @@
         {#if status?.until}
           <p class="text-sm"><strong>Suspended until:</strong> {status.until}</p>
         {/if}
-        <button
-          type="button"
-          class="anchor text-sm"
-          onclick={openStatusHistory}
-          data-testid="status-history-link">Status history ›</button
-        >
+        <!-- Every revision's reason is in the history, an information request included, so only on their own view (#331); administrators read it from the admin pages -->
+        {#if isCurrentUser}
+          <button
+            type="button"
+            class="anchor text-sm"
+            onclick={openStatusHistory}
+            data-testid="status-history-link">Status history ›</button
+          >
+        {/if}
       </div>
     </div>
 

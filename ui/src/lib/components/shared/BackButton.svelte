@@ -1,5 +1,6 @@
 <script lang="ts">
   import { afterNavigate, goto } from '$app/navigation';
+  import { page } from '$app/state';
   import { backTarget } from '$lib/utils/back';
 
   /**
@@ -21,7 +22,7 @@
   });
 
   function back() {
-    const target = backTarget(cameFrom, fallback);
+    const target = backTarget(cameFrom, fallback, page.url);
     if (target === 'history') history.back();
     else goto(target);
   }

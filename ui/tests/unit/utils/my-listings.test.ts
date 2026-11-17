@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { listingCounts, listingsFor, type MyListingSets } from '$lib/utils/my-listings';
+import {
+  listingCounts,
+  listingsFor,
+  viewFromQuery,
+  type MyListingSets
+} from '$lib/utils/my-listings';
 import type { UIOffer, UIRequest } from '$lib/types/ui';
 
 const hash = (n: number) => new Uint8Array([n, n, n, n]);
@@ -36,5 +41,16 @@ describe('My Listings views (#344)', () => {
     s.activeRequests[1] = { ...s.activeRequests[1], created_at: 10 };
     s.activeRequests[0] = { ...s.activeRequests[0], updated_at: 500 };
     expect(listingsFor('requests', s).map((m) => m.listing.title)).toEqual(['L1', 'L2']);
+  });
+});
+
+describe('My Listings opens the view a link asks for (#353 review)', () => {
+  it('opens Offers or Archived when asked, and Requests otherwise', () => {
+    expect(viewFromQuery('offers')).toBe('offers');
+    expect(viewFromQuery('archived')).toBe('archived');
+    expect(viewFromQuery('requests')).toBe('requests');
+    expect(viewFromQuery(null)).toBe('requests');
+    expect(viewFromQuery('Offers')).toBe('requests');
+    expect(viewFromQuery('anything')).toBe('requests');
   });
 });

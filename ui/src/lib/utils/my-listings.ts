@@ -8,6 +8,11 @@ import type { UIOffer, UIRequest } from '$lib/types/ui';
 
 export type ListingView = 'requests' | 'offers' | 'archived';
 
+/** The view a link asks for with `?view=`; anything else opens Requests. */
+export function viewFromQuery(asked: string | null): ListingView {
+  return asked === 'offers' || asked === 'archived' ? asked : 'requests';
+}
+
 export interface MyListingSets {
   activeRequests: UIRequest[];
   activeOffers: UIOffer[];

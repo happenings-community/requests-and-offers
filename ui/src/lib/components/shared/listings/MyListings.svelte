@@ -10,6 +10,7 @@
   import {
     listingCounts,
     listingsFor,
+    viewFromQuery,
     type ListingView,
     type MyListingSets
   } from '$lib/utils/my-listings';
@@ -45,10 +46,7 @@
     }
   ];
 
-  const asked = page.url.searchParams.get('view');
-  let view = $state<ListingView>(
-    asked === 'offers' || asked === 'archived' ? asked : 'requests'
-  );
+  let view = $state<ListingView>(viewFromQuery(page.url.searchParams.get('view')));
   let sets = $state<MyListingSets>({
     activeRequests: [],
     activeOffers: [],

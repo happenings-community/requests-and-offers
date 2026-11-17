@@ -183,6 +183,11 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
     await expect(page.getByRole('heading', { name: OFFER_TITLE_EDITED }).first()).toBeVisible({
       timeout: 15_000
     });
+
+    // The edit form is behind the listing now. Back goes to the offers list, not
+    // back into the form (#349 review).
+    await page.getByTestId('back-button').click();
+    await expect(page).toHaveURL(/\/offers\/?(\?|$)/, { timeout: 15_000 });
   });
 
   // KNOWN APP GAP: list surfaces (my-listings, /offers, /admin/offers) render

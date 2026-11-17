@@ -4,10 +4,12 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { getUserPictureUrl } from '$lib/utils';
   import { myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
+  import { isUserApproved } from '$lib/utils';
   import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
 
   const drawerStore = getDrawerStore();
   const { currentUser } = $derived(usersStore);
+  const activity = $derived(myActivityItems(isUserApproved(currentUser)));
   const { agentIsAdministrator } = $derived(administrationStore);
   const showSetupHint = $derived(
     needsSelfAcceptance(agentIsAdministrator, currentUser?.status?.status_type)
@@ -92,14 +94,14 @@
       </a>
     </div>
 
-    <!-- My Activity, as in the nav bar -->
-    {#if currentUser}
+    <!-- My Activity, as in the nav bar: accepted members only -->
+    {#if activity.length}
       <div class="space-y-3">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">
           My Activity
         </h3>
         <div class="space-y-2">
-          {#each myActivityItems() as item (item.href)}
+          {#each activity as item (item.href)}
             <a
               href={item.href}
               onclick={closeDrawer}

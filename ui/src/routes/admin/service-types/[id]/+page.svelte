@@ -337,7 +337,7 @@
             <div class="flex-1">
               <div class="mb-2 flex items-center gap-3">
                 <h1 class="h1 text-primary-400">{serviceType.name}</h1>
-                <span class="chip {statusColor} text-sm">
+                <span class="chip shrink-0 {statusColor} text-sm">
                   {statusLabel}
                 </span>
               </div>

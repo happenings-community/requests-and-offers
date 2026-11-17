@@ -303,7 +303,7 @@
           <h1 class="h1 mb-4 flex items-center gap-3 text-primary-500">
             {offer.title}
             <span
-              class="chip"
+              class="chip shrink-0"
               class:variant-ghost-success={offer.status === ListingStatus.Active}
               class:variant-ghost-tertiary={offer.status === ListingStatus.Archived}
             >

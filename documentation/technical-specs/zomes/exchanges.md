@@ -62,6 +62,8 @@ Validation may read only what the entry names, through `must_get_valid_record`; 
 | `Review` | either party | `rating` is 0 to 5 (a `u8`, so negatives cannot be expressed) |
 | `Cancellation` | either party | the agreement is a Create |
 
+**The member grant** (#378). An `Interest` and an `Agreement` each carry, in their `grant` field, a member grant held by their author: starting an exchange and proposing terms are acts of an accepted member. The coordinator sets the field. The four later steps carry none; each names an agreement, and only a party to it may write them. Forged writes: `an_interest_carries_the_member_grant_its_author_holds` in `grants.rs`, `an_agreement_carries_the_member_grant_its_author_holds` in `exchanges_attacks.rs`.
+
 **The kind rule** (`validate_term`): a `Gift` or `Tbd` term names no resource and carries no quantity; a `Service` or `Currency` term names the specification it conforms to. Any quantity present must be a well-formed decimal (see [Quantities](#quantities)), greater than zero, and carry a unit.
 
 ### Quantities
@@ -82,12 +84,13 @@ A counter compares quantities with `same_amount`, which reads both as numbers, s
 Never compare the strings with `==` for this.
 
 The UI mirrors the rule in `ui/src/lib/utils/decimal.ts`, which also does the exact comparison and sums, and in the `ExchangeQuantity` schema.
+What a member types is read by `parseTypedDecimal`: a decimal comma becomes a dot (`"2,5"` is 2.5), except a comma followed by exactly three digits (other than after a lone `0`) or beside a dot, which is refused, so `"1,000"` is never read as one; `typedDecimalProblem` tells the member to write it as `1000`.
 Both sides are tested with the same malformed inputs.
 
 This is a change to the `Agreement` entry format (`value` was an `f64`), so it changes the DNA hash and old entries cannot be read.
 It is acceptable inside the alpha 2 network reset.
 
-**Refused outright**: every update (`CreateRecord` update ops are invalid for all six types), every link delete, and every entry delete except an `Interest` deleted by its author.
+**Refused outright**: every update of all six types (on the entry op, the record op, and the op the original's authorities receive), every link delete, and every entry delete except an `Interest` deleted by its author.
 
 ### 2.3. Link Types
 
@@ -130,7 +133,7 @@ A cancellation written before any response reads as *withdrawn* rather than *can
 | `get_interests_for_listing` | `ActionHash` | `Vec<Record>` | |
 | `get_my_interests` | `()` | `Vec<Record>` | |
 | `create_agreement` | `CreateAgreementInput` | `Record` | parties derived here and re-derived in validation |
-| `respond_to_agreement` | `RespondInput` | `Record` | the counterparty accepts or declines |
+| `respond_to_agreement` | `RespondInput` | `Record` | the counterparty accepts or declines; once, and never after a cancellation, so a withdrawn proposal cannot be accepted |
 | `counter_agreement` | `CounterAgreementInput` | `Record` | declines the proposal and writes the counter in one call; counterparty only, while unanswered and not cancelled |
 | `complete_agreement` | `ActionHash` | `Record` | one completion per party |
 | `review_agreement` | `ReviewInput` | `Record` | |

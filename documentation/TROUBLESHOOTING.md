@@ -465,9 +465,9 @@ async fn debug_service_type_creation() -> anyhow::Result<()> {
 
 ### Internal Resources
 
-- **[Development Guidelines](ai/rules/development-guidelines.md)** - Comprehensive coding patterns
-- **[Architecture Patterns](ai/rules/architecture-patterns.md)** - System architecture guidance
-- **[Testing Framework](ai/rules/testing-framework.md)** - Testing strategies and patterns
+- **[Development Guidelines](../CLAUDE.md)** - Comprehensive coding patterns
+- **[Architecture Patterns](guides/architectural-patterns.md)** - System architecture guidance
+- **[Testing Framework](guides/testing.md)** - Testing strategies and patterns
 - **[Quick Reference](QUICK_REFERENCE.md)** - Essential commands and workflows
 
 ### Community Support

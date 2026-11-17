@@ -62,10 +62,9 @@ Request created → storeEventBus emits 'request:created'
         2. Find resource specs for service types (serviceTypeResourceSpecMappings)
         3. Find resource specs for mediums of exchange (mediumOfExchangeResourceSpecMappings)
       → If ALL found:
-        → Create Proposal via GraphQL
-        → Create primary Intent (service transfer)
+        → Create primary Intents (service work, one per service type)
         → Create reciprocal Intent (payment transfer)
-        → Link intents to proposal via proposeIntent mutation
+        → Create Proposal via GraphQL with publishes + reciprocal intent IDs
         → requestProposalMappings.set(requestHash, proposalId)
       → If ANY missing:
         → E.catchAll catches the error
@@ -94,17 +93,17 @@ retryPendingProposals():
 1. Alice's profile is created (pending)
 2. "Web Development" service type is created (pending)
 3. "Hours" medium of exchange is created (pending)
-4. Admin approves Alice → createPerson() → agent created
+4. Admin accepts Alice → createPersonFromUser() → agent created
 5. Alice creates request "I need web dev" → QUEUED (no service type spec yet)
-6. Admin approves "Web Development" → createResourceSpec() → retryPendingProposals()
+6. Admin approves "Web Development" → createResourceSpecificationFromServiceType() → retryPendingProposals()
    → Retry request → QUEUED (no MoE spec yet)
-7. Admin approves "Hours" → createResourceSpec() → retryPendingProposals()
-   → Retry request → SUCCESS: Proposal + 2 Intents created
+7. Admin approves "Hours" → createResourceSpecificationFromMediumOfExchange() → retryPendingProposals()
+   → Retry request → SUCCESS: Proposal + Intents created
 ```
 
 ## Key Implementation Details
 
-- `createProposalFromRequest` uses `E.catchAll` to silently queue on failure
+- `createProposalFromRequest` uses `E.catchAll` to queue on a missing-prerequisite error
 - Queue maps use `string` keys (action hash as string)
 - `retryPendingProposals` is fire-and-forget (uses `.catch()` for error logging)
 - Each event handler calls `retryPendingProposals()` via `.then()` after its main operation

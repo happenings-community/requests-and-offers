@@ -369,6 +369,50 @@ async fn agreement_cancelled_after_acceptance() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_withdrawn_proposal_cannot_be_answered() {
+    let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
+
+    let interest: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_interest", json!({ "listing": offer_hash, "listing_type": "Offer" }))
+        .await;
+    let interest_hash = interest.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Alice proposes, then withdraws before Bob has answered.
+    let agreement: Record = conductors[0]
+        .call(&alice.zome("exchanges"), "create_agreement", agreement_input(&offer_hash, &interest_hash))
+        .await;
+    let agreement_hash = agreement.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    let _: Record = conductors[0]
+        .call(
+            &alice.zome("exchanges"),
+            "cancel_agreement",
+            json!({ "agreement": agreement_hash, "note": "Withdrawn by the proposer" }),
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Bob's accept, and a decline too, must be refused rather than stored.
+    for accepted in [true, false] {
+        let response = conductors[1]
+            .call_fallible::<_, Record>(
+                &bob.zome("exchanges"),
+                "respond_to_agreement",
+                json!({ "agreement": agreement_hash, "accepted": accepted, "note": "" }),
+            )
+            .await;
+        assert!(response.is_err(), "a response to a withdrawn proposal must be refused (accepted: {accepted})");
+    }
+
+    let ex: Exchange = conductors[1]
+        .call(&bob.zome("exchanges"), "get_exchange", agreement_hash)
+        .await;
+    assert_eq!(status_of(&ex), "Cancelled");
+    assert!(ex.response.is_none(), "no response may be stored on a withdrawn proposal");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn exchange_refusals() {
     let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
 
@@ -472,7 +516,9 @@ async fn a_quantity_must_be_a_canonical_decimal() {
             .call_fallible::<_, Record>(&alice.zome("exchanges"), "create_agreement", with_value(json!(bad)))
             .await;
         let error = format!("{:?}", result.expect_err(&format!("{bad:?} must be refused")));
-        assert!(error.contains("quantity"), "{bad:?} was refused, but not for its quantity: {error}");
+        // Zero is well formed but not positive; everything else is malformed.
+        let rule = if matches!(bad, "0" | "0.0") { "quantity must be positive" } else { "quantity is not a decimal" };
+        assert!(error.contains(rule), "{bad:?} was refused, but not by the rule {rule:?}: {error}");
     }
 
     // A float on the wire is no longer a quantity at all.
@@ -597,7 +643,8 @@ async fn counter_refusals() {
             counter_input(&proposal_hash, "Within two weeks"),
         )
         .await;
-    assert!(unchanged.is_err(), "a counter must change a quantity or the timeframe");
+    let refusal = format!("{:?}", unchanged.expect_err("a counter must change a quantity or the timeframe"));
+    assert!(refusal.contains("changes a quantity or the timeframe"), "refused, but not by the counter rule: {refusal}");
 
     // The same amount spelled with trailing zeros is still no change: amounts
     // compare as numbers, not as strings.
@@ -606,7 +653,8 @@ async fn counter_refusals() {
     let respelled = conductors[1]
         .call_fallible::<_, Record>(&bob.zome("exchanges"), "counter_agreement", respelled)
         .await;
-    assert!(respelled.is_err(), "\"2.00\" is the same amount as \"2\", so it is no counter");
+    let refusal = format!("{:?}", respelled.expect_err("\"2.00\" is the same amount as \"2\", so it is no counter"));
+    assert!(refusal.contains("changes a quantity or the timeframe"), "refused, but not by the counter rule: {refusal}");
 
     // Once the proposal is accepted it cannot be countered.
     let _: Record = conductors[1]

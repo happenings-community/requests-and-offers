@@ -5,7 +5,8 @@ import {
   decimalsEqual,
   isOne,
   isZeroDecimal,
-  parseTypedDecimal
+  parseTypedDecimal,
+  typedDecimalProblem
 } from '$lib/utils/decimal';
 
 /**
@@ -134,7 +135,7 @@ function amountProblem(value: string | null | undefined, what: string): string |
   if (typed.startsWith('-') && decimalProblem(typed.slice(1)) === null) {
     return `${what} can't be negative. Use 0 or leave it blank for none.`;
   }
-  return `${what} ${decimalProblem(typed)}.`;
+  return `${what} ${typedDecimalProblem(typed)}.`;
 }
 
 export const NOTHING_CHANGED =

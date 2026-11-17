@@ -457,6 +457,10 @@ export const createOffersStore = (): E.Effect<
                   createEnhancedUIOffer(record, offersService),
                   E.map((offer) => {
                     if (offer) {
+                      // The record is the latest revision, whose own hash is not the
+                      // listing's. Keep the hash it was asked for, as getLatestOffer does;
+                      // previous_action_hash stays the revision's.
+                      offer.original_action_hash = offerHash;
                       E.runSync(cache.set(offerHash.toString(), offer));
                       syncCacheToState(offer, 'add');
                     }

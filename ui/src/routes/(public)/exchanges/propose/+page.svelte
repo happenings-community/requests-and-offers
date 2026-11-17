@@ -13,7 +13,7 @@
   import ContactButton from '$lib/components/shared/listings/ContactButton.svelte';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import { proposalCounterparty, termLabel, type ExchangeRole } from '$lib/utils/exchange-ui';
-  import { decimalProblem, isZeroDecimal, parseTypedDecimal } from '$lib/utils/decimal';
+  import { decimalProblem, isZeroDecimal, parseTypedDecimal, typedDecimalProblem } from '$lib/utils/decimal';
   import type { ExchangeTerm, ListingType } from '$lib/types/holochain';
   import type { UIOffer, UIRequest, UIUser } from '$lib/types/ui';
 
@@ -269,7 +269,7 @@
         <label class="label">
           <span>{myRole === 'provider' ? 'Hours offered' : 'Hours requested'}</span>
           <input class="input" type="text" inputmode="decimal" autocomplete="off" bind:value={hours} placeholder="e.g. 3" />
-          {#if !hoursValid}<span class="text-sm text-error-500" role="alert">Hours {decimalProblem(hoursTyped ?? '')}.</span>{/if}
+          {#if !hoursValid}<span class="text-sm text-error-500" role="alert">Hours {typedDecimalProblem(hoursTyped ?? '')}.</span>{/if}
         </label>
       </div>
 
@@ -277,7 +277,7 @@
         <label class="label">
           <span>Amount in {medium}</span>
           <input class="input" type="text" inputmode="decimal" autocomplete="off" bind:value={amount} placeholder="e.g. 50" />
-          {#if !amountValid}<span class="text-sm text-error-500" role="alert">The amount {decimalProblem(amountTyped ?? '')}.</span>{/if}
+          {#if !amountValid}<span class="text-sm text-error-500" role="alert">The amount {typedDecimalProblem(amountTyped ?? '')}.</span>{/if}
         </label>
       {:else if medium === 'Service Exchange'}
         <label class="label">

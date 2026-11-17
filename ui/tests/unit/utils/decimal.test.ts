@@ -6,7 +6,8 @@ import {
   decimalsEqual,
   isOne,
   isZeroDecimal,
-  parseTypedDecimal
+  parseTypedDecimal,
+  typedDecimalProblem
 } from '$lib/utils/decimal';
 
 describe('decimalProblem', () => {
@@ -101,8 +102,50 @@ describe('parseTypedDecimal', () => {
     expect(parseTypedDecimal('1,2,3')).toBe('1,2,3');
   });
 
+  it('never reads a thousands comma as a decimal comma', () => {
+    // "1,000" is a thousand in an English hand and one in a French one. Read
+    // as 1.000 it would send an amount a thousand times too small, so a comma
+    // followed by exactly three digits is handed back for decimalProblem to
+    // refuse, and the member types the amount again without it.
+    for (const typed of ['1,000', '12,500', '1,234']) {
+      expect(parseTypedDecimal(typed)).toBe(typed);
+      expect(decimalProblem(parseTypedDecimal(typed)!)).not.toBeNull();
+    }
+    expect(parseTypedDecimal('12,50')).toBe('12.50');
+    // No thousands figure starts "0,", so this one is a decimal comma.
+    expect(parseTypedDecimal('0,125')).toBe('0.125');
+    expect(parseTypedDecimal('1,0000')).toBe('1.0000');
+  });
+
+  it('never reads a comma beside a dot as a decimal comma', () => {
+    expect(parseTypedDecimal('12,500.50')).toBe('12,500.50');
+    expect(parseTypedDecimal('1.000,5')).toBe('1.000,5');
+  });
+
   it('hands back anything else untouched, for decimalProblem to name', () => {
     expect(parseTypedDecimal('abc')).toBe('abc');
     expect(parseTypedDecimal('-3')).toBe('-3');
+  });
+});
+
+describe('typedDecimalProblem', () => {
+  it('says how to write a number typed with thousands commas', () => {
+    expect(typedDecimalProblem('1,000')).toBe('must be written without the comma, as 1000');
+    expect(typedDecimalProblem('12,500.50')).toBe('must be written without the comma, as 12500.50');
+    expect(typedDecimalProblem('1,000,000')).toBe('must be written without the comma, as 1000000');
+  });
+
+  it('gives no advice that would itself be refused', () => {
+    // Without its commas each of these is still too long, so the member is told
+    // what is wrong with it rather than to write it in a way that also fails.
+    for (const typed of ['1,000.1234567', '1,000,000,000']) {
+      expect(typedDecimalProblem(typed)).toBe(decimalProblem(typed));
+    }
+  });
+
+  it('is decimalProblem for anything else, and nothing for a good amount', () => {
+    expect(typedDecimalProblem('12.50')).toBeNull();
+    expect(typedDecimalProblem('abc')).toBe(decimalProblem('abc'));
+    expect(typedDecimalProblem('1.000.50')).toBe(decimalProblem('1.000.50'));
   });
 });

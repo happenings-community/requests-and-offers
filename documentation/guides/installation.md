@@ -49,6 +49,8 @@ This will also download the hREA suite as part of the postinstall script.
 
 #### Environment Configuration
 
+> **Out of date:** `bun start:test` and `bun start:prod` do not exist, and the env files are `.env.example` and `.env.production`. Tracked in [#481](https://github.com/happenings-community/requests-and-offers/issues/481).
+
 The project uses environment variables to control development features. Three environment files are configured:
 
 - **`.env.development`** - Full development features enabled
@@ -109,9 +111,6 @@ bun start
 
 # Start with custom number of agents
 AGENTS=3 bun start
-
-# Start with Tauri (desktop application)
-bun start:tauri
 ```
 
 **🧪 Test Mode** (Alpha testing without mock buttons):
@@ -197,12 +196,12 @@ This runs:
 bun test:ui
 
 # Individual zome tests (verify specific domains)
-bun test:service-types  # Service types functionality (complete reference implementation)
-bun test:users          # Users Organizations zome
-bun test:organizations  # Organizations functionality
-bun test:requests       # Requests functionality
-bun test:offers         # Offers functionality
-bun test:administration # Administration zome
+bun run test:sweettest:service-types  # Service types functionality (complete reference implementation)
+bun run test:sweettest:users          # Users Organizations zome
+bun run test:sweettest:organizations  # Organizations functionality
+bun run test:sweettest:requests       # Requests functionality
+bun run test:sweettest:offers         # Offers functionality
+bun run test:sweettest:administration # Administration zome
 bun test:status        # Status module
 ```
 
@@ -216,7 +215,7 @@ nix develop --command bun test:unit
 cd ui && bun test:integration
 
 # E2E tests with Holochain
-cd ui && bun test:e2e:holochain
+cd ui && bun test:e2e
 ```
 
 ### 4.5. First Development Task
@@ -247,7 +246,7 @@ The **Service Types** domain is 100% complete and serves as the architectural te
 
    ```bash
    # Backend tests (Sweettest multi-agent)
-   bun test:service-types
+   bun run test:sweettest:service-types
 
    # Frontend tests (Effect-TS integration)
    cd ui && bun test:unit -- service-types
@@ -306,15 +305,15 @@ The project integrates with hREA (Holochain Resource-Event-Agent). The hREA suit
 
 ```bash
 # Re-download hREA suite
-bun run download-hrea-suite
+bun run download-hrea
 
 # Remove hREA suite
-bun run clean:hrea-suite
+bun run clean:hrea
 ```
 
 ## Development Resources
 
-- [Technical Documentation](../architecture/overview.md)
+- [Technical Documentation](../architecture/README.md)
 - [API Documentation](../technical-specs/zomes/)
 - [Contributing Guide](./contributing.md)
 - [Feature Specifications](../requirements/features.md)
@@ -398,8 +397,8 @@ cd ..
 
 ```bash
 # Reinstall hREA suite
-bun run clean:hrea-suite
-bun run download-hrea-suite
+bun run clean:hrea
+bun run download-hrea
 
 # Verify hREA installation
 ls -la workdir/hrea.dna
@@ -441,7 +440,7 @@ cd ui && bun run lint
 
 ```bash
 # If backend tests fail
-bun test:service-types  # Test specific domain
+bun run test:sweettest:service-types  # Test specific domain
 nix develop --command cargo test --manifest-path tests/sweettest/Cargo.toml  # Run Sweettest directly
 
 # If frontend tests fail
@@ -506,7 +505,7 @@ When reporting issues, please include:
 - **Community**: Join our [hAppenings Community](https://happenings.community/)
 - **Issues**: Report on [GitHub Issues](https://github.com/Happening-Community/requests-and-offers/issues)
 - **Chat**: Connect on [Discord](https://discord.gg/happening)
-- **Documentation**: Check our [AI Development Rules](../ai/rules/README.md) for development guidance
+- **Documentation**: Check the root `CLAUDE.md` and `.claude/skills/` for development guidance
 
 ### Quick Recovery Commands
 
@@ -529,7 +528,7 @@ By default, `workdir/happ.yaml` ships with `progenitor_pubkey: ~` (null), which 
 
 For a production deployment you must set the progenitor's agent public key before building the hApp:
 
-**The Kangaroo desktop app does not set it.** Its install step ([`holochainManager.ts`, `installHappIfNecessary`](https://github.com/happenings-community/requests-and-offers-kangaroo-electron/blob/8bcec07d/src/main/holochainManager.ts#L176-L190), kangaroo-electron #10 at `8bcec07d`) calls `installApp` with a fresh agent key, the app id, the network seed and the hApp path, and no role settings, so the DNA properties stay those of `workdir/happ.yaml`, where `progenitor_pubkey` is `~`. No version of the wrapper has ever written that property. A desktop network therefore runs in development mode: the first agent to create a profile on it becomes the administrator. To fix the administrator in advance, set the key yourself, as below, before the webhapp the wrapper ships is built.
+**The Kangaroo desktop app does not set it.** Its install step ([`holochainManager.ts`, `installHappIfNecessary`](https://github.com/happenings-community/requests-and-offers-kangaroo-electron/blob/8bcec07d/src/main/holochainManager.ts#L176-L190), kangaroo-electron #10 at `8bcec07d`) calls `installApp` with a fresh agent key, the app id, the network seed and the hApp path, and no role settings, so the DNA properties stay those of `workdir/happ.yaml`, where `progenitor_pubkey` is `~`. No version of the wrapper has ever written that property. A desktop network therefore runs in development mode: the first agent to create a profile on it becomes the administrator. On desktop the administrator cannot be fixed in advance yet: the key does not exist before the install (see [progenitor.md](../progenitor.md), _Production_). The manual configuration below is for a hApp installed some other way, with a key that already exists.
 
 **Manual configuration**:
 

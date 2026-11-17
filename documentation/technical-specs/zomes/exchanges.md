@@ -82,6 +82,7 @@ A counter compares quantities with `same_amount`, which reads both as numbers, s
 Never compare the strings with `==` for this.
 
 The UI mirrors the rule in `ui/src/lib/utils/decimal.ts`, which also does the exact comparison and sums, and in the `ExchangeQuantity` schema.
+What a member types is read by `parseTypedDecimal`: a decimal comma becomes a dot (`"2,5"` is 2.5), except a comma followed by exactly three digits (other than after a lone `0`) or beside a dot, which is refused, so `"1,000"` is never read as one; `typedDecimalProblem` tells the member to write it as `1000`.
 Both sides are tested with the same malformed inputs.
 
 This is a change to the `Agreement` entry format (`value` was an `f64`), so it changes the DNA hash and old entries cannot be read.

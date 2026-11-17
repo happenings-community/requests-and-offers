@@ -26,11 +26,36 @@ export function decimalProblem(value: string): string | null {
 /**
  * Reads what a member typed: blank is nothing, a decimal comma becomes a dot,
  * anything else is handed back as it was for `decimalProblem` to name.
+ *
+ * A comma is not read as a decimal comma when it is followed by exactly three
+ * digits (unless the number starts "0,", which no thousands figure does), or
+ * when the number also has a dot: "1,000" is a thousand in an
+ * English hand and one in a French one, and read as 1.000 it would send an
+ * amount a thousand times too small; "12,500.50" has a thousands comma. Such
+ * input is handed back, so it is refused (`typedDecimalProblem` says how to
+ * write it) and the member types it again.
  */
 export function parseTypedDecimal(input: string | null | undefined): string | null {
   const typed = (input ?? '').trim();
   if (typed === '') return null;
-  return /^[^,]*,[^,]*$/.test(typed) ? typed.replace(',', '.') : typed;
+  const decimalComma =
+    /^[^,.]*,[^,.]*$/.test(typed) && (!/,[0-9]{3}$/.test(typed) || /^0,/.test(typed));
+  return decimalComma ? typed.replace(',', '.') : typed;
+}
+
+/**
+ * What is wrong with what a member typed, once read by `parseTypedDecimal`, in
+ * their words; null when it is a good amount. A number written with thousands
+ * commas is told how to write it, when that way is itself a good amount;
+ * anything else gets `decimalProblem`.
+ */
+export function typedDecimalProblem(typed: string): string | null {
+  if (decimalProblem(typed) === null) return null;
+  const plain = typed.replace(/,/g, '');
+  if (/^[1-9][0-9]{0,2}(,[0-9]{3})+(\.[0-9]+)?$/.test(typed) && decimalProblem(plain) === null) {
+    return `must be written without the comma, as ${plain}`;
+  }
+  return decimalProblem(typed);
 }
 
 /** An amount as a whole number of its smallest step, so arithmetic is integer arithmetic. */

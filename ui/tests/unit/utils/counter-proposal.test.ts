@@ -121,6 +121,12 @@ describe('counterProblem, malformed amounts', () => {
     }
   );
 
+  it('says how to write an amount typed with a thousands comma', () => {
+    expect(counterProblem(proposal(), { ...start, reciprocal: '1,000' })).toBe(
+      'The amount must be written without the comma, as 1000.'
+    );
+  });
+
   it('names a negative amount as negative, not as malformed', () => {
     expect(counterProblem(proposal(), { ...start, primary: '-0.5' })).toContain(
       "can't be negative"

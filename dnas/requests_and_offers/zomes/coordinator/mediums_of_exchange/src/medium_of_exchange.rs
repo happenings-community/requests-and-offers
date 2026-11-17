@@ -1,6 +1,7 @@
 use hdk::prelude::*;
 use mediums_of_exchange_integrity::{EntryTypes, LinkTypes, MediumOfExchange};
 use utils::errors::{AdministrationError, CommonError};
+use utils::grants::{can_i, require_grant, Ability};
 use utils::{
   resolve_chain_root, GetMediumOfExchangeForEntityInput, MediumOfExchangeLinkInput,
   OriginalActionHash, PreviousActionHash, UpdateMediumOfExchangeLinksInput,
@@ -69,6 +70,13 @@ pub fn suggest_medium_of_exchange(input: MediumOfExchangeInput) -> ExternResult<
   let mut medium_of_exchange = input.medium_of_exchange;
   medium_of_exchange.resource_spec_hrea_id = None;
 
+  // Validation reads the grant, so it is ours, never the caller's: an admin
+  // grant if we hold one, else a member grant.
+  medium_of_exchange.grant = Some(match can_i(Ability::Administer, None)? {
+    Some(grant) => grant,
+    None => require_grant(Ability::Participate, None)?,
+  });
+
   // Create the medium of exchange entry
   let medium_of_exchange_hash =
     create_entry(EntryTypes::MediumOfExchange(medium_of_exchange.clone()))?;
@@ -115,6 +123,9 @@ pub fn create_medium_of_exchange(input: MediumOfExchangeInput) -> ExternResult<R
   // Ensure resource_spec_hrea_id is None initially (will be set during approval)
   let mut medium_of_exchange = input.medium_of_exchange;
   medium_of_exchange.resource_spec_hrea_id = None;
+
+  // Validation reads the grant, so it is ours, never the caller's.
+  medium_of_exchange.grant = Some(require_grant(Ability::Administer, None)?);
 
   // Create the medium of exchange entry
   let medium_of_exchange_hash =
@@ -164,10 +175,14 @@ pub fn update_medium_of_exchange(input: UpdateMediumOfExchangeInput) -> ExternRe
     CommonError::EntryNotFound("Could not find the original medium of exchange".to_string()),
   )?;
 
+  // Validation reads the grant, so it is ours, never the caller's.
+  let mut updated_medium_of_exchange = input.updated_medium_of_exchange;
+  updated_medium_of_exchange.grant = Some(require_grant(Ability::Administer, None)?);
+
   // Update the entry
   let updated_medium_of_exchange_hash = update_entry(
     input.previous_action_hash.into(),
-    EntryTypes::MediumOfExchange(input.updated_medium_of_exchange),
+    EntryTypes::MediumOfExchange(updated_medium_of_exchange),
   )?;
 
   // Create update link. The caller's "original" may itself be a revision, because
@@ -227,6 +242,9 @@ pub fn get_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternResu
 pub fn get_latest_medium_of_exchange_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
+  // A client may hold a revision: the update links hang off the chain root, and from a
+  // revision none are found, so the revision came back as if it were the latest (#229).
+  let original_action_hash = resolve_chain_root(original_action_hash);
   let latest_action_hash = latest_medium_of_exchange_action_hash(original_action_hash)?;
   get(latest_action_hash, GetOptions::default())
 }
@@ -401,13 +419,15 @@ pub fn approve_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> Extern
   // For now, we'll use a placeholder ID - this will be implemented when hREA integration is added
   let resource_spec_id = format!("hrea_resource_spec_{}", entry.code);
 
-  // Update the entry with the hREA ResourceSpecification ID
+  // Update the entry with the hREA ResourceSpecification ID. An update needs an
+  // admin grant, so this approval carries ours rather than the revision's.
   let updated_entry = MediumOfExchange {
     code: entry.code,
     name: entry.name,
     description: entry.description,
     exchange_type: entry.exchange_type,
     resource_spec_hrea_id: Some(resource_spec_id),
+    grant: Some(require_grant(Ability::Administer, None)?),
   };
 
   // Create update entry on top of the latest revision, keeping one linear chain.
@@ -505,13 +525,13 @@ pub fn get_requests_for_medium_of_exchange(
 ) -> ExternResult<Vec<Record>> {
   let link_type_filter = LinkTypes::MediumOfExchangeToRequest
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(medium_of_exchange_hash, link_type_filter),
     GetStrategy::Network,
   )?;
 
-  get_records_for_medium_of_exchange(links, "request")
+  get_records_for_medium_of_exchange(links)
 }
 
 /// Get offers linked to a medium of exchange
@@ -521,29 +541,30 @@ pub fn get_offers_for_medium_of_exchange(
 ) -> ExternResult<Vec<Record>> {
   let link_type_filter = LinkTypes::MediumOfExchangeToOffer
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(medium_of_exchange_hash, link_type_filter),
     GetStrategy::Network,
   )?;
 
-  get_records_for_medium_of_exchange(links, "offer")
+  get_records_for_medium_of_exchange(links)
 }
 
 // Helper function to get records for a medium of exchange
-fn get_records_for_medium_of_exchange(links: Vec<Link>, entity: &str) -> ExternResult<Vec<Record>> {
-  let records: Result<Vec<Record>, WasmError> = links
-    .into_iter()
-    .map(|link| {
-      let record = get(
-        link.target.into_action_hash().unwrap(),
-        GetOptions::default(),
-      )?;
-      record.ok_or(CommonError::EntryNotFound(format!("Could not find {} record", entity)).into())
-    })
-    .collect();
-
-  records
+/// The records the links point at. A target that reads nothing is skipped, as the offer
+/// and request lists do (#233): a deleted listing's links and its records are removed by
+/// different authorities, so for a while a link can outlive its record, and that one
+/// listing must not fail the whole list.
+fn get_records_for_medium_of_exchange(links: Vec<Link>) -> ExternResult<Vec<Record>> {
+  let mut records = Vec::new();
+  for link in links {
+    if let Some(hash) = link.target.into_action_hash() {
+      if let Some(record) = get(hash, GetOptions::default())? {
+        records.push(record);
+      }
+    }
+  }
+  Ok(records)
 }
 
 /// Get medium of exchange for an entity (request or offer)

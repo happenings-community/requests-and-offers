@@ -157,7 +157,7 @@
         {#if mode === 'suggest'}
           Your suggestion will be reviewed by an administrator.
         {:else}
-          Fill in the details below to add a new currency or payment method.
+          Add a kind of exchange, or a currency people can pay in.
         {/if}
       </p>
     </header>
@@ -193,11 +193,11 @@
                       Base Category
                     </h4>
                     <p class="text-sm text-surface-600 dark:text-surface-200">
-                      Foundational exchange categories like "Local Currency", "Time Banking", or
-                      "Skill Exchange"
+                      A kind of exchange, not a unit of value.
                     </p>
                     <div class="mt-2 text-xs text-surface-500 dark:text-surface-200">
-                      Examples: Local Currency, Time Banking, Skill Exchange, Favor Exchange
+                      Time Banking, Skill Exchange, Favour Exchange, Free / Pay it Forward, Local
+                      Currency
                     </div>
                   </div>
                 </div>
@@ -224,11 +224,10 @@
                       Specific Currency
                     </h4>
                     <p class="text-sm text-surface-600 dark:text-surface-200">
-                      Specific currencies or payment methods like "USD", "Bitcoin", or "Ithaca
-                      HOURS"
+                      A named unit people pay in, under one of those kinds.
                     </p>
                     <div class="mt-2 text-xs text-surface-500 dark:text-surface-200">
-                      Examples: USD, EUR, Bitcoin, Ithaca HOURS, PayPal
+                      GBP, EUR, a time-bank hour (HRS), a local currency such as the Brixton Pound
                     </div>
                   </div>
                 </div>
@@ -268,8 +267,8 @@
             class="input"
             class:input-error={errors.name}
             placeholder={exchangeType === 'base'
-              ? 'e.g., Local Currency, Time Banking, Skill Exchange'
-              : 'e.g., US Dollar, Bitcoin, Ithaca HOURS'}
+              ? 'e.g., Time Banking, Skill Exchange, Local Currency'
+              : 'e.g., Pound Sterling, Euro, Time-bank hour'}
             bind:value={name}
             required
             maxlength="100"

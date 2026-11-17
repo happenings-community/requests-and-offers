@@ -105,7 +105,7 @@ const createUIMediumOfExchange = createUIEntityFromRecord<
     name: entry.name,
     description: entry.description || null,
     resourceSpecHreaId: entry.resource_spec_hrea_id || null,
-    exchange_type: 'base' as 'base' | 'currency', // Default to 'base' type
+    exchange_type: entry.exchange_type,
     status,
     createdAt: new Date(timestamp / 1000), // Convert microseconds to milliseconds
     updatedAt: undefined // Will be set if there are updates

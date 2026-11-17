@@ -198,7 +198,7 @@
           <div>
             <p class="mb-1 font-medium">Features:</p>
             <ul class="list-inside list-disc space-y-1 text-xs">
-              <li>Create new currencies or payment methods</li>
+              <li>Create new kinds of exchange and currencies</li>
               <li>Edit existing mediums of exchange</li>
               <li>Approve/reject user suggestions</li>
               <li>Automatic hREA Resource Specification integration</li>

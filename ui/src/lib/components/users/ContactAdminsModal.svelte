@@ -49,7 +49,7 @@
     {:else}
       <ul class="space-y-4">
         {#each admins as admin (admin.original_action_hash.toString())}
-          <li class="card space-y-1 p-4">
+          <li class="card space-y-1 p-4 text-surface-900-50-token">
             <p class="font-semibold">{formatUserName(admin.name)}</p>
             {#if admin.email}
               <a class="anchor block" href={mailto(admin.email)}>{admin.email}</a>

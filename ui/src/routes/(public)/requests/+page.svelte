@@ -54,6 +54,7 @@
   allowCreating={false}
   title="Profile Required for Creating Requests"
   description="Create a profile to make requests to the community."
+  blockedAction="view or create requests"
 >
   <div class="container mx-auto p-4">
     <!-- Tab Switcher -->

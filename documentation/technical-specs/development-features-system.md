@@ -254,7 +254,7 @@ The following forms have been integrated with the development features system:
 
 ## Related Documentation
 
-- [Architecture Overview](../CLAUDE.md#architectural-patterns)
-- [Effect-TS Guidelines](../CLAUDE.md#effect-ts-guidelines)
-- [Testing Strategy](../CLAUDE.md#testing-strategy)
-- [Build System](../CLAUDE.md#building)
+- [Architecture Overview](../../CLAUDE.md#architecture-overview)
+- [Effect-TS Guidelines](../../CLAUDE.md#key-patterns)
+- [Testing Strategy](../../CLAUDE.md#testing-gotchas)
+- [Build System](../../CLAUDE.md#development-commands)

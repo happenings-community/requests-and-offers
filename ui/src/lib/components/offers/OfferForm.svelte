@@ -109,14 +109,6 @@
     }
   });
 
-  // Check if there are any currency-type MoEs available
-  const hasCurrencyMoEs = $derived(() => {
-    if (!moesInitialized) return false;
-    return mediumsOfExchangeStore.approvedMediumsOfExchange.some(
-      (moe) => moe.exchange_type === 'currency'
-    );
-  });
-
   // In edit mode the listing may belong to an organization the viewer does
   // not coordinate, so resolve it by hash rather than from the coordinated list.
   async function loadPublishedOrganization() {
@@ -394,7 +386,7 @@
   <!-- Medium of Exchange Section -->
   <div class="card variant-ghost-surface p-4">
     <div class="mb-2 flex items-center justify-between">
-      <h3 class="h3">{hasCurrencyMoEs() ? 'Additional Currencies' : 'Medium of Exchange'}</h3>
+      <h3 class="h3">Medium of Exchange</h3>
       <button
         type="button"
         class="variant-ghost-primary btn btn-sm"
@@ -407,7 +399,7 @@
     <MediumOfExchangeSelector
       selectedMediums={selectedMediumOfExchange}
       onSelectionChange={handleMediumOfExchangeChange}
-      label={hasCurrencyMoEs() ? 'Additional Currencies' : 'Medium of Exchange'}
+      label="Medium of Exchange"
       placeholder="Select how you'd like to be compensated..."
       required={false}
       name="mediumOfExchange"

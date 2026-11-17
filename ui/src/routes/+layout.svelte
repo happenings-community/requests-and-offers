@@ -545,7 +545,7 @@
         {#if initializationStatus === 'failed'}
           <p class="text-warning-400">⚠️ Initialization encountered issues.</p>
         {:else if initializationStatus === 'initializing'}
-          <p>This usually takes 5-15 seconds.</p>
+          <p>The first start can take up to a minute.</p>
         {:else}
           <p>
             If this takes longer than usual, try restarting the application from the system tray.

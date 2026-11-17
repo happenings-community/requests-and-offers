@@ -290,7 +290,7 @@ jobs:
       # hidden until the network's first admin holds the seat (taken from the
       # dry run before the tag, with the draft as a second lock if the tag's
       # DNA hashes differ); a maintainer then publishes it by hand, marked
-      # Latest (RELEASE_CHECKLIST.md, Production Checks, steps 3 and 4). The publish workflow's `gh release upload` finds
+      # Latest (RELEASE_CHECKLIST.md, Production Checks, steps 3 to 5). The publish workflow's `gh release upload` finds
       # a draft by its pending tag. The installer builds take minutes before
       # their first upload, so the release exists by then; created before the
       # push instead, it would tag a commit without the webhapp. A re-run

@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty network: profiles, organisations, requests, offers and exchanges from alpha 1 do not carry over. Alpha data stays disposable until the breaking-version migration lands (#144). Notice to testers: `documentation/releases/v0.6.0-alpha.2-network-reset.md` (#195).
 
+### The network's first admin
+
+The creator acting first sets the first admin. The desktop app does not set a progenitor key, so the first profile created on the new network becomes its administrator, and the network creator takes that seat before the desktop installers are published, then appoints two or three further administrators on separate devices. Creating a network with the creator's key bound at install arrives with alpha 3 (#95).
+
 ### Platform
 
 - **Holochain**: The hApp moves to Holochain 0.7 and hREA `happ-0.5.0-beta.1` (`a2c5fd40`, #295, closes #192)

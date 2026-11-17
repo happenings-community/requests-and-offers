@@ -9,7 +9,8 @@
   /**
    * A nav menu that opens on hover, click, Enter, Space or ArrowDown (#204).
    * Arrow keys, Home and End move between items; Escape closes and returns
-   * focus to the trigger; leaving the menu with Tab or the pointer closes it.
+   * focus to the trigger; Tab out of the menu closes it, and so does the
+   * pointer leaving, unless the keyboard opened it.
    */
   type Props = {
     title: string;
@@ -32,25 +33,36 @@
 
   const id = `nav-menu-${nextId++}`;
   let open = $state(false);
+  // Opened by the keyboard (or a screen reader), so the pointer leaving does not
+  // close it: a nudged mouse would unmount the item the member is on.
+  let viaKeyboard = false;
   let trigger: HTMLButtonElement;
   let wrapper: HTMLDivElement;
-  const links: HTMLAnchorElement[] = [];
+  const links: HTMLAnchorElement[] = $state([]);
 
   async function focusItem(index: number) {
     open = true;
+    viaKeyboard = true;
     await tick();
     links[index]?.focus();
   }
 
   function close(returnFocus = false) {
     open = false;
+    viaKeyboard = false;
     if (returnFocus) trigger?.focus();
   }
 
-  // A pointer click opens (hover may already have); keyboard activation is
-  // handled in onTriggerKey, and a click it synthesises has detail 0.
+  // A pointer click opens (hover may already have). Enter and Space are handled
+  // in onTriggerKey, which cancels the click they would send. A click with no
+  // key press and detail 0 is a screen reader in browse mode activating the
+  // button, so it opens on the first item, as Enter does.
   function onTriggerClick(event: MouseEvent) {
-    if (event.detail > 0) open = true;
+    if (event.detail > 0) {
+      // The member is on the pointer now, so the pointer leaving closes it again.
+      open = true;
+      viaKeyboard = false;
+    } else focusItem(0);
   }
 
   function onTriggerKey(event: KeyboardEvent) {
@@ -81,14 +93,16 @@
 
   // Focus moving outside the menu (Tab past the last item) closes it.
   function onFocusOut(event: FocusEvent) {
-    if (!wrapper?.contains(event.relatedTarget as Node | null)) open = false;
+    if (!wrapper?.contains(event.relatedTarget as Node | null)) close();
   }
 
-  // The pointer leaving closes a hovered menu, but not one a keyboard user is
-  // inside: a nudged mouse would unmount the item they are on and drop focus
-  // to the body. Escape, Tab and a click still close it.
+  // The pointer leaving closes a hovered menu, but not one the keyboard opened:
+  // a nudged mouse would unmount the item the member is on and drop focus to
+  // the body. Escape, Tab and a click still close it. Reading how the menu was
+  // opened, not where focus is, also closes a hovered menu whose item took
+  // focus from a middle click.
   function onMouseLeave() {
-    if (!links.some((link) => link === document.activeElement)) open = false;
+    if (!viaKeyboard) open = false;
   }
 </script>
 

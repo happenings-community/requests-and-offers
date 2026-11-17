@@ -281,22 +281,22 @@
     {/if}
   {:else}
     <!-- Someone else's profile: the counts choose what is shown -->
-    <div class="grid gap-4 sm:grid-cols-3" role="tablist" aria-label="Profile views">
+    <!-- Toggle buttons, not tabs: no arrow-key movement and no panel to point at -->
+    <div class="grid gap-4 sm:grid-cols-3" role="group" aria-label="Profile views">
       {#each VIEWS as v (v.key)}
         <button
           class="card space-y-1 p-4 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {view ===
           v.key
             ? `ring-2 ${v.ring}`
             : ''}"
-          role="tab"
-          aria-selected={view === v.key}
+          aria-pressed={view === v.key}
           onclick={() => (view = v.key)}
         >
-          <div class="flex items-start justify-between">
+          <span class="flex items-start justify-between">
             <span class="text-2xl">{v.icon}</span>
             <span class="text-3xl font-bold">{count(viewCount(v.key))}</span>
-          </div>
-          <h2 class="h4">{v.label}</h2>
+          </span>
+          <span class="h4 block">{v.label}</span>
         </button>
       {/each}
     </div>

@@ -71,6 +71,8 @@ struct Interest {
     listing: ActionHash,
     listing_type: String,
     user: ActionHash,
+    /// The member grant the interest rests on (the grants stack, #378).
+    grant: Option<ActionHash>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -772,7 +774,12 @@ async fn a_counter_link_points_at_the_real_counter() {
 async fn a_second_live_interest_is_refused_past_the_coordinator() {
     let w = world().await;
     let bob_user = member_hash(&w.conductors[1], &w.bob).await;
-    let bobs = Interest { listing: w.offer.clone(), listing_type: "Offer".into(), user: bob_user };
+    let bobs = Interest {
+        listing: w.offer.clone(),
+        listing_type: "Offer".into(),
+        user: bob_user,
+        grant: Some(w.bob_grant.clone()),
+    };
 
     let second = w.conductors[1]
         .call_fallible::<_, ActionHash>(&w.bob.zome("exchanges_probe"), "probe_create_interest", bobs.clone())
@@ -790,7 +797,12 @@ async fn a_second_live_interest_is_refused_past_the_coordinator() {
         .call_fallible::<_, ActionHash>(
             &w.carol.zome("exchanges_probe"),
             "probe_create_interest",
-            Interest { listing: w.offer.clone(), listing_type: "Offer".into(), user: carol_user },
+            Interest {
+                listing: w.offer.clone(),
+                listing_type: "Offer".into(),
+                user: carol_user,
+                grant: Some(w.carol_grant.clone()),
+            },
         )
         .await
         .expect("a first interest through the probe is accepted");
@@ -818,7 +830,12 @@ async fn a_second_live_interest_cannot_name_a_later_create_as_its_user() {
         .call_fallible::<_, ActionHash>(
             &w.bob.zome("exchanges_probe"),
             "probe_create_interest",
-            Interest { listing: w.offer.clone(), listing_type: "Offer".into(), user: own },
+            Interest {
+                listing: w.offer.clone(),
+                listing_type: "Offer".into(),
+                user: own,
+                grant: Some(w.bob_grant.clone()),
+            },
         )
         .await
         .map_err(|e| format!("{e:?}"));

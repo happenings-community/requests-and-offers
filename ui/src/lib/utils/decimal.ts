@@ -58,6 +58,34 @@ export function typedDecimalProblem(typed: string): string | null {
   return decimalProblem(typed);
 }
 
+/**
+ * A number from elsewhere (a listing's `time_estimate_hours`) as a quantity's
+ * decimal string, or null when no quantity can carry it. `String(n)` is not
+ * safe: 0.1 + 0.2 gives "0.30000000000000004" and 1e21 gives "1e+21", which the
+ * zome refuses. The listing stores hours as an f32, which holds about seven
+ * significant digits, and the client reads its exact value (33.29999923706055
+ * for 33.3), so a number an f32 can hold is first spelled with the fewest
+ * significant digits that give back the same f32: "33.3" for 33.3, every digit
+ * of 999999.75. Then rounded to the six places a quantity allows, trailing
+ * zeros dropped; zero, negative, non-finite and over-long values give null.
+ */
+export function decimalFromNumber(n: number | null | undefined): string | null {
+  if (n == null || !Number.isFinite(n) || n <= 0) return null;
+  const value = Math.fround(n) === n ? shortestF32(n) : n;
+  const fixed = value.toFixed(MAX_FRACTION_DIGITS);
+  const spelled = fixed.includes('.') ? fixed.replace(/0+$/, '').replace(/\.$/, '') : fixed;
+  return decimalProblem(spelled) === null && !isZeroDecimal(spelled) ? spelled : null;
+}
+
+/** The fewest significant digits (nine always suffice) that read back as the f32 `n`. */
+function shortestF32(n: number): number {
+  for (let digits = 1; digits < 9; digits++) {
+    const spelled = Number(n.toPrecision(digits));
+    if (Math.fround(spelled) === n) return spelled;
+  }
+  return Number(n.toPrecision(9));
+}
+
 /** An amount as a whole number of its smallest step, so arithmetic is integer arithmetic. */
 function scaled(value: string, fractionDigits: number): bigint {
   const [whole, fraction = ''] = value.split('.');

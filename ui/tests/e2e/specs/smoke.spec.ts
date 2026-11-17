@@ -125,10 +125,10 @@ test.describe.serial('smoke — every core route mounts against the live conduct
 // ============================================================================
 // NAV MENUS FROM THE KEYBOARD (#204, #352)
 //
-// NavDropdown's own handlers cannot be exercised by the unit suite, which does
-// not mount components; menu-keys.test.ts covers only the pure key→target
-// function. This step drives the Community menu, which every visitor sees, in
-// a real browser: open and focus from the trigger, move between items, Escape
+// nav-dropdown.test.ts mounts NavDropdown and covers its handlers in jsdom.
+// This step adds what only a real browser has: real focus movement, the real
+// Tab order and a real pointer. It drives the Community menu, which every
+// visitor sees: open and focus from the trigger, move between items, Escape
 // back to the trigger, Tab out, and a nudged mouse not closing a menu a
 // keyboard user is inside.
 // ============================================================================

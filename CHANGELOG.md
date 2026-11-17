@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.6.0-alpha.2] - 2026-11-17
+## [0.6.0-alpha.2] - 2026-11-18
 
 ### 🚀 Exchange on hREA and Platform 0.7
 
@@ -24,6 +24,7 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Holochain**: The hApp moves to Holochain 0.7 and hREA `happ-0.5.0-beta.1` (`a2c5fd40`, #295, closes #192)
 - **hREA**: The GraphQL adapter `0.700.0-rc.0` is vendored as a release tarball until npm serves it (`3282e649`, #317, closes #316), and `hrea.dna` is pinned by sha256 so a pin bump reaches existing clones (`e15b0e2a`, #290, closes #223)
 - **hREA**: The GraphQL adapter is installed from npm and the vendored tarball is gone (`04aeee0d`, #455)
+- **Zomes**: chrono moves from 0.3 to 0.4, riding the alpha 2 network reset (`bac79cf4`, #366, closes #305)
 
 ### Features
 
@@ -51,6 +52,8 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **UI**: A typed link opens only when it is a web address (`9ce13eac`, #382), inside rendered markdown too (`551f157f`, #312)
 - **Build**: Faker and the mock data stay out of the production build (`cae758a7`, #365, part of #363)
 - **Users**: Validation decides who may write `UserAgents` and `MyUser` links: only a User's author links agents to it, only to their own key, and `MyUser` runs from the author's key to the author's User (`11bcf7a4`, #473)
+- **Administration**: A role is held through a chain of grants: a `RoleGrant` names one agent, one role and one scope, signed by the progenitor key for the first administrators or authorised by its writer's own grant; a `RoleRevocation` withdraws one, read-side (`06c391bd`, #377, part of #234)
+- **Validation**: Every role-gated write carries the grant it rests on and its validator checks it: requests, offers, interests and agreements need a member grant, service types and mediums of exchange an admin grant (a member grant for a suggestion), and the author-only rules nothing routed to are gone (`c3db8659`, #378, part of #234)
 
 ### Bug Fixes
 
@@ -74,6 +77,9 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Mediums of Exchange**: The wording says a base is a kind of exchange and a currency a unit people pay in, with no payment methods (`a5a9f15d`, #467); the listing forms always call the section Medium of Exchange (`8e950b8d`, #471)
 - **Users**: A blocked member is told about their status, not about a missing profile (`a47b8d8d`, #392)
 - **UI**: The loading screen gives an honest first-start wait (`9b2f5946`, #469)
+- **Exchanges**: A withdrawn proposal can no longer be accepted or declined (`fc50275f`, #485)
+- **Requests and Offers**: A revision's hash reads the latest version, and a delete removes the whole listing (`dbd42041`, #487, closes #229)
+- **Exchanges**: A member holds one live interest per listing, enforced by validation reading the author's chain back to their profile (`ed628e2e`, #362, with #492)
 
 ### Performance
 
@@ -91,6 +97,8 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Contributing**: The review rules are written down (`d852be25`, #293, closes #225)
 - **Release**: The announcement is gated on a launched packaged build (`162ca5e4`, #271); a discussion form for release feedback (`d110f10b`, #294); the Homebrew cask is installed by full name for tap trust (`14666074`, #267); production checks: never on a Friday, the built app run before the tag, two peers checked before announcing (`f71f5aa4`, #447, part of #276)
 - **Zome errors**: Zome errors come from `utils/src/errors.rs`, written down as a rule in `CLAUDE.md` (`23825ddc`, #472)
+- **Progenitor**: A desktop release runs in development mode; what that mode protects, what it does not, and the first-admin practice (`ca31467f`, #466)
+- **Sync**: The documentation matches the alpha 2 code, with the pages that stay out of date until alpha 3 flagged (`72098ffe`, #477), the status page matches the alpha 2 tree (`725fe638`, #489), and the README's roadmap names what shipped, what is in progress and what comes later (`e65039c4`, #501), part of #415
 - **Installation**: The Kangaroo desktop app does not set the progenitor key, so a new desktop network runs in development mode and its first profile becomes admin (`8ad45332`, #445)
 - **Development**: The inspector's adapter contract, packaging options and a Nondominium trial (`15d069e8`, #446); the guides follow what `bun start` and `bun start:web` now launch, and the ports they take (`ff26c178`, #449)
 

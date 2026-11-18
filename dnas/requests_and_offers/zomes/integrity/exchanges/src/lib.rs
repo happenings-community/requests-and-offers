@@ -275,7 +275,7 @@ fn validate_interest(
     return invalid(ExchangeValidationError::InterestIsRoleAct(reason.to_string()));
   }
   if live_interest_before(action, interest)? {
-    return invalid("this member already has an interest in this listing");
+    return invalid(ExchangeValidationError::InterestAlreadyLive);
   }
   Ok(ValidateCallbackResult::Valid)
 }

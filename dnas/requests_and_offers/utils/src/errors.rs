@@ -266,15 +266,47 @@ impl From<MessagingError> for WasmError {
 // change to it is a change to the network's verdicts.
 // ---------------------------------------------------------------------------
 
+/// A reason a validation callback may give: one of the enums below, and nothing else.
+/// The trait is sealed, so a string cannot be passed to `invalid` or `verdict`: the
+/// compiler holds the rule above, not review.
+pub trait ValidationReason: std::fmt::Display + sealed::Sealed {}
+
+mod sealed {
+  pub trait Sealed {}
+}
+
+macro_rules! validation_reasons {
+  ($($reason:ident),* $(,)?) => {
+    $(
+      impl sealed::Sealed for $reason {}
+      impl ValidationReason for $reason {}
+    )*
+  };
+}
+
+validation_reasons!(
+  CommonValidationError,
+  UserValidationError,
+  OrganizationValidationError,
+  StatusValidationError,
+  ServiceTypeValidationError,
+  MediumOfExchangeValidationError,
+  RequestValidationError,
+  OfferValidationError,
+  ExchangeValidationError,
+  GrantValidationError,
+  MessagingValidationError,
+);
+
 /// Refuses an op with `reason` as the verdict's text.
-pub fn invalid(reason: impl std::fmt::Display) -> ExternResult<ValidateCallbackResult> {
+pub fn invalid(reason: impl ValidationReason) -> ExternResult<ValidateCallbackResult> {
   Ok(verdict(reason))
 }
 
 /// The same refusal as a bare verdict, for a rule written as a pure function that
 /// returns `ValidateCallbackResult` rather than `ExternResult` (messaging's, which
 /// its unit tests call directly). `invalid` is this, wrapped.
-pub fn verdict(reason: impl std::fmt::Display) -> ValidateCallbackResult {
+pub fn verdict(reason: impl ValidationReason) -> ValidateCallbackResult {
   ValidateCallbackResult::Invalid(reason.to_string())
 }
 
@@ -598,6 +630,9 @@ pub enum ExchangeValidationError {
 
   #[error("an interest is a role act: {0}")]
   InterestIsRoleAct(String),
+
+  #[error("this member already has an interest in this listing")]
+  InterestAlreadyLive,
 
   #[error("an agreement is a role act: {0}")]
   AgreementIsRoleAct(String),
@@ -1076,32 +1111,68 @@ mod validation_reason_tests {
   fn grant_reasons_keep_their_text() {
     use GrantValidationError as G;
     reads(G::UnknownRole("owner".into()), "Unknown role: owner");
-    reads(G::RootNotSignedByProgenitor, "the root grant is not signed by the progenitor key");
-    reads(G::RootNotWrittenByProgenitor, "the root grant is written by the progenitor");
+    reads(
+      G::RootNotSignedByProgenitor,
+      "the root grant is not signed by the progenitor key",
+    );
+    reads(
+      G::RootNotWrittenByProgenitor,
+      "the root grant is written by the progenitor",
+    );
     reads(G::NotARoleGrant, "the grant named is not a role grant");
     reads(G::GrantHasNoEntry, "the grant named has no entry");
-    reads(G::GrantUnreadable("bad bytes".into()), "the grant named does not read as one: bad bytes");
-    reads(G::NeedsGrant("Participate".into()), "this write needs a grant for Participate");
-    reads(G::HeldBySomeoneElse, "the grant carried is held by someone else");
     reads(
-      G::DoesNotCover { role: "member".into(), ability: "Administer".into() },
+      G::GrantUnreadable("bad bytes".into()),
+      "the grant named does not read as one: bad bytes",
+    );
+    reads(
+      G::NeedsGrant("Participate".into()),
+      "this write needs a grant for Participate",
+    );
+    reads(
+      G::HeldBySomeoneElse,
+      "the grant carried is held by someone else",
+    );
+    reads(
+      G::DoesNotCover {
+        role: "member".into(),
+        ability: "Administer".into(),
+      },
       "a member grant does not cover Administer here",
     );
-    reads(G::ChainNotCreatesAndUpdates, "an entity's chain holds creates and updates only");
-    reads(G::TagCarriesNoGrant, "the link's tag does not carry a grant");
+    reads(
+      G::ChainNotCreatesAndUpdates,
+      "an entity's chain holds creates and updates only",
+    );
+    reads(
+      G::TagCarriesNoGrant,
+      "the link's tag does not carry a grant",
+    );
     reads(
       G::NeedsStewarding("steward".into()),
       "a steward grant needs the stewarding module, and this network does not have it",
     );
-    reads(G::ScopeNotTaken("admin".into()), "a admin grant does not take a scope");
-    reads(G::ScopeNeeded("coordinator".into()), "a coordinator grant needs a scope");
+    reads(
+      G::ScopeNotTaken("admin".into()),
+      "a admin grant does not take a scope",
+    );
+    reads(
+      G::ScopeNeeded("coordinator".into()),
+      "a coordinator grant needs a scope",
+    );
     reads(
       G::ProgenitorGrantsAdminsOnly,
       "the progenitor key grants the first administrators, nothing else",
     );
-    reads(G::NotHolderOfParent, "a grant is written by the holder of the grant it rests on");
     reads(
-      G::MayNotGrant { granter: "member".into(), role: "admin".into() },
+      G::NotHolderOfParent,
+      "a grant is written by the holder of the grant it rests on",
+    );
+    reads(
+      G::MayNotGrant {
+        granter: "member".into(),
+        role: "admin".into(),
+      },
       "a member may not grant admin here",
     );
     reads(
@@ -1109,36 +1180,78 @@ mod validation_reason_tests {
       "a revocation is written by the holder of the grant it rests on",
     );
     reads(
-      G::MayNotRevoke { authority: "steward".into(), role: "admin".into() },
+      G::MayNotRevoke {
+        authority: "steward".into(),
+        role: "admin".into(),
+      },
       "a steward may not revoke a admin grant here",
     );
-    reads(G::IndexLinkNotByGranter, "an index link is written by the agent who wrote the grant");
     reads(
-      G::IndexHoldsOtherRole { index: "admin".into(), carried: "member".into() },
+      G::IndexLinkNotByGranter,
+      "an index link is written by the agent who wrote the grant",
+    );
+    reads(
+      G::IndexHoldsOtherRole {
+        index: "admin".into(),
+        carried: "member".into(),
+      },
       "this index holds admin grants, and the tag carries a member grant",
     );
-    reads(G::IndexLinkTargetMismatch, "a grant index link points at the grant its tag carries");
-    reads(G::AgentIndexHoldsOthers, "an agent's grant index holds that agent's grants");
-    reads(G::HolderLinkBaseMismatch("admin".into()), "a admin index link starts at the grant's holder");
-    reads(G::RevocationLinkTarget, "a revocation link points at a revocation record");
-    reads(G::RevocationLinkNotByRevoker, "a revocation link is written by the revoker");
-    reads(G::RevocationLinkBase, "a revocation link starts at the grant it revokes");
+    reads(
+      G::IndexLinkTargetMismatch,
+      "a grant index link points at the grant its tag carries",
+    );
+    reads(
+      G::AgentIndexHoldsOthers,
+      "an agent's grant index holds that agent's grants",
+    );
+    reads(
+      G::HolderLinkBaseMismatch("admin".into()),
+      "a admin index link starts at the grant's holder",
+    );
+    reads(
+      G::RevocationLinkTarget,
+      "a revocation link points at a revocation record",
+    );
+    reads(
+      G::RevocationLinkNotByRevoker,
+      "a revocation link is written by the revoker",
+    );
+    reads(
+      G::RevocationLinkBase,
+      "a revocation link starts at the grant it revokes",
+    );
     reads(G::UpdateRefused, "a grant or a revocation is never updated");
     reads(
       G::DeleteRefused,
       "A grant or a revocation is a record and cannot be deleted; revoke a grant instead",
     );
-    reads(G::IndexTombstoneRefused, "a grant index is a record and is never tombstoned");
+    reads(
+      G::IndexTombstoneRefused,
+      "a grant index is a record and is never tombstoned",
+    );
   }
 
   #[test]
   fn role_act_reasons_keep_their_text() {
     let why = || "the grant carried is held by someone else".to_string();
     let tail = ": the grant carried is held by someone else";
-    reads(OfferValidationError::PostIsRoleAct(why()), &format!("Posting an offer is a role act{tail}"));
-    reads(OfferValidationError::ChangeIsRoleAct(why()), &format!("Changing an offer is a role act{tail}"));
-    reads(RequestValidationError::PostIsRoleAct(why()), &format!("Posting a request is a role act{tail}"));
-    reads(RequestValidationError::ChangeIsRoleAct(why()), &format!("Changing a request is a role act{tail}"));
+    reads(
+      OfferValidationError::PostIsRoleAct(why()),
+      &format!("Posting an offer is a role act{tail}"),
+    );
+    reads(
+      OfferValidationError::ChangeIsRoleAct(why()),
+      &format!("Changing an offer is a role act{tail}"),
+    );
+    reads(
+      RequestValidationError::PostIsRoleAct(why()),
+      &format!("Posting a request is a role act{tail}"),
+    );
+    reads(
+      RequestValidationError::ChangeIsRoleAct(why()),
+      &format!("Changing a request is a role act{tail}"),
+    );
     reads(
       ServiceTypeValidationError::ChangeIsRoleAct(why()),
       &format!("Changing a service type is a role act{tail}"),
@@ -1155,9 +1268,22 @@ mod validation_reason_tests {
       MediumOfExchangeValidationError::CreateIsRoleAct(why()),
       &format!("Creating a medium of exchange is a role act{tail}"),
     );
-    reads(ExchangeValidationError::InterestIsRoleAct(why()), &format!("an interest is a role act{tail}"));
-    reads(ExchangeValidationError::AgreementIsRoleAct(why()), &format!("an agreement is a role act{tail}"));
-    reads(StatusValidationError::ChangeIsRoleAct(why()), &format!("a status change is a role act{tail}"));
+    reads(
+      ExchangeValidationError::InterestIsRoleAct(why()),
+      &format!("an interest is a role act{tail}"),
+    );
+    reads(
+      ExchangeValidationError::InterestAlreadyLive,
+      "this member already has an interest in this listing",
+    );
+    reads(
+      ExchangeValidationError::AgreementIsRoleAct(why()),
+      &format!("an agreement is a role act{tail}"),
+    );
+    reads(
+      StatusValidationError::ChangeIsRoleAct(why()),
+      &format!("a status change is a role act{tail}"),
+    );
     reads(
       StatusValidationError::AcceptedIndexWithoutGrant(why()),
       &format!("the accepted index is written with an admin or steward grant{tail}"),
@@ -1167,7 +1293,10 @@ mod validation_reason_tests {
       &format!("editing an organisation is a role act{tail}"),
     );
     reads(
-      OrganizationValidationError::MembershipIsRoleAct { what: "members".into(), reason: why() },
+      OrganizationValidationError::MembershipIsRoleAct {
+        what: "members".into(),
+        reason: why(),
+      },
       &format!("changing an organisation's members is a role act{tail}"),
     );
     reads(
@@ -1178,13 +1307,22 @@ mod validation_reason_tests {
 
   #[test]
   fn link_shape_reasons_keep_their_text() {
-    reads(CommonValidationError::DeletedEntryMissing, "Original record for a delete must contain an entry");
     reads(
-      CommonValidationError::UpdatesLinkBase { name: "a UserUpdates".into(), kind: "a user".into() },
+      CommonValidationError::DeletedEntryMissing,
+      "Original record for a delete must contain an entry",
+    );
+    reads(
+      CommonValidationError::UpdatesLinkBase {
+        name: "a UserUpdates".into(),
+        kind: "a user".into(),
+      },
       "a UserUpdates link starts at the original record of a user",
     );
     reads(
-      CommonValidationError::UpdatesLinkTarget { name: "a UserUpdates".into(), kind: "a user".into() },
+      CommonValidationError::UpdatesLinkTarget {
+        name: "a UserUpdates".into(),
+        kind: "a user".into(),
+      },
       "a UserUpdates link points at an update of a user",
     );
     reads(
@@ -1195,7 +1333,10 @@ mod validation_reason_tests {
       CommonValidationError::UpdatesLinkAuthor("a UserUpdates".into()),
       "a UserUpdates link is written by the author of the update it points at",
     );
-    reads(StatusValidationError::EntityStatusLinkTarget, "An EntityStatus link points at a status record");
+    reads(
+      StatusValidationError::EntityStatusLinkTarget,
+      "An EntityStatus link points at a status record",
+    );
     reads(
       StatusValidationError::EntityStatusLinkAuthor,
       "An EntityStatus link is written by the author of the status it points at",
@@ -1215,17 +1356,47 @@ mod validation_reason_tests {
     use MessagingValidationError as M;
     reads(M::UpdateRefused, "Messaging entries cannot be updated");
     reads(
-      M::CiphertextTooLong { len: 3841, limit: 3840 },
+      M::CiphertextTooLong {
+        len: 3841,
+        limit: 3840,
+      },
       "Encrypted message is 3841 bytes, over the 3840 byte limit",
     );
-    reads(M::DeleteByNonAuthor, "Only the author of an entry may delete it");
-    reads(M::InboxLinkAuthor, "An Inbox link must be authored by the author of the message it points to");
-    reads(M::InboxLinkDeleteByNonAuthor, "Only the author of an Inbox link may delete it");
-    reads(M::InboxLinkTagNotEmpty(4), "An Inbox link's tag must be empty, and this one is 4 bytes");
-    reads(M::InboxLinkBase, "An Inbox link's base must be an agent key");
-    reads(M::InboxLinkTargetNotAction, "An Inbox link's target must be an action hash");
-    reads(M::InboxLinkTargetNotAppEntry, "An Inbox link's target must be an app entry");
-    reads(M::InboxLinkTargetMissingEntry, "An Inbox link's target record must contain its entry");
-    reads(M::InboxLinkTargetNotMessage, "An Inbox link's target must be an EncryptedMessage");
+    reads(
+      M::DeleteByNonAuthor,
+      "Only the author of an entry may delete it",
+    );
+    reads(
+      M::InboxLinkAuthor,
+      "An Inbox link must be authored by the author of the message it points to",
+    );
+    reads(
+      M::InboxLinkDeleteByNonAuthor,
+      "Only the author of an Inbox link may delete it",
+    );
+    reads(
+      M::InboxLinkTagNotEmpty(4),
+      "An Inbox link's tag must be empty, and this one is 4 bytes",
+    );
+    reads(
+      M::InboxLinkBase,
+      "An Inbox link's base must be an agent key",
+    );
+    reads(
+      M::InboxLinkTargetNotAction,
+      "An Inbox link's target must be an action hash",
+    );
+    reads(
+      M::InboxLinkTargetNotAppEntry,
+      "An Inbox link's target must be an app entry",
+    );
+    reads(
+      M::InboxLinkTargetMissingEntry,
+      "An Inbox link's target record must contain its entry",
+    );
+    reads(
+      M::InboxLinkTargetNotMessage,
+      "An Inbox link's target must be an EncryptedMessage",
+    );
   }
 }

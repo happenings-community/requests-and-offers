@@ -106,7 +106,7 @@
       </a>
     </div>
 
-    <!-- My Activity, as in the nav bar: accepted members only -->
+    <!-- My Activity: the bar's My Exchanges, My Listings and envelope, as a list; accepted members only -->
     {#if activity.length}
       <div class="space-y-3">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">

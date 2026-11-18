@@ -39,10 +39,10 @@
 
   const total = $derived(items.reduce((n, item) => n + (item.badge ?? 0), 0));
   /**
-   * The count on the trigger, in words. One counted item says what it counts (in My
-   * Activity: unopened conversations on My Messages, or exchanges waiting on you where
-   * there is no messaging), so the trigger says it the same way; "new" only when two
-   * different counts are added together.
+   * The count on the trigger, in words. One counted item says what it counts, so the
+   * trigger says it the same way; "new" only when two different counts are added together.
+   * (The bar's own counts are on My Exchanges and the envelope, which are links, not
+   * menus; this serves any menu that carries one.)
    */
   const counted = $derived(items.filter((item) => item.badge));
   const totalLabel = $derived(

@@ -306,7 +306,7 @@
         {#if showSetupHint}
           <!-- Red stays on the dot: elsewhere in the app red means danger. -->
           <span
-            class="pointer-events-none absolute inset-0 ring-2 ring-white rounded-token motion-safe:animate-pulse"
+            class="pointer-events-none absolute inset-0 rounded-token ring-2 ring-white motion-safe:animate-pulse"
             aria-hidden="true"
           ></span>
           <span

@@ -1,3 +1,4 @@
+pub mod decimal;
 pub mod dna_properties;
 pub mod errors;
 pub mod grants;
@@ -6,6 +7,7 @@ pub mod types;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod validation_harness;
 
+pub use decimal::Quantity;
 pub use dna_properties::DnaProperties;
 use errors::CommonError;
 pub use types::*;

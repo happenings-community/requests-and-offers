@@ -3,9 +3,9 @@
  *
  * A quantity travels as a decimal string ("12.50", "1.5"), never as a float, so
  * "0.1" plus "0.2" is "0.3" and a currency amount cannot drift. The accepted
- * spelling is the one the exchanges integrity zome validates (`decimal_problem`
- * in `exchanges_integrity`): ASCII digits and at most one dot, up to nine
- * digits before it and six after, no sign, no exponent, no leading zero except
+ * spelling is the one the DNA validates (`decimal_problem` in `utils::decimal`,
+ * shared by agreements and listings): ASCII digits and at most one dot, up to
+ * nine digits before it and six after, no sign, no exponent, no leading zero except
  * "0.x". Trailing zeros are kept as written, so two spellings of one amount
  * exist: compare with `decimalsEqual`, never with `===` on the strings.
  */

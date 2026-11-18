@@ -170,6 +170,42 @@ describe('hREA agreement mirror after a reload (agreementMappings empty)', () =>
     expect(svc.createAgreement).toHaveBeenCalledTimes(1);
     expect(refs?.agreementId).toBe('agr-NEW');
   });
+
+  /**
+   * #380: a commitment's due date comes from the agreement's timeframe, counted from
+   * acceptance, and a date hREA refuses must not cost the commitment.
+   * **To make this go red:** call `hreaService.createCommitment` directly in the store.
+   */
+  it('dates both commitments from acceptance, and writes them without dates when hREA refuses those', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const svc = service();
+    svc.getAgreements.mockReturnValue(E.succeed([]));
+    svc.getCommitments.mockReturnValue(E.succeed([]));
+    const refusal = new HreaError({
+      message: 'Deserialize at rea_commitment.rs',
+      cause: { name: 'ribosome_error', message: 'Deserialize' }
+    });
+    svc.createCommitment
+      .mockReturnValueOnce(E.fail(refusal))
+      .mockReturnValue(E.succeed({ id: 'c-NEW', revisionId: 'x' }));
+    const store = await freshStore(svc);
+    const accepted = Date.UTC(2026, 9, 1);
+    const dated = {
+      ...exchange(),
+      agreement: { ...exchange().agreement, delivery_timeframe: { Preset: 'WithinTwoWeeks' } },
+      response: { agreement: hash(1), accepted: true, note: '', created_at: accepted }
+    } as unknown as UIExchange;
+
+    await E.runPromise(store.createAgreementFromExchange(dated));
+
+    const due = new Date(accepted + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const inputs = svc.createCommitment.mock.calls.map((c) => c[0]);
+    expect(inputs[0].due, 'the first write carries the due date').toBe(due);
+    expect(inputs[1].due, 'refused, it goes again without it').toBeUndefined();
+    expect(inputs[2].due, 'the reciprocal carries it too').toBe(due);
+    expect(inputs).toHaveLength(3);
+  });
+
   it('an acceptance whose hREA read fails is not mirrored, so no duplicate Agreement can be minted', async () => {
     const svc = service();
     svc.getAgreements.mockReturnValue(E.fail(new HreaError({ message: 'conductor away' })));

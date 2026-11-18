@@ -24,7 +24,8 @@ export const StatusTypeSchema = Schema.Union(
 export const StatusInDHTSchema = Schema.Struct({
   status_type: StatusTypeSchema,
   reason: Schema.optional(Schema.String),
-  suspended_until: Schema.optional(Schema.String),
+  // A Holochain timestamp, in microseconds.
+  suspended_until: Schema.optional(Schema.NullOr(Schema.Number.pipe(Schema.int()))),
   created_at: Schema.optional(Schema.Number),
   updated_at: Schema.optional(Schema.Number)
 });

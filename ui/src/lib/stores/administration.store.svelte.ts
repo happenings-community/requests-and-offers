@@ -31,6 +31,7 @@ import type { StatusInDHT, StatusType } from '$lib/types/holochain';
 import { AdministrationEntity } from '$lib/types/holochain';
 import usersStore from '$lib/stores/users.store.svelte';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
+import { decodedSuspensionEnd, remainingMs } from '$lib/utils/suspension';
 
 // ============================================================================
 // CONSTANTS
@@ -130,7 +131,7 @@ export type AdministrationStore = {
   suspendUser: (
     user: UIUser,
     reason?: string,
-    suspended_until?: string
+    suspended_until?: number
   ) => E.Effect<HolochainRecord, AdministrationError>;
   unsuspendUser: (user: UIUser) => E.Effect<HolochainRecord, AdministrationError>;
   approveOrganization: (
@@ -142,7 +143,7 @@ export type AdministrationStore = {
   suspendOrganization: (
     organization: UIOrganization,
     reason?: string,
-    suspended_until?: string
+    suspended_until?: number
   ) => E.Effect<HolochainRecord, AdministrationError>;
   unsuspendOrganization: (
     organization: UIOrganization
@@ -258,7 +259,7 @@ const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
     // Extract status data with multiple fallback strategies
     let status_type: string = 'unknown';
     let reason: string | undefined = undefined;
-    let suspended_until: string | undefined = undefined;
+    let suspended_until: number | undefined = undefined;
 
     if (decodedData && typeof decodedData === 'object') {
       // Strategy 1: Direct property access
@@ -266,9 +267,7 @@ const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
       if (decodedObj.status_type) {
         status_type = String(decodedObj.status_type);
         reason = decodedObj.reason ? String(decodedObj.reason) : undefined;
-        suspended_until = decodedObj.suspended_until
-          ? String(decodedObj.suspended_until)
-          : undefined;
+        suspended_until = decodedSuspensionEnd(decodedObj.suspended_until);
         console.log('✅ Strategy 1 (direct access) succeeded:', {
           status_type,
           reason,
@@ -279,7 +278,7 @@ const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
       else if (Array.isArray(decodedData) && decodedData.length >= 1) {
         status_type = decodedData[0] ? String(decodedData[0]) : 'unknown';
         reason = decodedData[1] ? String(decodedData[1]) : undefined;
-        suspended_until = decodedData[2] ? String(decodedData[2]) : undefined;
+        suspended_until = decodedSuspensionEnd(decodedData[2]);
         console.log('✅ Strategy 2 (array access) succeeded:', {
           status_type,
           reason,
@@ -291,7 +290,7 @@ const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
         const statusObj = (decodedData as any).status;
         status_type = statusObj.status_type ? String(statusObj.status_type) : 'unknown';
         reason = statusObj.reason ? String(statusObj.reason) : undefined;
-        suspended_until = statusObj.suspended_until ? String(statusObj.suspended_until) : undefined;
+        suspended_until = decodedSuspensionEnd(statusObj.suspended_until);
         console.log('✅ Strategy 3 (nested object) succeeded:', {
           status_type,
           reason,
@@ -326,7 +325,7 @@ const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
     const result: UIStatus = {
       status_type: normalizedStatusType,
       reason: reason || undefined,
-      suspended_until: suspended_until || undefined,
+      suspended_until: suspended_until ?? undefined,
       original_action_hash: record.signed_action.hashed.hash,
       previous_action_hash: record.signed_action.hashed.hash,
       created_at: record.signed_action.hashed.content.header.timestamp,
@@ -418,17 +417,15 @@ const convertToUIStatus = (
 });
 
 /**
- * Calculates suspension duration
- * @param suspendedUntil - The date until which the entity is suspended
- * @param timestamp - The current timestamp
- * @returns The duration in milliseconds
+ * How long a suspension had left when its status revision was written, in milliseconds.
+ * Both are Holochain timestamps, in microseconds: the end and the revision's action. The
+ * text end this replaced was read as milliseconds and the action's microseconds taken from
+ * it, so the history always showed no time left.
  */
-const calculateDuration = (suspendedUntil?: string, timestamp?: number): number | undefined => {
-  if (!suspendedUntil || !timestamp) return undefined;
-  const until = new Date(suspendedUntil).getTime();
-  const now = timestamp;
-  return Math.max(0, until - now);
-};
+const calculateDuration = (
+  suspendedUntil?: number | null,
+  timestamp?: number
+): number | undefined => remainingMs(suspendedUntil, timestamp);
 
 // Note: withLoadingState is now imported from store-helpers
 
@@ -1353,7 +1350,7 @@ export const createAdministrationStore = (): E.Effect<
     const suspendUser = (
       user: UIUser,
       reason?: string,
-      suspended_until?: string
+      suspended_until?: number
     ): E.Effect<HolochainRecord, AdministrationError> =>
       withLoadingState(() =>
         pipe(
@@ -1418,7 +1415,7 @@ export const createAdministrationStore = (): E.Effect<
     const suspendOrganization = (
       organization: UIOrganization,
       reason?: string,
-      suspended_until?: string
+      suspended_until?: number
     ): E.Effect<HolochainRecord, AdministrationError> =>
       withLoadingState(() =>
         pipe(

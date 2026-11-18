@@ -49,12 +49,14 @@ vi.mock('$lib/stores/organizations.store.svelte', () => ({
 
 import { createAdministrationStore } from '$lib/stores/administration.store.svelte';
 
+// The write's time is 0, so the store's memory of a recent write (57c262a4) gives way to any
+// read, and the write guard alone holds the written status: these cases test the guard.
 const statusRecord = (status_type: string) =>
   ({
     signed_action: {
       hashed: {
         hash: new Uint8Array(39).fill(9),
-        content: { header: { timestamp: Date.now() * 1000 }, data: { type: 'Update' } }
+        content: { header: { timestamp: 0 }, data: { type: 'Update' } }
       }
     },
     entry: { Present: { entry: encode({ status_type, created_at: 1, updated_at: 1 }) } }

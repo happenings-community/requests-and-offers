@@ -770,7 +770,7 @@ export const createAdministrationStore = (): E.Effect<
             links.map((link) =>
               pipe(
                 // getLatestUser reads the member's status itself; a second read here
-                // doubled the calls of every refresh (#411 review: 30 of 62).
+                // added one call per member and organisation to every refresh.
                 usersStore.getLatestUser(link.target),
                 E.catchAll(() => E.succeed(null))
               )

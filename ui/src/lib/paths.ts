@@ -24,7 +24,7 @@ const P = {
   from: 'from',
   organization: 'organization',
   filter: 'filter',
-  /** Which of My Listings' three views to open (`viewFromQuery` reads it). */
+  /** Which of My Listings' three views to open (`readView` reads it). */
   view: 'view',
   serviceType: 'service_type',
   /**
@@ -263,6 +263,11 @@ export function readFrom(url: URL): ActionHash | null {
 /** The list filter the listing index pages read. */
 export function readFilter(url: URL): string | null {
   return url.searchParams.get(P.filter);
+}
+
+/** Which of My Listings' views a link asks for, if any (`openingView` decides). */
+export function readView(url: URL): string | null {
+  return url.searchParams.get(P.view);
 }
 
 /** The service type an index page was narrowed to. */

@@ -13,6 +13,15 @@ export function viewFromQuery(asked: string | null): ListingView {
   return asked === 'offers' || asked === 'archived' ? asked : 'requests';
 }
 
+/**
+ * The view My Listings opens on: **the one a link asks for, else the one you last had**,
+ * else Requests. The profile's doorways ask for one; the menu link asks for none, so it
+ * comes back to where you were rather than to Requests (Sam, 18 November).
+ */
+export function openingView(asked: string | null, remembered: string | null): ListingView {
+  return viewFromQuery(asked ?? remembered);
+}
+
 export interface MyListingSets {
   activeRequests: UIRequest[];
   activeOffers: UIOffer[];

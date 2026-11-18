@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   listingCounts,
   listingsFor,
+  openingView,
   viewFromQuery,
   type MyListingSets
 } from '$lib/utils/my-listings';
@@ -52,5 +53,14 @@ describe('My Listings opens the view a link asks for (#353 review)', () => {
     expect(viewFromQuery(null)).toBe('requests');
     expect(viewFromQuery('Offers')).toBe('requests');
     expect(viewFromQuery('anything')).toBe('requests');
+  });
+});
+
+describe('My Listings comes back to the view you last had (Sam, 18 November)', () => {
+  it('opens the view a link asks for, else the one remembered, else Requests', () => {
+    expect(openingView('offers', 'archived')).toBe('offers');
+    expect(openingView(null, 'archived')).toBe('archived');
+    expect(openingView(null, null)).toBe('requests');
+    expect(openingView(null, 'nonsense')).toBe('requests');
   });
 });

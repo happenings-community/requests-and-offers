@@ -12,6 +12,7 @@
     type ListingView,
     type MyListingSets
   } from '$lib/utils/my-listings';
+  import { paths } from '$lib/paths';
 
   /**
    * My Listings (#344), as the design system lays it out: count cards that
@@ -130,9 +131,9 @@
     <div class="card space-y-3 p-6 text-center">
       <p class="text-surface-500">{emptyText[view]}</p>
       {#if canCreate && view === 'requests'}
-        <a href="/requests/create" class="variant-filled-secondary btn">Create a request</a>
+        <a href={paths.requestCreate()} class="variant-filled-secondary btn">Create a request</a>
       {:else if canCreate && view === 'offers'}
-        <a href="/offers/create" class="variant-filled-warning btn">Create an offer</a>
+        <a href={paths.offerCreate()} class="variant-filled-warning btn">Create an offer</a>
       {/if}
     </div>
   {:else}

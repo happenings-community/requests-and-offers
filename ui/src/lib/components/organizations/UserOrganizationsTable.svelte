@@ -7,6 +7,7 @@
   import { getOrganizationLogoUrl } from '$lib/utils';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
+  import { paths } from '$lib/paths';
 
   type Props = {
     organizations: UIOrganization[];
@@ -75,9 +76,7 @@
                   <button
                     class="variant-filled-surface btn btn-sm"
                     onclick={() =>
-                      goto(
-                        `/organizations/${encodeHashToBase64(organization.original_action_hash!)}`
-                      )}
+                      goto(paths.organizationDetail(organization.original_action_hash!))}
                   >
                     View
                   </button>
@@ -114,8 +113,7 @@
           <div class="mt-4">
             <button
               class="variant-filled-surface btn w-full"
-              onclick={() =>
-                goto(`/organizations/${encodeHashToBase64(organization.original_action_hash!)}`)}
+              onclick={() => goto(paths.organizationDetail(organization.original_action_hash!))}
             >
               View
             </button>

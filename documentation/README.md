@@ -10,7 +10,6 @@ This directory contains comprehensive documentation for the Requests and Offers 
 - [Architecture](architecture.md) - System architecture and design
 - [Technical Specifications](technical-specs.md) - Detailed technical specifications
 - **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions 🔧
-- [Work In Progress](work-in-progress.md) - Current development status
 - [Status](status.md) - Project roadmap and milestone tracking
 
 ## Technical Documentation

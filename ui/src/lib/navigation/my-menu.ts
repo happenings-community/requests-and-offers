@@ -1,3 +1,5 @@
+import { paths } from '$lib/paths';
+
 /**
  * The member's own items, in one place (#344). The nav bar has two menus for
  * them (Sam, 17 October): **My Activity** (listings and exchanges, what you
@@ -17,13 +19,13 @@ export function myProfileItems(hasProfile: boolean): MyMenuItem[] {
   return [
     hasProfile
       ? {
-          href: '/user',
+          href: paths.myProfile(),
           label: 'My Profile',
           icon: '👤',
           description: 'View and edit your profile'
         }
       : {
-          href: '/user/create',
+          href: paths.myProfileCreate(),
           label: 'Create Profile',
           icon: '👤',
           description: 'Join the community'
@@ -40,13 +42,13 @@ export function myActivityItems(accepted: boolean): MyMenuItem[] {
   if (!accepted) return [];
   return [
     {
-      href: '/my-listings',
+      href: paths.myListings(),
       label: 'My Listings',
       icon: '📋',
       description: 'Manage your requests and offers'
     },
     {
-      href: '/exchanges',
+      href: paths.exchanges(),
       label: 'My Exchanges',
       icon: '🤝',
       description: 'Agreements you are part of'

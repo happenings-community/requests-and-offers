@@ -369,6 +369,50 @@ async fn agreement_cancelled_after_acceptance() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_withdrawn_proposal_cannot_be_answered() {
+    let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
+
+    let interest: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_interest", json!({ "listing": offer_hash, "listing_type": "Offer" }))
+        .await;
+    let interest_hash = interest.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Alice proposes, then withdraws before Bob has answered.
+    let agreement: Record = conductors[0]
+        .call(&alice.zome("exchanges"), "create_agreement", agreement_input(&offer_hash, &interest_hash))
+        .await;
+    let agreement_hash = agreement.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    let _: Record = conductors[0]
+        .call(
+            &alice.zome("exchanges"),
+            "cancel_agreement",
+            json!({ "agreement": agreement_hash, "note": "Withdrawn by the proposer" }),
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Bob's accept, and a decline too, must be refused rather than stored.
+    for accepted in [true, false] {
+        let response = conductors[1]
+            .call_fallible::<_, Record>(
+                &bob.zome("exchanges"),
+                "respond_to_agreement",
+                json!({ "agreement": agreement_hash, "accepted": accepted, "note": "" }),
+            )
+            .await;
+        assert!(response.is_err(), "a response to a withdrawn proposal must be refused (accepted: {accepted})");
+    }
+
+    let ex: Exchange = conductors[1]
+        .call(&bob.zome("exchanges"), "get_exchange", agreement_hash)
+        .await;
+    assert_eq!(status_of(&ex), "Cancelled");
+    assert!(ex.response.is_none(), "no response may be stored on a withdrawn proposal");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn exchange_refusals() {
     let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
 
@@ -821,4 +865,68 @@ async fn counter_refusals_by_member_and_state() {
     assert_eq!(status_of(&original), "Declined");
     let withdrawn: Exchange = t.conductors[0].call(&t.alice.zome("exchanges"), "get_exchange", c).await;
     assert_eq!(status_of(&withdrawn), "Cancelled");
+}
+
+/// One live interest per member per listing (#354). A second is refused, one
+/// on another listing is not, and after withdrawing a member may show
+/// interest again.
+#[tokio::test(flavor = "multi_thread")]
+async fn one_live_interest_per_listing() {
+    let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
+
+    let first: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_interest", json!({ "listing": offer_hash, "listing_type": "Offer" }))
+        .await;
+    let first_hash = first.signed_action.hashed.hash.clone();
+
+    let second = conductors[1]
+        .call_fallible::<_, Record>(
+            &bob.zome("exchanges"),
+            "create_interest",
+            json!({ "listing": offer_hash, "listing_type": "Offer" }),
+        )
+        .await;
+    let refusal = format!("{:?}", second.expect_err("a second live interest must be refused"));
+    assert!(
+        refusal.contains("already shown interest in this listing"),
+        "the refusal names the rule: {refusal}"
+    );
+
+    // Interest in a different listing is unaffected. That listing names its
+    // own service type (#256); a progenitor's lands approved.
+    let other_type: Record = conductors[0]
+        .call(&alice.zome("service_types"), "create_service_type", sample_service_type("Gardening"))
+        .await;
+    let other_type = other_type.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    let other: Record = conductors[0]
+        .call(&alice.zome("offers"), "create_offer", sample_offer("Garden help", other_type))
+        .await;
+    let other_hash = other.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    let _: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_interest", json!({ "listing": other_hash, "listing_type": "Offer" }))
+        .await;
+
+    // Withdrawn, then shown again: allowed, and only the new one is live.
+    let _: ActionHash = conductors[1]
+        .call(&bob.zome("exchanges"), "withdraw_interest", first_hash.clone())
+        .await;
+    let again: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_interest", json!({ "listing": offer_hash, "listing_type": "Offer" }))
+        .await;
+    assert_ne!(again.signed_action.hashed.hash, first_hash);
+
+    let third = conductors[1]
+        .call_fallible::<_, Record>(
+            &bob.zome("exchanges"),
+            "create_interest",
+            json!({ "listing": offer_hash, "listing_type": "Offer" }),
+        )
+        .await;
+    let refusal = format!("{:?}", third.expect_err("the renewed interest is live, so another is refused"));
+    assert!(
+        refusal.contains("already shown interest in this listing"),
+        "the third interest is refused for the rule, not for something else: {refusal}"
+    );
 }

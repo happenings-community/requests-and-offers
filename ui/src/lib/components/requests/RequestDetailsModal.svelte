@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { termsState, TERMS_LOADING, TERMS_FAILED } from '$lib/utils/listing-terms';
   import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import { encodeHashToBase64 } from '@holochain/client';
   import { goto } from '$app/navigation';
@@ -23,6 +24,7 @@
   import { runEffect } from '$lib/utils/effect';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
+  import { paths } from '$lib/paths';
 
   type RequestDetailsModalMeta = {
     request: UIRequest;
@@ -128,7 +130,7 @@
     if (request?.original_action_hash) {
       const requestId = encodeHashToBase64(request.original_action_hash);
       modalStore.close();
-      goto(`/requests/${requestId}/edit`);
+      goto(paths.requestEdit(requestId));
     }
   }
 
@@ -176,10 +178,10 @@
       });
 
       // If we're in the admin panel, stay there, otherwise go to requests
-      if (window.location.pathname.startsWith('/admin')) {
+      if (window.location.pathname.startsWith(paths.admin())) {
         // Refresh the page to update the list
       } else {
-        goto('/requests');
+        goto(paths.requests());
       }
     } catch (err) {
       console.error('Failed to delete request:', err);
@@ -195,7 +197,7 @@
     if (request?.original_action_hash) {
       const requestId = encodeHashToBase64(request.original_action_hash);
       modalStore.close();
-      goto(`/requests/${requestId}`);
+      goto(paths.requestDetail(requestId));
     }
   }
 
@@ -272,6 +274,10 @@
           <div class="flex flex-wrap gap-2">
             <ServiceTypeTag serviceTypeActionHash={request.service_type_hash} showLink={false} />
           </div>
+        {:else if termsState(request) === 'loading'}
+          <p class="text-surface-500">{TERMS_LOADING}</p>
+        {:else if termsState(request) === 'failed'}
+          <p class="text-warning-700 dark:text-warning-300">{TERMS_FAILED}</p>
         {:else}
           <p class="text-surface-500">No service type found.</p>
         {/if}
@@ -288,6 +294,10 @@
               </li>
             {/each}
           </ul>
+        {:else if termsState(request) === 'loading'}
+          <p class="text-surface-500">{TERMS_LOADING}</p>
+        {:else if termsState(request) === 'failed'}
+          <p class="text-warning-700 dark:text-warning-300">{TERMS_FAILED}</p>
         {:else}
           <p class="text-surface-500">No medium of exchange specified.</p>
         {/if}
@@ -391,7 +401,7 @@
               </div>
             {:else}
               <a
-                href={`/organizations/${encodeHashToBase64(request.organization)}`}
+                href={paths.organizationDetail(request.organization)}
                 class="text-primary-500 hover:underline dark:text-primary-400"
               >
                 View Organization
@@ -406,7 +416,7 @@
               <div class="mt-1 flex flex-wrap gap-2">
                 {#each organization.coordinators as coordinator}
                   <a
-                    href={`/users/${encodeHashToBase64(coordinator)}`}
+                    href={paths.userProfile(coordinator)}
                     class="variant-soft-secondary chip hover:variant-soft-primary"
                   >
                     View Coordinator
@@ -443,13 +453,15 @@
                 <div>
                   <p class="font-semibold">Name: {creator.name}</p>
                   {#if creator.nickname}
-                    <p class="text-surface-600-300-token text-sm">Nickname/Handle: {creator.nickname}</p>
+                    <p class="text-surface-600-300-token text-sm">
+                      Nickname/Handle: {creator.nickname}
+                    </p>
                   {/if}
                 </div>
               </div>
             {:else if request?.creator}
               <a
-                href={`/users/${encodeHashToBase64(request.creator)}`}
+                href={paths.userProfile(request.creator)}
                 class="text-primary-500 hover:underline dark:text-primary-400"
               >
                 View Creator Profile

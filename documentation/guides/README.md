@@ -11,7 +11,7 @@ For a high-level project overview, see the main [Project Overview](../project-ov
 - **[Contributing](./contributing.md)**: Development workflow, feature process, testing, and standards.
 - **[Web Development Mode](./web-dev-mode.md)**: `bun start:web`, the app in browser tabs with one URL per member.
 - **[Project Board Automation](./project-board-automation.md)**: The `Closes` and `Impl` markers, and the workflow that moves `Impl` issues on the board.
-- **[Kangaroo Deployment Process](./kangaroo-deployment-process.md)**: Complete guide for cross-platform desktop app deployment.
+- **[Kangaroo Deployment Process](./deployment.md)**: Complete guide for cross-platform desktop app deployment.
 
 ## Available Guides
 
@@ -52,7 +52,7 @@ How the next version number is chosen:
 - Breaking changes batched into one network reset
 - Pre-releases and the rule after 1.0
 
-### [Kangaroo Deployment Process](./kangaroo-deployment-process.md)
+### [Kangaroo Deployment Process](./deployment.md)
 
 Comprehensive cross-platform desktop application deployment:
 

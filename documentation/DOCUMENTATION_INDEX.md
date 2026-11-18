@@ -41,7 +41,6 @@
 - **[Requirements](requirements.md)** - Functional and technical requirements summary
 - **[Technical Specs](technical-specs.md)** - Technical specification overview
 - **[Status](status.md)** - Current development status and progress
-- **[Work in Progress](work-in-progress.md)** - Active development items
 
 #### 🏗️ Architecture (`/architecture/`)
 
@@ -123,16 +122,16 @@
 - **[Messaging](technical-specs/zomes/messaging.md)** - The signal layer: one ActionHash per nudge, never content
 - **[Mediums of Exchange](technical-specs/zomes/mediums_of_exchange.md)** - Currency and payment method management
 
-#### 🤖 AI Development Rules (`/ai/rules/`) - **CONSOLIDATED**
+#### 🤖 Development Rules (`guides/`, `../CLAUDE.md`) - **CONSOLIDATED**
 
 **Core Development Guidelines** (Consolidated from 25 to 6 focused files):
 
-- **[Development Guidelines](ai/rules/development-guidelines.md)** - Effect-TS patterns, Svelte 5 standards, schema validation, and component architecture
-- **[Architecture Patterns](ai/rules/architecture-patterns.md)** - 7-layer architecture, service patterns, store management, and event-driven communication
-- **[Testing Framework](ai/rules/testing-framework.md)** - Comprehensive testing strategy across backend (Sweettest) and frontend (Vitest/Testing Library)
-- **[Domain Implementation](ai/rules/domain-implementation.md)** - Administration patterns, error management, guard composables, and utility patterns
-- **[Development Guidelines](ai/rules/development-guidelines.md)** - Continuation strategies, cleanup processes, planning methodologies, and changelog maintenance
-- **[Environment Setup](ai/rules/environment-setup.md)** - Nix configuration, development environment, and documentation standards
+- **[Development Guidelines](../CLAUDE.md)** - Effect-TS patterns, Svelte 5 standards, schema validation, and component architecture
+- **[Architecture Patterns](guides/architectural-patterns.md)** - 7-layer architecture, service patterns, store management, and event-driven communication
+- **[Testing Framework](guides/testing.md)** - Comprehensive testing strategy across backend (Sweettest) and frontend (Vitest/Testing Library)
+- **[Domain Implementation](guides/domain-implementation.md)** - Administration patterns, error management, guard composables, and utility patterns
+- **[Development Guidelines](../CLAUDE.md)** - Continuation strategies, cleanup processes, planning methodologies, and changelog maintenance
+- **[Environment Setup](guides/installation.md)** - Nix configuration, development environment, and documentation standards
 
 #### 🎨 Assets (`/assets/images/`)
 
@@ -164,7 +163,7 @@
 - **[Quick Reference Guide](QUICK_REFERENCE.md) - Essential commands, patterns, and workflows** ⭐
 - [Installation Guide](guides/installation.md) - Complete setup instructions
 - [Getting Started](guides/getting-started.md) - Beginner tutorial
-- [Environment Setup](ai/rules/environment-setup.md) - Nix configuration and development environment
+- [Environment Setup](guides/installation.md) - Nix configuration and development environment
 - [Project Overview](project-overview.md) - High-level introduction
 
 ### 🏗️ Architecture & Design
@@ -172,8 +171,8 @@
 **System architecture and design patterns**
 
 - [Architecture Overview](architecture.md) - System design
-- [System Architecture](ai/rules/system-architecture.md) - Architectural guidelines
-- [7-Layer Effect-TS Architecture](../CLAUDE.md#architectural-patterns) - Framework patterns
+- [System Architecture](architecture/README.md) - Architectural guidelines
+- [7-Layer Effect-TS Architecture](../CLAUDE.md#architecture-overview) - Framework patterns
 - [Exchange Record](architecture/EXCHANGE_RECORD.md) - How an exchange is recorded and its state derived
 - [hREA Integration](architecture/hrea-integration.md) - Resource-Event-Agent framework
 - [Frontend Refactoring Programme](architecture/frontend-refactoring/README.md) - Proposed frontend evolution and its implementation plan
@@ -182,10 +181,10 @@
 
 **Coding guidelines and development patterns**
 
-- [Development Guidelines](ai/rules/development-guidelines.md) - Effect-TS patterns, Svelte 5 standards, schema validation
-- [Architecture Patterns](ai/rules/architecture-patterns.md) - 7-layer architecture, service patterns, store management
-- [Domain Implementation](ai/rules/domain-implementation.md) - Administration patterns, error management, utilities
-- [Development Workflow](ai/rules/development-workflow.md) - Continuation strategies, cleanup processes, planning
+- [Development Guidelines](../CLAUDE.md) - Effect-TS patterns, Svelte 5 standards, schema validation
+- [Architecture Patterns](guides/architectural-patterns.md) - 7-layer architecture, service patterns, store management
+- [Domain Implementation](guides/domain-implementation.md) - Administration patterns, error management, utilities
+- [Development Workflow](guides/development-workflow.md) - Continuation strategies, cleanup processes, planning
 
 ### 🔗 API Reference
 
@@ -235,7 +234,7 @@
 
 **Development tools and environment setup**
 
-- [Environment Setup](ai/rules/environment-setup.md) - Nix configuration, development environment, documentation standards
+- [Environment Setup](guides/installation.md) - Nix configuration, development environment, documentation standards
 - [Development Features System](technical-specs/development-features-system.md) - Development tools and mock data management
 - [Installation](guides/installation.md) - Tool installation
 - [Contributing](guides/contributing.md) - Development workflow
@@ -245,22 +244,21 @@
 **Planning and task management**
 
 - [Status](status.md) - Current progress
-- [Work in Progress](work-in-progress.md) - Active items
-- [Development Workflow](ai/rules/development-workflow.md) - Development continuation, cleanup processes, planning methodologies
+- [Development Workflow](guides/development-workflow.md) - Development continuation, cleanup processes, planning methodologies
 
 ### 📝 Documentation
 
 **Documentation standards and maintenance**
 
-- [Environment Setup](ai/rules/environment-setup.md) - Documentation standards and generation processes
-- [Development Workflow](ai/rules/development-workflow.md) - Changelog maintenance and release notes
+- [Environment Setup](guides/installation.md) - Documentation standards and generation processes
+- [Development Workflow](guides/development-workflow.md) - Changelog maintenance and release notes
 - [CLAUDE.md](../CLAUDE.md) - AI assistant instructions
 
 ### 🔒 Error Handling
 
 **Error management and debugging**
 
-- [Domain Implementation](ai/rules/domain-implementation.md) - Comprehensive error management patterns and strategies
+- [Domain Implementation](guides/domain-implementation.md) - Comprehensive error management patterns and strategies
 - [Error Handling README](../ui/src/lib/errors/README.md) - Frontend error handling implementation
 - [Error Handling API](technical-specs/api/frontend/errors.md) - Tagged error system documentation
 
@@ -318,4 +316,4 @@
 
 ---
 
-_This index is automatically maintained. For updates or corrections, see [Documentation Guidelines](ai/rules/documentation.md)._
+_This index is automatically maintained. For updates or corrections, see [Documentation Guidelines](guides/contributing.md)._

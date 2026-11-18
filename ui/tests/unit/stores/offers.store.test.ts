@@ -161,6 +161,22 @@ describe('Offers Store', () => {
     // but the store handles this gracefully by returning null
   });
 
+  /**
+   * After an edit the latest record is a revision, with a hash of its own. getOffer kept
+   * that hash as the listing's original, so whatever was done with it next (deleting,
+   * reading it again, linking to it) was done to the revision.
+   */
+  it('keeps the hash it was asked for as the original when the latest is a revision', async () => {
+    const root = (await createMockRecord()).signed_action.hashed.hash;
+    const revision = await createMockRecord(await createTestOffer());
+    vi.spyOn(mockOffersService, 'getLatestOfferRecord').mockReturnValue(Effect.succeed(revision));
+
+    const offer = await runEffect(store.getOffer(root));
+
+    expect(offer?.original_action_hash).toEqual(root);
+    expect(offer?.previous_action_hash).toEqual(revision.signed_action.hashed.hash);
+  });
+
   it('should handle errors gracefully', async () => {
     // Mock the service to throw an error - need to import and use the correct error type
     const { OfferError } = await import('$lib/services/zomes/offers.service');

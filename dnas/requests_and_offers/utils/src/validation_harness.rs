@@ -241,7 +241,8 @@ fn action_hash(fill: u8) -> ActionHash {
   ActionHash::from_raw_36(vec![fill; 36])
 }
 
-fn when() -> Timestamp {
+/// The timestamp every action the harness builds carries, unless a helper says otherwise.
+pub fn when() -> Timestamp {
   Timestamp::from_micros(1_760_000_000_000_000)
 }
 

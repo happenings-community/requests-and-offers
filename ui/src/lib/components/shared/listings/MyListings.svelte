@@ -7,6 +7,7 @@
   import OfferCard from '$lib/components/offers/OfferCard.svelte';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
+  import { paths } from '$lib/paths';
 
   type Props = {
     userHash: Uint8Array;
@@ -256,7 +257,9 @@
     <div class="mb-4 flex items-center justify-between">
       <h3 class="h3">My {currentTab === 'active' ? 'Active' : 'Archived'} Requests</h3>
       {#if canCreate && currentTab === 'active'}
-        <a href="/requests/create" class="variant-filled-primary btn btn-sm"> + New Request </a>
+        <a href={paths.requestCreate()} class="variant-filled-primary btn btn-sm">
+          + New Request
+        </a>
       {/if}
     </div>
 
@@ -304,7 +307,7 @@
           </p>
         </div>
         {#if canCreate && currentTab === 'active'}
-          <a href="/requests/create" class="variant-filled-primary btn">
+          <a href={paths.requestCreate()} class="variant-filled-primary btn">
             ✨ Create Your First Request
           </a>
         {/if}
@@ -331,7 +334,7 @@
     <div class="mb-4 flex items-center justify-between">
       <h3 class="h3">My {currentTab === 'active' ? 'Active' : 'Archived'} Offers</h3>
       {#if canCreate && currentTab === 'active'}
-        <a href="/offers/create" class="variant-filled-secondary btn btn-sm"> + New Offer </a>
+        <a href={paths.offerCreate()} class="variant-filled-secondary btn btn-sm"> + New Offer </a>
       {/if}
     </div>
 
@@ -379,7 +382,7 @@
           </p>
         </div>
         {#if canCreate && currentTab === 'active'}
-          <a href="/offers/create" class="variant-filled-secondary btn">
+          <a href={paths.offerCreate()} class="variant-filled-secondary btn">
             💫 Create Your First Offer
           </a>
         {/if}

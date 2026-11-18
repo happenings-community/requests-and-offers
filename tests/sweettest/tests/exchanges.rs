@@ -989,3 +989,118 @@ async fn one_live_interest_per_listing() {
         "the third interest is refused for the rule, not for something else: {refusal}"
     );
 }
+
+const DAY_MICROS: i64 = 24 * 60 * 60 * 1_000_000;
+
+/// `agreement_input` with its timeframe replaced.
+fn agreement_with_timeframe(listing: &ActionHash, interest: &ActionHash, timeframe: Value) -> Value {
+    let mut input = agreement_input(listing, interest);
+    input["delivery_timeframe"] = timeframe;
+    input
+}
+
+/// An agreement's window is checked against the writing action's own timestamp
+/// (#380): a proposal with a past end is refused; a counter is a new agreement,
+/// so its window is checked when the counter is written; a counter changing only
+/// the window, to a later one, is accepted.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_agreement_window_is_checked_when_written_and_when_countered() {
+    let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
+    let interest: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_interest", json!({ "listing": offer_hash, "listing_type": "Offer" }))
+        .await;
+    let interest_hash = interest.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let now = Timestamp::now().as_micros();
+    let past = json!({ "Dates": { "start": null, "end": now - DAY_MICROS } });
+    let result = conductors[1]
+        .call_fallible::<_, Record>(
+            &bob.zome("exchanges"),
+            "create_agreement",
+            agreement_with_timeframe(&offer_hash, &interest_hash, past.clone()),
+        )
+        .await
+        .map_err(|e| format!("{e:?}"));
+    assert!(
+        matches!(&result, Err(e) if e.contains("must end after the moment it is written")),
+        "a proposal with a past end must be refused: {result:?}"
+    );
+
+    let window = json!({ "Dates": { "start": now + DAY_MICROS, "end": now + 10 * DAY_MICROS } });
+    let proposal: Record = conductors[1]
+        .call(
+            &bob.zome("exchanges"),
+            "create_agreement",
+            agreement_with_timeframe(&offer_hash, &interest_hash, window),
+        )
+        .await;
+    let proposal_hash = proposal.signed_action.hashed.hash.clone();
+    assert_eq!(
+        agreement_view(&proposal).delivery_timeframe,
+        Timeframe::Dates { start: Some(now + DAY_MICROS), end: now + 10 * DAY_MICROS }
+    );
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Alice counters with a past window: refused against the counter's own timestamp.
+    let result = conductors[0]
+        .call_fallible::<_, Record>(
+            &alice.zome("exchanges"),
+            "counter_agreement",
+            json!({
+                "agreement": proposal_hash,
+                "primary_quantity": { "value": "2", "unit": "h" },
+                "reciprocal_quantity": null,
+                "delivery_timeframe": past
+            }),
+        )
+        .await
+        .map_err(|e| format!("{e:?}"));
+    assert!(
+        matches!(&result, Err(e) if e.contains("must end after the moment it is written")),
+        "a counter with a past end must be refused: {result:?}"
+    );
+
+    // A counter changing only the window, to a later one: accepted.
+    let later = json!({ "Dates": { "start": null, "end": now + 20 * DAY_MICROS } });
+    let counter: Record = conductors[0]
+        .call(
+            &alice.zome("exchanges"),
+            "counter_agreement",
+            json!({
+                "agreement": proposal_hash,
+                "primary_quantity": { "value": "2", "unit": "h" },
+                "reciprocal_quantity": null,
+                "delivery_timeframe": later
+            }),
+        )
+        .await;
+    assert_eq!(
+        agreement_view(&counter).delivery_timeframe,
+        Timeframe::Dates { start: None, end: now + 20 * DAY_MICROS }
+    );
+}
+
+/// The old free-text timeframe no longer reads (alpha 2 resets the network, so
+/// nothing old needs reading): that is the point of the typed field.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_free_text_timeframe_does_not_deserialise() {
+    let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
+    let interest: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_interest", json!({ "listing": offer_hash, "listing_type": "Offer" }))
+        .await;
+    let interest_hash = interest.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    let result = conductors[1]
+        .call_fallible::<_, Record>(
+            &bob.zome("exchanges"),
+            "create_agreement",
+            agreement_with_timeframe(&offer_hash, &interest_hash, json!("Within 2 weeks")),
+        )
+        .await
+        .map_err(|e| format!("{e:?}"));
+    assert!(
+        matches!(&result, Err(e) if e.to_lowercase().contains("deserializ")),
+        "free text must fail to deserialise: {result:?}"
+    );
+}

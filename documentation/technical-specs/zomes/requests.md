@@ -27,10 +27,14 @@ pub struct Request {
   pub description: String,
   /// How the requester prefers to be contacted (Email, Phone, Other)
   pub contact_preference: ContactPreference,
-  /// The date range when the request is valid/needed
-  pub date_range: Option<DateRange>,
-  /// Estimated time needed in hours
-  pub time_estimate_hours: Option<f32>,
+  /// When the request is needed: a preset or a window of dates (#380)
+  pub timeframe: Option<Timeframe>,
+  /// An estimate of the time the task takes, in hours: an exact decimal string,
+  /// zero allowed. It describes the task and is never exchanged
+  pub time_estimate_hours: Option<String>,
+  /// What the request offers in payment, if it names a figure: an exact decimal
+  /// above zero, in a unit (a currency, or a time-bank medium)
+  pub amount: Option<Quantity>,
   /// Preferred time of day for the work/interaction
   pub time_preference: TimePreference,
   /// The requester's time zone
@@ -78,9 +82,25 @@ pub enum InteractionType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct DateRange {
-  pub start: Option<Timestamp>,
-  pub end: Option<Timestamp>,
+pub enum TimeframePreset {
+  WithinAFewDays,
+  WithinTwoWeeks,
+  WithinAMonth,
+  Flexible,
+}
+
+/// A preset, or a window of dates whose `end` is its due date
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum Timeframe {
+  Preset(TimeframePreset),
+  Dates { start: Option<Timestamp>, end: Timestamp },
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+/// The exchange quantity (`utils::decimal`): `value` is an exact decimal string
+pub struct Quantity {
+  pub value: String,
+  pub unit: String,
 }
 
 // TimeZone is implemented as a String
@@ -418,6 +438,7 @@ Retrieves the organization associated with a request, if any.
 - Description must be between 10 and 1000 characters. Supports markdown formatting (rendered on frontend with `marked` + `DOMPurify`).
 - Exactly one service type, `service_type_hash`, which must be approved. This holds by convention for now: the coordinator and the form require it, but integrity validation does not check it yet. Enforcing it in validation is tracked in #257 and lands with the Holochain 0.7 migration.
 - Links array must be present (can be empty).
+- **Timeframe, estimate and amount** (#380). A timeframe is a preset or a window of dates; a window must end after the action that writes it, within 365 days of it, and must not start after it ends. An update that leaves the timeframe as it was is not checked again, so a listing whose window has passed can still be edited; one that changes it is. `time_estimate_hours` is an exact decimal string, checked by `decimal_problem`, and zero is allowed: it is an estimate of the task, not a quantity, and is never exchanged. `amount`, when present, is a quantity: a decimal above zero, with a unit. The rules are in `utils::listing_rules`; the window is checked before the grant, so a refusal names the field.
 - **Grant** (#378). A request carries, in its `grant` field, the grant it rests on, held by its author. Posting one needs a member grant, which acceptance issues. Changing one needs its creator, who carries no grant, or an admin grant. The rule runs on the entry op, the record op and the op an update's original receives. The coordinator sets the field; it is never taken from the client. A tombstone carries no grant and is not checked by validation (see `documentation/architecture/validation.md`).
 
 ## Client Integration
@@ -636,9 +657,9 @@ const newRequestData: RequestInDHT = {
   time_preference: TimePreference.NoPreference, // Ensure TimePreference enum/type is imported/available
   exchange_preference: ExchangePreference.Arranged, // Ensure ExchangePreference enum/type is imported/available
   interaction_type: InteractionType.Virtual, // Ensure InteractionType enum/type is imported/available
-  // date_range, time_estimate_hours, time_zone, links are optional or can be set as needed
-  date_range: { start: new Date().toISOString(), end: null }, // Example: using ISOString for Timestamps
-  time_estimate_hours: 20.5,
+  // timeframe, time_estimate_hours, amount, time_zone, links are optional
+  timeframe: { Preset: 'WithinTwoWeeks' }, // or { Dates: { start: null, end } }, in microseconds
+  time_estimate_hours: '20.5', // an exact decimal string, never a number
   links: ["https://github.com/project-repo/issues/123"],
 };
 

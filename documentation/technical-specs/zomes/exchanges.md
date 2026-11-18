@@ -34,7 +34,7 @@ pub struct Agreement {
   pub reciprocal: ExchangeTerm, // what the provider receives
   pub medium: String,
   pub terms: String,
-  pub delivery_timeframe: String,
+  pub delivery_timeframe: Timeframe, // a preset or a window of dates (#380)
   pub counters: Option<Countering>, // set on a counter-proposal (#333)
 }
 
@@ -56,7 +56,7 @@ Validation may read only what the entry names, through `must_get_valid_record`; 
 | Entry | Who may write it | What must hold |
 |---|---|---|
 | `Interest` | the member the `user` hash resolves to | the listing is a Create; the interest names its own author's user; the author holds no other interest on that listing that they have not withdrawn (read on their own chain) |
-| `Agreement` | either party | provider, receiver and counterparty agree with the listing type and its parties; primary is `Provide` + `Service`; reciprocal is `Receive`; both terms pass the kind rule; `medium` is not blank; when `counters` is set, the author is the countered proposal's counterparty, the previous action is their declining Response to it, and only quantities and the timeframe differ, each quantity present on both sides keeping its unit |
+| `Agreement` | either party | provider, receiver and counterparty agree with the listing type and its parties; primary is `Provide` + `Service`; reciprocal is `Receive`; both terms pass the kind rule; `medium` is not blank; `delivery_timeframe` passes the timeframe rule (a window ends after the action that writes it, within 365 days, and does not start after it ends); when `counters` is set, the author is the countered proposal's counterparty, the previous action is their declining Response to it, and only quantities and the timeframe differ, each quantity present on both sides keeping its unit, and the timeframes compared as values |
 | `Response` | the agreement's `counterparty` only | the agreement is a Create; the author has not already answered it (read on their own chain) |
 | `Completion` | either party | the agreement is a Create |
 | `Review` | either party | `rating` is 0 to 5 (a `u8`, so negatives cannot be expressed) |
@@ -86,7 +86,13 @@ Never compare the strings with `==` for this.
 The UI mirrors the rule in `ui/src/lib/utils/decimal.ts`, which also does the exact comparison and sums, and in the `ExchangeQuantity` schema.
 What a member types is read by `parseTypedDecimal`: a decimal comma becomes a dot (`"2,5"` is 2.5), except a comma followed by exactly three digits (other than after a lone `0`) or beside a dot, which is refused, so `"1,000"` is never read as one; `typedDecimalProblem` tells the member to write it as `1000`.
 Both sides are tested with the same malformed inputs.
-A proposal's hours that come from a request's `time_estimate_hours`, an f32, become a quantity through `decimalFromNumber`: spelled with the fewest significant digits that give back the same f32 (so 1.1 is `"1.1"`, not `"1.100000023841858"`), then rounded to six places. A value no quantity can carry gives no quantity, and the propose page says so.
+The rule and the comparison live in `utils::decimal`, shared by the exchanges zome and the listing zomes; the exchanges zome re-exports them.
+
+**Three kinds of hours** (#380), kept apart in code, docs and copy:
+
+1. A listing's **estimate** (`time_estimate_hours`): how long the task takes, an exact decimal string, zero allowed. It describes the task and is never exchanged.
+2. The **service's hours** on an agreement: the primary term's quantity, unit `hours`. A proposal starts from the listing's estimate, as written (so 1.1 stays `"1.1"`); an estimate of zero gives no quantity, since a quantity is above zero. A counter can change them.
+3. **Hours as payment**: a time-bank medium, which an administrator can add (it is not one of the default mediums). They are the reciprocal term, in the medium's unit, carried from the listing's `amount` when its unit is the medium chosen. Never from the estimate.
 
 This is a change to the `Agreement` entry format (`value` was an `f64`), so it changes the DNA hash and old entries cannot be read.
 It is acceptable inside the alpha 2 network reset.

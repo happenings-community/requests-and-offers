@@ -220,10 +220,12 @@ pub struct Request {
   pub description: String,
   /// The contact preference for the request
   pub contact_preference: ContactPreference,
-  /// The date range for the request
-  pub date_range: Option<DateRange>,
-  /// The estimated time in hours to complete the request
-  pub time_estimate_hours: Option<f32>,
+  /// When the request is needed: a preset or a window of dates
+  pub timeframe: Option<Timeframe>,
+  /// An estimate of the time the task takes, in hours, as an exact decimal
+  pub time_estimate_hours: Option<String>,
+  /// What the request offers in payment, where it names a figure
+  pub amount: Option<Quantity>,
   /// The preferred time of day for the request
   pub time_preference: TimePreference,
   /// The time zone for the request
@@ -265,9 +267,16 @@ pub enum TimePreference {
   Other(String),
 }
 
-pub struct DateRange {
-  pub start: Option<Timestamp>,
-  pub end: Option<Timestamp>,
+pub enum TimeframePreset {
+  WithinAFewDays,
+  WithinTwoWeeks,
+  WithinAMonth,
+  Flexible,
+}
+
+pub enum Timeframe {
+  Preset(TimeframePreset),
+  Dates { start: Option<Timestamp>, end: Timestamp },
 }
 
 pub type TimeZone = String;
@@ -287,8 +296,9 @@ _Note: Service Types integration is handled through separate linking mechanisms 
 - **`title`**: (String) The title of the request - required field
 - **`description`**: (String, max 1000 chars) A detailed description of the request (supports markdown) - required field
 - **`contact_preference`**: (ContactPreference enum) How the requester prefers to be contacted (Email, Phone, Other)
-- **`date_range`**: (Optional DateRange) Timeframe when the service is needed with start/end timestamps
-- **`time_estimate_hours`**: (Optional f32) Estimated time in hours to complete the request
+- **`timeframe`**: (Optional Timeframe) When the service is needed: a preset, or a window of dates that ends after it is written and within 365 days
+- **`time_estimate_hours`**: (Optional decimal string) An estimate of the time the task takes, in hours; zero allowed. It describes the task and is never exchanged
+- **`amount`**: (Optional Quantity) What the request offers in payment: a decimal above zero, in a unit (a currency, or a time-bank medium)
 - **`time_preference`**: (TimePreference enum) Preferred time of day (Morning, Afternoon, Evening, NoPreference, Other)
 - **`time_zone`**: (Optional String) Requester's time zone
 - **`interaction_type`**: (InteractionType enum) Whether virtual or in-person interaction

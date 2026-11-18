@@ -139,6 +139,10 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await gotoApp(page, '/user');
 
     await expect(page.locator('text=e2e_tester').first()).toBeVisible({ timeout: 15_000 });
+    // My Exchanges, My Listings and Messages are members only, so a pending member gets
+    // no link on the bar that leads to that wall (#349 review). The accepted test below
+    // checks the same link is there, so this one cannot pass for a wrong selector.
+    await expect(page.getByTestId('nav-exchanges')).toHaveCount(0);
   });
 
   test('first agent approves its own profile from the admin dashboard', async ({ page }) => {
@@ -186,6 +190,7 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await expect(page.getByRole('button', { name: 'Create Offer', exact: true })).toBeVisible({
       timeout: 15_000
     });
+    await expect(page.getByTestId('nav-exchanges')).toBeVisible();
   });
 
   test('user edits their profile through the form', async ({ page }) => {

@@ -211,11 +211,11 @@ Located in `/src/lib/stores`, implementing **factory function pattern** with **E
 
 1. **`createUIEntity()`** - Entity creation from Holochain records
 2. **`mapRecordsToUIEntities()`** - Consistent record mapping with error handling
-3. **`createCacheSyncHelper()`** - Cache-to-state synchronization
+3. **`createGenericCacheSyncHelper()`** - Cache-to-state synchronization
 4. **`createEventEmitters()`** - Standardized event emission patterns
-5. **`createEntitiesFetcher()`** - Data fetching with state updates
+5. **`createEntityFetcher()`** - Data fetching with state updates
 6. **`withLoadingState()`** - Loading state wrapper for consistent UX
-7. **`createRecordCreationHelper()`** - Record creation operation patterns
+7. **`createEntityCreationHelper()`** - Record creation operation patterns
 8. **`createStatusTransitionHelper()`** - Status transition management
 9. **`processMultipleRecordCollections()`** - Complex collection processing
 

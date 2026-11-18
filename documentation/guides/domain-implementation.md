@@ -42,13 +42,14 @@ mkdir my_domain && cd my_domain
 ```rust
 use hdk::prelude::*;
 use my_domain_integrity::*;
+use utils::errors::CommonError;
 
 #[hdk_extern]
 pub fn create_my_entity(input: CreateMyEntityInput) -> ExternResult<Record> {
     let my_entity_hash = create_entry(&EntryTypes::MyEntity(input.clone()))?;
 
     let record = get(my_entity_hash.clone(), GetOptions::default())?
-        .ok_or(wasm_error!(WasmErrorInner::Guest(String::from("Could not find the just created MyEntity"))))?;
+        .ok_or(CommonError::RecordNotFound("the just created MyEntity".to_string()))?;
 
     let path = Path::from("all_my_entities");
     create_link(path.path_entry_hash()?, my_entity_hash.clone(), LinkTypes::AllMyEntities, ())?;
@@ -85,7 +86,7 @@ pub fn update_my_entity(input: UpdateMyEntityInput) -> ExternResult<Record> {
     let updated_my_entity_hash = update_entry(input.original_my_entity_hash.clone(), &input.my_entity)?;
 
     let record = get(updated_my_entity_hash, GetOptions::default())?
-        .ok_or(wasm_error!(WasmErrorInner::Guest(String::from("Could not find the just updated MyEntity"))))?;
+        .ok_or(CommonError::RecordNotFound("the just updated MyEntity".to_string()))?;
 
     Ok(record)
 }

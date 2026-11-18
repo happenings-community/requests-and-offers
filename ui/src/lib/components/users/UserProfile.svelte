@@ -1,5 +1,6 @@
 <script lang="ts">
   import { encodeHashToBase64 } from '@holochain/client';
+  import { untrack } from 'svelte';
   import {
     getModalStore,
     getToastStore,
@@ -29,6 +30,7 @@
     statusChip,
     type ProfileView
   } from '$lib/utils/profile';
+  import { paths } from '$lib/paths';
 
   /**
    * A member's profile (#350), as the design system lays it out: picture,
@@ -77,9 +79,15 @@
     );
   }
 
+  /**
+   * Load the counts and organisations. **A reload keeps what is on screen**: only the first
+   * load shows "Loading", so a refresh does not collapse the page and grow it back (the
+   * root layout centres a short page, so every change in height moved it).
+   */
+  let loadedOnce = false;
   async function load() {
     const hash = user.original_action_hash;
-    loading = true;
+    if (!loadedOnce) loading = true;
     failed = false;
     try {
       [requests, offers, organisations] = await Promise.all([
@@ -93,12 +101,20 @@
       failed = true;
     } finally {
       loading = false;
+      loadedOnce = true;
     }
   }
 
+  // Keyed on the member, not the record: opening your own profile refreshes it, which
+  // hands this component a fresh copy of the same member, and reloading on that loaded
+  // everything twice. A string compares equal where a new array does not.
+  const memberKey = $derived(encodeHashToBase64(user.original_action_hash));
   $effect(() => {
-    user.original_action_hash;
-    load();
+    memberKey;
+    loadedOnce = false;
+    // load() reads `user` before its first await, which would make the whole record a
+    // dependency of this effect again
+    untrack(load);
   });
 
   const statusHistoryModalComponent: ModalComponent = { ref: StatusHistoryModal };
@@ -146,9 +162,9 @@
 
 <section class="container mx-auto space-y-6 p-4">
   <div class="flex items-center justify-between gap-2">
-    <BackButton fallback="/users" />
+    <BackButton fallback={paths.users()} />
     {#if isCurrentUser}
-      <a href="/user/edit" class="variant-filled-primary btn">Edit profile</a>
+      <a href={paths.myProfileEdit()} class="variant-filled-primary btn">Edit profile</a>
     {/if}
   </div>
 
@@ -180,7 +196,7 @@
           {/if}
           {#if !isCurrentUser && withYou.length > 0}
             <a
-              href="/exchanges"
+              href={paths.exchanges()}
               class="variant-filled-primary badge ml-auto"
               data-testid="exchanges-with-you">{exchangesWithLabel(withYou.length)}</a
             >
@@ -206,12 +222,15 @@
         {#if status?.until}
           <p class="text-sm"><strong>Suspended until:</strong> {status.until}</p>
         {/if}
-        <button
-          type="button"
-          class="anchor text-sm"
-          onclick={openStatusHistory}
-          data-testid="status-history-link">Status history ›</button
-        >
+        <!-- Every revision's reason is in the history, an information request included, so only on their own view (#331); administrators read it from the admin pages -->
+        {#if isCurrentUser}
+          <button
+            type="button"
+            class="anchor text-sm"
+            onclick={openStatusHistory}
+            data-testid="status-history-link">Status history ›</button
+          >
+        {/if}
       </div>
     </div>
 
@@ -231,7 +250,7 @@
   {:else if isCurrentUser}
     <!-- Your own profile: the counts lead to the pages where you manage them -->
     <div class="grid gap-4 sm:grid-cols-3" data-testid="profile-doorways">
-      <a href="/my-listings?view=requests" class="card card-hover space-y-1 p-4">
+      <a href={paths.myListings({ view: 'requests' })} class="card card-hover space-y-1 p-4">
         <div class="flex items-start justify-between">
           <span class="text-2xl">📝</span>
           <span class="text-3xl font-bold">{count(requests.length)}</span>
@@ -239,7 +258,7 @@
         <h2 class="h4">Active requests</h2>
         <p class="text-sm text-surface-600 dark:text-surface-300">In My Listings</p>
       </a>
-      <a href="/my-listings?view=offers" class="card card-hover space-y-1 p-4">
+      <a href={paths.myListings({ view: 'offers' })} class="card card-hover space-y-1 p-4">
         <div class="flex items-start justify-between">
           <span class="text-2xl">💡</span>
           <span class="text-3xl font-bold">{count(offers.length)}</span>
@@ -247,7 +266,7 @@
         <h2 class="h4">Active offers</h2>
         <p class="text-sm text-surface-600 dark:text-surface-300">In My Listings</p>
       </a>
-      <a href="/exchanges" class="card card-hover space-y-1 p-4">
+      <a href={paths.exchanges()} class="card card-hover space-y-1 p-4">
         <div class="flex items-start justify-between">
           <span class="text-2xl">🤝</span>
           <span class="text-3xl font-bold">{count(exchangesStore.exchanges.length)}</span>
@@ -264,7 +283,9 @@
       {:else if organisations.length === 0}
         <div class="card space-y-3 p-6 text-center">
           <p class="text-surface-600 dark:text-surface-300">You aren't in any organisations yet.</p>
-          <a href="/organizations" class="variant-filled-tertiary btn">Browse organisations</a>
+          <a href={paths.organizations()} class="variant-filled-tertiary btn"
+            >Browse organisations</a
+          >
         </div>
       {:else}
         {@render orgList()}
@@ -272,28 +293,28 @@
     </div>
     {#if canCreate}
       <div class="flex flex-wrap gap-2">
-        <a href="/requests/create" class="variant-filled-secondary btn">Create a request</a>
-        <a href="/offers/create" class="variant-filled-warning btn">Create an offer</a>
+        <a href={paths.requestCreate()} class="variant-filled-secondary btn">Create a request</a>
+        <a href={paths.offerCreate()} class="variant-filled-warning btn">Create an offer</a>
       </div>
     {/if}
   {:else}
     <!-- Someone else's profile: the counts choose what is shown -->
-    <div class="grid gap-4 sm:grid-cols-3" role="tablist" aria-label="Profile views">
+    <!-- Toggle buttons, not tabs: no arrow-key movement and no panel to point at -->
+    <div class="grid gap-4 sm:grid-cols-3" role="group" aria-label="Profile views">
       {#each VIEWS as v (v.key)}
         <button
           class="card space-y-1 p-4 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {view ===
           v.key
             ? `ring-2 ${v.ring}`
             : ''}"
-          role="tab"
-          aria-selected={view === v.key}
+          aria-pressed={view === v.key}
           onclick={() => (view = v.key)}
         >
-          <div class="flex items-start justify-between">
+          <span class="flex items-start justify-between">
             <span class="text-2xl">{v.icon}</span>
             <span class="text-3xl font-bold">{count(viewCount(v.key))}</span>
-          </div>
-          <h2 class="h4">{v.label}</h2>
+          </span>
+          <span class="h4 block">{v.label}</span>
         </button>
       {/each}
     </div>
@@ -326,9 +347,8 @@
           class="h-12 w-12 shrink-0 rounded-full object-cover"
         />
         <div class="min-w-0 flex-1">
-          <a
-            class="h4 hover:underline"
-            href="/organizations/{encodeHashToBase64(org.original_action_hash!)}">{org.name}</a
+          <a class="h4 hover:underline" href={paths.organizationDetail(org.original_action_hash!)}
+            >{org.name}</a
           >
         </div>
         <span class="badge {coordinator ? 'variant-soft-tertiary' : 'variant-soft-surface'}"

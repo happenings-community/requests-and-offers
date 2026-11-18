@@ -113,7 +113,7 @@ test.describe.serial('06 — organizations: creation, moderation, edit', () => {
   });
 
   test('coordinator edits the organization through the form', async ({ page }) => {
-    // The creator is automatically the organization's coordinator.
+    // Approval made the creator the organization's coordinator.
     await gotoApp(page, '/organizations');
     await expect(page.locator(`text=${ORG_NAME}`).first()).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: 'View', exact: true }).first().click();

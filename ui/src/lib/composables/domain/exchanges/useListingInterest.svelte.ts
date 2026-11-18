@@ -3,10 +3,12 @@ import exchangesStore from '$lib/stores/exchanges.store.svelte';
 import usersStore from '$lib/stores/users.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import { showToast } from '$lib/utils/toast';
+import { reasonOf } from '$lib/utils/error-shape';
 import { plainZomeError } from '$lib/utils/zome-refusals';
 import { isUserApproved } from '$lib/utils';
 import type { ListingType } from '$lib/types/holochain';
 import type { UIInterest, UIUser } from '$lib/types/ui';
+import { paths } from '$lib/paths';
 
 /**
  * Interest on one listing: who registered it, whether I did, and the two writes
@@ -22,10 +24,11 @@ export function proposeHref(
   listingHash: ActionHash,
   listingType: ListingType
 ): string {
-  return (
-    `/exchanges/propose?interest=${encodeHashToBase64(interest.interest_hash)}` +
-    `&listing=${encodeHashToBase64(listingHash)}&type=${listingType}`
-  );
+  return paths.exchangePropose({
+    listing: listingHash,
+    type: listingType,
+    interest: interest.interest_hash
+  });
 }
 
 export interface UseListingInterestOptions {
@@ -35,20 +38,16 @@ export interface UseListingInterestOptions {
   onRegistered?: () => void;
   /** True when there is contact information to open. */
   hasContactInfo?: () => boolean;
-  /**
-   * Report a failed read through `loadFailed` instead of a toast. For a page
-   * showing many listings, where one toast per listing would bury the page.
-   */
-  quiet?: boolean;
 }
 
 export function useListingInterest(options: UseListingInterestOptions) {
-  const { listingHash, listingType, onRegistered, hasContactInfo, quiet = false } = options;
+  const { listingHash, listingType, onRegistered, hasContactInfo } = options;
 
   let interests = $state<UIInterest[]>([]);
   const people = $state<Record<string, UIUser | null>>({});
   let loaded = $state(false);
-  let loadFailed = $state(false);
+  /** Why the interests could not be read. The door shows this, with a way to try again. */
+  let loadError = $state<string | null>(null);
   let busy = $state(false);
 
   const me = $derived(usersStore.currentUser?.original_action_hash);
@@ -71,11 +70,15 @@ export function useListingInterest(options: UseListingInterestOptions) {
     });
   }
 
+  /**
+   * Read who is interested. **A failed read is shown, not toasted away:** a toast fades
+   * and leaves the listing with no door at all, which reads as "nothing to do here".
+   */
   async function load(): Promise<void> {
+    loadError = null;
     try {
       interests = await runEffect(exchangesStore.getInterestsForListing(listingHash()));
       loaded = true;
-      loadFailed = false;
       for (const interest of interests) {
         const key = encodeHashToBase64(interest.user);
         if (!(key in people)) {
@@ -83,8 +86,7 @@ export function useListingInterest(options: UseListingInterestOptions) {
         }
       }
     } catch (e) {
-      if (!loaded) loadFailed = true;
-      if (!quiet) fail(e);
+      loadError = reasonOf(e);
     }
   }
 
@@ -129,9 +131,8 @@ export function useListingInterest(options: UseListingInterestOptions) {
     get loaded() {
       return loaded;
     },
-    /** The first read failed, so `interests` is unknown rather than empty. */
-    get loadFailed() {
-      return loadFailed;
+    get loadError() {
+      return loadError;
     },
     get busy() {
       return busy;

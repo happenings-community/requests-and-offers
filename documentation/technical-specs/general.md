@@ -18,7 +18,7 @@
 - **Holochain**: Core technology for building the application, ensuring local-first and peer-to-peer network
   capabilities.
 - **SvelteKit**: Utilized for the guest/front-end, providing a modern and efficient framework for web development.
-  - **Version**: Using Svelte 5.19.2 with SvelteKit 2.16.1
+  - **Version**: Using Svelte 5.19.2 with SvelteKit 2.27.0
   - **Svelte 5 Runes**: Advanced reactivity system with `$state`, `$derived`, and `$effect` for fine-grained reactivity
   - **Skeleton UI**: A component library for building user interfaces with SvelteKit and Tailwind (using
     @skeletonlabs/skeleton 2.7.0).
@@ -321,7 +321,7 @@ All domains have been fully standardized with this pattern:
 ### 4.7 Testing Framework
 
 1. **Frontend Testing**:
-   - **Unit Tests**: Using Vitest (0.28.4) with @effect/vitest (0.21.1) for Effect-specific testing
+   - **Unit Tests**: Using Vitest (3.1.2) with @effect/vitest (0.21.1) for Effect-specific testing
    - **Store Testing**: All 9 helper functions tested for every domain store
    - **Service Testing**: Effect-TS services tested with mock dependencies
    - **Component Tests**: Testing UI components in isolation

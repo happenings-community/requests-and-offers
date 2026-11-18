@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/state';
+  import { replaceState } from '$app/navigation';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import offersStore from '$lib/stores/offers.store.svelte';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
@@ -10,9 +11,11 @@
   import {
     listingCounts,
     listingsFor,
+    openingView,
     type ListingView,
     type MyListingSets
   } from '$lib/utils/my-listings';
+  import { paths, readView } from '$lib/paths';
 
   /**
    * My Listings (#344), as the design system lays it out: count cards that
@@ -45,10 +48,30 @@
     }
   ];
 
-  const asked = page.url.searchParams.get('view');
-  let view = $state<ListingView>(
-    asked === 'offers' || asked === 'archived' ? asked : 'requests'
-  );
+  /**
+   * The view you last had is kept for this window (a light convenience, so a storage that
+   * throws or comes back empty just opens Requests), and written into the address, so Back
+   * from a listing returns to it.
+   */
+  const REMEMBERED = 'my-listings-view';
+  function remembered(): string | null {
+    try {
+      return sessionStorage.getItem(REMEMBERED);
+    } catch {
+      return null;
+    }
+  }
+  function choose(next: ListingView) {
+    view = next;
+    try {
+      sessionStorage.setItem(REMEMBERED, next);
+    } catch {
+      // nothing to remember it in: the address still holds it
+    }
+    replaceState(paths.myListings({ view: next }), page.state);
+  }
+
+  let view = $state<ListingView>(openingView(readView(page.url), remembered()));
   let sets = $state<MyListingSets>({
     activeRequests: [],
     activeOffers: [],
@@ -96,28 +119,28 @@
 <div class="space-y-6">
   {#if canCreate}
     <div class="flex flex-wrap justify-end gap-2">
-      <a href="/requests/create" class="variant-filled-secondary btn btn-sm">+ Request</a>
-      <a href="/offers/create" class="variant-filled-warning btn btn-sm">+ Offer</a>
+      <a href={paths.requestCreate()} class="variant-filled-secondary btn btn-sm">+ Request</a>
+      <a href={paths.offerCreate()} class="variant-filled-warning btn btn-sm">+ Offer</a>
     </div>
   {/if}
 
-  <div class="grid gap-4 md:grid-cols-3" role="tablist" aria-label="Listing views">
+  <!-- Toggle buttons, not tabs: no arrow-key movement and no panel to point at -->
+  <div class="grid gap-4 md:grid-cols-3" role="group" aria-label="Listing views">
     {#each VIEWS as v (v.key)}
       <button
         class="card space-y-2 p-4 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {view ===
         v.key
           ? `ring-2 ${v.ring}`
           : ''}"
-        role="tab"
-        aria-selected={view === v.key}
-        onclick={() => (view = v.key)}
+        aria-pressed={view === v.key}
+        onclick={() => choose(v.key)}
       >
-        <div class="flex items-start justify-between">
+        <span class="flex items-start justify-between">
           <span class="text-2xl">{v.icon}</span>
           <span class="text-3xl font-bold">{loading ? '…' : counts[v.key]}</span>
-        </div>
-        <h2 class="h4">{v.label}</h2>
-        <p class="text-sm text-surface-500">{v.blurb}</p>
+        </span>
+        <span class="h4 block">{v.label}</span>
+        <span class="block text-sm text-surface-500">{v.blurb}</span>
       </button>
     {/each}
   </div>
@@ -134,9 +157,9 @@
     <div class="card space-y-3 p-6 text-center">
       <p class="text-surface-500">{emptyText[view]}</p>
       {#if canCreate && view === 'requests'}
-        <a href="/requests/create" class="variant-filled-secondary btn">Create a request</a>
+        <a href={paths.requestCreate()} class="variant-filled-secondary btn">Create a request</a>
       {:else if canCreate && view === 'offers'}
-        <a href="/offers/create" class="variant-filled-warning btn">Create an offer</a>
+        <a href={paths.offerCreate()} class="variant-filled-warning btn">Create an offer</a>
       {/if}
     </div>
   {:else}

@@ -44,6 +44,11 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **hREA**: A cancelled exchange ends its hREA Commitments (`984944a6`, #444)
 - **Administration**: An hREA dashboard audits the mirror against R&O (`73416bff`, #421)
 - **Administration**: The progenitor is told to accept their own membership (`480a2fd9`, #361, closes #358)
+- **Messaging**: An encrypted inbox: messages are stored encrypted on the shared DNA and linked from the recipient's agent key, with blocking, read markers and technical reports; sender, recipient and timing are public for the life of the network, the content is private (`931311e2`, #301)
+- **Messaging**: Messages to a role, such as the administrators, open cases that any holder of the role can claim (`5ee9f1bd`, #304)
+- **Messaging**: A message carries its author's member grant, checked by validation as every other role-gated write (`a677c286`, #412, part of #234)
+- **Messaging**: Message state: send ids, read state kept off the chain, and read receipts sent as signals (`b3084fe4`, #364)
+- **Messaging**: Conversations in the interface, with message cards and proposals started from a listing (`dd5656bc`, #308)
 
 ### Security
 
@@ -80,6 +85,8 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Exchanges**: A withdrawn proposal can no longer be accepted or declined (`fc50275f`, #485)
 - **Requests and Offers**: A revision's hash reads the latest version, and a delete removes the whole listing (`dbd42041`, #487, closes #229)
 - **Exchanges**: A member holds one live interest per listing, enforced by validation reading the author's chain back to their profile (`ed628e2e`, #362, with #492)
+- **Messaging**: A message fits what Lair can carry, and a refusal from Holochain 0.7 is shown as a refusal (`20c05eee`, #488)
+- **UI**: A chip's text wraps inside its background instead of running past it (`415dd056`, #515)
 
 ### Performance
 

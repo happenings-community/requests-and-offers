@@ -24,7 +24,7 @@ The infrastructure shares **one conductor and one agent identity across the whol
 | `07-users-directory` | public directory and profile page |
 | `08-hrea` | hREA test interface smoke (the hApp bundles the hREA role) |
 | `09-exchanges` | My Exchanges' groups and empty state; the author's side of the interest block on their own listing |
-| `10-messaging` | My Messages in the menu under the member's picture, Messages with no conversations, Blocked members with nobody on it |
+| `10-messaging` | My Messages in the My Activity menu, Messages with no conversations, Blocked members with nobody on it |
 
 ## Smoke layer
 

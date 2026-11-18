@@ -3,7 +3,7 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { getUserPictureUrl } from '$lib/utils';
-  import { myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
+  import { MY_MESSAGES, myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
   import { isUserApproved } from '$lib/utils';
   import messagingPresence from '$lib/services/messagingPresence.svelte';
   import { getUnreadCount, unreadCountLabel } from '$lib/extensions/unread-count';
@@ -12,17 +12,19 @@
 
   const drawerStore = getDrawerStore();
   const { currentUser } = $derived(usersStore);
-  const activity = $derived(myActivityItems(isUserApproved(currentUser)));
+  const activity = $derived(
+    myActivityItems(isUserApproved(currentUser), !messagingPresence.isAbsent)
+  );
   const { agentIsAdministrator } = $derived(administrationStore);
   const showSetupHint = $derived(
     needsSelfAcceptance(agentIsAdministrator, currentUser?.status?.status_type)
   );
 
-  // The same entry the nav bar's menu under the member's picture has, asked for the same
+  // My Messages: the same entry the nav bar's My Activity menu has, asked for the same
   // way: whether this network has messaging comes from the one presence module, and the
-  // count from the extension point, so the drawer knows nothing of messaging itself. On a narrow screen
-  // this is the only menu, and without the entry the only way to Messages was a Go to
-  // chat link or the address bar.
+  // count from the extension point, so the drawer knows nothing of messaging itself. On a
+  // narrow screen this is the only menu, and without the entry the only way to Messages was
+  // a Go to chat link or the address bar.
   const unread = getUnreadCount();
   const unreadCount = $derived(unread());
 
@@ -81,25 +83,6 @@
             <span>{item.label}</span>
           </a>
         {/each}
-        {#if isUserApproved(currentUser) && !messagingPresence.isAbsent}
-          <a
-            href={paths.messages()}
-            onclick={closeDrawer}
-            class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-            data-testid="drawer-messages"
-          >
-            <span class="text-xl">✉️</span>
-            <span>My Messages</span>
-            {#if unreadCount}
-              <!-- Said in words: a bare number told a screen reader nothing. -->
-              <span class="variant-filled-secondary badge ml-auto"
-                ><span aria-hidden="true">{unreadCount}</span><span class="sr-only"
-                  >{unreadCountLabel(unreadCount)}</span
-                ></span
-              >
-            {/if}
-          </a>
-        {/if}
       </div>
     </div>
 
@@ -132,13 +115,23 @@
         </h3>
         <div class="space-y-2">
           {#each activity as item (item.href)}
+            {@const isMessages = item.href === MY_MESSAGES.href}
             <a
               href={item.href}
               onclick={closeDrawer}
               class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
+              data-testid={isMessages ? 'drawer-messages' : undefined}
             >
               <span class="text-lg">{item.icon}</span>
               <span>{item.label}</span>
+              {#if isMessages && unreadCount}
+                <!-- Said in words: a bare number told a screen reader nothing. -->
+                <span class="variant-filled-secondary badge ml-auto"
+                  ><span aria-hidden="true">{unreadCount}</span><span class="sr-only"
+                    >{unreadCountLabel(unreadCount)}</span
+                  ></span
+                >
+              {/if}
             </a>
           {/each}
         </div>

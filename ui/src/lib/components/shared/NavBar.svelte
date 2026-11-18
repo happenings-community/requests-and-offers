@@ -10,7 +10,7 @@
   } from '@skeletonlabs/skeleton';
   import NavDropdown from '$lib/components/shared/NavDropdown.svelte';
   import { getUserPictureUrl } from '$lib/utils';
-  import { myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
+  import { MY_MESSAGES, myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
   import { isUserApproved } from '$lib/utils';
   import NetworkStatusPopup from '$lib/components/network/NetworkStatusPopup.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -74,49 +74,34 @@
   }
 
   // Navigation menu configurations
-  // My Activity, with the count of exchanges waiting on the member.
+  // My Activity. **No number on My Exchanges where there is messaging** (Sam, 4 October).
+  // A proposal arriving is one thing to deal with, and there it is already counted as an
+  // unopened conversation; a second badge over the same event made it look like two. An
+  // exchange waiting on this member says "Your turn" on its own row instead. **Without
+  // messaging nothing else counts it**, so it keeps the number: the exchanges waiting on
+  // this member.
+  //
+  // **My Messages is only here when this network has messaging** (R121, brief H4), with
+  // the unread count, and only for an accepted member like the rest of My Activity, since
+  // Messages is behind the Members only wall. Presence is read from the DNA through H2's
+  // module, which is the one question shared chrome may ask. Not read yet counts as
+  // present, so the item is there from the first frame and disappears only if the DNA says
+  // this network has no messaging. Messages is an activity, not part of who you are, so it
+  // is here rather than under your picture (Sam, 16 November).
   function activityItems() {
-    return myActivityItems(isUserApproved(currentUser)).map((item) =>
-      item.href === paths.exchanges()
-        ? {
-            ...item,
-            // **No number here where there is messaging** (Sam, 4 October). A proposal
-            // arriving is one thing to deal with, and there it is already counted as an
-            // unopened conversation; a second badge over the same event made it look like
-            // two. An exchange waiting on this member says "Your turn" on its own row
-            // instead. **Without messaging nothing else counts it**, so this keeps the
-            // number it had: the exchanges waiting on this member.
-            badge: messagingPresence.isAbsent ? pendingCount : undefined,
-            badgeLabel: (n: number) => `${n} waiting on you`
-          }
-        : item
-    );
-  }
-
-  /**
-   * Under your picture: your profile, and **My Messages only where this network has
-   * messaging** (R121, brief H4), and only for an accepted member, since Messages is
-   * behind the Members only wall and #349 gives nobody a link that ends there. Presence
-   * is read from the DNA through H2's module, which is the one question shared chrome may
-   * ask. Not read yet counts as present, so the item is there from the first frame and
-   * disappears only if the DNA says this network has no messaging.
-   */
-  function profileMenuItems() {
-    return [
-      ...myProfileItems(true),
-      ...(messagingPresence.isAbsent || !isUserApproved(currentUser)
-        ? []
-        : [
-            {
-              href: paths.messages(),
-              label: 'My Messages',
-              badge: unreadCount,
-              badgeLabel: unreadCountLabel,
-              icon: '✉️',
-              description: 'Your conversations with other members'
-            }
-          ])
-    ];
+    return myActivityItems(isUserApproved(currentUser), !messagingPresence.isAbsent).map((item) => {
+      if (item.href === paths.exchanges()) {
+        return {
+          ...item,
+          badge: messagingPresence.isAbsent ? pendingCount : undefined,
+          badgeLabel: (n: number) => `${n} waiting on you`
+        };
+      }
+      if (item.href === MY_MESSAGES.href) {
+        return { ...item, badge: unreadCount, badgeLabel: unreadCountLabel };
+      }
+      return item;
+    });
   }
 
   /**
@@ -319,7 +304,7 @@
         <NavDropdown
           title={currentUser.name}
           avatar={myPicture}
-          items={profileMenuItems()}
+          items={myProfileItems(true)}
           alignRight={true}
         />
       </div>

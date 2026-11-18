@@ -2,10 +2,11 @@ import { paths } from '$lib/paths';
 
 /**
  * The member's own items, in one place (#344). The nav bar has two menus for
- * them (Sam, 17 October): **My Activity** (listings and exchanges, what you
- * do on the network) and **your profile menu** under your picture (your
- * profile, and My Messages once messaging is switched on). The mobile drawer
- * and the home page read the same lists, so they cannot drift apart.
+ * them (Sam, 17 October): **My Activity** (listings, exchanges, and My Messages
+ * where the network has messaging: what you do on the network) and **your
+ * profile menu** under your picture (your profile: who you are; Sam, 16
+ * November). The mobile drawer and the home page read the same lists, so they
+ * cannot drift apart.
  */
 export interface MyMenuItem {
   href: string;
@@ -13,6 +14,14 @@ export interface MyMenuItem {
   icon: string;
   description: string;
 }
+
+/** My Messages, where this network has messaging. */
+export const MY_MESSAGES: MyMenuItem = {
+  href: paths.messages(),
+  label: 'My Messages',
+  icon: '✉️',
+  description: 'Your conversations with other members'
+};
 
 /** Under your picture: your profile, or Create Profile until there is one. */
 export function myProfileItems(hasProfile: boolean): MyMenuItem[] {
@@ -34,11 +43,14 @@ export function myProfileItems(hasProfile: boolean): MyMenuItem[] {
 }
 
 /**
- * My Activity: what you are doing on the network. Both pages are for accepted
- * members, so a pending or suspended member gets no links that end at the
- * Members only wall (#349 review).
+ * My Activity: what you are doing on the network. Every page here is for accepted
+ * members, so a pending or suspended member gets no links that end at the Members
+ * only wall (#349 review). My Messages is here, beside My Exchanges, where this
+ * network has messaging (R121): conversations are something you do, not part of who
+ * you are. The caller says whether it has: shared chrome asks `messagingPresence`,
+ * and this list stays a plain function.
  */
-export function myActivityItems(accepted: boolean): MyMenuItem[] {
+export function myActivityItems(accepted: boolean, withMessages = false): MyMenuItem[] {
   if (!accepted) return [];
   return [
     {
@@ -52,11 +64,16 @@ export function myActivityItems(accepted: boolean): MyMenuItem[] {
       label: 'My Exchanges',
       icon: '🤝',
       description: 'Agreements you are part of'
-    }
+    },
+    ...(withMessages ? [MY_MESSAGES] : [])
   ];
 }
 
 /** Everything of your own, profile first: the home page's cards. */
-export function myMenuItems(hasProfile: boolean, accepted: boolean): MyMenuItem[] {
-  return [...myProfileItems(hasProfile), ...myActivityItems(accepted)];
+export function myMenuItems(
+  hasProfile: boolean,
+  accepted: boolean,
+  withMessages = false
+): MyMenuItem[] {
+  return [...myProfileItems(hasProfile), ...myActivityItems(accepted, withMessages)];
 }

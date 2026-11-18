@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/svelte';
 import NavBar from '$lib/components/shared/NavBar.svelte';
 
 /**
- * The two counts in the member's menus (#344 split them: My Exchanges under My Activity,
- * My Messages under the member's picture).
+ * The two counts in My Activity (#344; My Messages sits beside My Exchanges there, since
+ * messages are something you do, not part of who you are: Sam, 16 November).
  *
  * With messaging, a proposal arriving is counted once, as an unopened conversation on My
  * Messages, and My Exchanges carries no number. **Without messaging nothing else counts
@@ -72,14 +72,28 @@ describe("the member's menus", () => {
   it('counts unopened conversations on My Messages, and nothing on My Exchanges', async () => {
     unread.count = 2;
     render(NavBar);
-    expect(screen.getByRole('button', { name: 'Sam menu, 2 unopened conversations' })).toBeTruthy();
-    await openMenu(/^Sam menu/);
-
-    expect(screen.getByText('2 unopened conversations')).toBeTruthy();
-
+    expect(
+      screen.getByRole('button', { name: 'My Activity menu, 2 unopened conversations' })
+    ).toBeTruthy();
     await openMenu(/^My Activity menu/);
 
+    expect(screen.getByRole('menuitem', { name: /My Messages/ })).toBeTruthy();
+    expect(screen.getByText('2 unopened conversations')).toBeTruthy();
     expect(screen.queryByText(/waiting on you/)).toBeNull();
+  });
+
+  it('keeps the menu under your picture to your profile', async () => {
+    unread.count = 2;
+    render(NavBar);
+    await openMenu(/^Sam menu/);
+
+    // Found by the wrapper's test id: before #352 a menu is not named by its button.
+    const menu = screen.getByTestId('member-menu');
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((i) => i.textContent?.trim())
+    ).toEqual([expect.stringContaining('My Profile')]);
   });
 
   it('counts exchanges waiting on me on My Exchanges when there is no messaging', async () => {

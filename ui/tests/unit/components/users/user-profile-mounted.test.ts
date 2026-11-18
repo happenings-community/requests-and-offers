@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/svelte';
 import type { UIUser } from '$lib/types/ui';
+import { tick } from 'svelte';
 
 // Children that need SvelteKit or a store of their own are stubbed: the header is what is under test.
 const stub = vi.hoisted(() => () => ({ default: () => {} }));
@@ -28,9 +29,18 @@ vi.mock('$lib/stores/organizations.store.svelte', async () => {
     }
   };
 });
+const reads = vi.hoisted(() => ({ requests: 0 }));
 vi.mock('$lib/stores/requests.store.svelte', async () => {
   const { Effect: E } = await import('effect');
-  return { default: { getUserActiveRequests: () => E.succeed([]) } };
+  return {
+    default: {
+      getUserActiveRequests: () =>
+        E.sync(() => {
+          reads.requests += 1;
+          return [];
+        })
+    }
+  };
 });
 vi.mock('$lib/stores/offers.store.svelte', async () => {
   const { Effect: E } = await import('effect');
@@ -88,5 +98,17 @@ describe('UserProfile header, mounted (#353 review)', () => {
     cleanup();
     render(UserProfile, { props: { user, isCurrentUser: true } });
     expect(screen.getByTestId('status-history-link')).toBeTruthy();
+  });
+
+  it('loads once for a fresh copy of the same member', async () => {
+    // Opening your own profile refreshes your record, which hands the profile a new copy
+    // of the same member. Reloading on that loaded everything twice, and the page jumped.
+    const user = member({ status_type: 'pending' });
+    const { rerender } = render(UserProfile, { props: { user, isCurrentUser: true } });
+    await tick();
+    const before = reads.requests;
+    await rerender({ user: member({ status_type: 'pending' }), isCurrentUser: true });
+    await tick();
+    expect(reads.requests).toBe(before);
   });
 });

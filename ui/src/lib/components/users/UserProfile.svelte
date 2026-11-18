@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { encodeHashToBase64 } from '@holochain/client';
+  import { untrack } from 'svelte';
   import {
     getModalStore,
     getToastStore,
@@ -77,9 +79,15 @@
     );
   }
 
+  /**
+   * Load the counts and organisations. **A reload keeps what is on screen**: only the first
+   * load shows "Loading", so a refresh does not collapse the page and grow it back (the
+   * root layout centres a short page, so every change in height moved it).
+   */
+  let loadedOnce = false;
   async function load() {
     const hash = user.original_action_hash;
-    loading = true;
+    if (!loadedOnce) loading = true;
     failed = false;
     try {
       [requests, offers, organisations] = await Promise.all([
@@ -93,12 +101,20 @@
       failed = true;
     } finally {
       loading = false;
+      loadedOnce = true;
     }
   }
 
+  // Keyed on the member, not the record: opening your own profile refreshes it, which
+  // hands this component a fresh copy of the same member, and reloading on that loaded
+  // everything twice. A string compares equal where a new array does not.
+  const memberKey = $derived(encodeHashToBase64(user.original_action_hash));
   $effect(() => {
-    user.original_action_hash;
-    load();
+    memberKey;
+    loadedOnce = false;
+    // load() reads `user` before its first await, which would make the whole record a
+    // dependency of this effect again
+    untrack(load);
   });
 
   const statusHistoryModalComponent: ModalComponent = { ref: StatusHistoryModal };

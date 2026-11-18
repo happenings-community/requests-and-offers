@@ -273,6 +273,53 @@ pub async fn accept_entity(
         .await;
 }
 
+/// Set an entity's status to rejected, as an admin.
+///
+/// Mirrors `accept_entity`, which only ever sets "accepted". Shared because both the
+/// inbox and the role suites need a member who was accepted and no longer is.
+pub async fn reject_entity(
+    admin_conductor: &SweetConductor,
+    admin_cell: &SweetCell,
+    entity: &str,
+    entity_hash: ActionHash,
+    reason: &str,
+) {
+    let status_record: Option<Record> = admin_conductor
+        .call(
+            &admin_cell.zome("administration"),
+            "get_latest_status_record_for_entity",
+            serde_json::json!({
+                "entity": entity,
+                "entity_original_action_hash": entity_hash
+            }),
+        )
+        .await;
+    let status_hash = status_record
+        .unwrap_or_else(|| panic!("no status record for {entity}, so it cannot be rejected"))
+        .signed_action
+        .hashed
+        .hash
+        .clone();
+
+    let _: Record = admin_conductor
+        .call(
+            &admin_cell.zome("administration"),
+            "update_entity_status",
+            serde_json::json!({
+                "entity": entity,
+                "entity_original_action_hash": entity_hash,
+                "status_original_action_hash": status_hash,
+                "status_previous_action_hash": status_hash,
+                "new_status": {
+                    "status_type": "rejected",
+                    "reason": reason,
+                    "suspended_until": null
+                }
+            }),
+        )
+        .await;
+}
+
 /// Spin up two conductors where Alice's `AgentPubKey` is embedded as the
 /// progenitor in the DNA properties.
 ///

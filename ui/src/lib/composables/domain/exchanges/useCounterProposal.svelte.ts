@@ -7,9 +7,10 @@ import {
   changedFields,
   counterProblem,
   reciprocalFigure,
-  startingEdits,
-  timeframeOptions
+  startingEdits
 } from '$lib/utils/counter-proposal';
+import { DEFAULT_TIMEFRAME, timeframeOptions } from '$lib/utils/timeframe';
+import type { Timeframe } from '$lib/types/holochain';
 import { useExchangeDetails } from './useExchangeDetails.svelte';
 
 /**
@@ -36,7 +37,7 @@ export function useCounterProposal(options: UseCounterProposalOptions) {
 
   let primary = $state<string | null | undefined>(null);
   let reciprocal = $state<string | null | undefined>(null);
-  let timeframe = $state('');
+  let timeframe = $state<Timeframe>(DEFAULT_TIMEFRAME);
   let seeded = $state(false);
   let sending = $state(false);
 
@@ -148,7 +149,7 @@ export function useCounterProposal(options: UseCounterProposalOptions) {
     get timeframe() {
       return timeframe;
     },
-    set timeframe(value: string) {
+    set timeframe(value: Timeframe) {
       timeframe = value;
     },
     initialize,

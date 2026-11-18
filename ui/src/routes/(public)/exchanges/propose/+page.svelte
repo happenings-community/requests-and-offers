@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { TIMEFRAME_PRESETS, timeframeLabel } from '$lib/utils/timeframe';
+  import type { TimeframePreset } from '$lib/types/holochain';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import {
@@ -33,8 +35,6 @@
   import type { UIOffer, UIRequest, UIUser } from '$lib/types/ui';
 
   const toastStore = getToastStore();
-
-  const TIMEFRAMES = ['Within a few days', 'Within 2 weeks', 'Within a month', 'Flexible'];
 
   type Medium = { name: string; currency: boolean };
 
@@ -94,7 +94,7 @@
 
   let medium = $state('');
   let returnService = $state('');
-  let timeframe = $state('Within 2 weeks');
+  let timeframe = $state<TimeframePreset>('WithinTwoWeeks');
 
   /** From the strings module, so Anita's review reaches this page too. */
   const FORM_TERMS_LOCKED = EXCHANGE_STRINGS.form.termsLocked;
@@ -320,7 +320,7 @@
           // nothing types terms any more. Agreements already made with text in it keep
           // displaying it, because reading it is unchanged.
           terms: '',
-          delivery_timeframe: timeframe
+          delivery_timeframe: { Preset: timeframe }
         })
       );
       toastStore.trigger({ message: 'Proposal sent', background: 'variant-filled-success' });
@@ -513,7 +513,9 @@
       <label class="label">
         <span>Delivery timeframe</span>
         <select class="select" bind:value={timeframe}>
-          {#each TIMEFRAMES as t (t)}<option value={t}>{t}</option>{/each}
+          {#each TIMEFRAME_PRESETS as preset (preset)}<option value={preset}
+              >{timeframeLabel({ Preset: preset })}</option
+            >{/each}
         </select>
       </label>
     </div>

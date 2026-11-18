@@ -46,7 +46,7 @@ const exchange = (over: Partial<UIExchange> = {}, agreementOver = {}): UIExchang
       }),
       medium: 'CAD',
       terms: '',
-      delivery_timeframe: '',
+      delivery_timeframe: { Preset: 'Flexible' },
       ...agreementOver
     },
     ...over

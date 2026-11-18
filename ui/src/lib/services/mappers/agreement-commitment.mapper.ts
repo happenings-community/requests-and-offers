@@ -5,6 +5,7 @@ import type {
   CommitmentInput,
   EconomicEventInput
 } from '$lib/services/hrea.service';
+import { timeframeLabel } from '$lib/utils/timeframe';
 
 /**
  * Pure mapping from an accepted R&O exchange to hREA inputs. Everything here
@@ -176,11 +177,7 @@ export function mapAgreementToHrea(
     // ever sent once R&O captures actual dates.
     finished: false,
     note:
-      [
-        a.terms,
-        a.delivery_timeframe && `Timeframe: ${a.delivery_timeframe}`,
-        quantityText(a.primary)
-      ]
+      [a.terms, `Timeframe: ${timeframeLabel(a.delivery_timeframe)}`, quantityText(a.primary)]
         .filter(Boolean)
         .join(' | ') || undefined,
     agreedIn: ref

@@ -7,8 +7,7 @@ import {
   NOTHING_CHANGED,
   normaliseQuantity,
   reciprocalFigure,
-  startingEdits,
-  timeframeOptions
+  startingEdits
 } from '$lib/utils/counter-proposal';
 import type { AgreementInDHT } from '$lib/types/holochain';
 
@@ -35,7 +34,7 @@ const proposal = (over: Partial<AgreementInDHT> = {}): AgreementInDHT => ({
   },
   medium: 'Hours (time bank)',
   terms: 'Saturday mornings',
-  delivery_timeframe: 'Within 2 weeks',
+  delivery_timeframe: { Preset: 'WithinTwoWeeks' },
   counters: null,
   ...over
 });
@@ -145,7 +144,7 @@ describe('changedFields', () => {
   });
 
   it('names each field that differs', () => {
-    const edits = { primary: '4', reciprocal: '5', timeframe: 'Flexible' };
+    const edits = { primary: '4', reciprocal: '5', timeframe: { Preset: 'Flexible' as const } };
     expect(changedFields(proposal(), edits)).toEqual(['primary', 'reciprocal', 'timeframe']);
   });
 
@@ -177,7 +176,10 @@ describe('counterProblem', () => {
 
   it('lets one changed field through', () => {
     expect(
-      counterProblem(proposal(), { ...startingEdits(proposal()), timeframe: 'Flexible' })
+      counterProblem(proposal(), {
+        ...startingEdits(proposal()),
+        timeframe: { Preset: 'Flexible' }
+      })
     ).toBeNull();
   });
 });
@@ -189,13 +191,13 @@ describe('buildCounter', () => {
     const c = buildCounter(countered, proposal(), {
       primary: '5',
       reciprocal: '5',
-      timeframe: 'Within a month'
+      timeframe: { Preset: 'WithinAMonth' }
     });
     expect(c).toEqual({
       agreement: countered,
       primary_quantity: { value: '5', unit: 'hours' },
       reciprocal_quantity: { value: '5', unit: 'Hours (time bank)' },
-      delivery_timeframe: 'Within a month'
+      delivery_timeframe: { Preset: 'WithinAMonth' }
     });
   });
 
@@ -203,7 +205,7 @@ describe('buildCounter', () => {
     const c = buildCounter(countered, proposal(), {
       primary: '0',
       reciprocal: null,
-      timeframe: 'Flexible'
+      timeframe: { Preset: 'Flexible' }
     });
     expect(c.primary_quantity).toBeNull();
     expect(c.reciprocal_quantity).toBeNull();
@@ -231,14 +233,10 @@ describe('buildCounter', () => {
   });
 });
 
-describe('timeframeOptions and describeQuantity', () => {
-  it("keeps a proposal's own timeframe wording when it is not in the list", () => {
-    expect(timeframeOptions('Next Tuesday')[0]).toBe('Next Tuesday');
-    expect(timeframeOptions('Flexible')).not.toContain('Next Tuesday');
-  });
-
+describe('describeQuantity', () => {
+  // The hours on an agreement are the service agreed, not a listing's estimate (#380).
   it('says what no quantity means', () => {
-    expect(describeQuantity(null, 'hours')).toBe('No time estimate');
+    expect(describeQuantity(null, 'hours')).toBe('No hours');
     expect(describeQuantity('0', 'amount')).toBe('No amount');
     expect(describeQuantity('1', 'hours')).toBe('1 hour');
     expect(describeQuantity('20', 'amount', 'GBP')).toBe('20 GBP');

@@ -87,7 +87,11 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
             time_preference: offer.time_preference,
             time_zone: offer.time_zone,
             interaction_type: offer.interaction_type,
-            links: offer.links
+            links: offer.links,
+            // #380: carried as given, so an edit never drops them.
+            timeframe: offer.timeframe ?? null,
+            time_estimate_hours: offer.time_estimate_hours ?? null,
+            amount: offer.amount ?? null
           },
           organization: organizationHash,
           service_type_hash: offer.service_type_hash,
@@ -118,7 +122,11 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
             time_preference: updatedOffer.time_preference,
             time_zone: updatedOffer.time_zone,
             interaction_type: updatedOffer.interaction_type,
-            links: updatedOffer.links
+            links: updatedOffer.links,
+            // #380: carried as given, so an edit never drops them.
+            timeframe: updatedOffer.timeframe ?? null,
+            time_estimate_hours: updatedOffer.time_estimate_hours ?? null,
+            amount: updatedOffer.amount ?? null
           },
           service_type_hash: updatedOffer.service_type_hash,
           medium_of_exchange_hashes: updatedOffer.medium_of_exchange_hashes || []

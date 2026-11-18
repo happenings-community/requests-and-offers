@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { timeframeLabel } from '$lib/utils/timeframe';
   import { encodeHashToBase64, type ActionHash } from '@holochain/client';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import { paths } from '$lib/paths';
@@ -135,10 +136,9 @@
     <dd>{termLabel(exchange.agreement.primary)}</dd>
     <dt class="text-surface-500">{S.proposal.field.inReturn}</dt>
     <dd>{termLabel(exchange.agreement.reciprocal)}</dd>
-    {#if exchange.agreement.delivery_timeframe}
-      <dt class="text-surface-500">{S.proposal.field.when}</dt>
-      <dd>{exchange.agreement.delivery_timeframe}</dd>
-    {/if}
+    <!-- Every proposal has a timeframe, typed since #380: printed as the member reads it. -->
+    <dt class="text-surface-500">{S.proposal.field.when}</dt>
+    <dd>{timeframeLabel(exchange.agreement.delivery_timeframe)}</dd>
     {#if exchange.agreement.terms}
       <dt class="text-surface-500">{S.proposal.field.note}</dt>
       <dd>{exchange.agreement.terms}</dd>

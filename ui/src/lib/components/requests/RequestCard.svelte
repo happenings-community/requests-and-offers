@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { timeframeLabel } from '$lib/utils/timeframe';
   import {
     Avatar,
     getToastStore,
@@ -253,19 +254,9 @@
             {/if}
           </p>
         {/if}
-        {#if request.date_range?.start || request.date_range?.end}
+        {#if request.timeframe}
           <p class="text-xs text-secondary-700 dark:text-secondary-400">
-            <span class="font-medium">
-              {#if request.date_range.start && request.date_range.end}
-                Timeframe: {new Date(request.date_range.start).toLocaleDateString()} - {new Date(
-                  request.date_range.end
-                ).toLocaleDateString()}
-              {:else if request.date_range.start}
-                Starting: {new Date(request.date_range.start).toLocaleDateString()}
-              {:else if request.date_range.end}
-                Until: {new Date(request.date_range.end).toLocaleDateString()}
-              {/if}
-            </span>
+            <span class="font-medium">Timeframe: {timeframeLabel(request.timeframe)}</span>
           </p>
         {:else if request.time_preference}
           <p class="text-xs text-secondary-700 dark:text-secondary-400">

@@ -122,7 +122,7 @@ const exchange = (over: {
     reciprocal: term({ direction: 'Receive' }),
     medium: 'Gift',
     terms: '',
-    delivery_timeframe: ''
+    delivery_timeframe: { Preset: 'Flexible' }
   } as AgreementInDHT
 });
 

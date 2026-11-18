@@ -55,7 +55,7 @@ const exchange = (): UIExchange =>
       },
       medium: 'Time bank',
       terms: '',
-      delivery_timeframe: ''
+      delivery_timeframe: { Preset: 'Flexible' }
     }
   }) as unknown as UIExchange;
 

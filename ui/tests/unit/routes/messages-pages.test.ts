@@ -1248,7 +1248,8 @@ describe('the conversation page', () => {
         provider: ANITA,
         receiver: hashes.ME,
         primary: term,
-        reciprocal: term
+        reciprocal: term,
+        delivery_timeframe: { Preset: 'WithinTwoWeeks' }
       }
     };
     /** One I wrote and she has not answered. */
@@ -1787,7 +1788,8 @@ describe('the list of conversations', () => {
           provider: hashes.BELA,
           receiver: hashes.ME,
           primary: term,
-          reciprocal: term
+          reciprocal: term,
+          delivery_timeframe: { Preset: 'WithinTwoWeeks' }
         }
       }
     ]);

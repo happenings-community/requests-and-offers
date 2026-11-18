@@ -33,7 +33,7 @@ const exchange = (overrides: Partial<UIExchange['agreement']> = {}): UIExchange 
       reciprocal: { direction: 'Receive', resource_conforms_to: 'Time bank', resource_kind: 'Currency', quantity: { value: '2', unit: 'hours' } },
       medium: 'Time bank',
       terms: 'Bring the bike round on Saturday',
-      delivery_timeframe: '2026-09-20',
+      delivery_timeframe: { Dates: { start: null, end: Date.UTC(2026, 8, 20) * 1000 } },
       ...overrides
     }
   }) as unknown as UIExchange;

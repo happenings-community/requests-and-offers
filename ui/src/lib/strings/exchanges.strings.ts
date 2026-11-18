@@ -104,6 +104,22 @@ export const EXCHANGE_STRINGS = {
     open: 'Open'
   },
 
+  /**
+   * **When** (#380): a timeframe as a member reads it. The four presets the propose and
+   * counter pages offer, and the two forms a window of dates takes. The window wording
+   * is DRAFT copy for Anita.
+   */
+  timeframe: {
+    presets: {
+      WithinAFewDays: 'Within a few days',
+      WithinTwoWeeks: 'Within 2 weeks',
+      WithinAMonth: 'Within a month',
+      Flexible: 'Flexible'
+    },
+    by: 'by {end}',
+    between: '{start} to {end}'
+  },
+
   form: {
     title: 'Proposal to {name}',
     /**

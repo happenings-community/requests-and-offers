@@ -72,6 +72,7 @@ describe("the member's menus", () => {
   it('counts unopened conversations on My Messages, and nothing on My Exchanges', async () => {
     unread.count = 2;
     render(NavBar);
+    expect(screen.getByRole('button', { name: 'Sam menu, 2 unopened conversations' })).toBeTruthy();
     await openMenu(/^Sam menu/);
 
     expect(screen.getByText('2 unopened conversations')).toBeTruthy();
@@ -84,6 +85,8 @@ describe("the member's menus", () => {
   it('counts exchanges waiting on me on My Exchanges when there is no messaging', async () => {
     presence.isAbsent = true;
     render(NavBar);
+    // The trigger says what it counts, as its one counted item does, not "1 new".
+    expect(screen.getByRole('button', { name: 'My Activity menu, 1 waiting on you' })).toBeTruthy();
     await openMenu(/^My Activity menu/);
 
     expect(screen.getByText('1 waiting on you')).toBeTruthy();

@@ -13,6 +13,7 @@
   import type { ConfirmModalMeta } from '$lib/types/ui';
   import type { MyListing } from '$lib/utils/my-listings';
   import { paths } from '$lib/paths';
+  import { getFirstContact } from '$lib/extensions/first-contact';
 
   /**
    * One of my listings, as the design system's managed listing card (#344):
@@ -39,6 +40,10 @@
     listingType: () => item.kind
   });
   const others = $derived(interest.others);
+  // A member's first proposal goes through the notice messaging plugs in, as on a
+  // listing's own page (ListingInterest); without messaging, a plain link.
+  const firstContact = getFirstContact();
+  const FirstContact = $derived(firstContact());
   let open = $state(false);
   let busy = $state(false);
 
@@ -158,20 +163,27 @@
             alt=""
             class="h-6 w-6 rounded-full bg-surface-200 object-cover"
           />
-          <a class="anchor" href={`/users/${encodeHashToBase64(person.user)}`}
-            >{who?.name ?? 'A member'}</a
-          >
+          <a class="anchor" href={paths.userProfile(person.user)}>{who?.name ?? 'A member'}</a>
           <span class="text-surface-500">{formatWhen(person.created_at)}</span>
           {#if exchange}
             <a
               class="variant-soft-surface btn btn-sm ml-auto"
-              href={`/exchanges/${encodeHashToBase64(exchange.agreement_hash)}`}
-              >{statusLabel(exchange)} &rarr;</a
+              href={paths.exchangeDetail(exchange.agreement_hash)}>{statusLabel(exchange)} &rarr;</a
             >
           {:else if interest.canAct}
-            <a class="variant-filled-primary btn btn-sm ml-auto" href={interest.hrefFor(person)}
-              >Send a proposal</a
-            >
+            {#if FirstContact}
+              <FirstContact
+                kind="proposal"
+                href={interest.hrefFor(person)}
+                label="Send a proposal"
+                name={who?.name}
+                classes="variant-filled-primary btn btn-sm ml-auto"
+              />
+            {:else}
+              <a class="variant-filled-primary btn btn-sm ml-auto" href={interest.hrefFor(person)}
+                >Send a proposal</a
+              >
+            {/if}
           {/if}
         </li>
       {/each}

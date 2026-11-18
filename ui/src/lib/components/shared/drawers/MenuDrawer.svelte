@@ -18,9 +18,9 @@
     needsSelfAcceptance(agentIsAdministrator, currentUser?.status?.status_type)
   );
 
-  // The same entry the nav bar's Profile menu has, asked for the same way: whether this
-  // network has messaging comes from the one presence module, and the count from the
-  // extension point, so the drawer knows nothing of messaging itself. On a narrow screen
+  // The same entry the nav bar's menu under the member's picture has, asked for the same
+  // way: whether this network has messaging comes from the one presence module, and the
+  // count from the extension point, so the drawer knows nothing of messaging itself. On a narrow screen
   // this is the only menu, and without the entry the only way to Messages was a Go to
   // chat link or the address bar.
   const unread = getUnreadCount();
@@ -81,7 +81,7 @@
             <span>{item.label}</span>
           </a>
         {/each}
-        {#if currentUser && !messagingPresence.isAbsent}
+        {#if isUserApproved(currentUser) && !messagingPresence.isAbsent}
           <a
             href={paths.messages()}
             onclick={closeDrawer}

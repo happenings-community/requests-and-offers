@@ -128,7 +128,7 @@ pub fn get_live_administrator_agents(_: ()) -> ExternResult<Vec<AgentPubKey>>
 ```
 
 - The agents who hold a live network administrator grant, read from the grants, sorted
-- Messaging reads it to address a message to the administrators (`role_holders`), because the roster links keep a revoked administrator and can be emptied by anyone
+- Messaging reads it to address a message to the administrators (`role_holders`), because the roster links keep a revoked administrator, can be emptied by anyone, and can list any member: a roster link's rule checks the grant in its tag, not its target
 
 ##### `get_all_administrators_links`
 

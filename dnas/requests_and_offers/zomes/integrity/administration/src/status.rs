@@ -3,7 +3,7 @@ use std::str::FromStr;
 use chrono::Duration;
 use hdi::prelude::*;
 use utils::{
-  errors::CommonError,
+  errors::{invalid, CommonError, StatusValidationError},
   grants::{check_act, Ability},
 };
 
@@ -32,7 +32,7 @@ impl FromStr for StatusType {
       "archived" => Ok(Self::Archived),
       "suspended indefinitely" => Ok(Self::SuspendedIndefinitely),
       "suspended temporarily" => Ok(Self::SuspendedTemporarily),
-      _ => Err(format!("Invalid status type: {}", s)),
+      _ => Err(StatusValidationError::InvalidStatusType(s.to_string()).to_string()),
     }
   }
 }
@@ -206,36 +206,26 @@ pub fn validate_status(
   is_update: bool,
 ) -> ExternResult<ValidateCallbackResult> {
   if StatusType::from_str(&status.status_type).is_err() {
-    return Ok(ValidateCallbackResult::Invalid(format!(
-      "Invalid status type: {}",
-      status.status_type
-    )));
+    return invalid(StatusValidationError::InvalidStatusType(
+      status.status_type.to_string(),
+    ));
   }
 
   if status.status_type.starts_with("suspended") && status.reason.is_none() {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "Suspended status must have a reason",
-    )));
+    return invalid(StatusValidationError::SuspendedWithoutReason);
   }
 
   if status.status_type == "suspended temporarily" && status.suspended_until.is_none() {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "Temporarily suspended status must have a timestamp",
-    )));
+    return invalid(StatusValidationError::TemporarySuspensionWithoutTimestamp);
   }
 
   if status.status_type == "suspended indefinitely" && status.suspended_until.is_some() {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "Indefinitely suspended status must not have a timestamp",
-    )));
+    return invalid(StatusValidationError::IndefiniteSuspensionWithTimestamp);
   }
 
   if is_update || status.status_type != "pending" {
     if let Err(reason) = check_act(&status.grant, author, &Ability::ChangeStatus, &None)? {
-      return Ok(ValidateCallbackResult::Invalid(format!(
-        "a status change is a role act: {}",
-        reason
-      )));
+      return invalid(StatusValidationError::ChangeIsRoleAct(reason.to_string()));
     }
   }
 
@@ -250,20 +240,14 @@ pub fn validate_create_link_entity_status(
   target_address: &AnyLinkableHash,
 ) -> ExternResult<ValidateCallbackResult> {
   let Some(status_hash) = target_address.clone().into_action_hash() else {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "An EntityStatus link points at a status record",
-    )));
+    return invalid(StatusValidationError::EntityStatusLinkTarget);
   };
   let record = must_get_valid_record(status_hash)?;
   if record.entry().to_app_option::<Status>().ok().flatten().is_none() {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "An EntityStatus link points at a status record",
-    )));
+    return invalid(StatusValidationError::EntityStatusLinkTarget);
   }
   if record.action().author() != link_author {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "An EntityStatus link is written by the author of the status it points at",
-    )));
+    return invalid(StatusValidationError::EntityStatusLinkAuthor);
   }
   Ok(ValidateCallbackResult::Valid)
 }
@@ -277,10 +261,7 @@ pub fn validate_create_link_accepted_entity(
   let grant = utils::grants::grant_from_tag(tag).ok();
   match check_act(&grant, link_author, &Ability::ChangeStatus, &None)? {
     Ok(_) => Ok(ValidateCallbackResult::Valid),
-    Err(reason) => Ok(ValidateCallbackResult::Invalid(format!(
-      "the accepted index is written with an admin or steward grant: {}",
-      reason
-    ))),
+    Err(reason) => invalid(StatusValidationError::AcceptedIndexWithoutGrant(reason.to_string())),
   }
 }
 
@@ -293,9 +274,7 @@ pub fn validate_delete_status(
   _original_action: TypedAction<EntryCreationData>,
   _original_status: Status,
 ) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Invalid(String::from(
-    "Status cannot be deleted",
-  )))
+  invalid(StatusValidationError::DeleteRefused)
 }
 
 /// Validates a `StatusUpdates` link creation by asserting both base and target resolve to
@@ -340,7 +319,5 @@ pub fn validate_delete_link_status_updates(
   _target: AnyLinkableHash,
   _tag: LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Invalid(String::from(
-    "StatusUpdates links cannot be deleted",
-  )))
+  invalid(StatusValidationError::UpdatesLinkDeleteRefused)
 }

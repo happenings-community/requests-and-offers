@@ -1,6 +1,7 @@
 use grants::*;
 use hdi::prelude::*;
 use status::*;
+use utils::errors::{invalid, CommonValidationError, GrantValidationError, StatusValidationError};
 use utils::grants::{Role, RoleGrant, RoleRevocation};
 
 pub mod grants;
@@ -117,18 +118,16 @@ fn validate_create_link_agent_administrators(
 /// grant, whose delete Holochain shows to every integrity zome, or another zome's entry.
 fn deleted_entry(
   action: &TypedAction<DeleteData>,
-) -> ExternResult<Result<Option<EntryTypes>, String>> {
+) -> ExternResult<Result<Option<EntryTypes>, CommonValidationError>> {
   let original = must_get_valid_record(action.deletes_address.clone())?;
   let Ok(creation) = TypedAction::<EntryCreationData>::try_from(original.action().clone()) else {
-    return Ok(Err(
-      "Original action for a delete must be a Create or Update action".to_string(),
-    ));
+    return Ok(Err(CommonValidationError::DeleteOfNonCreation));
   };
   let EntryType::App(def) = creation.entry_type() else {
     return Ok(Ok(None));
   };
   let Some(entry) = original.entry().as_option() else {
-    return Ok(Err("Original record for a delete must contain an entry".to_string()));
+    return Ok(Err(CommonValidationError::DeletedEntryMissing));
   };
   Ok(Ok(EntryTypes::deserialize_from_type(
     *def.zome_index,
@@ -143,17 +142,13 @@ fn deleted_entry(
 /// so the rule cannot hold on one and not the other (#234).
 fn validate_delete(action: &TypedAction<DeleteData>) -> ExternResult<ValidateCallbackResult> {
   match deleted_entry(action)? {
-    Ok(Some(EntryTypes::Status(_))) => Ok(ValidateCallbackResult::Invalid(String::from(
-      "Status cannot be deleted",
-    ))),
+    Ok(Some(EntryTypes::Status(_))) => invalid(StatusValidationError::DeleteRefused),
     Ok(Some(EntryTypes::RoleGrant(_))) | Ok(Some(EntryTypes::RoleRevocation(_))) => {
-      Ok(ValidateCallbackResult::Invalid(String::from(
-        "A grant or a revocation is a record and cannot be deleted; revoke a grant instead",
-      )))
+      invalid(GrantValidationError::DeleteRefused)
     }
     // Not this zome's entry: nothing here to refuse.
     Ok(None) => Ok(ValidateCallbackResult::Valid),
-    Err(reason) => Ok(ValidateCallbackResult::Invalid(reason)),
+    Err(reason) => invalid(reason),
   }
 }
 
@@ -173,9 +168,9 @@ fn validate_entry(
     EntryTypes::Status(status) => validate_status(status, author, is_update),
     // A grant or a revocation is a record: never updated, as it is never
     // deleted. An update would be the other way to rewrite one.
-    EntryTypes::RoleGrant(_) | EntryTypes::RoleRevocation(_) if is_update => Ok(
-      ValidateCallbackResult::Invalid(String::from("a grant or a revocation is never updated")),
-    ),
+    EntryTypes::RoleGrant(_) | EntryTypes::RoleRevocation(_) if is_update => {
+      invalid(GrantValidationError::UpdateRefused)
+    }
     EntryTypes::RoleGrant(grant) => validate_role_grant(author, &grant),
     EntryTypes::RoleRevocation(revocation) => validate_role_revocation(author, &revocation),
   }
@@ -278,9 +273,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       // link would bring a revoked grant back. No coordinator tombstones
       // them, so every such delete is a forgery.
       LinkTypes::AgentGrants | LinkTypes::AllGrants | LinkTypes::GrantRevocations => {
-        Ok(ValidateCallbackResult::Invalid(String::from(
-          "a grant index is a record and is never tombstoned",
-        )))
+        invalid(GrantValidationError::IndexTombstoneRefused)
       }
       // The administrator roster links are tombstoned by `remove_administrator`,
       // by another administrator; a tombstone carries no grant, so who may

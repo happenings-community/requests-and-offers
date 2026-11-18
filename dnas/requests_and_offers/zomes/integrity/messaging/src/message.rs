@@ -1,4 +1,5 @@
 use hdi::prelude::*;
+use utils::errors::{verdict, MessagingValidationError};
 use utils::grants::{check_act, Ability};
 
 /// A message stored on the shared DNA, encrypted for one recipient agent.
@@ -57,9 +58,10 @@ pub const MAX_CIPHERTEXT_BYTES: usize = 3840;
 /// A ciphertext is valid if it is within the bound.
 pub fn check_ciphertext_size(len: usize) -> ValidateCallbackResult {
   if len > MAX_CIPHERTEXT_BYTES {
-    return ValidateCallbackResult::Invalid(format!(
-      "Encrypted message is {len} bytes, over the {MAX_CIPHERTEXT_BYTES} byte limit"
-    ));
+    return verdict(MessagingValidationError::CiphertextTooLong {
+      len,
+      limit: MAX_CIPHERTEXT_BYTES,
+    });
   }
   ValidateCallbackResult::Valid
 }
@@ -70,9 +72,7 @@ pub fn check_deleter_is_author(
   original_author: &AgentPubKey,
 ) -> ValidateCallbackResult {
   if deleter != original_author {
-    return ValidateCallbackResult::Invalid(
-      "Only the author of an entry may delete it".to_string(),
-    );
+    return verdict(MessagingValidationError::DeleteByNonAuthor);
   }
   ValidateCallbackResult::Valid
 }
@@ -87,9 +87,7 @@ pub fn check_link_author_matches_message(
   message_author: &AgentPubKey,
 ) -> ValidateCallbackResult {
   if link_author != message_author {
-    return ValidateCallbackResult::Invalid(
-      "An Inbox link must be authored by the author of the message it points to".to_string(),
-    );
+    return verdict(MessagingValidationError::InboxLinkAuthor);
   }
   ValidateCallbackResult::Valid
 }
@@ -104,9 +102,7 @@ pub fn check_link_deleter_is_author(
   link_author: &AgentPubKey,
 ) -> ValidateCallbackResult {
   if deleter != link_author {
-    return ValidateCallbackResult::Invalid(
-      "Only the author of an Inbox link may delete it".to_string(),
-    );
+    return verdict(MessagingValidationError::InboxLinkDeleteByNonAuthor);
   }
   ValidateCallbackResult::Valid
 }
@@ -119,10 +115,7 @@ pub fn check_link_deleter_is_author(
 /// the same promise a nudge makes.
 pub fn check_inbox_tag_is_empty(tag: &LinkTag) -> ValidateCallbackResult {
   if !tag.0.is_empty() {
-    return ValidateCallbackResult::Invalid(format!(
-      "An Inbox link's tag must be empty, and this one is {} bytes",
-      tag.0.len()
-    ));
+    return verdict(MessagingValidationError::InboxLinkTagNotEmpty(tag.0.len()));
   }
   ValidateCallbackResult::Valid
 }
@@ -148,9 +141,7 @@ pub fn validate_encrypted_message(
   Ok(
     match check_act(&message.grant, author, &Ability::Participate, &None)? {
       Ok(_) => ValidateCallbackResult::Valid,
-      Err(reason) => {
-        ValidateCallbackResult::Invalid(format!("Sending a message is a member act: {}", reason))
-      }
+      Err(reason) => verdict(MessagingValidationError::SendIsMemberAct(reason.to_string())),
     },
   )
 }

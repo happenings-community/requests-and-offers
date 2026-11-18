@@ -264,7 +264,7 @@ pub fn revoke_role(input: RevokeRoleInput) -> ExternResult<ActionHash> {
   let grant = grant_at(&input.grant)?;
   let role = grant
     .parsed_role()
-    .map_err(CommonError::InvalidData)?;
+    .map_err(|reason| CommonError::InvalidData(reason.to_string()))?;
   let authority = require(Ability::Grant(role), grant.scope.clone())?;
   if role == Role::Admin && grant.scope.is_none() {
     // Only when this is the holder's last live admin grant does the holder leave.

@@ -92,7 +92,7 @@ The rule and the comparison live in `utils::decimal`, shared by the exchanges zo
 
 1. A listing's **estimate** (`time_estimate_hours`): how long the task takes, an exact decimal string, zero allowed. It describes the task and is never exchanged.
 2. The **service's hours** on an agreement: the primary term's quantity, unit `hours`. A proposal starts from the listing's estimate, as written (so 1.1 stays `"1.1"`); an estimate of zero gives no quantity, since a quantity is above zero. A counter can change them.
-3. **Hours as payment**: a time-bank medium, which an administrator can add (it is not one of the default mediums). They are the reciprocal term, in the medium's unit, carried from the listing's `amount` when its unit is the medium chosen. Never from the estimate.
+3. **Hours as payment**: a time-bank medium, which an administrator can add (it is not one of the default mediums). They are the reciprocal term, carried from the listing's `amount` when its unit is the name of the medium chosen. Never from the estimate. Only a currency-type medium settles with a quantity: a base-type medium (the medium form's example "Time Banking" is one) gives a gift return term, as it did before #380, so an administrator adds a time bank as a currency-type medium for its hours to be carried.
 
 This is a change to the `Agreement` entry format (`value` was an `f64`), so it changes the DNA hash and old entries cannot be read.
 It is acceptable inside the alpha 2 network reset.

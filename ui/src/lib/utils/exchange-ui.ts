@@ -363,8 +363,10 @@ export function reciprocalTermFor(input: {
       resource_conforms_to: medium,
       resource_kind: 'Currency',
       // The listing's amount, and only when it is in the medium chosen: a figure in
-      // another unit, or a typed one, would be a term no record backs. Hours as payment
-      // (a time-bank medium) arrive here the same way, never from the estimate.
+      // another unit, or a typed one, would be a term no record backs. An amount's unit
+      // is the medium's name, as on an agreement. Hours as payment arrive here when the
+      // time-bank medium is a currency-type one; a base-type medium settles nothing and
+      // falls through to a gift below, as before #380. Never from the estimate.
       quantity: amountIn(amount, medium)
     };
   }

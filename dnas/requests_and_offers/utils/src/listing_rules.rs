@@ -31,7 +31,10 @@ pub fn timeframe_problem(timeframe: &Timeframe, at: Timestamp) -> Option<Timefra
   if *end <= at {
     return Some(TimeframeValidationError::EndsBeforeWritten);
   }
-  let limit = at.checked_add(&Duration::from_secs(MAX_DAYS_AHEAD * 24 * 60 * 60))?;
+  // A moment too near the end of time to add a year to: refused rather than let through.
+  let Some(limit) = at.checked_add(&Duration::from_secs(MAX_DAYS_AHEAD * 24 * 60 * 60)) else {
+    return Some(TimeframeValidationError::EndsTooLate(MAX_DAYS_AHEAD));
+  };
   if *end > limit {
     return Some(TimeframeValidationError::EndsTooLate(MAX_DAYS_AHEAD));
   }
@@ -120,6 +123,19 @@ mod tests {
       end: Timestamp::from_micros(at().as_micros() + 1),
     };
     assert_eq!(timeframe_problem(&just_after, at()), None);
+  }
+
+  #[test]
+  fn a_window_written_where_a_year_cannot_be_added_is_refused() {
+    let at = Timestamp::from_micros(i64::MAX - 10);
+    let window = Timeframe::Dates {
+      start: None,
+      end: Timestamp::from_micros(i64::MAX),
+    };
+    assert_eq!(
+      timeframe_problem(&window, at),
+      Some(TimeframeValidationError::EndsTooLate(MAX_DAYS_AHEAD))
+    );
   }
 
   #[test]

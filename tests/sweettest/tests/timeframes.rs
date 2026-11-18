@@ -318,6 +318,10 @@ async fn a_preset_and_dates_together_do_not_deserialise() {
     });
     let result = conductors[0]
         .call_fallible::<_, Record>(&alice.zome("requests"), "create_request", input)
-        .await;
-    assert!(result.is_err(), "a preset and dates together must not be accepted as a timeframe");
+        .await
+        .map_err(|e| format!("{e:?}"));
+    assert!(
+        matches!(&result, Err(e) if e.to_lowercase().contains("deserializ")),
+        "a preset and dates together must fail to deserialise: {result:?}"
+    );
 }

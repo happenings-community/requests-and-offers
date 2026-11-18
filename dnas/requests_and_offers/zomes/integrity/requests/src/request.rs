@@ -36,7 +36,8 @@ pub struct Request {
   #[serde(default)]
   pub time_estimate_hours: Option<String>,
   /// What the request offers in payment, where it names a figure: an exact
-  /// decimal above zero, in a unit (a currency, or a time-bank medium).
+  /// decimal above zero, in a unit: the name of a medium of exchange, as on
+  /// an agreement (a currency, or a time-bank medium).
   #[serde(default)]
   pub amount: Option<Quantity>,
   /// The preferred time of day for the request

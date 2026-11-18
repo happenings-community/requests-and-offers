@@ -107,8 +107,9 @@ export type Timeframe =
  * A listing's figures (#380). `time_estimate_hours` is an **estimate** of the time the
  * task takes, an exact decimal string, zero allowed: it describes the task and is never
  * exchanged. The hours an agreement's service is measured in start from it. `amount` is
- * what the listing asks or offers in **payment**, in a unit: a currency, or a time-bank
- * medium. Hours as payment are an amount, never the estimate.
+ * what the listing asks or offers in **payment**, in a unit: the name of a medium of
+ * exchange, as on an agreement (a currency, or a time-bank medium). Hours as payment are
+ * an amount, never the estimate.
  */
 type ListingFigures = {
   timeframe?: Timeframe | null;

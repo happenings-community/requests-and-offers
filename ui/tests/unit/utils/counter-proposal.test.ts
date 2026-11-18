@@ -5,6 +5,7 @@ import {
   counterProblem,
   describeQuantity,
   NOTHING_CHANGED,
+  TIMEFRAME_PASSED,
   normaliseQuantity,
   reciprocalFigure,
   startingEdits
@@ -166,6 +167,27 @@ describe('changedFields', () => {
 describe('counterProblem', () => {
   it('asks for a change before anything can be sent', () => {
     expect(counterProblem(proposal(), startingEdits(proposal()))).toBe(NOTHING_CHANGED);
+  });
+
+  // #380: a counter's window is checked against the counter's own moment, so one that
+  // has ended is refused even when it is the proposal's own. **To make this go red:**
+  // drop the `hasEnded` step from `counterProblem`.
+  it("asks for another timeframe when the proposal's window has passed", () => {
+    const now = Date.UTC(2026, 10, 18) * 1000;
+    const day = 24 * 60 * 60 * 1_000_000;
+    const ended = proposal({ delivery_timeframe: { Dates: { start: null, end: now - day } } });
+    const hoursOnly = { ...startingEdits(ended), primary: '4' };
+    expect(counterProblem(ended, hoursOnly, now)).toBe(TIMEFRAME_PASSED);
+    const moved = { ...hoursOnly, timeframe: { Preset: 'WithinAMonth' as const } };
+    expect(counterProblem(ended, moved, now)).toBeNull();
+    const ahead = { Dates: { start: null, end: now + day } };
+    expect(
+      counterProblem(
+        proposal({ delivery_timeframe: ahead }),
+        { ...hoursOnly, timeframe: ahead },
+        now
+      )
+    ).toBeNull();
   });
 
   it('refuses negative hours and amounts in plain words', () => {

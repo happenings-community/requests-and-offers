@@ -62,5 +62,8 @@ describe('My Listings comes back to the view you last had (Sam, 18 November)', (
     expect(openingView(null, 'archived')).toBe('archived');
     expect(openingView(null, null)).toBe('requests');
     expect(openingView(null, 'nonsense')).toBe('requests');
+    // A view the app does not know is no view at all: the remembered one still opens.
+    expect(openingView('nonsense', 'archived')).toBe('archived');
+    expect(openingView('requests', 'archived')).toBe('requests');
   });
 });

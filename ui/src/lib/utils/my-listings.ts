@@ -19,7 +19,9 @@ export function viewFromQuery(asked: string | null): ListingView {
  * comes back to where you were rather than to Requests (Sam, 18 November).
  */
 export function openingView(asked: string | null, remembered: string | null): ListingView {
-  return viewFromQuery(asked ?? remembered);
+  // A view the app does not know counts as none asked for, not as Requests.
+  const known = (v: string | null) => viewFromQuery(v) === v;
+  return viewFromQuery(known(asked) ? asked : remembered);
 }
 
 export interface MyListingSets {

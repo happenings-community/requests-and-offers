@@ -26,9 +26,10 @@
 
   const total = $derived(items.reduce((n, item) => n + (item.badge ?? 0), 0));
   /**
-   * The count on the trigger, in words. One counted item says what it counts (My Activity:
-   * exchanges waiting on you; the member's menu: unopened conversations), so the trigger
-   * says it the same way; "new" only when two different counts are added together.
+   * The count on the trigger, in words. One counted item says what it counts (in My
+   * Activity: unopened conversations on My Messages, or exchanges waiting on you where
+   * there is no messaging), so the trigger says it the same way; "new" only when two
+   * different counts are added together.
    */
   const counted = $derived(items.filter((item) => item.badge));
   const totalLabel = $derived(
@@ -101,16 +102,15 @@
     aria-label={total > 0 ? `${title} menu, ${totalLabel}` : `${title} menu`}
   >
     {#if avatar}
-      <img
-        src={avatar}
-        alt=""
-        class="mr-2 h-8 w-8 rounded-full bg-surface-200 object-cover"
-      />
+      <img src={avatar} alt="" class="mr-2 h-8 w-8 rounded-full bg-surface-200 object-cover" />
     {/if}
     <!-- With a picture, the name shows only where there is room for it. -->
     <span class={avatar ? 'hidden max-w-[10rem] truncate xl:inline' : ''}>{title}</span>
     {#if total > 0}
-      <span class="badge ml-1 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700" aria-hidden="true">{shown(total)}</span>
+      <span
+        class="badge ml-1 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700"
+        aria-hidden="true">{shown(total)}</span
+      >
     {/if}
     <svg
       class="ml-1 h-4 w-4 shrink-0 transition-transform duration-200 {isHovered

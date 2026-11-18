@@ -8,7 +8,8 @@ import MenuDrawer from '$lib/components/shared/drawers/MenuDrawer.svelte';
  * and for an accepted member (review of 16 October, F14; #349; Sam, 16 November).
  */
 
-const { presence, unread } = vi.hoisted(() => ({
+const { presence, unread, member } = vi.hoisted(() => ({
+  member: { status: 'accepted' },
   presence: { isAbsent: false },
   unread: { count: undefined as number | undefined }
 }));
@@ -28,9 +29,11 @@ vi.mock('$lib/extensions/unread-count', async (importActual) => ({
 
 vi.mock('$lib/stores/users.store.svelte', () => ({
   default: {
-    currentUser: {
-      original_action_hash: new Uint8Array(Array(39).fill(1)),
-      status: { status_type: 'accepted' }
+    get currentUser() {
+      return {
+        original_action_hash: new Uint8Array(Array(39).fill(1)),
+        status: { status_type: member.status }
+      };
     }
   }
 }));
@@ -41,6 +44,7 @@ vi.mock('$lib/stores/administration.store.svelte', () => ({
 
 beforeEach(() => {
   cleanup();
+  member.status = 'accepted';
   presence.isAbsent = false;
   unread.count = undefined;
 });
@@ -67,5 +71,14 @@ describe('the mobile menu', () => {
     render(MenuDrawer);
 
     expect(screen.queryByTestId('drawer-messages')).toBeNull();
+  });
+
+  it('has no My Activity, and no My Messages, for a member who is not accepted (#349 review)', () => {
+    member.status = 'pending';
+    unread.count = 3;
+    render(MenuDrawer);
+
+    expect(screen.queryByTestId('drawer-messages')).toBeNull();
+    expect(screen.queryByText('My Activity')).toBeNull();
   });
 });

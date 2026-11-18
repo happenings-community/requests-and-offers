@@ -12,7 +12,8 @@ import NavBar from '$lib/components/shared/NavBar.svelte';
  * on every network left a network without messaging with no sign of a proposal at all.
  */
 
-const { presence, unread, exchanges } = vi.hoisted(() => ({
+const { presence, unread, exchanges, member } = vi.hoisted(() => ({
+  member: { status: 'accepted' },
   presence: { isAbsent: false },
   unread: { count: undefined as number | undefined },
   exchanges: { list: [] as unknown[] }
@@ -30,13 +31,16 @@ vi.mock('$lib/extensions/unread-count', async (importActual) => ({
 vi.mock('$lib/components/network/NetworkStatusPopup.svelte', async () => ({
   default: (await import('../../../mocks/Empty.svelte')).default
 }));
-// Accepted, because My Activity is for accepted members only (#349).
+// Accepted by default, because My Activity is for accepted members only (#349); a case
+// sets another status.
 vi.mock('$lib/stores/users.store.svelte', () => ({
   default: {
-    currentUser: {
-      name: 'Sam',
-      original_action_hash: new Uint8Array(Array(39).fill(1)),
-      status: { status_type: 'accepted' }
+    get currentUser() {
+      return {
+        name: 'Sam',
+        original_action_hash: new Uint8Array(Array(39).fill(1)),
+        status: { status_type: member.status }
+      };
     }
   }
 }));
@@ -63,6 +67,7 @@ const openMenu = async (name: RegExp) => {
 
 beforeEach(() => {
   cleanup();
+  member.status = 'accepted';
   presence.isAbsent = false;
   unread.count = undefined;
   exchanges.list = [{ waitsOnMe: true }, { waitsOnMe: false }];
@@ -104,9 +109,17 @@ describe("the member's menus", () => {
     await openMenu(/^My Activity menu/);
 
     expect(screen.getByText('1 waiting on you')).toBeTruthy();
+    // Asked while My Activity is open: once a menu's items exist only while it is open
+    // (#352), a check made after opening another menu would pass whatever My Activity held.
+    expect(screen.queryByRole('menuitem', { name: /My Messages/ })).toBeNull();
+  });
 
-    await openMenu(/^Sam menu/);
+  it('gives a member who is not accepted no My Activity, and no count (#349 review)', () => {
+    member.status = 'pending';
+    unread.count = 2;
+    render(NavBar);
 
-    expect(screen.queryByText('My Messages')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^My Activity menu/ })).toBeNull();
+    expect(screen.queryByText(/unopened conversations|waiting on you/)).toBeNull();
   });
 });

@@ -299,7 +299,7 @@
 
     <!-- The member's own menu: their picture and name, top right -->
     {#if currentUser}
-      <!-- A test id rather than the name, which differs between a full run and a single spec -->
+      <!-- A test id rather than the name, which differs from member to member -->
       <div class="text-white" data-testid="member-menu">
         <NavDropdown
           title={currentUser.name}

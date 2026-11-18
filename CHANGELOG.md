@@ -43,6 +43,7 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **UI**: A typed link opens only when it is a web address (`9ce13eac`, #382), inside rendered markdown too (`551f157f`, #312)
 - **Build**: Faker and the mock data stay out of the production build (`cae758a7`, #365, part of #363)
 - **Users**: Validation decides who may write `UserAgents` and `MyUser` links: only a User's author links agents to it, only to their own key, and `MyUser` runs from the author's key to the author's User (`11bcf7a4`, #473)
+- **Administration**: A temporary suspension's end is a timestamp that validation checks is after its writing; it was text nothing checked, and a malformed one made every later read of that status fail. This changes the Status entry format, so it needs a network reset
 
 ### Bug Fixes
 

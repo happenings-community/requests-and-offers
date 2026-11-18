@@ -1,7 +1,7 @@
 import type { ActionHash } from '@holochain/client';
-import type { ExchangeStatus, ExchangeTerm } from '$lib/types/holochain';
+import type { ExchangeQuantity, ExchangeStatus, ExchangeTerm } from '$lib/types/holochain';
 import type { UIExchange } from '$lib/types/ui';
-import { isOne } from '$lib/utils/decimal';
+import { decimalProblem, isOne, isZeroDecimal } from '$lib/utils/decimal';
 
 /**
  * What an exchange's record means to a member, in one name.
@@ -323,6 +323,16 @@ export function formatWhen(ms: number): string {
   });
 }
 
+/** A listing's amount, when it is in `unit` and above zero; otherwise none. */
+function amountIn(
+  amount: ExchangeQuantity | null | undefined,
+  unit: string
+): ExchangeQuantity | null {
+  if (!amount || amount.unit !== unit) return null;
+  if (decimalProblem(amount.value) !== null || isZeroDecimal(amount.value)) return null;
+  return { value: amount.value, unit: amount.unit };
+}
+
 /**
  * What comes back, derived from the medium the listing named.
  *
@@ -342,17 +352,20 @@ export function reciprocalTermFor(input: {
   medium: string;
   isCurrency: boolean;
   returnService: string;
+  /** The listing's own amount (#380), if it publishes one. */
+  amount?: ExchangeQuantity | null;
 }): ExchangeTerm {
-  const { medium, isCurrency, returnService } = input;
+  const { medium, isCurrency, returnService, amount } = input;
 
   if (isCurrency) {
     return {
       direction: 'Receive',
       resource_conforms_to: medium,
       resource_kind: 'Currency',
-      // No amount: a listing does not publish one, and a typed figure would be a term no
-      // record backs.
-      quantity: null
+      // The listing's amount, and only when it is in the medium chosen: a figure in
+      // another unit, or a typed one, would be a term no record backs. Hours as payment
+      // (a time-bank medium) arrive here the same way, never from the estimate.
+      quantity: amountIn(amount, medium)
     };
   }
 

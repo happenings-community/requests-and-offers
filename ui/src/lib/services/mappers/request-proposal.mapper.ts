@@ -2,7 +2,8 @@ import { Effect as E, pipe } from 'effect';
 import { HreaError } from '$lib/errors';
 import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
 import type { UIRequest } from '$lib/types/ui';
-import { decimalProblem, isZeroDecimal, isOne } from '$lib/utils/decimal';
+import { decimalProblem, isZeroDecimal } from '$lib/utils/decimal';
+import { estimateLabel } from '$lib/utils/estimate';
 import { timeframeLabel } from '$lib/utils/timeframe';
 import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/hrea';
 
@@ -142,8 +143,7 @@ function createProposalNote(request: UIRequest, requesterAgent: Agent): string {
   // Time and scheduling information
   // The listing's estimate, printed as written (#525): zero is an estimate too.
   if (request.time_estimate_hours != null) {
-    const unit = isOne(request.time_estimate_hours) ? 'hour' : 'hours';
-    lines.push(`Estimated time: ${request.time_estimate_hours} ${unit}`);
+    lines.push(`Estimated time: ${estimateLabel(request.time_estimate_hours)}`);
   }
 
   if (request.time_preference) {

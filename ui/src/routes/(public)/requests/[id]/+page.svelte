@@ -1,6 +1,6 @@
 <script lang="ts">
   import { timeframeLabel } from '$lib/utils/timeframe';
-  import { isOne } from '$lib/utils/decimal';
+  import { estimateLabel } from '$lib/utils/estimate';
   import { termsState, TERMS_LOADING, TERMS_FAILED } from '$lib/utils/listing-terms';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
@@ -374,7 +374,7 @@
             <div>
               <h3 class="h4 mb-2 font-semibold">Estimated time</h3>
               <!-- The listing's estimate, a decimal printed as written (#525). -->
-              <p>{request.time_estimate_hours} {isOne(request.time_estimate_hours) ? 'hour' : 'hours'}</p>
+              <p>{estimateLabel(request.time_estimate_hours)}</p>
             </div>
           {/if}
 

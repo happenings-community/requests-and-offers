@@ -135,8 +135,13 @@ export const EXCHANGE_STRINGS = {
     termsFailed: 'The listing’s terms could not be read, so nothing can be proposed yet.',
     termsRetry: 'Try again',
     termsLocked: "These terms come from the listing and can't be changed here.",
-    /** The listing's hours, when it states none, or states a number no quantity can carry. */
+    /**
+     * The listing's estimate, when it states none, estimates none (zero is allowed: some
+     * tasks cannot be put in hours), or states something no quantity can carry. The
+     * second is DRAFT copy for Anita (#380).
+     */
     hoursNotStated: 'not stated on the listing',
+    hoursNone: 'estimated at none, so none are proposed',
     hoursUnusable: 'not a number of hours a proposal can carry',
     /**
      * **The link named an interest the listing does not have.**

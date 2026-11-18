@@ -1510,3 +1510,160 @@ async fn a_roster_emptied_by_a_member_still_reaches_the_administrators() {
         "Alice finds Mallory's case in her role inbox"
     );
 }
+
+// -- the third door: a member put on the roster by a modified client --
+
+/// `RoleGrant`'s entry index in `administration_integrity`, as in `grants.rs`.
+const ROLE_GRANT: u8 = 1;
+
+/// The index of an integrity zome, read from the DNA, so a forged write lands in the
+/// zome it is aimed at.
+async fn zome_index(conductor: &SweetConductor, mallory: &SweetCell, name: &str) -> u8 {
+    let names: Vec<String> = conductor
+        .call(&mallory.zome("forge"), "integrity_zome_names", ())
+        .await;
+    names
+        .iter()
+        .position(|n| n == name)
+        .unwrap_or_else(|| panic!("{name} is not an integrity zome; got {names:?}")) as u8
+}
+
+/// Mallory writes an entry of the given type with the bytes as given.
+async fn forge_entry<E: TryInto<SerializedBytes>>(
+    conductor: &SweetConductor,
+    mallory: &SweetCell,
+    zome_index: u8,
+    entry_index: u8,
+    entry: E,
+) -> ActionHash
+where
+    E::Error: std::fmt::Debug,
+{
+    let bytes: SerializedBytes = entry.try_into().expect("the entry should serialize");
+    conductor
+        .call(
+            &mallory.zome("forge"),
+            "forge_entry",
+            serde_json::json!({ "zome_index": zome_index, "entry_index": entry_index, "entry": bytes }),
+        )
+        .await
+}
+
+/// A member put on the roster by a modified client is sent no case.
+///
+/// A roster link is valid when its tag carries an admin grant its author wrote
+/// (`validate_roster_link`); the rule does not look at the target. Mallory, an
+/// administrator running the `forge` zome, writes an admin grant of her own and then a
+/// roster link with that grant in its tag, from the real roster's base to Bob, an
+/// ordinary member who holds no admin grant. Reading holders from the roster, Carol's report
+/// then reached Bob: this door leaks a case rather than stopping one. Read from the
+/// grants, no copy is sealed to Bob.
+///
+/// **To make this go red:** have `role_holders` read the roster links again
+/// (`get_all_administrators_links`): Bob's agent is among the copies.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_member_put_on_the_roster_by_a_modified_client_is_sent_no_case() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(3, true).await;
+    let (alice, bob, carol) = (&cells[0], &cells[1], &cells[2]);
+    let everyone = [alice, bob, carol, &mallory];
+
+    for (i, (cell, name)) in everyone
+        .iter()
+        .zip(["Alice", "Bob", "Carol", "Mallory"])
+        .enumerate()
+    {
+        conductors[i]
+            .call::<_, Record>(&cell.zome("users_organizations"), "create_user", sample_user(name))
+            .await;
+    }
+    await_consistency_s(15, everyone).await.unwrap();
+    let mut users = Vec::new();
+    for (i, cell) in everyone.iter().enumerate() {
+        users.push(user_hash_of(&conductors[i], cell).await);
+    }
+    for user in &users {
+        accept_entity(&conductors[0], alice, ENTITY_USERS, user.clone()).await;
+    }
+    await_consistency_s(15, everyone).await.unwrap();
+
+    // Alice makes Mallory an administrator, so the grant Mallory writes is valid.
+    add_network_admin(&conductors[0], alice, users[3].clone(), mallory.agent_pubkey().clone()).await;
+    await_consistency_s(15, everyone).await.unwrap();
+    let hers = admin_grant_of(&conductors[3], &mallory, mallory.agent_pubkey())
+        .await
+        .expect("Mallory administers the network");
+
+    let administration = zome_index(&conductors[3], &mallory, "administration_integrity").await;
+    let written = forge_entry(
+        &conductors[3],
+        &mallory,
+        administration,
+        ROLE_GRANT,
+        RoleGrant {
+            role: "admin".to_string(),
+            holder: mallory.agent_pubkey().clone(),
+            scope: None,
+            authority: Authority::Grant(hers),
+        },
+    )
+    .await;
+
+    // The forged roster link: base, zome and type copied from a real roster link, the
+    // target Bob's profile, the tag the grant Mallory just wrote.
+    let roster: Vec<Link> = conductors[3]
+        .call(
+            &mallory.zome("administration"),
+            "get_all_administrators_links",
+            ENTITY_NETWORK.to_string(),
+        )
+        .await;
+    let real = roster.first().expect("the roster lists the administrators");
+    let _: ActionHash = conductors[3]
+        .call(
+            &mallory.zome("forge"),
+            "forge_link",
+            serde_json::json!({
+                "base": real.base,
+                "target": AnyLinkableHash::from(users[1].clone()),
+                "zome_index": real.zome_index.0,
+                "link_type": real.link_type.0,
+                "tag": written.get_raw_39().to_vec(),
+            }),
+        )
+        .await;
+    await_consistency_s(15, everyone).await.unwrap();
+
+    let listed: Vec<Link> = conductors[2]
+        .call(
+            &carol.zome("administration"),
+            "get_all_administrators_links",
+            ENTITY_NETWORK.to_string(),
+        )
+        .await;
+    assert!(
+        listed.iter().any(|link| link.target == users[1].clone().into()),
+        "the roster lists Bob, read from Carol's node: the link is valid"
+    );
+    assert_eq!(
+        admin_grant_of(&conductors[2], carol, bob.agent_pubkey()).await,
+        None,
+        "Bob holds no admin grant"
+    );
+
+    let sent: Vec<SentMessage> = conductors[2]
+        .call(
+            &carol.zome("messaging"),
+            "send_role_message",
+            open_case("forged-roster", "who reads this?"),
+        )
+        .await;
+    let reached = agents_of(&sent);
+    assert!(
+        reached.contains(alice.agent_pubkey()),
+        "the case reaches Alice, who holds the role; copies went to {reached:?}"
+    );
+    assert!(
+        !reached.contains(bob.agent_pubkey()),
+        "no copy is sealed to Bob, whom only a forged roster link names; copies went to {reached:?}"
+    );
+}

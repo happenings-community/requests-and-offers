@@ -25,6 +25,15 @@
   let { title, items, isOpen = false, alignRight = false, avatar }: Props = $props();
 
   const total = $derived(items.reduce((n, item) => n + (item.badge ?? 0), 0));
+  /**
+   * The count on the trigger, in words. One counted item says what it counts (My Activity:
+   * exchanges waiting on you; the member's menu: unopened conversations), so the trigger
+   * says it the same way; "new" only when two different counts are added together.
+   */
+  const counted = $derived(items.filter((item) => item.badge));
+  const totalLabel = $derived(
+    counted.length === 1 && counted[0].badgeLabel ? counted[0].badgeLabel(total) : `${total} new`
+  );
   const shown = (n: number) => (n > 9 ? '9+' : String(n));
 
   const dispatch = createEventDispatcher();
@@ -89,7 +98,7 @@
     class="inline-flex items-center whitespace-nowrap rounded px-3 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 focus:ring-opacity-50"
     aria-expanded={isHovered}
     aria-haspopup="true"
-    aria-label={total > 0 ? `${title} menu, ${total} new` : `${title} menu`}
+    aria-label={total > 0 ? `${title} menu, ${totalLabel}` : `${title} menu`}
   >
     {#if avatar}
       <img

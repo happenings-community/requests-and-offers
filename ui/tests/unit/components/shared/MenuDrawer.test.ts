@@ -4,8 +4,8 @@ import MenuDrawer from '$lib/components/shared/drawers/MenuDrawer.svelte';
 
 /**
  * **The drawer is the only menu on a narrow screen**, so it carries the same My Messages
- * entry the nav bar's Profile menu does, present only when this network has messaging
- * (review of 16 October, F14).
+ * entry the nav bar's menu under the member's picture does, present only when this
+ * network has messaging and for an accepted member (review of 16 October, F14; #349).
  */
 
 const { presence, unread } = vi.hoisted(() => ({
@@ -27,7 +27,12 @@ vi.mock('$lib/extensions/unread-count', async (importActual) => ({
 }));
 
 vi.mock('$lib/stores/users.store.svelte', () => ({
-  default: { currentUser: { original_action_hash: new Uint8Array(Array(39).fill(1)) } }
+  default: {
+    currentUser: {
+      original_action_hash: new Uint8Array(Array(39).fill(1)),
+      status: { status_type: 'accepted' }
+    }
+  }
 }));
 
 vi.mock('$lib/stores/administration.store.svelte', () => ({

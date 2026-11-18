@@ -408,10 +408,7 @@
           <span class="text-surface-500"
             >{myRole === 'provider' ? 'Hours offered' : 'Hours requested'}</span
           >
-          {hoursDecimal ??
-            (hours == null
-              ? 'not stated on the listing'
-              : 'not a number of hours a proposal can carry')}
+          {hoursDecimal ?? (hours == null ? S.form.hoursNotStated : S.form.hoursUnusable)}
         </p>
         <p class="text-xs text-surface-500">{FORM_TERMS_LOCKED}</p>
       </div>

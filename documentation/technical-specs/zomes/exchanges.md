@@ -86,6 +86,7 @@ Never compare the strings with `==` for this.
 The UI mirrors the rule in `ui/src/lib/utils/decimal.ts`, which also does the exact comparison and sums, and in the `ExchangeQuantity` schema.
 What a member types is read by `parseTypedDecimal`: a decimal comma becomes a dot (`"2,5"` is 2.5), except a comma followed by exactly three digits (other than after a lone `0`) or beside a dot, which is refused, so `"1,000"` is never read as one; `typedDecimalProblem` tells the member to write it as `1000`.
 Both sides are tested with the same malformed inputs.
+A proposal's hours that come from a request's `time_estimate_hours`, an f32, become a quantity through `decimalFromNumber`: spelled with the fewest significant digits that give back the same f32 (so 1.1 is `"1.1"`, not `"1.100000023841858"`), then rounded to six places. A value no quantity can carry gives no quantity, and the propose page says so.
 
 This is a change to the `Agreement` entry format (`value` was an `f64`), so it changes the DNA hash and old entries cannot be read.
 It is acceptable inside the alpha 2 network reset.

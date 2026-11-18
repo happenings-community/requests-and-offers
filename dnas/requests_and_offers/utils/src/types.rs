@@ -100,13 +100,6 @@ pub enum TimePreference {
   Other(String),
 }
 
-/// Input for a date range
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct DateRange {
-  pub start: Option<Timestamp>,
-  pub end: Option<Timestamp>,
-}
-
 /// How soon, as a preset (#380): the four the propose and counter pages offer.
 /// A preset's due date is counted from acceptance (3, 14 or 30 days; Flexible
 /// has none) when it is read and by the hREA mirror; nothing in the DNA records it.

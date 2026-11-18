@@ -108,8 +108,12 @@ pub struct Request {
     pub title: String,
     pub description: String,
     pub contact_preference: String,
-    pub date_range: Option<DateRange>,
-    pub time_estimate_hours: Option<f64>,
+    #[serde(default)]
+    pub timeframe: Option<Timeframe>,
+    #[serde(default)]
+    pub time_estimate_hours: Option<String>,
+    #[serde(default)]
+    pub amount: Option<Quantity>,
     pub time_preference: String,
     pub time_zone: Option<String>,
     pub interaction_type: String,
@@ -120,11 +124,28 @@ pub struct Request {
 }
 holochain_serialized_bytes::holochain_serial!(Request);
 
-/// Mirror of `DateRange` from `requests_integrity`.
+/// Mirror of `TimeframePreset` from `utils` (#380).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct DateRange {
-    pub start: Option<i64>,
-    pub end: Option<i64>,
+pub enum TimeframePreset {
+    WithinAFewDays,
+    WithinTwoWeeks,
+    WithinAMonth,
+    Flexible,
+}
+
+/// Mirror of `Timeframe` from `utils` (#380). A `Timestamp` travels as
+/// microseconds.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum Timeframe {
+    Preset(TimeframePreset),
+    Dates { start: Option<i64>, end: i64 },
+}
+
+/// Mirror of `Quantity` from `utils::decimal`: an exact decimal string in a unit.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Quantity {
+    pub value: String,
+    pub unit: String,
 }
 
 // ── Offer mirrors ─────────────────────────────────────────────
@@ -138,6 +159,12 @@ pub struct Offer {
     pub time_zone: Option<String>,
     pub interaction_type: String,
     pub links: Vec<String>,
+    #[serde(default)]
+    pub timeframe: Option<Timeframe>,
+    #[serde(default)]
+    pub time_estimate_hours: Option<String>,
+    #[serde(default)]
+    pub amount: Option<Quantity>,
     pub status: String,
     #[serde(default)]
     pub grant: Option<ActionHash>,

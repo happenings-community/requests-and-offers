@@ -481,8 +481,8 @@ pub enum RequestValidationError {
   #[error("Request description cannot exceed 1000 characters")]
   DescriptionTooLong,
 
-  #[error("Time estimate must be greater than zero")]
-  TimeEstimateNotPositive,
+  #[error("an update of a request replaces a request")]
+  UpdateOfNonRequest,
 
   #[error("Posting a request is a role act: {0}")]
   PostIsRoleAct(String),
@@ -501,6 +501,9 @@ pub enum OfferValidationError {
 
   #[error("Offer description cannot exceed 1000 characters")]
   DescriptionTooLong,
+
+  #[error("an update of an offer replaces an offer")]
+  UpdateOfNonOffer,
 
   #[error("Posting an offer is a role act: {0}")]
   PostIsRoleAct(String),
@@ -969,8 +972,8 @@ mod validation_reason_tests {
       "Request description cannot exceed 1000 characters",
     );
     reads(
-      RequestValidationError::TimeEstimateNotPositive,
-      "Time estimate must be greater than zero",
+      RequestValidationError::UpdateOfNonRequest,
+      "an update of a request replaces a request",
     );
   }
 
@@ -987,6 +990,10 @@ mod validation_reason_tests {
     reads(
       OfferValidationError::DescriptionTooLong,
       "Offer description cannot exceed 1000 characters",
+    );
+    reads(
+      OfferValidationError::UpdateOfNonOffer,
+      "an update of an offer replaces an offer",
     );
   }
 

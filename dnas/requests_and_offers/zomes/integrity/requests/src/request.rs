@@ -1,8 +1,10 @@
 use hdi::prelude::*;
 use utils::{
+  decimal::Quantity,
   errors::{invalid, RequestValidationError},
   grants::{check_act, check_author_or_act, Ability},
-  ContactPreference, DateRange, InteractionType, TimePreference, TimeZone,
+  listing_rules::{amount_problem, time_estimate_problem, timeframe_problem},
+  ContactPreference, InteractionType, TimePreference, TimeZone, Timeframe,
 };
 
 /// Represents the status of a listing
@@ -24,12 +26,19 @@ pub struct Request {
   pub description: String,
   /// The contact preference for the request
   pub contact_preference: ContactPreference,
-  /// The date range for the request (defaults to None for backward compatibility)
+  /// When the request is needed: a preset or a window of dates (#380).
   #[serde(default)]
-  pub date_range: Option<DateRange>,
-  /// The estimated time in hours to complete the request (defaults to None for backward compatibility)
+  pub timeframe: Option<Timeframe>,
+  /// An estimate of the time the task takes, in hours, as an exact decimal
+  /// ("2.5"), zero allowed. It describes the task and is never exchanged: the
+  /// hours an agreement's service is measured in start from it, and hours as
+  /// payment are a medium of exchange, carried by `amount`.
   #[serde(default)]
-  pub time_estimate_hours: Option<f32>,
+  pub time_estimate_hours: Option<String>,
+  /// What the request offers in payment, where it names a figure: an exact
+  /// decimal above zero, in a unit (a currency, or a time-bank medium).
+  #[serde(default)]
+  pub amount: Option<Quantity>,
   /// The preferred time of day for the request
   pub time_preference: TimePreference,
   /// The time zone for the request (defaults to None for backward compatibility)
@@ -67,14 +76,45 @@ pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult
     return invalid(RequestValidationError::DescriptionTooLong);
   }
 
-  // Validate time_estimate_hours if present
-  if let Some(time_estimate) = request.time_estimate_hours {
-    if time_estimate <= 0.0 {
-      return invalid(RequestValidationError::TimeEstimateNotPositive);
-    }
+  if let Some(problem) = time_estimate_problem(&request.time_estimate_hours) {
+    return invalid(problem);
+  }
+  if let Some(problem) = amount_problem(&request.amount) {
+    return invalid(problem);
   }
 
   Ok(ValidateCallbackResult::Valid)
+}
+
+/// The timeframe rule, run after the field rules and before the grant rule.
+///
+/// A window is checked against the writing action's own timestamp `at` when it
+/// is set: on a create, and on an update that changes it. An update that leaves
+/// the window as it was is not checked again, so an expired request can still be
+/// archived or edited. The version an update replaces (`update`) is read to see
+/// whether the window changed.
+pub fn validate_request_timeframe(
+  timeframe: &Option<Timeframe>,
+  at: Timestamp,
+  update: Option<&ActionHash>,
+) -> ExternResult<ValidateCallbackResult> {
+  let Some(timeframe) = timeframe else {
+    return Ok(ValidateCallbackResult::Valid);
+  };
+  if let Some(replaced) = update {
+    let record = must_get_valid_record(replaced.clone())?;
+    let previous: Option<Request> = record.entry().to_app_option().ok().flatten();
+    let Some(previous) = previous else {
+      return invalid(RequestValidationError::UpdateOfNonRequest);
+    };
+    if previous.timeframe.as_ref() == Some(timeframe) {
+      return Ok(ValidateCallbackResult::Valid);
+    }
+  }
+  match timeframe_problem(timeframe, at) {
+    Some(problem) => invalid(problem),
+    None => Ok(ValidateCallbackResult::Valid),
+  }
 }
 
 /// The grant rule for a request, run after the field rules.

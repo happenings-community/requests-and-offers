@@ -39,16 +39,24 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
 /// the record.
 ///
 /// `update` is the action an update updates, `None` for a create: the grant
-/// rule needs it to find the request's creator. Field rules run first.
+/// rule needs it to find the request's creator, and the timeframe rule to see
+/// whether the window changed. `at` is the writing action's own timestamp.
+/// Field rules run first, then the timeframe, then the grant.
 fn validate_entry(
   app_entry: EntryTypes,
   author: &AgentPubKey,
+  at: Timestamp,
   update: Option<&ActionHash>,
 ) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
     EntryTypes::Request(request) => {
       let grant = request.grant.clone();
+      let timeframe = request.timeframe.clone();
       match validate_request(request)? {
+        ValidateCallbackResult::Valid => {}
+        other => return Ok(other),
+      }
+      match validate_request_timeframe(&timeframe, at, update)? {
         ValidateCallbackResult::Valid => validate_request_grant(&grant, author, update),
         other => Ok(other),
       }
@@ -75,12 +83,13 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
       OpEntry::CreateEntry { app_entry, action } => {
-        return validate_entry(app_entry, action.author(), None);
+        return validate_entry(app_entry, action.author(), action.timestamp(), None);
       }
       OpEntry::UpdateEntry { app_entry, action } => {
         return validate_entry(
           app_entry,
           action.author(),
+          action.timestamp(),
           Some(&action.data.original_action_address),
         );
       }
@@ -94,17 +103,19 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       return validate_entry(
         app_entry,
         action.author(),
+        action.timestamp(),
         Some(&action.data.original_action_address),
       );
     }
     FlatOp::CreateRecord(store_record) => match store_record {
       OpRecord::CreateEntry { app_entry, action } => {
-        return validate_entry(app_entry, action.author(), None);
+        return validate_entry(app_entry, action.author(), action.timestamp(), None);
       }
       OpRecord::UpdateEntry { app_entry, action } => {
         return validate_entry(
           app_entry,
           action.author(),
+          action.timestamp(),
           Some(&action.data.original_action_address),
         );
       }
@@ -164,8 +175,10 @@ mod record_op_tests {
   //! entry op runs must give the same verdict on the record op.
   use hdi::prelude::*;
   use utils::validation_harness::{
-    create_ops, set_zome_types, update_op_for_the_original, update_ops,
+    create_ops, created_record, set_zome_types, set_zome_types_holding, update_op_for_the_original,
+    update_ops, update_ops_of, when,
   };
+  use utils::{decimal::Quantity, Timeframe, TimeframePreset};
   use utils::{ContactPreference, InteractionType, TimePreference};
 
   use crate::{validate, EntryTypes, LinkTypes, ListingStatus, Request};
@@ -175,8 +188,9 @@ mod record_op_tests {
       title: String::new(),
       description: "A lift to the station".to_string(),
       contact_preference: ContactPreference::Email,
-      date_range: None,
+      timeframe: None,
       time_estimate_hours: None,
+      amount: None,
       time_preference: TimePreference::NoPreference,
       time_zone: None,
       interaction_type: InteractionType::InPerson,
@@ -224,6 +238,144 @@ mod record_op_tests {
     assert_eq!(
       verdict,
       ValidateCallbackResult::Invalid("Request title cannot be empty".into())
+    );
+  }
+
+  const DAY: i64 = 24 * 60 * 60 * 1_000_000;
+
+  /// A titled request, so the field rules pass and the timeframe rule is reached.
+  fn request_with(
+    timeframe: Option<Timeframe>,
+    hours: Option<&str>,
+    amount: Option<Quantity>,
+  ) -> Request {
+    Request {
+      title: "A lift".to_string(),
+      description: "A lift to the station".to_string(),
+      contact_preference: ContactPreference::Email,
+      time_preference: TimePreference::NoPreference,
+      time_zone: None,
+      interaction_type: InteractionType::InPerson,
+      links: vec![],
+      timeframe,
+      time_estimate_hours: hours.map(str::to_string),
+      amount,
+      status: ListingStatus::Active,
+      grant: None,
+    }
+  }
+
+  fn bytes(entry: Request) -> SerializedBytes {
+    entry.try_into().unwrap()
+  }
+
+  /// A window ending `days` after the harness's action time.
+  fn ending_in(days: i64) -> Timeframe {
+    Timeframe::Dates {
+      start: None,
+      end: Timestamp::from_micros(when().as_micros() + days * DAY),
+    }
+  }
+
+  fn after(days: i64) -> Timestamp {
+    Timestamp::from_micros(when().as_micros() + days * DAY)
+  }
+
+  fn all_three((a, b, c): (Op, Op, Op), original: Record) -> [ValidateCallbackResult; 3] {
+    set_zome_types_holding(EntryTypes::ENUM_LEN, LinkTypes::ENUM_LEN, vec![original]);
+    [
+      validate(a).unwrap(),
+      validate(b).unwrap(),
+      validate(c).unwrap(),
+    ]
+  }
+
+  /// Goes red if the timeframe rule is skipped, or measured against anything but the
+  /// writing action's own timestamp, on either op.
+  #[test]
+  fn a_create_with_an_ended_window_is_refused_on_both_ops() {
+    let (entry, record) = verdicts(create_ops(
+      0,
+      bytes(request_with(Some(ending_in(-1)), None, None)),
+    ));
+    assert_eq!(
+      entry,
+      ValidateCallbackResult::Invalid("a timeframe must end after the moment it is written".into())
+    );
+    assert_eq!(record, entry);
+  }
+
+  /// An expired request can still be archived or edited: an update that leaves the window
+  /// as it was is not checked again. Goes red without the "unchanged" shortcut.
+  #[test]
+  fn an_update_that_keeps_an_expired_window_is_accepted_on_all_three_ops() {
+    let window = Some(ending_in(5));
+    let original = created_record(0, bytes(request_with(window.clone(), None, None)));
+    let verdicts = all_three(
+      update_ops_of(
+        0,
+        &original,
+        bytes(request_with(window, None, None)),
+        after(30),
+      ),
+      original,
+    );
+    for verdict in verdicts {
+      assert_eq!(verdict, ValidateCallbackResult::Valid);
+    }
+  }
+
+  /// Goes red if any of the three arms skips the timeframe rule on an update.
+  #[test]
+  fn an_update_that_moves_the_window_into_the_past_is_refused_on_all_three_ops() {
+    let original = created_record(0, bytes(request_with(Some(ending_in(40)), None, None)));
+    let verdicts = all_three(
+      update_ops_of(
+        0,
+        &original,
+        bytes(request_with(Some(ending_in(5)), None, None)),
+        after(30),
+      ),
+      original,
+    );
+    for verdict in verdicts {
+      assert_eq!(
+        verdict,
+        ValidateCallbackResult::Invalid(
+          "a timeframe must end after the moment it is written".into()
+        )
+      );
+    }
+  }
+
+  #[test]
+  fn a_preset_needs_no_date_and_zero_hours_are_an_estimate() {
+    let preset = Some(Timeframe::Preset(TimeframePreset::WithinTwoWeeks));
+    let (entry, record) = verdicts(create_ops(0, bytes(request_with(preset, Some("0"), None))));
+    // The grant rule is reached and refuses for the missing grant: the field and
+    // timeframe rules passed.
+    assert!(
+      matches!(&entry, ValidateCallbackResult::Invalid(r) if r.contains("role act")),
+      "{entry:?}"
+    );
+    assert_eq!(record, entry);
+  }
+
+  #[test]
+  fn a_time_estimate_or_an_amount_that_is_not_a_decimal_is_refused() {
+    let (entry, _) = verdicts(create_ops(0, bytes(request_with(None, Some("1e3"), None))));
+    assert!(
+      matches!(&entry, ValidateCallbackResult::Invalid(r) if r.starts_with("a time estimate is not a decimal")),
+      "{entry:?}"
+    );
+    let zero = Some(Quantity {
+      value: "0".into(),
+      unit: "GBP".into(),
+    });
+    let (entry, _) = verdicts(create_ops(0, bytes(request_with(None, None, zero))));
+    assert_eq!(
+      entry,
+      ValidateCallbackResult::Invalid("an amount must be above zero, with a unit".into())
     );
   }
 }

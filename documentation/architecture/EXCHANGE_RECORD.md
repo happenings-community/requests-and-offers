@@ -12,15 +12,15 @@ The bulletin board pivot (`ab462063`) left R&O able to show a listing and the me
 
 ## 2. What it is, and is not
 
-It is the coordination layer: who responded to which listing, what the two of them agreed, whether each did their part, what each thought of it. Negotiation happens off-app, by whatever means the two people choose, using the contact details the profile already exposes (#220). The record starts when they have agreed.
+It is the coordination layer: who responded to which listing, what the two of them agreed, whether each did their part, what each thought of it. Negotiation happens in a conversation where the network has messaging; where it has none, off-app, by whatever means the two people choose, using the contact details the profile already exposes (#220). The record starts when they have agreed.
 
 It is not an hREA agreement, a message thread, a dispute process, or a settlement. Each of those is a later layer that describes or extends this record; section 9 shows how.
 
 ## 3. The flow
 
 1. B reads A's listing and marks interest. A sees B on the listing and on My Listings.
-2. A and B agree terms off-app.
-3. Either of them writes the agreement, naming the other and the terms. The other sees it on their dashboard.
+2. A and B agree what to exchange: in a conversation where the network has messaging, otherwise off-app.
+3. Either of them writes the agreement, naming the other. Its terms come only from published listings (below), never typed in. The other sees it on their dashboard, and in their conversation with the proposer where there is messaging.
 4. The other accepts or declines.
 5. Each party, when their part is done, marks it done.
 6. Each party, optionally, reviews.
@@ -33,14 +33,16 @@ The medium is the type of exchange, not the exchange itself. It decides what flo
 
 | Medium | What flows back | How it is named | If nothing suits |
 |---|---|---|---|
-| Service Exchange | A service from the other side | Chosen from their active offers | "None of these — get in touch" opens their contact details, so the proposer can ask about another skill they could list, or suggest a different medium. Nothing can be sent until a service is named. |
+| Service Exchange | A service from the other side | Chosen from their active offers | "None of these — get in touch" opens the conversation with them where there is messaging, and their contact details where there is not, so the proposer can ask about another skill they could list, or suggest a different medium. Nothing can be sent until a service is named. |
 | Free/Pay it Forward | Nothing | — | — |
-| A currency (HoloFuel) | An amount | Typed in | — |
-| Let's Discuss | — | — | Not in alpha.1. It returns as messaging in alpha.2. |
+| A currency (HoloFuel) | An amount | Not yet carried: no listing publishes an amount, and nothing is typed in (#307) | — |
+| Let's Discuss | — | — | Not a medium. Discussing is messaging, from alpha.2. |
 
 Alpha.1 has no Let's Discuss medium, but it does have a way to ask to discuss: inside Service Exchange, where declining what is on offer opens the contact modal rather than a dead end. A request naming Service Exchange also needs an active offer behind it before it can be published — a Service Exchange names a real offer on both sides.
 
-Let's Discuss was removed after design review found it being used as a chat channel through the terms box, and because an agreement whose medium is Let's Discuss records only that the parties would settle it somewhere else: the terms carry the deal, and the ledger holds a placeholder.
+Let's Discuss was removed after design review found it being used as a chat channel through the terms box, and because an agreement whose medium is Let's Discuss records only that the parties would settle it somewhere else, with the ledger holding a placeholder.
+
+**Every term comes from something already published** (Sam, 4 October; from alpha.2). What is provided is the listing's service type; how much is the listing's time estimate, which only a request publishes, so a proposal from an offer carries no quantity; what comes back is the medium, and for a Service Exchange one of the other side's active offers. The free-text terms box is gone and `terms` is written empty. To change a term, a member changes the listing or publishes a new one, so an agreement can always be checked against the listing it came from. What a listing cannot carry yet (an offer's hours, a currency amount) is tracked in #307.
 
 ## 4. Entry types
 
@@ -161,7 +163,7 @@ When #90 lands, the mapping runs over existing agreements and new ones are writt
 
 ## 10. Screens
 
-The design system has the six: exchanges, detail, proposal, confirm, complete, review. Two changes for the interim. The proposal opens from the listing, or from an interest on it, rather than from a message thread. A listing gains an "interested" action for readers and, for its author, the list of who is interested with a "propose" beside each name.
+The design system has the six: exchanges, detail, proposal, confirm, complete, review. The proposal opens from the listing, from an interest on it, or, where the network has messaging, from the Make a proposal picker in a conversation. Where it was opened decides where sending it leads: back to that conversation, or to the exchange's own page. A listing has an "interested" action for readers and, for its author, the list of who is interested with a "propose" beside each name.
 
 ## 11. Notifications
 

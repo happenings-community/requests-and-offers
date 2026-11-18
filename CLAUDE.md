@@ -148,7 +148,7 @@ Key helpers used across all stores:
 ### Zome errors (`utils/src/errors.rs`)
 
 **Rule for every zome function, human or agent written:** a zome returns errors from `dnas/requests_and_offers/utils/src/errors.rs`, never a message built by hand with `wasm_error!(WasmErrorInner::Guest(...))`.
-`CommonError` covers the generic cases (`EntryNotFound`, `RecordNotFound`, `LinkNotFound`, `EntryOperationFailed`, `InvalidData`, ...), and each domain has its own `thiserror` enum (`UsersError`, `OrganizationsError`, `AdministrationError`, `StatusError`, `ServiceTypeError`), each with an `impl From<...> for WasmError`, so `?` converts it.
+`CommonError` covers the generic cases (`EntryNotFound`, `RecordNotFound`, `LinkNotFound`, `EntryOperationFailed`, `InvalidData`, ...), and each domain has its own `thiserror` enum (`UsersError`, `OrganizationsError`, `AdministrationError`, `StatusError`, `ServiceTypeError`, `MessagingError`), each with an `impl From<...> for WasmError`, so `?` converts it.
 A domain without an enum gets one there, with its `From` impl, in the PR that needs it.
 ```rust
 use utils::errors::CommonError;

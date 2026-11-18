@@ -11,6 +11,7 @@
   import { getUserPictureUrl } from '$lib/utils';
   import { Effect as E } from 'effect';
   import { runEffect } from '$lib/utils/effect';
+  import { paths } from '$lib/paths';
 
   type Props = {
     title?: string;
@@ -154,7 +155,7 @@
   // Navigate to user profile
   function navigateToUserProfile(user: UIUser) {
     if (user.original_action_hash) {
-      goto(`/users/${encodeHashToBase64(user.original_action_hash)}`);
+      goto(paths.userProfile(user.original_action_hash));
     }
   }
 </script>

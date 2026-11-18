@@ -116,6 +116,18 @@ pub fn live_administrators() -> ExternResult<HashSet<AgentPubKey>> {
   Ok(holders)
 }
 
+/// The agents who hold a live network administrator grant, sorted, for another zome.
+///
+/// Messaging reads this to address a message to the administrators. The roster
+/// links cannot answer it: `revoke_role` leaves a revoked administrator on them,
+/// and a tombstone on one needs no grant, so any member can empty the roster.
+#[hdk_extern]
+pub fn get_live_administrator_agents(_: ()) -> ExternResult<Vec<AgentPubKey>> {
+  let mut agents: Vec<AgentPubKey> = live_administrators()?.into_iter().collect();
+  agents.sort();
+  Ok(agents)
+}
+
 /// Whether any agent holds a live network administrator grant. `create_user`
 /// asks this before offering the first user the root on a network with no
 /// progenitor key, so it and [`authority_for`] cannot disagree.

@@ -1,0 +1,1392 @@
+//! Messaging inbox: encryption first.
+//!
+//! These three cases prove the encryption before anything else is built on it. A
+//! recipient reads what was sent, a sender reads their own sent copy, and a third
+//! member holding the same public entry cannot read it. Everything else in the inbox
+//! rests on those, so they come first and they run first.
+//!
+//! The entry is public: sender, recipient and timestamp are on the DHT for the life of
+//! the network, and only the content is private. That is a deliberate trade,
+//! and the third case is what demonstrates the private half actually holds.
+//!
+//! Role messages and cases are in `messaging_roles.rs`. Everything here is personal chat,
+//! and these cases assert that it stays that way: a personal message carries no role,
+//! which is what keeps it in `get_inbox`.
+//!
+//! Each conductor's first zome call costs about twenty seconds on a developer machine,
+//! so expect minutes per case. Run one case per process.
+
+use holochain::prelude::*;
+use holochain::sweettest::*;
+use requests_and_offers_sweettest::common::*;
+use serde::{Deserialize, Serialize};
+
+/// Mirror of the coordinator's `SendMessageInput`, for an ordinary message.
+///
+/// **No role fields, deliberately.** The coordinator's `role`, `direction` and `case` are
+/// all `#[serde(default)]`, so a body sent through this struct arrives with none of them
+/// and has to decode as a personal message. Every case in this file goes through here,
+/// which makes that a real test rather than one that sets the fields to nothing explicitly
+/// and proves less.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SendMessageInput {
+    to_user: ActionHash,
+    content: String,
+    /// Matches copies of one message, and is required: `plain` gives each send a fresh
+    /// one. Left empty, the field is not sent at all, which is how the case that is about
+    /// it sends none.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    send_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    read_up_to: Option<Timestamp>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    listing: Option<ActionHash>,
+}
+
+/// An ordinary message with a fresh send id, no read mark and no listing.
+fn plain(to_user: ActionHash, content: impl Into<String>) -> SendMessageInput {
+    SendMessageInput {
+        to_user,
+        content: content.into(),
+        send_id: fresh_send_id(),
+        read_up_to: None,
+        listing: None,
+    }
+}
+
+/// Mirror of the coordinator's `FindSentInput`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FindSentInput {
+    send_id: String,
+    since: Timestamp,
+}
+
+/// Mirror of the coordinator's `SentMessage`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SentMessage {
+    agent: AgentPubKey,
+    hash: ActionHash,
+}
+
+/// Mirror of the coordinator's `InboxEntry`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+enum InboxEntry {
+    Read(Message),
+    Unreadable {
+        hash: ActionHash,
+        from: AgentPubKey,
+        at: Timestamp,
+    },
+}
+
+/// The readable messages, failing loudly if any entry could not be decrypted.
+///
+/// Every `Inbox` link is encrypted to the agent reading it, so an `Unreadable` entry is a
+/// fault. Routing every test's inbox read through this means none of them can pass while
+/// quietly holding one.
+fn readable(entries: Vec<InboxEntry>) -> Vec<Message> {
+    let mut out = Vec::new();
+    for entry in entries {
+        match entry {
+            InboxEntry::Read(message) => out.push(message),
+            InboxEntry::Unreadable { hash, from, .. } => panic!(
+                "inbox holds an undecryptable message {hash:?} from {from:?}; every inbox \
+                 link is encrypted to this agent, so this is a fault"
+            ),
+        }
+    }
+    out
+}
+
+/// Mirror of the coordinator's `MessageRead` outcomes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+enum MessageRead {
+    NotFound,
+    Withheld,
+    Unreadable,
+    Read(Message),
+}
+
+/// Mirror of the coordinator's read model.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Message {
+    hash: ActionHash,
+    from: AgentPubKey,
+    to: AgentPubKey,
+    at: Timestamp,
+    content: String,
+    #[serde(default)]
+    send_id: String,
+    #[serde(default)]
+    read_up_to: Option<Timestamp>,
+    #[serde(default)]
+    listing: Option<ActionHash>,
+    /// Kept in the mirror although every message in this file is personal, so that these
+    /// cases can assert they stay `None`. A personal message that grew a role would
+    /// otherwise pass here and only fail in the role suite.
+    ///
+    /// `case` is deliberately not mirrored: it carries `ActionHash`es, and
+    /// `serde_json::Value` cannot receive msgpack byte arrays, as `exchanges.rs` notes.
+    /// A personal message cannot acquire a case without acquiring a role first, and
+    /// `role` is what these assertions test.
+    #[serde(default)]
+    role: Option<serde_json::Value>,
+    #[serde(default)]
+    direction: Option<serde_json::Value>,
+}
+
+/// Alice as progenitor and admin, both users accepted, and each `User`'s hash.
+///
+/// Accepting both matters: `send_message` refuses anyone who is not an accepted member,
+/// so without this the first case would fail on the membership check rather than telling
+/// us anything about encryption.
+async fn two_accepted_members() -> (SweetConductorBatch, SweetCell, SweetCell, ActionHash, ActionHash)
+{
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
+
+    conductors[0]
+        .call::<_, Record>(
+            &alice.zome("users_organizations"),
+            "create_user",
+            sample_user("Alice"),
+        )
+        .await;
+    conductors[1]
+        .call::<_, Record>(
+            &bob.zome("users_organizations"),
+            "create_user",
+            sample_user("Bob"),
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let alice_user = user_hash_of(&conductors[0], &alice).await;
+    let bob_user = user_hash_of(&conductors[1], &bob).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user.clone()).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user.clone()).await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    (conductors, alice, bob, alice_user, bob_user)
+}
+
+async fn user_hash_of(conductor: &SweetConductor, cell: &SweetCell) -> ActionHash {
+    let links: Vec<Link> = conductor
+        .call(
+            &cell.zome("users_organizations"),
+            "get_agent_user",
+            cell.agent_pubkey().clone(),
+        )
+        .await;
+    links[0].target.clone().into_action_hash().unwrap()
+}
+
+/// The recipient reads what was sent.
+#[tokio::test(flavor = "multi_thread")]
+async fn recipient_reads_the_message() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+
+    let sent: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(bob_user, "the kettle is on".to_string()),
+        )
+        .await;
+
+    assert_eq!(
+        sent.len(),
+        1,
+        "Bob has one agent, so there should be one copy"
+    );
+    assert_eq!(
+        &sent[0].agent,
+        bob.agent_pubkey(),
+        "the copy should be addressed to Bob's agent"
+    );
+
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+
+    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+
+    assert_eq!(inbox.len(), 1, "Bob should have exactly one message");
+    assert_eq!(
+        inbox[0].content, "the kettle is on",
+        "content should round-trip through encryption"
+    );
+    // What the conversation ID used to prove here is gone with it: a thread is keyed by
+    // the counterparty and carries no context. What is worth proving instead
+    // is that an ordinary message claims no role, because that is what keeps it in
+    // `get_inbox` and out of every role reader.
+    assert!(
+        inbox[0].role.is_none() && inbox[0].direction.is_none(),
+        "a personal message should carry no role and no direction; got role {:?} \
+         direction {:?}",
+        inbox[0].role,
+        inbox[0].direction
+    );
+    assert_eq!(
+        &inbox[0].from,
+        alice.agent_pubkey(),
+        "from should come from the action's author, not the payload"
+    );
+}
+
+/// The sender reads their own sent copy.
+///
+/// This is the shared-key assumption, and the reason it is a test rather than a comment:
+/// `get_sent` decrypts the recipient's copy by passing the sender as recipient and the
+/// recipient as sender, which only works if both directions derive the same secret.
+#[tokio::test(flavor = "multi_thread")]
+async fn sender_reads_their_own_sent_message() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+
+    let _: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(bob_user, "I said the kettle is on".to_string()),
+        )
+        .await;
+
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+
+    let sent: Vec<Message> = conductors[0].call(&alice.zome("messaging"), "get_sent", ()).await;
+
+    assert_eq!(sent.len(), 1, "Alice should see the one message she sent");
+    assert_eq!(
+        sent[0].content, "I said the kettle is on",
+        "the sender should be able to decrypt their own copy"
+    );
+    assert_eq!(
+        &sent[0].to,
+        bob.agent_pubkey(),
+        "the copy's recipient comes from the Inbox link's base"
+    );
+    assert_eq!(
+        &sent[0].from,
+        alice.agent_pubkey(),
+        "Alice is the author of her own sent message"
+    );
+}
+
+/// A third member holds the entry and cannot read it.
+///
+/// Carol is an accepted member on the same DNA, so she gossips the same public entry.
+/// The assertion is in two halves: she can fetch the record, proving the entry really is
+/// public and she really does hold it, and her inbox is empty, proving the content is
+/// not readable by her.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_third_member_cannot_read_the_message() {
+    let (conductors, alice, bob, carol) = setup_three_agents_with_alice_as_progenitor().await;
+
+    for (i, (cell, name)) in [(&alice, "Alice"), (&bob, "Bob"), (&carol, "Carol")]
+        .into_iter()
+        .enumerate()
+    {
+        conductors[i]
+            .call::<_, Record>(
+                &cell.zome("users_organizations"),
+                "create_user",
+                sample_user(name),
+            )
+            .await;
+    }
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // Alice is the progenitor here, so she is the admin who can accept members. With
+    // the plain three-agent setup nobody holds the progenitor key and acceptance fails
+    // with Unauthorized, which is what the first attempt at this test did.
+    let alice_user = user_hash_of(&conductors[0], &alice).await;
+    let bob_user = user_hash_of(&conductors[1], &bob).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user.clone()).await;
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    let sent: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(bob_user, "not for Carol".to_string()),
+        )
+        .await;
+    let hash = sent[0].hash.clone();
+
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // The claim is not that Carol sees nothing, which would be true anyway since no
+    // Inbox link points at her. It is that she *holds* the entry and cannot read it.
+    // Only `Unreadable` says both at once: `NotFound` would mean the DHT had not reached
+    // her, and the assertion would prove nothing about the encryption.
+    let carol_read: MessageRead = conductors[2]
+        .call(&carol.zome("messaging"), "get_message", hash.clone())
+        .await;
+    assert!(
+        matches!(carol_read, MessageRead::Unreadable),
+        "Carol should hold the ciphertext and fail to decrypt it, got {carol_read:?}"
+    );
+
+    // And Bob, the actual recipient, reads the same hash.
+    let bob_read: MessageRead = conductors[1]
+        .call(&bob.zome("messaging"), "get_message", hash.clone())
+        .await;
+    match bob_read {
+        MessageRead::Read(message) => assert_eq!(
+            message.content, "not for Carol",
+            "the recipient reads the same entry Carol cannot"
+        ),
+        other => panic!("Bob should be able to read his own message, got {other:?}"),
+    }
+}
+
+/// The recipient can be offline when the message is sent.
+///
+/// The stored entry is the delivery guarantee, so a message written while Bob is down
+/// should be waiting for him when he comes back. Nothing here depends on the nudge,
+/// which Bob cannot have received.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_message_waits_for_an_offline_recipient() {
+    let (mut conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+
+    conductors[1].shutdown().await;
+
+    let _: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(bob_user, "sent while you were out".to_string()),
+        )
+        .await;
+
+    conductors[1].startup().await;
+    await_consistency_s(60, [&alice, &bob]).await.unwrap();
+
+    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+
+    assert_eq!(
+        inbox.len(),
+        1,
+        "the stored entry is the delivery guarantee, so it should be waiting"
+    );
+    assert_eq!(inbox[0].content, "sent while you were out");
+}
+
+/// The sender can be offline when the recipient reads.
+///
+/// This is the dependency worth proving rather than assuming: the guarantee is the
+/// stored entry, but a DHT still needs *somebody* holding it to be online. Carol is that
+/// somebody here. Alice sends while Bob is down, Carol takes the entry and the link,
+/// Alice goes down, Bob comes up, and the message still arrives.
+///
+/// If this failed, delivery would depend on the sender staying online, which would make
+/// the whole design weaker than advertised.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_message_arrives_with_the_sender_offline() {
+    let (mut conductors, alice, bob, carol) =
+        setup_three_agents_with_alice_as_progenitor().await;
+
+    for (i, (cell, name)) in [(&alice, "Alice"), (&bob, "Bob"), (&carol, "Carol")]
+        .into_iter()
+        .enumerate()
+    {
+        conductors[i]
+            .call::<_, Record>(
+                &cell.zome("users_organizations"),
+                "create_user",
+                sample_user(name),
+            )
+            .await;
+    }
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    let alice_user = user_hash_of(&conductors[0], &alice).await;
+    let bob_user = user_hash_of(&conductors[1], &bob).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user.clone()).await;
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // Bob goes down before the message exists.
+    conductors[1].shutdown().await;
+
+    let sent: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(bob_user, "Carol is holding this for you".to_string()),
+        )
+        .await;
+    let hash = sent[0].hash.clone();
+
+    // Carol must hold the entry *locally* before Alice leaves, or there is nobody to
+    // serve it and this test proves nothing about the sender being offline.
+    //
+    // `get_message` is not the way to establish that: it does a network `get`, so Carol
+    // could report `Unreadable` having just fetched the entry from Alice, who is about to
+    // disappear. Consistency is the right instrument, and it covers **both** published
+    // items, the entry and the `Inbox` link, on both cells. Bob's `get_inbox` needs the
+    // link as much as the entry.
+    await_consistency_s(90, [&alice, &carol]).await.expect(
+        "Alice and Carol never reached consistency, so Carol is not holding the message \
+         and the sender-offline case cannot be tested",
+    );
+
+    // Now that holding is a local fact, this is a privacy assertion rather than a
+    // liveness one: Carol has the ciphertext and cannot read it.
+    let carol_read: MessageRead = conductors[2]
+        .call(&carol.zome("messaging"), "get_message", hash.clone())
+        .await;
+    assert!(
+        matches!(carol_read, MessageRead::Unreadable),
+        "Carol should hold the ciphertext and fail to decrypt it, got {carol_read:?}"
+    );
+
+    // Now the sender leaves and the recipient returns.
+    conductors[0].shutdown().await;
+    conductors[1].startup().await;
+
+    // Read once before waiting, purely to record whether this run hit the race. **Not
+    // asserted on**: the count here depends on timing by design, and is 0 when Bob has not
+    // reconnected yet and 1 when he has. The raw `Vec<InboxEntry>` is used rather than
+    // `readable()` so an `Unreadable` entry is counted rather than panicked on.
+    //
+    // "before: 0, after: 1" on a runner shows the race and its fix in one run. "before: 1"
+    // says that run did not hit the race, so its green proves less, and we know that rather
+    // than assuming it.
+    //
+    // On 0.7 the probe can also *fail*: the iroh transport refuses an outbound connection
+    // until the restarted conductor has registered with its relay
+    // (`kitsune2_transport_iroh` 0.5.2 `src/lib.rs:1026`, "Connection attempted before
+    // home relay URL is known"), and `get_links` surfaces that as a call error. That is
+    // the same fact as "not reconnected yet", so it is recorded, not unwrapped.
+    match conductors[1]
+        .call_fallible::<_, Vec<InboxEntry>>(&bob.zome("messaging"), "get_inbox", ())
+        .await
+    {
+        Ok(before) => eprintln!(
+            "[inbox] before the wait, Bob's inbox held {} entries",
+            before.len()
+        ),
+        Err(e) => eprintln!("[inbox] before the wait, Bob's inbox was unreachable: {e}"),
+    }
+
+    // Bob is up but not yet talking to anyone. `get_inbox` reads from the network, so
+    // without this it can return nothing simply because there is no peer to ask, which is
+    // what failed on a hosted runner where reconnecting is slower than here. The
+    // offline-recipient case restarts Bob the same way and waits, which is why it passed.
+    //
+    // Alice is offline by this point, so consistency can only be reached through Carol.
+    // That makes the wait part of the claim rather than a delay bolted on: it proves Bob is
+    // being served by a holder that is not the sender.
+    await_consistency_s(60, [&bob, &carol]).await.expect(
+        "Bob never reached Carol after restarting, so nobody was serving the message and \
+         this test cannot say anything about the sender being offline",
+    );
+
+    let after: Vec<InboxEntry> = conductors[1]
+        .call(&bob.zome("messaging"), "get_inbox", ())
+        .await;
+    eprintln!(
+        "[inbox] after the wait, Bob's inbox held {} entries",
+        after.len()
+    );
+    let inbox = readable(after);
+
+    assert_eq!(
+        inbox.len(),
+        1,
+        "Carol was holding the entry and the link, so Bob should still receive it"
+    );
+    assert_eq!(inbox[0].content, "Carol is holding this for you");
+    assert_eq!(
+        &inbox[0].from,
+        alice.agent_pubkey(),
+        "from still names Alice, who is offline"
+    );
+}
+
+/// P6a: a sender who is not an accepted member is refused.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_unaccepted_sender_is_refused() {
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
+
+    // Both have profiles; only Alice is accepted. Bob's is left pending.
+    conductors[0]
+        .call::<_, Record>(
+            &alice.zome("users_organizations"),
+            "create_user",
+            sample_user("Alice"),
+        )
+        .await;
+    conductors[1]
+        .call::<_, Record>(
+            &bob.zome("users_organizations"),
+            "create_user",
+            sample_user("Bob"),
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let alice_user = user_hash_of(&conductors[0], &alice).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user.clone()).await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // Bob, still pending, tries to write to Alice.
+    let refused = conductors[1]
+        .call_fallible::<_, Vec<SentMessage>>(
+            &bob.zome("messaging"),
+            "send_message",
+            plain(alice_user, "let me in".to_string()),
+        )
+        .await;
+
+    let err = match refused {
+        Err(e) => format!("{e:?}"),
+        Ok(sent) => panic!("a pending member's send should be refused, but it returned {sent:?}"),
+    };
+    assert!(
+        err.contains("not accepted"),
+        "the refusal should say the profile is not accepted, so the UI can explain it; got {err}"
+    );
+}
+
+/// P6c: you must be accepted to send, not to receive, and only an administrator may
+/// write to a member who is not accepted.
+///
+/// A member waiting for approval can be asked what their application is missing, but
+/// not by everyone: Bob, an accepted member who is not an administrator, is refused,
+/// and Alice, the administrator, is not. Carol, still pending, can read what Alice
+/// wrote, which is the point of letting her receive it.
+#[tokio::test(flavor = "multi_thread")]
+async fn only_an_administrator_may_write_to_a_member_who_is_not_accepted() {
+    let (conductors, alice, bob, carol) = setup_three_agents_with_alice_as_progenitor().await;
+
+    for (i, (cell, name)) in [(&alice, "Alice"), (&bob, "Bob"), (&carol, "Carol")]
+        .into_iter()
+        .enumerate()
+    {
+        conductors[i]
+            .call::<_, Record>(
+                &cell.zome("users_organizations"),
+                "create_user",
+                sample_user(name),
+            )
+            .await;
+    }
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // Alice and Bob accepted; Carol left pending. Alice is the progenitor, so
+    // `create_user` made her the network administrator.
+    let alice_user = user_hash_of(&conductors[0], &alice).await;
+    let bob_user = user_hash_of(&conductors[1], &bob).await;
+    let carol_user = user_hash_of(&conductors[2], &carol).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, alice_user).await;
+    accept_entity(&conductors[0], &alice, ENTITY_USERS, bob_user).await;
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // Bob is accepted but not an administrator: refused.
+    let refused = conductors[1]
+        .call_fallible::<_, Vec<SentMessage>>(
+            &bob.zome("messaging"),
+            "send_message",
+            plain(carol_user.clone(), "hello"),
+        )
+        .await;
+    let err = match refused {
+        Err(e) => format!("{e:?}"),
+        Ok(sent) => panic!(
+            "a member who is not an administrator should not reach a pending member, but \
+             the send returned {sent:?}"
+        ),
+    };
+    assert!(
+        err.contains("only a network administrator"),
+        "the refusal should say who may write to a member who is not accepted; got {err}"
+    );
+
+    // Alice, the administrator, can write to Carol.
+    let sent: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(carol_user, "what does your application leave out?"),
+        )
+        .await;
+    assert_eq!(sent.len(), 1, "Carol has one agent, so one copy is written");
+    let hash = sent[0].hash.clone();
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // And Carol, still pending, reads it.
+    let read: MessageRead = conductors[2]
+        .call(&carol.zome("messaging"), "get_message", hash)
+        .await;
+    match read {
+        MessageRead::Read(message) => assert_eq!(
+            message.content, "what does your application leave out?",
+            "a pending member reads what an administrator wrote to them"
+        ),
+        other => panic!("Carol should be able to read Alice's message, got {other:?}"),
+    }
+}
+
+/// A reader who is no longer accepted hears only from administrators, on both read paths.
+///
+/// The reading-side twin of the test above. Carol is accepted when Bob and Alice (the
+/// administrator) write to her, so both sends pass the sender-side check. Then Alice
+/// rejects Carol. From then on Carol's own node shows her Alice's message and withholds
+/// Bob's, whether she reads her inbox or fetches one message by hash, as a nudge does.
+///
+/// **To make this go red:** in `inbox.rs`, drop the `reader_is_restricted` check from
+/// `get_message` (Bob's message then comes back `Read`), or have `reader_is_restricted`
+/// return `false` (the inbox then shows Bob's message too).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_reader_who_is_not_accepted_hears_only_from_administrators() {
+    let (conductors, alice, bob, carol) = setup_three_agents_with_alice_as_progenitor().await;
+
+    for (i, (cell, name)) in [(&alice, "Alice"), (&bob, "Bob"), (&carol, "Carol")]
+        .into_iter()
+        .enumerate()
+    {
+        conductors[i]
+            .call::<_, Record>(
+                &cell.zome("users_organizations"),
+                "create_user",
+                sample_user(name),
+            )
+            .await;
+    }
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    let alice_user = user_hash_of(&conductors[0], &alice).await;
+    let bob_user = user_hash_of(&conductors[1], &bob).await;
+    let carol_user = user_hash_of(&conductors[2], &carol).await;
+    for user in [alice_user, bob_user, carol_user.clone()] {
+        accept_entity(&conductors[0], &alice, ENTITY_USERS, user).await;
+    }
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // Both written while Carol is accepted, so both pass the sender-side check.
+    let from_bob = send_one(&conductors[1], &bob, carol_user.clone(), "from a member").await;
+    let from_alice = send_one(
+        &conductors[0],
+        &alice,
+        carol_user.clone(),
+        "from an administrator",
+    )
+    .await;
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    let before = readable(conductors[2].call(&carol.zome("messaging"), "get_inbox", ()).await);
+    assert_eq!(
+        before.len(),
+        2,
+        "while Carol is accepted she reads both messages, got {before:?}"
+    );
+
+    reject_entity(
+        &conductors[0],
+        &alice,
+        ENTITY_USERS,
+        carol_user,
+        "testing the reading-side rule",
+    )
+    .await;
+    await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
+
+    // The inbox path.
+    let after = readable(conductors[2].call(&carol.zome("messaging"), "get_inbox", ()).await);
+    let contents: Vec<&str> = after.iter().map(|m| m.content.as_str()).collect();
+    assert_eq!(
+        contents,
+        vec!["from an administrator"],
+        "a reader who is not accepted should see only the administrator's message"
+    );
+
+    // The nudge path: one message by hash.
+    let bob_read: MessageRead = conductors[2]
+        .call(&carol.zome("messaging"), "get_message", from_bob)
+        .await;
+    assert!(
+        matches!(bob_read, MessageRead::Withheld),
+        "get_message should withhold a member's message from a reader who is not \
+         accepted, got {bob_read:?}"
+    );
+    let alice_read: MessageRead = conductors[2]
+        .call(&carol.zome("messaging"), "get_message", from_alice)
+        .await;
+    match alice_read {
+        MessageRead::Read(message) => assert_eq!(message.content, "from an administrator"),
+        other => panic!("Carol should still read the administrator's message, got {other:?}"),
+    }
+}
+
+/// P6b: a message from an author who is no longer accepted disappears from the inbox.
+///
+/// The sender-side check passed when this message was written. What this proves is the
+/// second check, on the reading side: the recipient's own node decides what they see, and
+/// it decides again every time they look.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_message_from_a_since_rejected_author_is_hidden() {
+    let (conductors, alice, bob, alice_user, bob_user) = two_accepted_members().await;
+
+    let _: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(bob_user, "written while I was in good standing".to_string()),
+        )
+        .await;
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+
+    let before = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    assert_eq!(
+        before.len(),
+        1,
+        "Bob should see the message while its author is accepted"
+    );
+
+    // Alice, as admin, rejects her own profile. Contrived, but it is the same state
+    // change as an admin rejecting anyone, and it needs no fourth agent.
+    reject_entity(
+        &conductors[0],
+        &alice,
+        ENTITY_USERS,
+        alice_user,
+        "testing the read-side recheck",
+    )
+    .await;
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+
+    let after = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    assert!(
+        after.is_empty(),
+        "once the author is no longer accepted the message should be hidden, got {after:?}"
+    );
+}
+
+/// What `get_inbox_delta` returns, as the interface reads it.
+#[derive(Serialize, Deserialize, Debug)]
+struct GetInboxDeltaInput {
+    known: Vec<ActionHash>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct InboxDelta {
+    visible: Vec<ActionHash>,
+    entries: Vec<InboxEntry>,
+}
+
+/// Send one plain message, for tests that send more than once.
+async fn send_one(
+    conductor: &SweetConductor,
+    sender: &SweetCell,
+    to_user: ActionHash,
+    content: &str,
+) -> ActionHash {
+    let sent: Vec<SentMessage> = conductor
+        .call(&sender.zome("messaging"), "send_message", plain(to_user, content))
+        .await;
+    sent
+        .first()
+        .unwrap_or_else(|| panic!("send_message returned no copies for {content:?}"))
+        .hash
+        .clone()
+}
+
+fn hash_of(entry: &InboxEntry) -> ActionHash {
+    match entry {
+        InboxEntry::Read(m) => m.hash.clone(),
+        InboxEntry::Unreadable { hash, .. } => hash.clone(),
+    }
+}
+
+/// A reader that keeps what it has read is told only what is new, and is told when
+/// something it holds should go.
+///
+/// Three reads of one inbox. The first, knowing nothing, returns the message. The
+/// second, knowing its hash, returns no entry but still lists it as visible: the
+/// filters that depend on the author ran on the link, with no fetch. The third, after
+/// the author is rejected, lists nothing, so the reader drops what it held: the
+/// since-rejected rule holds for a cached message too.
+///
+/// **To make this go red:** have `read_inbox` fetch and return known hashes as well
+/// (the second read then returns an entry), or list a known hash as visible without
+/// running the author filters on it (the third read then still lists it).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_reader_that_keeps_what_it_read_is_told_only_what_is_new() {
+    let (conductors, alice, bob, alice_user, bob_user) = two_accepted_members().await;
+
+    let _: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(bob_user, "read me once".to_string()),
+        )
+        .await;
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+
+    let first: InboxDelta = conductors[1]
+        .call(
+            &bob.zome("messaging"),
+            "get_inbox_delta",
+            GetInboxDeltaInput { known: vec![] },
+        )
+        .await;
+    assert_eq!(first.entries.len(), 1, "knowing nothing, Bob is sent the message");
+    let hash = hash_of(&first.entries[0]);
+    assert_eq!(first.visible, vec![hash.clone()], "and it is the one visible message");
+
+    let second: InboxDelta = conductors[1]
+        .call(
+            &bob.zome("messaging"),
+            "get_inbox_delta",
+            GetInboxDeltaInput {
+                known: vec![hash.clone()],
+            },
+        )
+        .await;
+    assert!(
+        second.entries.is_empty(),
+        "knowing the message, Bob is sent nothing; got {:?}",
+        second.entries
+    );
+    assert_eq!(
+        second.visible,
+        vec![hash.clone()],
+        "but it is still listed as visible, from the link alone"
+    );
+
+    reject_entity(
+        &conductors[0],
+        &alice,
+        ENTITY_USERS,
+        alice_user,
+        "testing the cached read-side recheck",
+    )
+    .await;
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+
+    let third: InboxDelta = conductors[1]
+        .call(
+            &bob.zome("messaging"),
+            "get_inbox_delta",
+            GetInboxDeltaInput { known: vec![hash] },
+        )
+        .await;
+    assert!(
+        third.visible.is_empty() && third.entries.is_empty(),
+        "once the author is no longer accepted, a held message is no longer visible; got \
+         visible {:?} entries {:?}",
+        third.visible,
+        third.entries
+    );
+}
+
+// ── Send ids, read marks, listings, and what left the chain ───────────────────
+
+/// A send id and a read mark survive the round trip, and `find_sent` locates the send.
+///
+/// Three facts in one case, because they are one send seen from three sides. `find_sent`
+/// is what replaces guessing after a timeout: the sender looks for the id on their own
+/// chain instead of deciding whether the call went through.
+///
+/// **To make the bound go red:** have `find_sent` ignore `since`. The last assertion,
+/// which searches from a time after the send, then finds it anyway.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_send_id_rides_along_and_find_sent_locates_it() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+
+    let before = Timestamp::now();
+    let mark = Timestamp::now();
+
+    conductors[0]
+        .call::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user.clone(),
+                content: "the kettle is on".to_string(),
+                send_id: "send-1".to_string(),
+                read_up_to: Some(mark),
+                listing: None,
+            },
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // The recipient reads both fields out of the ciphertext.
+    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    assert_eq!(inbox.len(), 1);
+    assert_eq!(inbox[0].send_id, "send-1", "the send id should round-trip");
+    assert_eq!(
+        inbox[0].read_up_to,
+        Some(mark),
+        "the read mark rides inside the body, with no second signal"
+    );
+
+    // The sender can find their own send by its id.
+    let found: Option<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "find_sent",
+            FindSentInput {
+                send_id: "send-1".to_string(),
+                since: before,
+            },
+        )
+        .await;
+    assert!(found.is_some(), "find_sent should locate a send it made");
+
+    let missing: Option<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "find_sent",
+            FindSentInput {
+                send_id: "a-send-that-never-happened".to_string(),
+                since: before,
+            },
+        )
+        .await;
+    assert!(missing.is_none(), "an id never sent should not be found");
+
+    // A send with no id is refused before anything is written: a send that got no answer
+    // can only be checked by its id. (Remove the empty check from `require_send_id` and
+    // this send goes through.)
+    let no_id = conductors[0]
+        .call_fallible::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                send_id: String::new(),
+                ..plain(bob_user.clone(), "no id on this one")
+            },
+        )
+        .await;
+    match no_id {
+        Ok(sent) => panic!("a send with no send id should be refused, but it returned {sent:?}"),
+        Err(e) => {
+            let text = format!("{e} | {e:?}");
+            assert!(
+                text.contains("A send needs a send ID"),
+                "a send with no send id should be refused for that; got {text}"
+            );
+        }
+    }
+
+    // And an empty id finds nothing: a body written before send ids existed carries
+    // none, and matching on emptiness would report any such message as this one.
+    let by_no_id: Option<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "find_sent",
+            FindSentInput {
+                send_id: String::new(),
+                since: before,
+            },
+        )
+        .await;
+    assert!(by_no_id.is_none(), "an empty send id should find nothing");
+
+    // An id over the bound is refused before anything is written.
+    let too_long = conductors[0]
+        .call_fallible::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user.clone(),
+                content: "an id too long to carry".to_string(),
+                send_id: "x".repeat(65),
+                read_up_to: None,
+                listing: None,
+            },
+        )
+        .await;
+    match too_long {
+        Ok(sent) => panic!("a 65 byte send id should be refused, but the send returned {sent:?}"),
+        Err(e) => {
+            let text = format!("{e} | {e:?}");
+            assert!(
+                text.contains("over the 64 byte limit"),
+                "a 65 byte send id should be refused for its length; got {text}"
+            );
+        }
+    }
+
+    // The search is bounded, so one starting after the send finds nothing.
+    let after = Timestamp::now();
+    let out_of_range: Option<ActionHash> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "find_sent",
+            FindSentInput {
+                send_id: "send-1".to_string(),
+                since: after,
+            },
+        )
+        .await;
+    assert!(
+        out_of_range.is_none(),
+        "find_sent reads only from `since` onwards, so a later window finds nothing"
+    );
+}
+
+/// A message carries text or a listing, never both.
+///
+/// A listing travels on a card-only message, which is how it reaches the other person
+/// without becoming a context tag on something somebody wrote.
+///
+/// **To make this go red:** drop the check in `send_message`. The first call succeeds.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_message_carries_text_or_a_listing_never_both() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+    let a_listing = ActionHash::from_raw_36(vec![7; 36]);
+
+    let err = conductors[0]
+        .call_fallible::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user.clone(),
+                content: "here is one I posted".to_string(),
+                send_id: "send-2".to_string(),
+                read_up_to: None,
+                listing: Some(a_listing.clone()),
+            },
+        )
+        .await
+        .expect_err("a message with both text and a listing should be refused")
+        .to_string();
+    assert!(
+        err.contains("either text or a listing"),
+        "the refusal should say why; got {err}"
+    );
+
+    // The card on its own goes through, and arrives as a card.
+    conductors[0]
+        .call::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user,
+                content: String::new(),
+                send_id: "send-3".to_string(),
+                read_up_to: None,
+                listing: Some(a_listing.clone()),
+            },
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    assert_eq!(inbox.len(), 1);
+    assert_eq!(inbox[0].listing, Some(a_listing));
+    assert_eq!(inbox[0].content, "", "a card-only message carries no text");
+}
+
+/// A message with no text and no listing is refused.
+///
+/// The interface never sends one on purpose: the composer refuses an empty draft and a
+/// card always carries its listing. One reaching the zome is a client defect, and
+/// writing it would put a blank bubble on both chains that nobody meant to send.
+///
+/// **To make this go red:** drop the "neither" check in `send_message`. The call succeeds
+/// and Bob's inbox holds an empty message.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_message_with_neither_text_nor_a_listing_is_refused() {
+    let (conductors, alice, _bob, _alice_user, bob_user) = two_accepted_members().await;
+
+    for content in ["", "   \n"] {
+        let err = conductors[0]
+            .call_fallible::<_, Vec<SentMessage>>(
+                &alice.zome("messaging"),
+                "send_message",
+                SendMessageInput {
+                    to_user: bob_user.clone(),
+                    content: content.to_string(),
+                    send_id: "send-4".to_string(),
+                    read_up_to: None,
+                    listing: None,
+                },
+            )
+            .await
+            .expect_err("a message with neither text nor a listing should be refused")
+            .to_string();
+        assert!(
+            err.contains("This one has neither"),
+            "the refusal should say why; got {err}"
+        );
+    }
+}
+
+/// Mirror of the zome's `Signal`, both halves, as the interface decodes them.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+enum MessagingSignal {
+    Nudge {
+        hash: ActionHash,
+        from: AgentPubKey,
+    },
+    Receipt {
+        #[serde(rename = "readUpTo")]
+        read_up_to: Timestamp,
+        from: AgentPubKey,
+    },
+}
+
+/// Mirror of the zome's `SendReceiptInput`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SendReceiptInput {
+    to_user: ActionHash,
+    read_up_to: Timestamp,
+}
+
+/// A receipt reaches the other member's agent, from its sender, with the mark under the
+/// name the interface reads.
+///
+/// The interface's schema says `readUpTo`, like every other field it reads from this
+/// zome. The signal used to carry `read_up_to`, so the interface read `undefined` and
+/// Read never appeared on anyone's message (review of 16 October, F5).
+///
+/// **To make this go red:** drop the `rename` on `Signal::Receipt`. The signal arrives,
+/// decodes as nothing this mirror knows, and the wait runs out.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_receipt_arrives_as_read_up_to_from_its_sender() {
+    let (conductors, alice, _bob, _alice_user, bob_user) = two_accepted_members().await;
+
+    // Subscribe before sending, as the nudge cases do.
+    let mut bob_signals =
+        conductors[1].subscribe_to_app_signals("requests_and_offers".to_string());
+
+    let mark = Timestamp::now();
+    let _: () = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_receipt",
+            SendReceiptInput {
+                to_user: bob_user,
+                read_up_to: mark,
+            },
+        )
+        .await;
+
+    // The same deadline as the nudge cases in `messaging.rs` (`SIGNAL_DEADLINE`), for
+    // the same reason: it is what the hosted runner has been measured to need.
+    let received = tokio::time::timeout(std::time::Duration::from_secs(240), async {
+        loop {
+            match bob_signals.recv().await.expect("Bob's signal channel closed") {
+                Signal::App { signal, .. } => {
+                    if let Ok(decoded) = signal.into_inner().decode::<MessagingSignal>() {
+                        break decoded;
+                    }
+                }
+                Signal::System(_) => {}
+                // 0.7's direct signals, sent with `SendDirectSignal` from an app call: not
+                // something this zome emits, so keep waiting.
+                Signal::AppDirect { .. } => {}
+            }
+        }
+    })
+    .await
+    .expect("Bob should receive the receipt as a signal the interface can decode");
+
+    match received {
+        MessagingSignal::Receipt { read_up_to, from } => {
+            assert_eq!(read_up_to, mark, "the mark should round-trip");
+            assert_eq!(
+                &from,
+                alice.agent_pubkey(),
+                "the sender is taken from call provenance"
+            );
+        }
+        other => panic!("expected a receipt, got {other:?}"),
+    }
+}
+
+/// Sending a message rings the recipient: the same call nudges them with the hash of
+/// the copy it stored for them, so their app fetches now and not on its next poll.
+///
+/// **To make it go red:** remove the nudge from `send_message`. Bob then hears nothing
+/// and the wait times out.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_send_nudges_the_recipient_with_the_hash_it_stored() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+
+    let mut bob_signals =
+        conductors[1].subscribe_to_app_signals("requests_and_offers".to_string());
+
+    let sent: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(bob_user, "the kettle is on"),
+        )
+        .await;
+    let bobs_copy = sent
+        .iter()
+        .find(|copy| &copy.agent == bob.agent_pubkey())
+        .expect("the send should store a copy for Bob's agent")
+        .hash
+        .clone();
+
+    let received = tokio::time::timeout(std::time::Duration::from_secs(240), async {
+        loop {
+            match bob_signals.recv().await.expect("Bob's signal channel closed") {
+                Signal::App { signal, .. } => {
+                    if let Ok(decoded) = signal.into_inner().decode::<MessagingSignal>() {
+                        break decoded;
+                    }
+                }
+                Signal::System(_) => {}
+                Signal::AppDirect { .. } => {}
+            }
+        }
+    })
+    .await
+    .expect("Bob should be nudged by the send");
+
+    match received {
+        MessagingSignal::Nudge { hash, from } => {
+            assert_eq!(hash, bobs_copy, "the nudge should name the copy stored for Bob");
+            assert_eq!(&from, alice.agent_pubkey(), "the sender is taken from call provenance");
+        }
+        other => panic!("expected a nudge, got {other:?}"),
+    }
+}
+
+/// The chain functions for blocks and read markers are gone.
+///
+/// Read markers and blocks left the chain because a private entry hides its content but
+/// not its timing. This is what notices if one comes back: the functions no longer exist,
+/// and the conductor says so by name. Any failure would not do: a call with the wrong
+/// payload or the wrong return type fails too, so a restored function would still fail.
+///
+/// **To make it go red:** restore any one of the five externs: its call then fails for
+/// some other reason, or succeeds, and the message is not the one asserted.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_chain_functions_for_blocks_and_read_markers_are_gone() {
+    let (conductors, alice, bob, _alice_user, _bob_user) = two_accepted_members().await;
+
+    for gone in ["block_agent", "unblock_agent", "get_blocks", "mark_read", "get_read_markers"] {
+        let result = conductors[0]
+            .call_fallible::<_, ()>(&alice.zome("messaging"), gone, ())
+            .await;
+        let text = match result {
+            Ok(()) => panic!("{gone} should no longer exist on the messaging zome"),
+            // Both forms: the conductor's sentence is the error's `Display`, and its
+            // variant name is in the `Debug`. Either says the function is not there.
+            Err(e) => format!("{e} | {e:?}"),
+        };
+        assert!(
+            text.contains("zome function that doesn't exist") || text.contains("ZomeFnNotExists"),
+            "{gone} should be refused as a function that does not exist; got {text}"
+        );
+    }
+
+    // And the zome still works: nothing above broke ordinary messaging.
+    let bob_user = user_hash_of(&conductors[1], &bob).await;
+    conductors[0]
+        .call::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user,
+                content: "still working".to_string(),
+                send_id: "send-4".to_string(),
+                read_up_to: None,
+                listing: None,
+            },
+        )
+        .await;
+}
+
+// -- the size limit --
+
+/// Three KiB of content in which every byte is 0x80 or more, the worst case for Lair.
+///
+/// Lair, the keystore, carries the bytes to encrypt or open as a msgpack array of
+/// integers, two bytes for each byte of 0x80 or more, and refuses any frame over 8 KiB.
+/// `é` is two UTF-8 bytes, both over 0x80, so 1,536 of them is the limit exactly and the
+/// largest frames a message can make. The test keystore goes through the same channel
+/// as a real conductor's, so a message this keystore cannot open fails here too.
+fn at_the_limit() -> String {
+    "é".repeat(1536)
+}
+
+/// A message at the limit, in the worst characters, is sent, read by its recipient and
+/// read back by its sender: one encrypt and two opens, each through Lair's channel. The
+/// send id is at its own 64-byte bound and the message carries a read mark, so its
+/// envelope is as large as a personal message's gets.
+///
+/// The limit was 16 KiB until the walk of 15 November 2026, when a 12 KB message failed
+/// to encrypt (`FrameOverflow`) and sat on "Waiting to send". No test had sent more than
+/// a few hundred bytes. This shows the new limit holds; it passes on the old zomes too,
+/// which would also carry 3 KiB. The test below is the one that goes red on them.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_message_at_the_size_limit_in_two_byte_characters_is_sent_and_read() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+    let content = at_the_limit();
+    assert_eq!(content.len(), 3 * 1024, "the limit, in bytes");
+
+    let _: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user,
+                content: content.clone(),
+                send_id: "x".repeat(64),
+                read_up_to: Some(Timestamp::now()),
+                listing: None,
+            },
+        )
+        .await;
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+
+    // `readable` fails loudly on a message that could not be opened.
+    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    assert_eq!(inbox.len(), 1, "Bob should have the one message");
+    assert_eq!(inbox[0].content, content, "Bob reads it whole");
+
+    let sent: Vec<Message> = conductors[0].call(&alice.zome("messaging"), "get_sent", ()).await;
+    assert!(
+        sent.iter().any(|m| m.content == content),
+        "Alice reads her own copy back whole"
+    );
+}
+
+/// One byte past the limit is refused by the zome, before anything is encrypted or
+/// written, with the reason the app shows. **To make this go red:** raise
+/// `MAX_CONTENT_BYTES`; the send then goes through.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_message_one_byte_over_the_size_limit_is_refused() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+    let over = format!("{}a", at_the_limit());
+    assert_eq!(over.len(), 3 * 1024 + 1);
+
+    match conductors[0]
+        .call_fallible::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(bob_user, over),
+        )
+        .await
+    {
+        Ok(sent) => panic!("3,073 bytes should be refused, but the send returned {sent:?}"),
+        Err(e) => {
+            let text = format!("{e} | {e:?}");
+            assert!(
+                text.contains("Message content is 3073 bytes, over the 3072 byte limit"),
+                "refused for its length, in the words the app matches; got {text}"
+            );
+        }
+    }
+
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    assert!(inbox.is_empty(), "nothing was written; Bob has {inbox:?}");
+}

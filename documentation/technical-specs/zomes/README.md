@@ -13,7 +13,7 @@ For a higher-level overview of the system's technical foundation, see the main [
 - **[Offers](./offers.md)**: Handles the creation, management, and lifecycle of offers, integrating with the Service Types zome for defining capabilities offered using approved service types.
 - **[Administration](./administration.md)**: Covers administrator roles, status management, entity verification, and system moderation.
 - **[Exchanges](./exchanges.md)**: Records an exchange as six append-only entries (Interest, Agreement, Response, Completion, Review, Cancellation) whose state is derived from which of them exist rather than stored. The reasoning behind that shape is in the [architecture note](../../architecture/EXCHANGE_RECORD.md).
-- **[Messaging](./messaging.md)**: The signal layer. A nudge tells other agents that something addressed to them exists at an `ActionHash`; it carries the hash and never content, and the stored data stays the record. Coordinator only, so it does not change the DNA hash.
+- **[Messaging](./messaging.md)**: The signal layer and the encrypted inbox. A nudge tells other agents that something addressed to them exists at an `ActionHash` and carries nothing else; messages are stored encrypted to each recipient agent, so content and conversation grouping are private while who wrote to whom, and when, is public.
 - **[Mediums of Exchange](./mediums_of_exchange.md)**: Manages payment methods and value exchange mechanisms with approval workflow, supporting both traditional currencies and alternative exchange systems (time banking, LETS, etc.).
 
 ---

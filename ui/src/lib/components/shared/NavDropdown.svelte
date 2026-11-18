@@ -9,6 +9,12 @@
       icon: string;
       description?: string;
       badge?: number;
+      /**
+       * What the badge counts, read out in place of the number. My Exchanges counts what
+       * waits on the member and My Messages counts unopened conversations, so one wording
+       * for both told a screen reader the wrong thing about one of them.
+       */
+      badgeLabel?: (n: number) => string;
     }>;
     isOpen?: boolean;
     alignRight?: boolean;
@@ -81,7 +87,7 @@
     class="rounded px-3 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 focus:ring-opacity-50"
     aria-expanded={isHovered}
     aria-haspopup="true"
-    aria-label={total > 0 ? `${title} menu, ${total} waiting on you` : `${title} menu`}
+    aria-label={total > 0 ? `${title} menu, ${total} new` : `${title} menu`}
   >
     {title}
     {#if total > 0}
@@ -128,10 +134,14 @@
               <div class="flex items-center gap-2 font-medium text-gray-900">
                 {item.label}
                 {#if item.badge}
-                  <span
-                    class="badge variant-filled-primary px-1.5 py-0 text-xs"
-                    aria-label="{item.badge} waiting on you"
-                  >{shown(item.badge)}</span>
+                  <!-- The number is for the eye; the words, for a screen reader. -->
+                  <span class="variant-filled-primary badge px-1.5 py-0 text-xs"
+                    ><span aria-hidden="true">{shown(item.badge)}</span><span class="sr-only"
+                      >{item.badgeLabel
+                        ? item.badgeLabel(item.badge)
+                        : `${item.badge} waiting on you`}</span
+                    ></span
+                  >
                 {/if}
               </div>
               {#if item.description}

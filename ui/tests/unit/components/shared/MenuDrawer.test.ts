@@ -4,8 +4,8 @@ import MenuDrawer from '$lib/components/shared/drawers/MenuDrawer.svelte';
 
 /**
  * **The drawer is the only menu on a narrow screen**, so it carries the same My Messages
- * entry the nav bar's menu under the member's picture does, present only when this
- * network has messaging and for an accepted member (review of 16 October, F14; #349).
+ * entry the nav bar's My Activity menu does, present only when this network has messaging
+ * and for an accepted member (review of 16 October, F14; #349; Sam, 16 November).
  */
 
 const { presence, unread } = vi.hoisted(() => ({

@@ -16,6 +16,7 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Holochain**: The hApp moves to Holochain 0.7 and hREA `happ-0.5.0-beta.1` (`a2c5fd40`, #295, closes #192)
 - **hREA**: The GraphQL adapter `0.700.0-rc.0` is vendored as a release tarball until npm serves it (`3282e649`, #317, closes #316), and `hrea.dna` is pinned by sha256 so a pin bump reaches existing clones (`e15b0e2a`, #290, closes #223)
 - **hREA**: The GraphQL adapter is installed from npm and the vendored tarball is gone (`04aeee0d`, #455)
+- **Zomes**: chrono moves from 0.3 to 0.4 before the network reset, which changes the DNA hash (`bac79cf4`, #366, closes #305)
 
 ### Features
 
@@ -35,6 +36,11 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **hREA**: A cancelled exchange ends its hREA Commitments (`984944a6`, #444)
 - **Administration**: An hREA dashboard audits the mirror against R&O (`73416bff`, #421)
 - **Administration**: The progenitor is told to accept their own membership (`480a2fd9`, #361, closes #358)
+- **Administration**: Roles are grants the network validates: a `RoleGrant` gives one agent one role in one scope, a `RoleRevocation` withdraws it, and adding or removing an administrator and changing a status carry the grant they rest on (`06c391bd`, #377)
+- **Messaging**: Members have an encrypted inbox: a message's content is encrypted to each recipient's key; who wrote to whom, and when, stays public for the life of the network. A member must be accepted to send, and only an administrator may write to a member not yet accepted (`931311e2`, #301)
+- **Messaging**: A message to the administrator role reaches every administrator, who work it together as a case (claim, release, hand over, note, complete, reopen). There is no interface for cases yet (`5ee9f1bd`, #304)
+- **Messaging**: Read state and blocks live in the member's own app, not on the chain, and read receipts travel as signals, never stored (`b3084fe4`, #364)
+- **Messaging**: Messages in the app: one conversation per person, with shared listings, interests and proposals as cards in it; Go to chat and an Interested in tab on My Exchanges; blocking; read receipts with an overall and a per-chat setting; and an unopened count in the menu (`dd5656bc`, #308)
 
 ### Security
 
@@ -43,6 +49,9 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **UI**: A typed link opens only when it is a web address (`9ce13eac`, #382), inside rendered markdown too (`551f157f`, #312)
 - **Build**: Faker and the mock data stay out of the production build (`cae758a7`, #365, part of #363)
 - **Users**: Validation decides who may write `UserAgents` and `MyUser` links: only a User's author links agents to it, only to their own key, and `MyUser` runs from the author's key to the author's User (`11bcf7a4`, #473)
+- **Validation**: Every role-gated write outside the administration zome carries the grant it rests on, and the network refuses an act by anyone never given the role. Requests, offers, interests and agreements need the author's member grant, and an organisation is updated by its creator, a coordinator of it, or an administrator. On a network with no progenitor key, as alpha 2 is (#466), validation accepts a root grant from any author, so a modified client can still grant itself a role (`c3db8659`, #378)
+- **Messaging**: A message carries its author's member grant, and validation refuses one that does not. On a network with no progenitor key, as alpha 2 is (#466), a modified client can write itself a root grant and so a member grant (`a677c286`, #412); validation refuses a ciphertext over 3,840 bytes, inside the 3,959 a recipient's keystore can open (`20c05eee`, #488)
+- **Messaging**: A message to a role goes to the agents its live grants name, so a revoked administrator, an emptied roster or a roster link written by a modified client no longer changes who receives it (`c1784a45`, #520, closes #518)
 
 ### Bug Fixes
 
@@ -66,6 +75,12 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Mediums of Exchange**: The wording says a base is a kind of exchange and a currency a unit people pay in, with no payment methods (`a5a9f15d`, #467); the listing forms always call the section Medium of Exchange (`8e950b8d`, #471)
 - **Users**: A blocked member is told about their status, not about a missing profile (`a47b8d8d`, #392)
 - **UI**: The loading screen gives an honest first-start wait (`9b2f5946`, #469)
+- **Zomes**: Given a revision's hash, the seven latest-record reads return the latest version, and deleting an edited listing removes the whole listing, from the active and archived lists too (`dbd42041`, #487, closes #229)
+- **Exchanges**: A member holds one live interest per listing, enforced by validation; a withdrawn interest does not count (`ed628e2e`, #362, closes #354)
+- **Messaging**: A message is limited to 3 KiB, what the keystore can encrypt, and under Holochain 0.7 a refusal from the zome is shown as a refusal again, rather than waiting in the outbox (`20c05eee`, #488)
+- **UI**: A chip's text wraps inside its background instead of running past it (`415dd056`, #515)
+- **UI**: Each nav bar's status dot opens its own network details, on the admin pages too (`7db2b546`, #522)
+- **Administration**: The admin Users page moves a member between its lists as soon as a status is written, without a reload, and Retry Loading loads again after a failed load (`960e289e`, #524)
 
 ### Performance
 
@@ -85,6 +100,10 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Zome errors**: Zome errors come from `utils/src/errors.rs`, written down as a rule in `CLAUDE.md` (`23825ddc`, #472)
 - **Installation**: The Kangaroo desktop app does not set the progenitor key, so a new desktop network runs in development mode and its first profile becomes admin (`8ad45332`, #445)
 - **Development**: The inspector's adapter contract, packaging options and a Nondominium trial (`15d069e8`, #446); the guides follow what `bun start` and `bun start:web` now launch, and the ports they take (`ff26c178`, #449)
+- **Installation**: A desktop release runs in development mode: what that protects, what it does not, and the first-admin practice (`ca31467f`, #466)
+- **Status**: The status page matches the alpha 2 tree (`725fe638`, #489, part of #415)
+- **README**: The roadmap names what shipped, what is in progress and what comes later (`e65039c4`, #501)
+- **Messaging**: The notes from the stack reviews, and that a block holds on this device only (`bd2b0d60`, #519)
 
 ### CI and Testing
 

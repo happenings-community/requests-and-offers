@@ -87,7 +87,7 @@
       Status History
     </a>
     {#if !management.isLoading && management.error}
-      <button class="variant-filled-primary btn" onclick={management.loadUsers}>
+      <button class="variant-filled-primary btn" onclick={() => runEffect(management.loadUsers())}>
         Retry Loading
       </button>
     {/if}

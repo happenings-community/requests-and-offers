@@ -22,10 +22,11 @@ export function useUsersManagement(
   }
 ): UseUsersManagement {
   // State
-  const state = $state<UsersManagementState>({
+  // **No copy of the list.** `users` is the store's list, filtered, read each time: the
+  // store changes its array in place, so a copy taken from it misses every later status.
+  const state = $state<Omit<UsersManagementState, 'users'>>({
     isLoading: true,
     error: null,
-    users: [],
     filter: options.filter || 'all'
   });
 
@@ -60,29 +61,14 @@ export function useUsersManagement(
     return result;
   });
 
-  $effect(() => {
-    state.users = filteredUsers;
-    console.log('🔄 useUsersManagement - state.users updated:', {
-      userCount: filteredUsers.length,
-      wasLoading: state.isLoading
-    });
-
-    // When users are updated, we can assume loading is done if it was in progress
-    if (state.isLoading) {
-      state.isLoading = false;
-      console.log('✅ useUsersManagement - Loading completed');
-    }
-  });
-
   function loadUsers() {
     state.isLoading = true;
     state.error = null;
 
     return pipe(
       administrationStore.fetchAllUsers(),
-      E.map((users) => {
-        state.users = users;
-        state.isLoading = false; // Success: stop loading
+      E.map(() => {
+        state.isLoading = false; // Success: stop loading; the list is the store's
       }),
       E.catchAll((error) => {
         const errorMessage = error.message || 'Failed to load users';
@@ -106,7 +92,7 @@ export function useUsersManagement(
 
   return {
     get users() {
-      return state.users;
+      return filteredUsers;
     },
     get isLoading() {
       return state.isLoading;

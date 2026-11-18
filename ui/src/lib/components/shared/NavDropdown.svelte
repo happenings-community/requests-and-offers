@@ -36,8 +36,8 @@
     /**
      * What a badge's number counts, said after it by a screen reader ("3 waiting to be
      * accepted"), for a menu whose items do not say it themselves. Without it the trigger
-     * says what its one counted item counts, or "new" for several, and an item "waiting on
-     * you".
+     * says what its one counted item counts if that item says it, otherwise "new", and an
+     * item "waiting on you".
      */
     badgeLabel?: string;
     /** A sentence added to the trigger's name, e.g. the progenitor's setup hint (#361). */

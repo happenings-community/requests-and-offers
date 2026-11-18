@@ -236,5 +236,24 @@ describe('the nav bar', () => {
       );
       expect(menuButton.textContent).toContain('3');
     });
+
+    it('keeps the Admin menu, its count and the hint for an administrator still waiting to be accepted, and nothing members only', () => {
+      // The progenitor before accepting their own membership: an administrator, pending.
+      member.status = 'pending';
+      unread.count = 2;
+      render(NavBar);
+
+      expect(
+        screen.getByRole('button', {
+          name: 'Admin menu, 1 waiting to be accepted. Accept your membership to finish setup'
+        })
+      ).toBeTruthy();
+      expect(screen.queryByTestId('nav-exchanges')).toBeNull();
+      expect(screen.queryByTestId('nav-messages')).toBeNull();
+      // The member's own counts are for accepted members; who is waiting is the admin's.
+      expect(screen.getByTestId('menu-button').getAttribute('aria-label')).toBe(
+        'Open navigation menu, 1 waiting to be accepted'
+      );
+    });
   });
 });

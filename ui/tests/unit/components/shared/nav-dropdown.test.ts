@@ -81,6 +81,21 @@ describe('NavDropdown', () => {
     expect(screen.getByRole('button', { name: 'Mine menu, 3 new' })).toBeTruthy();
   });
 
+  it("says its one counted item's own wording when the menu gives none (#521 with #411)", () => {
+    render(NavDropdown, {
+      props: {
+        title: 'Mine',
+        items: [
+          { ...ITEMS[0], badge: 2, badgeLabel: (n: number) => `${n} unopened conversations` },
+          ITEMS[1]
+        ]
+      }
+    });
+    expect(
+      screen.getByRole('button', { name: 'Mine menu, 2 unopened conversations' })
+    ).toBeTruthy();
+  });
+
   it('has no aria-keyshortcuts: Alt+A does not open a menu (#411 review)', () => {
     mount();
     expect(trigger().hasAttribute('aria-keyshortcuts')).toBe(false);

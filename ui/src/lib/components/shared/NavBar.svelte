@@ -141,7 +141,7 @@
   );
 
   // The menu button is the whole bar on a narrow window, so it carries the counts too:
-  // the member's own, and for an administrator who is waiting to be accepted.
+  // the member's own and, for an administrator, who is waiting to be accepted.
   const menuButtonCount = $derived(counts.total + adminWaitingCount);
   const menuButtonLabel = $derived(
     [

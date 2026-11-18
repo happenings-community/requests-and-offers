@@ -137,4 +137,17 @@ describe('the mobile menu', () => {
     const members = screen.getByRole('link', { name: /Members/ });
     expect(members.textContent).toContain('1 waiting to be accepted');
   });
+
+  it('keeps Administration for an administrator still waiting to be accepted, with no My Activity', () => {
+    member.status = 'pending';
+    admin.agentIsAdministrator = true;
+    admin.allUsers = [{ status: { status_type: 'pending' } }];
+    render(MenuDrawer);
+
+    expect(screen.getByRole('link', { name: /Members/ }).textContent).toContain(
+      '1 waiting to be accepted'
+    );
+    expect(screen.queryByText('My Activity')).toBeNull();
+    expect(screen.queryByTestId('drawer-messages')).toBeNull();
+  });
 });

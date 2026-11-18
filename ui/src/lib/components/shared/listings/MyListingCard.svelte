@@ -12,6 +12,7 @@
   import { getUserPictureUrl, queueAndReverseModal } from '$lib/utils';
   import type { ConfirmModalMeta } from '$lib/types/ui';
   import type { MyListing } from '$lib/utils/my-listings';
+  import { paths } from '$lib/paths';
 
   /**
    * One of my listings, as the design system's managed listing card (#344):
@@ -30,12 +31,12 @@
   const hash = $derived(listing.original_action_hash);
   const isOffer = $derived(item.kind === 'Offer');
   const noun = $derived(isOffer ? 'offer' : 'request');
-  const base = $derived(`/${isOffer ? 'offers' : 'requests'}/${encodeHashToBase64(hash)}`);
+  const base = $derived(isOffer ? paths.offerDetail(hash) : paths.requestDetail(hash));
+  const editHref = $derived(isOffer ? paths.offerEdit(hash) : paths.requestEdit(hash));
 
   const interest = useListingInterest({
     listingHash: () => hash,
-    listingType: () => item.kind,
-    quiet: true
+    listingType: () => item.kind
   });
   const others = $derived(interest.others);
   let open = $state(false);
@@ -177,7 +178,7 @@
     </ul>
   {/if}
 
-  {#if interest.loadFailed}
+  {#if interest.loadError}
     <p class="text-xs text-surface-500" data-testid="interested-members-failed">
       Couldn't check who is interested.
       <button type="button" class="anchor" onclick={() => interest.load()}>Try again</button>
@@ -187,7 +188,7 @@
   <div class="mt-auto flex flex-wrap gap-2">
     <a class="variant-ghost-surface btn btn-sm" href={base}>View</a>
     {#if !item.archived}
-      <a class="variant-ghost-surface btn btn-sm" href={`${base}/edit`}>Edit</a>
+      <a class="variant-ghost-surface btn btn-sm" href={editHref}>Edit</a>
       <button class="variant-ghost-warning btn btn-sm" onclick={archive} disabled={busy}
         >Archive</button
       >

@@ -1,5 +1,7 @@
 # Event Bus Pattern
 
+> **Out of date:** The Tag and Layer factory section describes an older API; the code now exposes an abstract `EventBus<T>` class with `.Tag` and `.Live`. Tracked in [#479](https://github.com/happenings-community/requests-and-offers/issues/479).
+
 This document details the Event Bus pattern implemented using Effect TS in the Requests and Offers application.
 
 ## Overview

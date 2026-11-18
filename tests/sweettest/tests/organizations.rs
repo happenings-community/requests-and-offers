@@ -166,7 +166,7 @@ async fn organization_membership_management() {
             org_hash.clone(),
         )
         .await;
-    // Alice is auto-added as member on create_organization; Bob makes it 2.
+    // Alice became a member when her organisation was approved; Bob makes it 2.
     assert_eq!(members.len(), 2, "Organization should have two members (Alice + Bob)");
 
     // Bob leaves the organization.

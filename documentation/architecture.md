@@ -130,11 +130,11 @@ The application follows a refined data and control flow leveraging Effect TS pat
 
 The architecture is supported by comprehensive pattern documentation:
 
-- **[Service Effect Patterns](../ai/rules/service-effect-patterns.mdc)**: Complete Effect TS service implementation
-- **[Store Effect Patterns](../ai/rules/store-effect-patterns.mdc)**: Standardized store structure with helpers
-- **[Error Management Patterns](../ai/rules/error-management-patterns.mdc)**: Centralized error handling
-- **[Schema Patterns](../ai/rules/schema-patterns.mdc)**: Strategic validation strategies
-- **[Testing Strategy](../ai/rules/testing-strategy.mdc)**: Comprehensive testing approach
+- **[Service Effect Patterns](../.claude/skills/effect-ts-7layer-architecture/SKILL.md)**: Complete Effect TS service implementation
+- **[Store Effect Patterns](../.claude/skills/effect-ts-7layer-architecture/SKILL.md)**: Standardized store structure with helpers
+- **[Error Management Patterns](technical-specs/api/frontend/errors.md)**: Centralized error handling
+- **[Schema Patterns](../CLAUDE.md#key-patterns)**: Strategic validation strategies
+- **[Testing Strategy](guides/testing.md)**: Comprehensive testing approach
 
 ## Implementation Timeline
 

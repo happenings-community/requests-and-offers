@@ -1,5 +1,8 @@
 use hdi::prelude::*;
-use utils::{ContactPreference, DateRange, InteractionType, TimePreference, TimeZone};
+use utils::{
+  grants::{check_act, check_author_or_act, Ability},
+  ContactPreference, DateRange, InteractionType, TimePreference, TimeZone,
+};
 
 /// Represents the status of a listing
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
@@ -39,6 +42,11 @@ pub struct Request {
   /// The status of the request (defaults to Active for backward compatibility)
   #[serde(default)]
   pub status: ListingStatus,
+  /// The grant this write rests on: a member grant held by the
+  /// author on a create; on an update, an admin grant when the author is not
+  /// the request's creator.
+  #[serde(default)]
+  pub grant: Option<ActionHash>,
 }
 
 /// Validates a request entry
@@ -74,4 +82,28 @@ pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult
   }
 
   Ok(ValidateCallbackResult::Valid)
+}
+
+/// The grant rule for a request, run after the field rules.
+/// A create needs a member grant held by the author. An update (`update` is the
+/// action it updates) needs the request's creator, or an admin grant.
+pub fn validate_request_grant(
+  grant: &Option<ActionHash>,
+  author: &AgentPubKey,
+  update: Option<&ActionHash>,
+) -> ExternResult<ValidateCallbackResult> {
+  let (act, verdict) = match update {
+    None => (
+      "Posting a request",
+      check_act(grant, author, &Ability::Participate, &None)?.map(|_| ()),
+    ),
+    Some(original) => (
+      "Changing a request",
+      check_author_or_act(original, grant, author, &Ability::Administer, &None)?,
+    ),
+  };
+  Ok(match verdict {
+    Ok(()) => ValidateCallbackResult::Valid,
+    Err(reason) => ValidateCallbackResult::Invalid(format!("{} is a role act: {}", act, reason)),
+  })
 }

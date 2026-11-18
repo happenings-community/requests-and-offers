@@ -1,5 +1,6 @@
 <script lang="ts">
   import BackButton from '$lib/components/shared/BackButton.svelte';
+  import { termsState, TERMS_LOADING, TERMS_FAILED } from '$lib/utils/listing-terms';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { getToastStore } from '@skeletonlabs/skeleton';
@@ -20,6 +21,7 @@
   import ListingInterest from '$lib/components/exchanges/ListingInterest.svelte';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { stripMarkdown } from '$lib/utils/markdown';
+  import { paths } from '$lib/paths';
 
   const toastStore = getToastStore();
 
@@ -126,7 +128,7 @@
   function handleEdit() {
     if (request?.original_action_hash) {
       const id = encodeHashToBase64(request.original_action_hash);
-      goto(`/requests/${id}/edit`);
+      goto(paths.requestEdit(id));
     }
   }
 
@@ -143,7 +145,7 @@
         background: 'variant-filled-success'
       });
 
-      goto('/requests');
+      goto(paths.requests());
     } catch (err) {
       console.error('Failed to delete request:', err);
       toastStore.trigger({
@@ -267,7 +269,7 @@
 <section class="container mx-auto space-y-6 p-4">
   <!-- Navigation -->
   <div class="flex items-center justify-between">
-    <BackButton fallback="/requests" />
+    <BackButton fallback={paths.requests()} />
 
     {#if request && (canEdit || canDelete)}
       <div class="flex gap-2">
@@ -306,7 +308,7 @@
           <h1 class="h1 mb-4 flex items-center gap-3 text-primary-500">
             {request.title}
             <span
-              class="chip"
+              class="chip shrink-0"
               class:variant-ghost-success={request.status === ListingStatus.Active}
               class:variant-ghost-tertiary={request.status === ListingStatus.Archived}
             >
@@ -326,6 +328,10 @@
             <div class="flex flex-wrap gap-2">
               <ServiceTypeTag serviceTypeActionHash={request.service_type_hash} showLink={true} />
             </div>
+          {:else if termsState(request) === 'loading'}
+            <p class="text-surface-500">{TERMS_LOADING}</p>
+          {:else if termsState(request) === 'failed'}
+            <p class="text-warning-700 dark:text-warning-300">{TERMS_FAILED}</p>
           {:else}
             <p class="text-surface-500">No service type specified.</p>
           {/if}
@@ -340,6 +346,10 @@
                 <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
               {/each}
             </div>
+          {:else if termsState(request) === 'loading'}
+            <p class="text-surface-500">{TERMS_LOADING}</p>
+          {:else if termsState(request) === 'failed'}
+            <p class="text-warning-700 dark:text-warning-300">{TERMS_FAILED}</p>
           {:else}
             <p class="text-surface-500">No medium of exchange specified.</p>
           {/if}
@@ -401,7 +411,10 @@
             <ul class="list-inside list-disc space-y-1">
               {#each request.links as link}
                 <li>
-                  <ExternalLink text={link} class="text-primary-500 hover:underline dark:text-primary-400" />
+                  <ExternalLink
+                    text={link}
+                    class="text-primary-500 hover:underline dark:text-primary-400"
+                  />
                 </li>
               {/each}
             </ul>
@@ -446,7 +459,7 @@
                 </div>
               {:else}
                 <a
-                  href={`/organizations/${encodeHashToBase64(request.organization)}`}
+                  href={paths.organizationDetail(request.organization)}
                   class="text-primary-500 hover:underline dark:text-primary-400"
                 >
                   View Organization
@@ -461,7 +474,7 @@
                 <div class="flex flex-wrap gap-2">
                   {#each organization.coordinators as coordinator}
                     <a
-                      href={`/users/${encodeHashToBase64(coordinator)}`}
+                      href={paths.userProfile(coordinator)}
                       class="variant-soft-secondary chip hover:variant-soft-primary"
                     >
                       View Coordinator
@@ -477,7 +490,7 @@
             <h3 class="h4 mb-4 font-semibold">Creator</h3>
             <div class="flex items-center gap-2">
               {#if creator}
-                <a href={`/users/${encodeHashToBase64(creator.original_action_hash!)}`}>
+                <a href={paths.userProfile(creator.original_action_hash!)}>
                   <div class="flex items-center gap-3">
                     <div class="avatar h-12 w-12 overflow-hidden rounded-full">
                       {#if creatorPictureUrl && creatorPictureUrl !== '/default_avatar.webp'}
@@ -499,14 +512,16 @@
                     <div>
                       <p class="font-semibold">Name: {creator.name}</p>
                       {#if creator.nickname}
-                        <p class="text-surface-600-300-token text-sm">Nickname/Handle: {creator.nickname}</p>
+                        <p class="text-surface-600-300-token text-sm">
+                          Nickname/Handle: {creator.nickname}
+                        </p>
                       {/if}
                     </div>
                   </div>
                 </a>
               {:else if request.creator}
                 <a
-                  href={`/users/${encodeHashToBase64(request.creator)}`}
+                  href={paths.userProfile(request.creator)}
                   class="text-primary-500 hover:underline dark:text-primary-400"
                 >
                   View Creator Profile
@@ -543,7 +558,11 @@
         listingTitle={request.title}
         {creator}
         {organization}
-        isCreator={!!(request.creator && usersStore.currentUser?.original_action_hash && request.creator.toString() === usersStore.currentUser.original_action_hash.toString())}
+        isCreator={!!(
+          request.creator &&
+          usersStore.currentUser?.original_action_hash &&
+          request.creator.toString() === usersStore.currentUser.original_action_hash.toString()
+        )}
       />
     {/if}
 
@@ -557,7 +576,7 @@
       <p class="mb-4 text-surface-600 dark:text-surface-400">
         The requested request could not be found or may have been removed.
       </p>
-      <button class="variant-filled-primary btn" onclick={() => goto('/requests')}>
+      <button class="variant-filled-primary btn" onclick={() => goto(paths.requests())}>
         Browse All Requests
       </button>
     </div>

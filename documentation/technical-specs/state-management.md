@@ -47,10 +47,10 @@ Stores implement a standardized architecture using nine helper functions for con
      });
    ```
 
-3. **`createCacheSyncHelper()`**: Synchronizes cache with application state
+3. **`createGenericCacheSyncHelper()`**: Synchronizes cache with application state
 
    ```typescript
-   const createCacheSyncHelper = () => {
+   const createGenericCacheSyncHelper = () => {
      return {
        syncCacheToState: () => {
          /* Implementation */
@@ -78,10 +78,10 @@ Stores implement a standardized architecture using nine helper functions for con
    };
    ```
 
-5. **`createEntitiesFetcher()`**: Data fetching with state updates
+5. **`createEntityFetcher()`**: Data fetching with state updates
 
    ```typescript
-   const createEntitiesFetcher = (service: DomainService, state: State) => {
+   const createEntityFetcher = (service: DomainService, state: State) => {
      return {
        fetchAllEntities: () => {
          /* Implementation */
@@ -109,10 +109,10 @@ Stores implement a standardized architecture using nine helper functions for con
    };
    ```
 
-7. **`createRecordCreationHelper()`**: Record creation operation patterns
+7. **`createEntityCreationHelper()`**: Record creation operation patterns
 
    ```typescript
-   const createRecordCreationHelper = (
+   const createEntityCreationHelper = (
      service: DomainService,
      state: State,
    ) => {

@@ -4,6 +4,7 @@
   import ServiceTypeCard from './ServiceTypeCard.svelte';
   import { encodeHashToBase64 } from '@holochain/client';
   import { goto } from '$app/navigation';
+  import { paths } from '$lib/paths';
 
   type Props = {
     serviceTypes: UIServiceType[];
@@ -28,7 +29,7 @@
   function handleEdit(serviceType: UIServiceType) {
     if (serviceType.original_action_hash) {
       const encodedHash = encodeHashToBase64(serviceType.original_action_hash);
-      goto(`/admin/service-types/${encodedHash}/edit`);
+      goto(paths.adminServiceTypeEdit(encodedHash));
     }
   }
 
@@ -76,7 +77,7 @@
           {/if}
         </p>
         {#if serviceTypes.length === 0}
-          <a href="/admin/service-types/create" class="variant-filled-primary btn mt-4">
+          <a href={paths.adminServiceTypeCreate()} class="variant-filled-primary btn mt-4">
             Create First Service Type
           </a>
         {/if}

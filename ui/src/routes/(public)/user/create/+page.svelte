@@ -4,6 +4,7 @@
   import type { UserInDHT } from '$lib/types/holochain';
   import UserForm from '$lib/components/users/UserForm.svelte';
   import { runEffect } from '$lib/utils/effect';
+  import { paths } from '$lib/paths';
 
   const { currentUser } = $derived(usersStore);
 
@@ -18,7 +19,7 @@
 
   $effect(() => {
     if (currentUser) {
-      goto('/user');
+      goto(paths.myProfile());
     }
   });
 </script>

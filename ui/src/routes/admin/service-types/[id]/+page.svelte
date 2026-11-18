@@ -14,6 +14,7 @@
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import type { ConfirmModalMeta } from '$lib/types/ui';
+  import { paths } from '$lib/paths';
 
   // Local state
   let isLoading = $state(true);
@@ -140,13 +141,13 @@
 
   // Navigation functions
   function navigateBack() {
-    goto('/admin/service-types');
+    goto(paths.adminServiceTypes());
   }
 
   function navigateToEdit() {
     if (serviceType?.original_action_hash) {
       const encodedHash = encodeHashToBase64(serviceType.original_action_hash);
-      goto(`/admin/service-types/${encodedHash}/edit`);
+      goto(paths.adminServiceTypeEdit(encodedHash));
     }
   }
 
@@ -337,7 +338,7 @@
             <div class="flex-1">
               <div class="mb-2 flex items-center gap-3">
                 <h1 class="h1 text-primary-400">{serviceType.name}</h1>
-                <span class="chip {statusColor} text-sm">
+                <span class="chip shrink-0 {statusColor} text-sm">
                   {statusLabel}
                 </span>
               </div>
@@ -475,7 +476,7 @@
             {#if relatedRequests.length > 6}
               <div class="pt-4 text-center">
                 <a
-                  href="/admin/requests?service_type={encodeURIComponent(serviceType.name)}"
+                  href={paths.adminRequests({ serviceType: serviceType.name })}
                   class="variant-soft-primary btn"
                 >
                   View All {relatedRequests.length} Requests
@@ -511,7 +512,7 @@
             {#if relatedOffers.length > 6}
               <div class="pt-4 text-center">
                 <a
-                  href="/admin/offers?service_type={encodeURIComponent(serviceType.name)}"
+                  href={paths.adminOffers({ serviceType: serviceType.name })}
                   class="variant-soft-primary btn"
                 >
                   View All {relatedOffers.length} Offers

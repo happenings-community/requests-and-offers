@@ -5,6 +5,7 @@
   import type { UIServiceType } from '$lib/types/ui';
   import { page } from '$app/state';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
+  import { paths } from '$lib/paths';
 
   type Props = {
     serviceType: UIServiceType;
@@ -23,7 +24,7 @@
   );
 
   const detailsPath = $derived(
-    inAdminPath ? `/admin/service-types/${encodedHash}` : `/service-types/${encodedHash}`
+    inAdminPath ? paths.adminServiceTypeDetail(encodedHash) : paths.serviceTypeDetail(encodedHash)
   );
 
   // Format date for display

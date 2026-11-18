@@ -171,6 +171,9 @@ pub enum MessagingError {
   #[error("That role has no holders, so there is nowhere to deliver to")]
   RoleHasNoHolders,
 
+  #[error("Your membership has no member grant yet, so you cannot send messages")]
+  NoMemberGrantYet,
+
   /// Carries `messaging::message::DEVICES_NOT_FOUND`, which the coordinator keeps beside
   /// the reasoning for its wording.
   #[error("{0}")]

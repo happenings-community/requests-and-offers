@@ -258,7 +258,15 @@ fn validate_term(term: &ExchangeTerm, side: &str) -> Option<String> {
 // Entry rules
 // ---------------------------------------------------------------------------
 
-fn validate_interest(author: &AgentPubKey, interest: &Interest) -> ExternResult<ValidateCallbackResult> {
+/// An interest names its author's own user, on a listing that exists, carries
+/// its author's member grant (#378), and its author holds no other live
+/// interest on that listing (#354). A withdrawn interest does not count, so a
+/// member may show interest again after withdrawing.
+fn validate_interest(
+  action: &TypedAction<CreateData>,
+  interest: &Interest,
+) -> ExternResult<ValidateCallbackResult> {
+  let author = action.author();
   if let Err(reason) = create_record(&interest.listing, "listing")? {
     return invalid(&reason);
   }
@@ -270,7 +278,66 @@ fn validate_interest(author: &AgentPubKey, interest: &Interest) -> ExternResult<
   if let Err(reason) = check_act(&interest.grant, author, &Ability::Participate, &None)? {
     return invalid(&format!("an interest is a role act: {}", reason));
   }
+  if live_interest_before(action, interest)? {
+    return invalid("this member already has an interest in this listing");
+  }
   Ok(ValidateCallbackResult::Valid)
+}
+
+/// Whether the author already holds an interest in the same listing that they
+/// have not withdrawn, earlier on their chain.
+///
+/// Reads from the action before this one back to the author's genesis. The
+/// read is never bounded by a hash the interest carries: validation only checks
+/// that `user` is a Create of the author's, so a bound taken from it could be
+/// moved past the first interest by naming any later Create. The bound is a
+/// position on the chain, not a time, so a backdated timestamp cannot slip under
+/// it, and starting from the previous action keeps the read to actions already
+/// on the chain. The chain comes newest first, so
+/// a withdrawal is seen before the interest it withdraws.
+fn live_interest_before(
+  action: &TypedAction<CreateData>,
+  interest: &Interest,
+) -> ExternResult<bool> {
+  let Some(prev_action) = action.header.prev_action.clone() else {
+    return Ok(false);
+  };
+  let interest_type = AppEntryDef::try_from(UnitEntryTypes::Interest)?;
+  let activity = must_get_agent_activity(
+    action.author().clone(),
+    ChainFilter::new(prev_action).include_cached_entries(),
+  )?;
+  let mut withdrawn: Vec<ActionHash> = Vec::new();
+  for item in activity {
+    let hash = item.action.as_hash().clone();
+    match &item.action.hashed.content.data {
+      ActionData::Delete(delete) => withdrawn.push(delete.deletes_address.clone()),
+      ActionData::Create(create) => {
+        let EntryType::App(def) = &create.entry_type else {
+          continue;
+        };
+        if def.zome_index != interest_type.zome_index || def.entry_index != interest_type.entry_index {
+          continue;
+        }
+        if withdrawn.contains(&hash) {
+          continue;
+        }
+        let entry = match item.cached_entry {
+          Some(entry) => entry,
+          None => must_get_entry(create.entry_hash.clone())?.content,
+        };
+        if let Some(EntryTypes::Interest(earlier)) =
+          EntryTypes::deserialize_from_type(def.zome_index, def.entry_index, &entry)?
+        {
+          if earlier.listing == interest.listing {
+            return Ok(true);
+          }
+        }
+      }
+      _ => {}
+    }
+  }
+  Ok(false)
 }
 
 /// An agreement points at an interest on the same listing. Its author is the
@@ -664,7 +731,7 @@ fn validate_link(
 fn validate_create(action: &TypedAction<CreateData>, entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
   let author = action.author();
   match entry {
-    EntryTypes::Interest(i) => validate_interest(author, &i),
+    EntryTypes::Interest(i) => validate_interest(action, &i),
     EntryTypes::Agreement(a) => validate_agreement(action, &a),
     EntryTypes::Response(r) => validate_response(action, &r),
     EntryTypes::Completion(c) => validate_party_entry(author, &c.agreement, "completion"),

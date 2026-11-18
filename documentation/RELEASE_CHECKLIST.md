@@ -268,6 +268,8 @@ Agreed at the 27 October 2026 dev meeting for alpha 2 and every release after it
 
   `<VERSION>` is the version being released, as in the tag (`0.6.0-alpha.2`). A draft hides the installers, not the source: the creator taking the seat from the dry run, before the tag, is what closes the build-from-source channel, and the draft is a second lock on the installer channel in case step 4 finds the hashes differ. State the first admin in the release's `CHANGELOG.md` section, which becomes the release notes (`scripts/release-notes.ts`); the mode is already there. Whether that names a person or says "the network creator" is the maintainers' call.
 
+- [ ] **Name the release's known gaps in its notes**, so testers are not left to find them. For alpha 2: a proposal to pay in a currency carries no amount, and one from an offer carries no hours, so both are agreed in the conversation (#307).
+
 ## 🚀 Release Execution
 
 ### ✅ **Manual Release Process**

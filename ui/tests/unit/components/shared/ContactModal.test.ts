@@ -43,8 +43,12 @@ describe('ContactModal copy (#368)', () => {
     expect(exchangeBranch).toMatch(
       /^\{:else\}\s*Feel free to send \{contactName\} a message by email\.\s*\{\/if\}/
     );
+    // The exchange page reaches the person through ReachPerson, which opens this pop-up
+    // when no messaging is plugged in, and passes the context through.
     const page = read('src/routes/(public)/exchanges/[id]/+page.svelte');
-    expect(page).toMatch(/ref: ContactModal,\s*props: \{[^}]*context: 'exchange'/s);
+    expect(page).toMatch(/<ReachPerson[^>]*context="exchange"/);
+    const reach = read('src/lib/components/exchanges/ReachPerson.svelte');
+    expect(reach).toMatch(/ref: ContactModal,\s*props: \{[^}]*context/s);
   });
 
   it('never leaves a gap when the contact has no name', () => {

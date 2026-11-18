@@ -29,9 +29,16 @@ test.describe.serial('09 — exchanges', () => {
     await expect(page.getByRole('heading', { name: 'My Exchanges', exact: true })).toBeVisible({
       timeout: 15_000
     });
+    // Toggle buttons, not tabs: they filter the one list below rather than each owning a
+    // panel. The two tabs on this page are Exchanges and Interested in.
+    const groups = page.getByRole('group', { name: 'Exchange groups' });
     for (const group of ['Proposals', 'Active', 'Completed', 'All']) {
-      await expect(page.getByRole('tab', { name: new RegExp(group) })).toBeVisible();
+      await expect(groups.getByRole('button', { name: new RegExp(group) })).toBeVisible();
     }
+    await expect(page.getByRole('tab', { name: /Exchanges/ })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
     await expect(page.getByText('No active exchanges yet.')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('link', { name: 'Browse listings to start one' })).toBeVisible();
   });
@@ -80,6 +87,9 @@ test.describe.serial('09 — exchanges', () => {
       timeout: 15_000
     });
     await expect(page.getByText('No one has registered interest yet.')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Interested in this offer/ })).toHaveCount(0);
+    // The door's own control, which an author never sees on their own listing. Named by
+    // its test id rather than its words, so a copy review cannot quietly disable this
+    // check by rewording the button.
+    await expect(page.getByTestId('show-interest')).toHaveCount(0);
   });
 });

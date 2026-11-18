@@ -54,7 +54,7 @@ Validation may read only what the entry names, through `must_get_valid_record`; 
 
 | Entry | Who may write it | What must hold |
 |---|---|---|
-| `Interest` | the member the `user` hash resolves to | the listing is a Create; the interest names its own author's user |
+| `Interest` | the member the `user` hash resolves to | the listing is a Create; the interest names its own author's user; the author holds no other interest on that listing that they have not withdrawn (read on their own chain) |
 | `Agreement` | either party | provider, receiver and counterparty agree with the listing type and its parties; primary is `Provide` + `Service`; reciprocal is `Receive`; both terms pass the kind rule; `medium` is not blank; when `counters` is set, the author is the countered proposal's counterparty, the previous action is their declining Response to it, and only quantities and the timeframe differ, each quantity present on both sides keeping its unit |
 | `Response` | the agreement's `counterparty` only | the agreement is a Create; the author has not already answered it (read on their own chain) |
 | `Completion` | either party | the agreement is a Create |
@@ -103,7 +103,7 @@ A cancellation written before any response reads as *withdrawn* rather than *can
 
 | Function | Input | Returns | Notes |
 |---|---|---|---|
-| `create_interest` | `CreateInterestInput` | `Record` | refuses a member's interest in their own listing |
+| `create_interest` | `CreateInterestInput` | `Record` | refuses a member's interest in their own listing, and a second while their first stands |
 | `withdraw_interest` | `ActionHash` | `ActionHash` | deletes the interest; the only delete the zome allows |
 | `get_interests_for_listing` | `ActionHash` | `Vec<Record>` | |
 | `get_my_interests` | `()` | `Vec<Record>` | |

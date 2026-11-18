@@ -2,6 +2,7 @@ pub mod decimal;
 pub mod dna_properties;
 pub mod errors;
 pub mod grants;
+pub mod listing_rules;
 pub mod types;
 /// Host-only helpers for calling an integrity zome's `validate` with one op.
 #[cfg(not(target_arch = "wasm32"))]

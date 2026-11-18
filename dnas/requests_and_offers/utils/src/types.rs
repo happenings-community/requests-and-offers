@@ -107,6 +107,29 @@ pub struct DateRange {
   pub end: Option<Timestamp>,
 }
 
+/// How soon, as a preset (#380): the four the propose and counter pages offer.
+/// A preset's due date is counted from acceptance (3, 14 or 30 days; Flexible
+/// has none) when it is read and by the hREA mirror; nothing in the DNA records it.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum TimeframePreset {
+  WithinAFewDays,
+  WithinTwoWeeks,
+  WithinAMonth,
+  Flexible,
+}
+
+/// When a listing is needed or offered, or an agreement delivered (#380): a
+/// preset, or a window of dates whose `end` is its due date. Typed timestamps,
+/// never text, so validation and the counter rule compare values.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum Timeframe {
+  Preset(TimeframePreset),
+  Dates {
+    start: Option<Timestamp>,
+    end: Timestamp,
+  },
+}
+
 // Type alias for TimeZone
 pub type TimeZone = String;
 

@@ -131,11 +131,23 @@ struct EncryptedMessage {
 holochain_serialized_bytes::holochain_serial!(EncryptedMessage);
 
 /// Mirror of the messaging coordinator's `SendMessageInput`.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 struct SendMessageInput {
     to_user: ActionHash,
     content: String,
+}
+
+impl serde::Serialize for SendMessageInput {
+    /// With a fresh send id: the coordinator refuses a send without one, and no case here
+    /// is about it.
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let mut out = serializer.serialize_struct("SendMessageInput", 3)?;
+        out.serialize_field("toUser", &self.to_user)?;
+        out.serialize_field("content", &self.content)?;
+        out.serialize_field("sendId", &fresh_send_id())?;
+        out.end()
+    }
 }
 
 /// Mirror of the messaging coordinator's `SentMessage`.

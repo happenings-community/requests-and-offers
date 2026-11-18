@@ -35,6 +35,15 @@
   let { title, items, alignRight = false, avatar }: Props = $props();
 
   const total = $derived(items.reduce((n, item) => n + (item.badge ?? 0), 0));
+  /**
+   * The count on the trigger, in words. One counted item says what it counts (My Activity:
+   * exchanges waiting on you; the member's menu: unopened conversations), so the trigger
+   * says it the same way; "new" only when two different counts are added together.
+   */
+  const counted = $derived(items.filter((item) => item.badge));
+  const totalLabel = $derived(
+    counted.length === 1 && counted[0].badgeLabel ? counted[0].badgeLabel(total) : `${total} new`
+  );
   const shown = (n: number) => (n > 9 ? '9+' : String(n));
 
   const id = `nav-menu-${nextId++}`;
@@ -129,7 +138,7 @@
     aria-controls={open ? id : undefined}
     onclick={onTriggerClick}
     onkeydown={onTriggerKey}
-    aria-label={total > 0 ? `${title} menu, ${total} new` : `${title} menu`}
+    aria-label={total > 0 ? `${title} menu, ${totalLabel}` : `${title} menu`}
   >
     {#if avatar}
       <img

@@ -93,8 +93,8 @@
 <div class="space-y-6">
   {#if canCreate}
     <div class="flex flex-wrap justify-end gap-2">
-      <a href="/requests/create" class="variant-filled-secondary btn btn-sm">+ Request</a>
-      <a href="/offers/create" class="variant-filled-warning btn btn-sm">+ Offer</a>
+      <a href={paths.requestCreate()} class="variant-filled-secondary btn btn-sm">+ Request</a>
+      <a href={paths.offerCreate()} class="variant-filled-warning btn btn-sm">+ Offer</a>
     </div>
   {/if}
 

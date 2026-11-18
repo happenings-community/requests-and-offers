@@ -95,15 +95,16 @@
 
   /**
    * Under your picture: your profile, and **My Messages only where this network has
-   * messaging** (R121, brief H4). Read from the DNA through H2's module, which is the one
-   * question shared chrome may ask. Not read yet counts as present, so the item is there
-   * from the first frame and disappears only if the DNA says this network has no
-   * messaging.
+   * messaging** (R121, brief H4), and only for an accepted member, since Messages is
+   * behind the Members only wall and #349 gives nobody a link that ends there. Presence
+   * is read from the DNA through H2's module, which is the one question shared chrome may
+   * ask. Not read yet counts as present, so the item is there from the first frame and
+   * disappears only if the DNA says this network has no messaging.
    */
   function profileMenuItems() {
     return [
       ...myProfileItems(true),
-      ...(messagingPresence.isAbsent
+      ...(messagingPresence.isAbsent || !isUserApproved(currentUser)
         ? []
         : [
             {
@@ -313,7 +314,8 @@
 
     <!-- The member's own menu: their picture and name, top right -->
     {#if currentUser}
-      <div class="text-white">
+      <!-- A test id rather than the name, which differs between a full run and a single spec -->
+      <div class="text-white" data-testid="member-menu">
         <NavDropdown
           title={currentUser.name}
           avatar={myPicture}

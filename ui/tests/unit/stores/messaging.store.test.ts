@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Effect as E } from 'effect';
 import { encodeHashToBase64 } from '@holochain/client';
+import { MESSAGING_STRINGS } from '$lib/strings/messaging.strings';
 import { localKey } from '$lib/utils/messaging-local';
 import { createMessagingStore, type MessagingStore } from '$lib/stores/messaging.store.svelte';
 import { unopenedConversations } from '$lib/utils/messaging-threads';
@@ -991,6 +992,96 @@ describe('what the outbox must not do', () => {
         .outbox ?? []
     ).map((item) => item.id);
   const noAnswer = { name: 'Error', message: 'Timed out waiting for the conductor' };
+
+  /**
+   * **One message the keystore cannot encrypt must not hold up the rest** (the walk of
+   * 15 November). Against zomes with the old 16 KiB limit Lair refuses it for its size,
+   * and the conductor reports that as `internal_error`, which used to read as no answer.
+   * It was retried for ever, and every later message to that person waited behind it
+   * until the member found Discard. (With the limit at 3 KiB the zome refuses it first;
+   * the test after this one covers that.)
+   *
+   * Now it is refused with a reason, which takes it out of the retrying, and the next
+   * message to the same person goes on the next run, as after any refusal.
+   *
+   * **To make this go red:** remove the `isKeystoreFrameOverflow` branch from
+   * `classifySendFailure`. The first stays waiting and the second never goes.
+   */
+  it('refuses a message the keystore cannot encrypt, and sends the next one to the same person', async () => {
+    const store = await freshStore();
+    store2([held('long', ANITA, 1), held('short', ANITA, 2)]);
+    const overflow = {
+      name: 'internal_error',
+      message:
+        'Wasm runtime error while working with Ribosome: RuntimeError: holochain::core::ribosome::host_fn::ed_25519_x_salsa20_poly1305_encrypt:43: Host("{\\"error\\":\\"FrameOverflow\\",\\"message\\":\\"11980 > 8192\\"}")'
+    };
+    findSent.mockReturnValue(E.succeed(null));
+    sendMessage.mockReturnValueOnce(E.fail(overflow)).mockReturnValue(E.succeed([]));
+
+    await E.runPromise(store.flushOutbox());
+    const long = store.outbox.find((item) => item.id === 'long');
+    expect(long?.state, 'refused, not waiting').toBe('refused');
+    expect(long?.reason).toBe(MESSAGING_STRINGS.conversation.tooLongToEncrypt);
+
+    await E.runPromise(store.flushOutbox());
+    expect(
+      store.outbox.map((item) => item.id),
+      'the next message went; the refused one stays for the member'
+    ).toEqual(['long']);
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(sendMessage.mock.calls[1][0]).toMatchObject({ content: 'message short' });
+  });
+
+  /**
+   * **The same for any refusal from the zome, as Holochain 0.7 sends it**: as
+   * `internal_error`, not 0.6's `ribosome_error`, which every other fixture here uses. A
+   * message refused for being too long, or because the sender is not accepted yet, is
+   * refused with the zome's own sentence, and the next message to that person goes.
+   *
+   * **To make this go red:** remove `isZomeFailure` from `classifySendFailure`.
+   */
+  it('refuses on a 0.7 refusal from the zome, and sends the next one to the same person', async () => {
+    const store = await freshStore();
+    store2([held('long', ANITA, 1), held('short', ANITA, 2)]);
+    const tooLong = {
+      name: 'internal_error',
+      message:
+        'Wasm runtime error while working with Ribosome: RuntimeError: messaging::message:350: Guest("Message content is 3073 bytes, over the 3072 byte limit")'
+    };
+    findSent.mockReturnValue(E.succeed(null));
+    sendMessage.mockReturnValueOnce(E.fail(tooLong)).mockReturnValue(E.succeed([]));
+
+    await E.runPromise(store.flushOutbox());
+    const long = store.outbox.find((item) => item.id === 'long');
+    expect(long?.state).toBe('refused');
+    expect(long?.reason, "the zome's own sentence, unwrapped").toBe(
+      'Message content is 3073 bytes, over the 3072 byte limit'
+    );
+
+    await E.runPromise(store.flushOutbox());
+    expect(store.outbox.map((item) => item.id)).toEqual(['long']);
+    expect(sendMessage.mock.calls[1][0]).toMatchObject({ content: 'message short' });
+  });
+
+  /**
+   * And sent straight away, a 0.7 refusal is reported as a refusal: not queued as
+   * "Waiting to send", which is what the member saw for anything the zome said no to.
+   */
+  it('reports a 0.7 refusal on a send, and queues nothing', async () => {
+    const store = await freshStore();
+    sendMessage.mockReturnValue(
+      E.fail({
+        name: 'internal_error',
+        message:
+          'Wasm runtime error while working with Ribosome: RuntimeError: messaging::message:120: Guest("Your member profile is not accepted yet, so you cannot send messages")'
+      })
+    );
+
+    const result = await E.runPromise(E.either(store.send(ANITA, 'see you at ten')));
+
+    expect(result._tag, 'the send fails, so the screen can say why').toBe('Left');
+    expect(store.outbox, 'nothing held to retry').toHaveLength(0);
+  });
 
   /**
    * `find_sent` skips everything older than `since`. An attempt that committed and then

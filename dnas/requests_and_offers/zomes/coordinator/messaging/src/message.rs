@@ -30,13 +30,30 @@ use utils::grants::{can_i, Ability};
 /// stays on one line and stays easy to extract.
 pub const DEVICES_NOT_FOUND: &str = "Could not reach that member's devices just now. The message has not been sent; try again in a moment.";
 
-/// Largest plaintext this zome will encrypt and send.
+/// Largest message content this zome will encrypt and send: **3 KiB**.
 ///
 /// Checked here, before encrypting, so an oversized message fails the call with a
 /// clear error rather than being rejected later by validation, where the caller would
 /// see a write failure instead of a reason. The integrity zome bounds the ciphertext
 /// as well, because validation cannot trust that this check ran.
-pub const MAX_CONTENT_BYTES: usize = 16 * 1024;
+///
+/// **Set by the keystore, not by taste.** Encrypting and decrypting go to Lair over its
+/// IPC channel, and `lair_keystore_api` 0.7.1 refuses any frame over 8 KiB
+/// (`MAX_FRAME`, `sodium_secretstream.rs`). The bytes to encrypt or open travel as a
+/// msgpack *array of integers*, not a binary blob, so each byte of 0x80 or more takes
+/// two. Measured against Lair's own types, the largest plaintext whose encrypt request,
+/// encrypt reply, open request and open reply all fit is 3,943 bytes when every byte
+/// costs two. That worst case is the one to plan for: the open request carries the
+/// ciphertext, whose bytes are effectively random, so even plain English costs about
+/// one and a half bytes a byte on the way back.
+///
+/// The plaintext is this content plus its envelope, at most about 420 bytes for a role
+/// message with every optional field at its longest (see `MAX_CIPHERTEXT_BYTES`). That
+/// leaves about 3,520 bytes; 3 KiB keeps roughly 450 spare. It was 16 KiB, which no
+/// test came near: a message of accented text over about 3.9 KiB, or of plain English
+/// somewhere between 5 and 7.9 KiB, failed to encrypt or to be read back, and a refused
+/// frame broke the Lair connection until the conductor reconnected.
+pub const MAX_CONTENT_BYTES: usize = 3 * 1024;
 
 /// Largest send identifier this zome will accept. A UUID is 36 bytes.
 pub const MAX_SEND_ID_BYTES: usize = 64;

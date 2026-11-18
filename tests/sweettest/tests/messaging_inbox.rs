@@ -1303,3 +1303,90 @@ async fn the_chain_functions_for_blocks_and_read_markers_are_gone() {
         )
         .await;
 }
+
+// -- the size limit --
+
+/// Three KiB of content in which every byte is 0x80 or more, the worst case for Lair.
+///
+/// Lair, the keystore, carries the bytes to encrypt or open as a msgpack array of
+/// integers, two bytes for each byte of 0x80 or more, and refuses any frame over 8 KiB.
+/// `é` is two UTF-8 bytes, both over 0x80, so 1,536 of them is the limit exactly and the
+/// largest frames a message can make. The test keystore goes through the same channel
+/// as a real conductor's, so a message this keystore cannot open fails here too.
+fn at_the_limit() -> String {
+    "é".repeat(1536)
+}
+
+/// A message at the limit, in the worst characters, is sent, read by its recipient and
+/// read back by its sender: one encrypt and two opens, each through Lair's channel. The
+/// send id is at its own 64-byte bound and the message carries a read mark, so its
+/// envelope is as large as a personal message's gets.
+///
+/// The limit was 16 KiB until the walk of 15 November 2026, when a 12 KB message failed
+/// to encrypt (`FrameOverflow`) and sat on "Waiting to send". No test had sent more than
+/// a few hundred bytes. This shows the new limit holds; it passes on the old zomes too,
+/// which would also carry 3 KiB. The test below is the one that goes red on them.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_message_at_the_size_limit_in_two_byte_characters_is_sent_and_read() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+    let content = at_the_limit();
+    assert_eq!(content.len(), 3 * 1024, "the limit, in bytes");
+
+    let _: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: bob_user,
+                content: content.clone(),
+                send_id: "x".repeat(64),
+                read_up_to: Some(Timestamp::now()),
+                listing: None,
+            },
+        )
+        .await;
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+
+    // `readable` fails loudly on a message that could not be opened.
+    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    assert_eq!(inbox.len(), 1, "Bob should have the one message");
+    assert_eq!(inbox[0].content, content, "Bob reads it whole");
+
+    let sent: Vec<Message> = conductors[0].call(&alice.zome("messaging"), "get_sent", ()).await;
+    assert!(
+        sent.iter().any(|m| m.content == content),
+        "Alice reads her own copy back whole"
+    );
+}
+
+/// One byte past the limit is refused by the zome, before anything is encrypted or
+/// written, with the reason the app shows. **To make this go red:** raise
+/// `MAX_CONTENT_BYTES`; the send then goes through.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_message_one_byte_over_the_size_limit_is_refused() {
+    let (conductors, alice, bob, _alice_user, bob_user) = two_accepted_members().await;
+    let over = format!("{}a", at_the_limit());
+    assert_eq!(over.len(), 3 * 1024 + 1);
+
+    match conductors[0]
+        .call_fallible::<_, Vec<SentMessage>>(
+            &alice.zome("messaging"),
+            "send_message",
+            plain(bob_user, over),
+        )
+        .await
+    {
+        Ok(sent) => panic!("3,073 bytes should be refused, but the send returned {sent:?}"),
+        Err(e) => {
+            let text = format!("{e} | {e:?}");
+            assert!(
+                text.contains("Message content is 3073 bytes, over the 3072 byte limit"),
+                "refused for its length, in the words the app matches; got {text}"
+            );
+        }
+    }
+
+    await_consistency_s(30, [&alice, &bob]).await.unwrap();
+    let inbox = readable(conductors[1].call(&bob.zome("messaging"), "get_inbox", ()).await);
+    assert!(inbox.is_empty(), "nothing was written; Bob has {inbox:?}");
+}

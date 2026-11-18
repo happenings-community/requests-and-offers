@@ -62,3 +62,20 @@ describe('a proposal waiting for an answer', () => {
     expect(screen.queryByText('Accept')).toBeNull();
   });
 });
+
+describe('a long word in a proposal', () => {
+  /**
+   * A word wider than the card (a pasted link in the note) breaks inside it rather than
+   * pushing the card, and the page, wider. `overflow-wrap` is inherited, so the card sets
+   * it once for every line in it. **To make it go red:** drop `[overflow-wrap:anywhere]`
+   * from the card.
+   */
+  it('wraps inside the card', () => {
+    const exchange = proposal(THEM);
+    (exchange.agreement as { terms?: string }).terms = 'a'.repeat(3000);
+    mount(exchange);
+
+    expect(screen.getByTestId('proposal-card').className).toContain('[overflow-wrap:anywhere]');
+    expect(screen.getByText('a'.repeat(3000))).toBeTruthy();
+  });
+});

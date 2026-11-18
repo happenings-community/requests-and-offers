@@ -76,7 +76,10 @@
   );
 </script>
 
-<article class="card border-2 p-4 {kind ? tint : ''}" data-testid="shared-listing-card">
+<article
+  class="card border-2 p-4 [overflow-wrap:anywhere] {kind ? tint : ''}"
+  data-testid="shared-listing-card"
+>
   <p class="text-sm text-surface-600 dark:text-surface-300">
     {mine ? S.conversation.sharedByYou : fill(S.conversation.sharedByThem, { name })}
   </p>

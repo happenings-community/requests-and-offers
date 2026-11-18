@@ -101,4 +101,15 @@ describe('the Exchanges and Interested in tabs', () => {
     await fireEvent.click(other);
     expect(pressed()).toEqual([other]);
   });
+
+  /**
+   * The root layout centres a page shorter than the window, and Interested in is shorter
+   * than Exchanges, so switching tabs moved the whole page up and down. Filling the height
+   * keeps it at the top. **To make it go red:** drop `flex-1` from the page's section.
+   */
+  it('fills the height, so switching tabs does not move the page', () => {
+    render(MyExchangesPage);
+    const section = screen.getByRole('heading', { name: 'My Exchanges' }).closest('section');
+    expect(section?.classList.contains('flex-1')).toBe(true);
+  });
 });

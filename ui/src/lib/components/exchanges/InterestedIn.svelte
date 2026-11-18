@@ -148,7 +148,8 @@
             >
               {row.interest.listing_type === 'Offer' ? C.listingType.offer : C.listingType.request}
             </span>
-            <span class="font-semibold">{row.title}</span>
+            <!-- A member's title, up to 200 characters: a long word wraps. -->
+            <span class="font-semibold [overflow-wrap:anywhere]">{row.title}</span>
             {#if row.archivedByAuthor}
               <span class="variant-soft-surface badge">{S.interested.archived}</span>
             {/if}

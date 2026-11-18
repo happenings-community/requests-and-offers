@@ -101,4 +101,16 @@ describe('withdrawing interest from My Exchanges', () => {
     const link = await screen.findByRole('link', { name: 'View listing' });
     expect(link.getAttribute('href')).toBe(`/offers/${encodeHashToBase64(LISTING)}`);
   });
+
+  /**
+   * A listing's title is the member's, up to 200 characters, and a single long word in it
+   * ran out of the card. `overflow-wrap: anywhere` lowers the width the row reserves for
+   * it, so it wraps. **To make it go red:** drop `[overflow-wrap:anywhere]` from the title.
+   */
+  it("wraps a long word in a listing's title", async () => {
+    render(InterestedIn);
+    expect((await screen.findByText('Garden clearance')).className).toContain(
+      '[overflow-wrap:anywhere]'
+    );
+  });
 });

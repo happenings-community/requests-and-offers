@@ -289,7 +289,9 @@
                 ? 'variant-filled-primary'
                 : 'variant-soft-surface'}"
             >
-              <p class="whitespace-pre-wrap text-sm">{item.message.content}</p>
+              <p class="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">
+                {item.message.content}
+              </p>
               <p class="pt-1 text-right text-xs opacity-70">
                 {whenOf(item.at)}{#if item.message.mine}
                   · {conversation.statusOf(item.at) === 'read' ? S.status.read : S.status.sent}
@@ -341,7 +343,7 @@
                 name={conversation.name}
               />
             {:else}
-              <p class="whitespace-pre-wrap text-sm">{item.content}</p>
+              <p class="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{item.content}</p>
             {/if}
             <p class="pt-1 text-right text-xs">
               {#if item.state === 'waiting'}

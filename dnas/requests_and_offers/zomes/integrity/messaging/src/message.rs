@@ -21,33 +21,31 @@ pub struct EncryptedMessage {
   pub grant: Option<ActionHash>,
 }
 
-/// Largest ciphertext this zome will accept, derived from the plaintext bounds the
-/// coordinator enforces rather than picked for roundness.
+/// Largest ciphertext this zome will accept: **3,840 bytes**, between what a legitimate
+/// message can reach and what a recipient can open.
 ///
-/// The plaintext is a msgpack map, and the worst case is a **role message**: `content`
-/// at `MAX_CONTENT_BYTES` (16 KiB), a `send_id` at `MAX_SEND_ID_BYTES` (64), a role
-/// reference whose largest form is a named permission at `MAX_PERMISSION_BYTES` (64), a
-/// direction, and a case reference carrying a `case_id` at `MAX_CASE_ID_BYTES` (64), the
-/// opener's `User` hash, a kind, and an event whose largest form holds one more
-/// `ActionHash`.
+/// **The floor: the largest legitimate message.** The plaintext is a msgpack map, and
+/// the worst case is a **role message**: `content` at `MAX_CONTENT_BYTES` (3 KiB), a
+/// `send_id` at `MAX_SEND_ID_BYTES` (64), a role reference whose largest form is a named
+/// permission at `MAX_PERMISSION_BYTES` (64), a direction, and a case reference carrying
+/// a `case_id` at `MAX_CASE_ID_BYTES` (64), the opener's `User` hash, a kind, and an
+/// event whose largest form holds one more `ActionHash`. With msgpack's camelCase field
+/// names and length prefixes that is about 3,491 bytes, and crypto_box adds a 16-byte
+/// authentication tag: **about 3,507**. The nonce is a separate fixed-size field of
+/// `XSalsa20Poly1305EncryptedData` and is not counted here.
 ///
-/// Adding msgpack's camelCase field names and length prefixes, that is about 16,803
-/// bytes, and crypto_box adds a 16-byte authentication tag: **about 16,819 against the
-/// 17,408 below, leaving roughly 580 bytes spare.** The nonce is a separate fixed-size
-/// field of `XSalsa20Poly1305EncryptedData` and is not counted here.
+/// **The ceiling: what Lair can open.** A recipient decrypts through Lair, whose IPC
+/// channel refuses frames over 8 KiB and carries the ciphertext as a msgpack array of
+/// integers, two bytes for each byte of 0x80 or more. Measured against Lair's own types,
+/// the largest ciphertext whose open request and reply always fit is **3,959 bytes**.
+/// Anything larger cannot be read, and worse, the refused frame breaks the recipient's
+/// Lair connection, which every signature on their conductor uses. Validation refuses
+/// it so no client, however built, can put one on someone's chain. It was 17 KiB.
 ///
 /// A personal message is far smaller, and the two fields added to it here cannot both
 /// grow: `listing` is only ever set on a card-only message, whose `content` is empty,
 /// which `send_message` enforces. `read_up_to` is a timestamp.
-///
-/// The constant has not moved since it was first derived from a conversation ID and a
-/// content bound. Each reshape since has fitted inside it, which is why no message that
-/// used to fit has ever stopped fitting.
-///
-/// 17 KiB leaves a few hundred bytes of headroom for the encoding rather than
-/// sitting exactly on the arithmetic, because a validation rule that rejects a
-/// legitimate message is worse than one that accepts a slightly larger one.
-pub const MAX_CIPHERTEXT_BYTES: usize = 17 * 1024;
+pub const MAX_CIPHERTEXT_BYTES: usize = 3840;
 
 // -- the rules, as pure functions --
 //

@@ -7,7 +7,8 @@ import type { UIExchange, UIInterest } from '$lib/types/ui';
 import type { ExchangeStatus, ListingType } from '$lib/types/holochain';
 import { exchangeState, type ExchangeState } from '$lib/utils/exchange-ui';
 import { paths } from '$lib/paths';
-import { errorShape } from '$lib/utils/error-shape';
+import { errorShape, guestReason } from '$lib/utils/error-shape';
+import { MESSAGING_STRINGS } from '$lib/strings/messaging.strings';
 
 /**
  * Turning what the zome returns into the conversations a member sees.
@@ -141,15 +142,19 @@ export type SendFailure =
 /**
  * The conductor's wire errors that mean **the zome answered, and said no**.
  *
- * From `ExternalApiWireError` in `holochain_conductor_api` 0.6.1,
- * `src/admin_interface.rs:617-640`, which is
- * `#[serde(tag = "type", rename_all = "snake_case")]`, so these are the names that reach
- * the client. A `wasm_error!(Guest(..))` from our own zome arrives as `ribosome_error`
- * carrying its own text.
+ * From `ExternalApiWireError` in `holochain_conductor_api`, `src/admin_interface.rs`,
+ * which is `#[serde(tag = "type", rename_all = "snake_case")]`, so these are the names
+ * that reach the client.
  *
- * **`internal_error` and `dna_read_error` are deliberately absent.** Either could in
- * principle be raised after something was written, and the only job of this list is to
- * carry the claim "nothing was written", so anything that cannot carry it is left out.
+ * **Under Holochain 0.7 a refusal from our own zome does not arrive under any of these
+ * names**: see `ZOME_FAILED_PREFIX`. The list stays for what still uses them (a call
+ * refused before it reached the zome, a payload that would not decode) and for a
+ * conductor that goes back to the 0.6 mapping.
+ *
+ * **`internal_error` and `dna_read_error` are not on it.** Either can in general be raised
+ * after something was written, and the only job of this list is to carry the claim
+ * "nothing was written". The one `internal_error` that can carry it is recognised by its
+ * text instead.
  *
  * A timeout or a dropped socket never appears here, by construction: they are not
  * answers, so they fall through to the default.
@@ -182,8 +187,80 @@ const ZOME_ANSWERED = new Set([
 export function classifySendFailure(error: unknown): SendFailure {
   const { name, message } = errorShape(error);
   if (isDevicesNotFound(message)) return { kind: 'devicesNotFound' };
-  if (ZOME_ANSWERED.has(name)) return { kind: 'refused', reason: message };
+  if (ZOME_ANSWERED.has(name) || isZomeFailure(name, message)) {
+    return {
+      kind: 'refused',
+      // The zome's own sentence, not the conductor's wrapping of it: this is what the
+      // member reads after "Your message wasn't sent:".
+      reason: isKeystoreFrameOverflow(message)
+        ? MESSAGING_STRINGS.conversation.tooLongToEncrypt
+        : guestReason(message)
+    };
+  }
   return { kind: 'noAnswer', reason: message };
+}
+
+/**
+ * How Holochain 0.7 renders a zome call that failed inside the ribosome:
+ * `RibosomeError::WasmRuntimeError`'s own `Display` (`holochain` 0.7.0,
+ * `src/core/ribosome/error.rs`).
+ */
+const ZOME_FAILED_PREFIX = 'Wasm runtime error while working with Ribosome';
+
+/**
+ * **A zome call our zome refused, under Holochain 0.7.** This is how every refusal from
+ * our own zomes now arrives, not as `ribosome_error`.
+ *
+ * `call_zome_workflow` (`holochain` 0.7.0, `src/core/workflow/call_zome_workflow.rs`)
+ * runs the call, then `let result = result?;`, so an error from the zome, or from a host
+ * function it called such as Lair's encrypt, leaves as a `WorkflowError`. The app
+ * interface answers any such error with `ExternalApiWireError::internal`
+ * (`src/conductor/api/api_external/app_interface.rs`, `src/conductor/api/error.rs`), so
+ * it reaches the client as `internal_error`, rendered with `Display`: this prefix, then
+ * the runtime error with our `Guest("…")` sentence inside it, which `guestReason` unwraps.
+ *
+ * **It carries "nothing was written"** because of where it is raised: before that `?`,
+ * and the call's writes are flushed only after it, so nothing is stored. That holds for
+ * `send_message` and `send_role_message`, which call no other cell: a call into another
+ * cell runs as its own root call and commits on its own.
+ *
+ * **Only the zome's own `Guest("…")` sentence counts, and Lair's size refusal.** A host
+ * function failing inside the call (`Host(…)`: Lair reconnecting, a network timeout)
+ * also wrote nothing, but it is usually passing, so it stays no answer and is retried by
+ * itself, the chain asked first; it has no sentence a member could act on either. Lair's
+ * `FrameOverflow` is the one host failure that is not passing. An `internal_error`
+ * without the prefix (a failed write, a lost cell) may follow a write, so it stays no
+ * answer too. A validation refusal (`InvalidCommit`) carries no prefix and also reads as
+ * no answer; the coordinator checks everything validation does before writing, so an
+ * honest client does not meet one.
+ *
+ * Found on 15 November 2026: a 12 KB message was refused by Lair, read as no answer,
+ * and retried for ever, holding every later message to that person behind it. Every
+ * other refusal from the zome, such as "not accepted yet", had been doing the same since
+ * the move to 0.7, unseen, because the tests used 0.6's `ribosome_error`.
+ */
+export function isZomeFailure(name: string, message: string): boolean {
+  return (
+    name === 'internal_error' &&
+    message.includes(ZOME_FAILED_PREFIX) &&
+    (/Guest\(/.test(message) || isKeystoreFrameOverflow(message))
+  );
+}
+
+/**
+ * Did the keystore refuse to encrypt this for its size?
+ *
+ * Lair refuses IPC frames over 8 KiB (`MAX_CONTENT_BYTES` in
+ * `coordinator/messaging/src/message.rs` has the measurement). With the limit at 3 KiB
+ * the zome refuses anything that large first (`ContentTooLong`), so this is reachable
+ * only against zomes with the old limit. It is a refusal (`isZomeFailure`), but its text
+ * is Lair's wire format, so the member is told what it means instead.
+ *
+ * Matched on Lair's own error name, which `holochain_keystore` carries through as
+ * `"error":"FrameOverflow"`.
+ */
+export function isKeystoreFrameOverflow(reason: string | undefined | null): boolean {
+  return /FrameOverflow/.test(reason ?? '');
 }
 
 /**
@@ -201,13 +278,14 @@ export function isTooLong(reason: string | undefined | null): boolean {
 /**
  * The largest message the zome will accept, in **bytes, not characters**.
  *
- * Mirrors `MAX_CONTENT_BYTES` in `coordinator/messaging/src/message.rs:35`, which checks
- * `content.len()` — and Rust's `String::len` is the UTF-8 byte length. A character
+ * Mirrors `MAX_CONTENT_BYTES` in `coordinator/messaging/src/message.rs`, which checks
+ * `content.len()`, and Rust's `String::len` is the UTF-8 byte length. 3 KiB is set by
+ * the keystore, not by taste; the derivation is on the zome's constant. A character
  * counter would be wrong for anyone not writing in ASCII: one emoji is four bytes, and
  * most accented letters are two, so a member writing in a language with accents would be
  * refused while the counter still showed room.
  */
-export const MAX_CONTENT_BYTES = 16 * 1024;
+export const MAX_CONTENT_BYTES = 3 * 1024;
 
 /** How many UTF-8 bytes this text takes, which is what the zome measures. */
 export function contentBytes(text: string): number {

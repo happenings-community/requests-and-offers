@@ -270,6 +270,36 @@ describe('the conversation page', () => {
   });
 
   /**
+   * A word wider than its bubble (a pasted link, or 3 KiB of one letter) breaks inside the
+   * bubble rather than running off the side of the window. Seen on the walk of #488, with
+   * a sent message; a message still waiting to send is drawn by the same kind of line.
+   * The test environment lays nothing out, so this checks the class that does it; the
+   * walk checked the drawing. `anywhere`, not `break-word`: only `anywhere` lowers the
+   * width the page reserves for the word, so a narrow window does not scroll sideways.
+   *
+   * **To make it go red:** drop `[overflow-wrap:anywhere]` from either line.
+   */
+  it('wraps a word wider than its bubble, in a message or one still waiting', async () => {
+    const long = 'a'.repeat(3000);
+    getInbox.mockReturnValue(E.succeed([fromAnita(hashes.M1, T, long)]));
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        schemaVersion: 2,
+        outbox: [
+          { id: 'held-long', to: anita, content: `b${long}`, queuedAt: T + 1, state: 'waiting' }
+        ]
+      })
+    );
+    // Nothing gets through, so the held one stays waiting.
+    sendMessage.mockReturnValue(E.fail(new Error('send_message: no answer')));
+    render(ConversationPage);
+
+    expect((await screen.findByText(long)).className).toContain('[overflow-wrap:anywhere]');
+    expect((await screen.findByText(`b${long}`)).className).toContain('[overflow-wrap:anywhere]');
+  });
+
+  /**
    * A conversation left open in a hidden tab or a minimised window has been seen by
    * nobody. Marking it read there sent a receipt: the other person saw "Read" for a
    * message nobody saw, and learned that this device was awake (Sacha's review of 16
@@ -695,21 +725,21 @@ describe('the conversation page', () => {
 
     expect(announced()).toBe('');
 
-    await fireEvent.input(box, { target: { value: 'a'.repeat(16 * 1024 - 400) } });
+    await fireEvent.input(box, { target: { value: 'a'.repeat(3 * 1024 - 400) } });
     await waitFor(() => expect(announced()).toBe('Close to the limit for one message.'));
     expect(counter().getAttribute('aria-live')).toBeNull();
 
     // A figure in the announcement would be stale here: the counter has moved on.
-    await fireEvent.input(box, { target: { value: 'a'.repeat(16 * 1024 - 10) } });
+    await fireEvent.input(box, { target: { value: 'a'.repeat(3 * 1024 - 10) } });
     expect(counter().textContent).toContain('99%');
     expect(announced()).toBe('Close to the limit for one message.');
 
-    await fireEvent.input(box, { target: { value: 'a'.repeat(16 * 1024 + 10) } });
+    await fireEvent.input(box, { target: { value: 'a'.repeat(3 * 1024 + 10) } });
     await waitFor(() =>
       expect(announced()).toBe('Too long for one message. Split it into 2 messages.')
     );
 
-    await fireEvent.input(box, { target: { value: 'a'.repeat(32 * 1024 + 10) } });
+    await fireEvent.input(box, { target: { value: 'a'.repeat(6 * 1024 + 10) } });
     await waitFor(() =>
       expect(announced()).toBe('Too long for one message. Split it into 3 messages.')
     );

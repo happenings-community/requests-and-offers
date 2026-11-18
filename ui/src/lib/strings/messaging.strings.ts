@@ -90,6 +90,13 @@ export const MESSAGING_STRINGS = {
     encrypted: 'Encrypted between you and {name}.',
     send: 'Send',
     sendFailed: "Your message wasn't sent: {reason}",
+    /**
+     * DRAFT, for Anita. The reason in `sendFailed` when the keystore could not encrypt a
+     * message for its size. The composer and the zome stop anything over 3 KiB first, so
+     * this shows only against zomes with the old 16 KiB limit.
+     */
+    tooLongToEncrypt:
+      'it is too long to encrypt. Copy it, discard it here, and send it in shorter parts',
     /** A card action (share, accept, decline, withdraw) the network refused. */
     actionFailed: "That didn't go through: {reason}",
     /** Names the list of messages and cards for a screen reader. */

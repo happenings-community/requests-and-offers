@@ -106,7 +106,7 @@
   }
 </script>
 
-<article class="card w-full p-4" data-testid="proposal-card">
+<article class="card w-full p-4 [overflow-wrap:anywhere]" data-testid="proposal-card">
   <header class="flex flex-wrap items-center gap-2">
     <span
       aria-hidden="true"

@@ -326,6 +326,9 @@ const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
       status_type: normalizedStatusType,
       reason: reason || undefined,
       suspended_until: suspended_until ?? undefined,
+      // What a temporary suspension had left when this revision was written: the status
+      // history shows it. Both are microseconds; the result is milliseconds.
+      duration: remainingMs(suspended_until, record.signed_action.hashed.content.header.timestamp),
       original_action_hash: record.signed_action.hashed.hash,
       previous_action_hash: record.signed_action.hashed.hash,
       created_at: record.signed_action.hashed.content.header.timestamp,
@@ -991,9 +994,12 @@ export const createAdministrationStore = (): E.Effect<
         }),
         E.map((record) => {
           if (!record) return null;
-          const decodedStatus = decode(
-            (record.entry as HolochainEntry).Present.entry
-          ) as StatusInDHT;
+          const raw = decode((record.entry as HolochainEntry).Present.entry) as StatusInDHT;
+          // The end through the same reader as every other path: an integer, or none.
+          const decodedStatus: StatusInDHT = {
+            ...raw,
+            suspended_until: decodedSuspensionEnd(raw.suspended_until)
+          };
           const action = record.signed_action.hashed.content;
           // For status updates: previous_action_hash should be the current status action hash
           // This is the action hash of the status entry that would be updated

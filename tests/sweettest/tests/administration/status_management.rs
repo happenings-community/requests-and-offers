@@ -484,6 +484,27 @@ async fn a_temporary_suspension_ends_at_a_typed_time_checked_when_written() {
         .await;
     assert!(!lifted, "seven days remain");
 
+    // A suspension of no days is refused by the coordinator, naming the duration.
+    let no_days = conductors[0]
+        .call_fallible::<_, bool>(
+            &alice.zome("administration"),
+            "suspend_entity_temporarily",
+            SuspendEntityTemporarilyInput {
+                entity: ENTITY_USERS.to_string(),
+                entity_original_action_hash: bob_user_hash.clone(),
+                status_original_action_hash: status_hash.clone(),
+                status_previous_action_hash: suspension.signed_action.hashed.hash.clone(),
+                reason: "No time at all".to_string(),
+                duration_in_days: 0,
+            },
+        )
+        .await
+        .map_err(|e| format!("{e:?}"));
+    assert!(
+        matches!(&no_days, Err(e) if e.contains("at least one")),
+        "a suspension of no days must be refused: {no_days:?}"
+    );
+
     // An end already past is refused, even from an administrator.
     let refused = conductors[0]
         .call_fallible::<_, Record>(

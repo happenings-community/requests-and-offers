@@ -128,6 +128,9 @@ pub enum StatusError {
 
   #[error("Duration in days not provided")]
   DurationInDaysNotProvided,
+
+  #[error("A temporary suspension lasts a whole number of days, at least one: {0}")]
+  DurationInDaysOutOfRange(i64),
 }
 
 #[derive(Debug, Error)]

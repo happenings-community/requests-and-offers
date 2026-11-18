@@ -92,6 +92,20 @@ Messages are stored encrypted on the shared DNA and linked from the recipient's 
 
 There are two kinds of message: **personal**, from one member to another (`send_message`), and **role messages**, to or from the holders of a role and grouped into cases (`send_role_message`, section 6.5). Both travel the same way, as `EncryptedMessage` entries with an `Inbox` link, and both pass through `deliver`, the one path every send takes.
 
+The inbox's externs, beside the signal layer's in 2.1:
+
+| Extern | What it does |
+|---|---|
+| `send_message(SendMessageInput)` | sends a personal message to every agent of a member (section 6.3) |
+| `send_role_message(SendRoleMessageInput)` | writes to the holders of a role, or as one, inside a case (section 6.5) |
+| `get_inbox` | every personal message addressed to this agent that passes the reading filters, decrypted; one that will not decrypt comes back as `Unreadable` (section 6.4) |
+| `get_inbox_delta(GetInboxDeltaInput)` | the same, for a caller that already holds some: only what it does not hold |
+| `get_message(ActionHash)` | one message by its action hash, which is what a nudge carries, with the same filters |
+| `get_sent` | everything this agent has sent, read from its own chain |
+| `find_sent(FindSentInput)` | whether a send with a given send id is on this agent's chain, after a send got no answer |
+| `get_role_inbox(RoleRef)` | the cases addressed to this agent as a holder of the role, refused unless it holds it now |
+| `get_my_role_correspondence` | this member's own role conversations, grouped by role |
+
 ### 6.1. What is public and what is private
 
 | Data | Where it lives | Who can read it |

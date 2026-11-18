@@ -4,7 +4,7 @@ This guide provides practical patterns for implementing features in the Requests
 
 ## Constitution Compliance
 
-**All development activities must comply with the [Requests and Offers Constitution](../../../.specify/memory/constitution.md)**. This workflow implements the 7 Core Principles:
+**All development activities must comply with the Requests and Offers Constitution**. This workflow implements the 7 Core Principles:
 
 - **I. Evidence-Based Development**: All patterns reference established implementations
 - **II. 7-Layer Effect-TS Architecture**: This workflow enforces the standardized architecture

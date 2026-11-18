@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { encodeHashToBase64 } from '@holochain/client';
   import {
     getModalStore,
     getToastStore,
@@ -29,6 +28,7 @@
     statusChip,
     type ProfileView
   } from '$lib/utils/profile';
+  import { paths } from '$lib/paths';
 
   /**
    * A member's profile (#350), as the design system lays it out: picture,
@@ -146,9 +146,9 @@
 
 <section class="container mx-auto space-y-6 p-4">
   <div class="flex items-center justify-between gap-2">
-    <BackButton fallback="/users" />
+    <BackButton fallback={paths.users()} />
     {#if isCurrentUser}
-      <a href="/user/edit" class="variant-filled-primary btn">Edit profile</a>
+      <a href={paths.myProfileEdit()} class="variant-filled-primary btn">Edit profile</a>
     {/if}
   </div>
 
@@ -180,7 +180,7 @@
           {/if}
           {#if !isCurrentUser && withYou.length > 0}
             <a
-              href="/exchanges"
+              href={paths.exchanges()}
               class="variant-filled-primary badge ml-auto"
               data-testid="exchanges-with-you">{exchangesWithLabel(withYou.length)}</a
             >
@@ -234,7 +234,7 @@
   {:else if isCurrentUser}
     <!-- Your own profile: the counts lead to the pages where you manage them -->
     <div class="grid gap-4 sm:grid-cols-3" data-testid="profile-doorways">
-      <a href="/my-listings?view=requests" class="card card-hover space-y-1 p-4">
+      <a href={paths.myListings({ view: 'requests' })} class="card card-hover space-y-1 p-4">
         <div class="flex items-start justify-between">
           <span class="text-2xl">📝</span>
           <span class="text-3xl font-bold">{count(requests.length)}</span>
@@ -242,7 +242,7 @@
         <h2 class="h4">Active requests</h2>
         <p class="text-sm text-surface-600 dark:text-surface-300">In My Listings</p>
       </a>
-      <a href="/my-listings?view=offers" class="card card-hover space-y-1 p-4">
+      <a href={paths.myListings({ view: 'offers' })} class="card card-hover space-y-1 p-4">
         <div class="flex items-start justify-between">
           <span class="text-2xl">💡</span>
           <span class="text-3xl font-bold">{count(offers.length)}</span>
@@ -250,7 +250,7 @@
         <h2 class="h4">Active offers</h2>
         <p class="text-sm text-surface-600 dark:text-surface-300">In My Listings</p>
       </a>
-      <a href="/exchanges" class="card card-hover space-y-1 p-4">
+      <a href={paths.exchanges()} class="card card-hover space-y-1 p-4">
         <div class="flex items-start justify-between">
           <span class="text-2xl">🤝</span>
           <span class="text-3xl font-bold">{count(exchangesStore.exchanges.length)}</span>
@@ -267,7 +267,9 @@
       {:else if organisations.length === 0}
         <div class="card space-y-3 p-6 text-center">
           <p class="text-surface-600 dark:text-surface-300">You aren't in any organisations yet.</p>
-          <a href="/organizations" class="variant-filled-tertiary btn">Browse organisations</a>
+          <a href={paths.organizations()} class="variant-filled-tertiary btn"
+            >Browse organisations</a
+          >
         </div>
       {:else}
         {@render orgList()}
@@ -275,8 +277,8 @@
     </div>
     {#if canCreate}
       <div class="flex flex-wrap gap-2">
-        <a href="/requests/create" class="variant-filled-secondary btn">Create a request</a>
-        <a href="/offers/create" class="variant-filled-warning btn">Create an offer</a>
+        <a href={paths.requestCreate()} class="variant-filled-secondary btn">Create a request</a>
+        <a href={paths.offerCreate()} class="variant-filled-warning btn">Create an offer</a>
       </div>
     {/if}
   {:else}
@@ -329,9 +331,8 @@
           class="h-12 w-12 shrink-0 rounded-full object-cover"
         />
         <div class="min-w-0 flex-1">
-          <a
-            class="h4 hover:underline"
-            href="/organizations/{encodeHashToBase64(org.original_action_hash!)}">{org.name}</a
+          <a class="h4 hover:underline" href={paths.organizationDetail(org.original_action_hash!)}
+            >{org.name}</a
           >
         </div>
         <span class="badge {coordinator ? 'variant-soft-tertiary' : 'variant-soft-surface'}"

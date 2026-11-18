@@ -440,8 +440,8 @@ bun test
 # Frontend only
 bun test:ui
 
-# Unit tests (requires Nix for hREA integration)
-nix develop --command bun test:unit
+# Unit tests (no Nix needed)
+cd ui && bun run test:unit
 
 # Integration tests
 cd ui && bun test:integration
@@ -450,12 +450,12 @@ cd ui && bun test:integration
 cd ui && bun test:e2e
 
 # Domain-specific tests
-bun test:service-types
-bun test:requests
-bun test:offers
-bun test:users
-bun test:organizations
-bun test:administration
+bun run test:sweettest:service-types
+bun run test:sweettest:requests
+bun run test:sweettest:offers
+bun run test:sweettest:users
+bun run test:sweettest:organizations
+bun run test:sweettest:administration
 
 # Backend Sweettest tests (requires Nix)
 nix develop --command cargo test --manifest-path tests/sweettest/Cargo.toml

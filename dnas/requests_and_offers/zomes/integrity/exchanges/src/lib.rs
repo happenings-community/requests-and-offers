@@ -1,5 +1,6 @@
 use hdi::prelude::*;
 use utils::errors::CommonError;
+use utils::grants::{check_act, Ability};
 
 /// Which kind of listing an exchange settles. Carried on entries so the
 /// coordinator looks the listing up in the right zome and a cross-zome error
@@ -53,6 +54,9 @@ pub struct Interest {
   pub listing_type: ListingType,
   /// The interested member's user hash, so a listing's author sees who.
   pub user: ActionHash,
+  /// The grant this write rests on: member held by the author.
+  #[serde(default)]
+  pub grant: Option<ActionHash>,
 }
 
 /// Which proposal a counter-proposal answers, and the decline that closed it.
@@ -90,6 +94,9 @@ pub struct Agreement {
   /// closed it. `None` on a first proposal. Rounds of one negotiation form a
   /// chain through this field (#333).
   pub counters: Option<Countering>,
+  /// The grant this write rests on: member held by the author.
+  #[serde(default)]
+  pub grant: Option<ActionHash>,
 }
 
 /// The other party accepting or declining an agreement.
@@ -251,15 +258,86 @@ fn validate_term(term: &ExchangeTerm, side: &str) -> Option<String> {
 // Entry rules
 // ---------------------------------------------------------------------------
 
-fn validate_interest(author: &AgentPubKey, interest: &Interest) -> ExternResult<ValidateCallbackResult> {
+/// An interest names its author's own user, on a listing that exists, carries
+/// its author's member grant (#378), and its author holds no other live
+/// interest on that listing (#354). A withdrawn interest does not count, so a
+/// member may show interest again after withdrawing.
+fn validate_interest(
+  action: &TypedAction<CreateData>,
+  interest: &Interest,
+) -> ExternResult<ValidateCallbackResult> {
+  let author = action.author();
   if let Err(reason) = create_record(&interest.listing, "listing")? {
     return invalid(&reason);
   }
   match agent_for_user(&interest.user)? {
-    Ok(agent) if agent == *author => Ok(ValidateCallbackResult::Valid),
-    Ok(_) => invalid("an interest names its own author's user"),
-    Err(reason) => invalid(&reason),
+    Ok(agent) if agent == *author => {}
+    Ok(_) => return invalid("an interest names its own author's user"),
+    Err(reason) => return invalid(&reason),
   }
+  if let Err(reason) = check_act(&interest.grant, author, &Ability::Participate, &None)? {
+    return invalid(&format!("an interest is a role act: {}", reason));
+  }
+  if live_interest_before(action, interest)? {
+    return invalid("this member already has an interest in this listing");
+  }
+  Ok(ValidateCallbackResult::Valid)
+}
+
+/// Whether the author already holds an interest in the same listing that they
+/// have not withdrawn, earlier on their chain.
+///
+/// Reads from the action before this one back to the author's genesis. The
+/// read is never bounded by a hash the interest carries: validation only checks
+/// that `user` is a Create of the author's, so a bound taken from it could be
+/// moved past the first interest by naming any later Create. The bound is a
+/// position on the chain, not a time, so a backdated timestamp cannot slip under
+/// it, and starting from the previous action keeps the read to actions already
+/// on the chain. The chain comes newest first, so
+/// a withdrawal is seen before the interest it withdraws.
+fn live_interest_before(
+  action: &TypedAction<CreateData>,
+  interest: &Interest,
+) -> ExternResult<bool> {
+  let Some(prev_action) = action.header.prev_action.clone() else {
+    return Ok(false);
+  };
+  let interest_type = AppEntryDef::try_from(UnitEntryTypes::Interest)?;
+  let activity = must_get_agent_activity(
+    action.author().clone(),
+    ChainFilter::new(prev_action).include_cached_entries(),
+  )?;
+  let mut withdrawn: Vec<ActionHash> = Vec::new();
+  for item in activity {
+    let hash = item.action.as_hash().clone();
+    match &item.action.hashed.content.data {
+      ActionData::Delete(delete) => withdrawn.push(delete.deletes_address.clone()),
+      ActionData::Create(create) => {
+        let EntryType::App(def) = &create.entry_type else {
+          continue;
+        };
+        if def.zome_index != interest_type.zome_index || def.entry_index != interest_type.entry_index {
+          continue;
+        }
+        if withdrawn.contains(&hash) {
+          continue;
+        }
+        let entry = match item.cached_entry {
+          Some(entry) => entry,
+          None => must_get_entry(create.entry_hash.clone())?.content,
+        };
+        if let Some(EntryTypes::Interest(earlier)) =
+          EntryTypes::deserialize_from_type(def.zome_index, def.entry_index, &entry)?
+        {
+          if earlier.listing == interest.listing {
+            return Ok(true);
+          }
+        }
+      }
+      _ => {}
+    }
+  }
+  Ok(false)
 }
 
 /// An agreement points at an interest on the same listing. Its author is the
@@ -337,6 +415,9 @@ fn validate_agreement(action: &TypedAction<CreateData>, agreement: &Agreement) -
   }
   if agreement.medium.trim().is_empty() {
     return invalid("agreement names no medium of exchange");
+  }
+  if let Err(reason) = check_act(&agreement.grant, author, &Ability::Participate, &None)? {
+    return invalid(&format!("an agreement is a role act: {}", reason));
   }
   match &agreement.counters {
     None => Ok(ValidateCallbackResult::Valid),
@@ -650,7 +731,7 @@ fn validate_link(
 fn validate_create(action: &TypedAction<CreateData>, entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
   let author = action.author();
   match entry {
-    EntryTypes::Interest(i) => validate_interest(author, &i),
+    EntryTypes::Interest(i) => validate_interest(action, &i),
     EntryTypes::Agreement(a) => validate_agreement(action, &a),
     EntryTypes::Response(r) => validate_response(action, &r),
     EntryTypes::Completion(c) => validate_party_entry(author, &c.agreement, "completion"),
@@ -705,6 +786,12 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       OpRecord::UpdateEntry { .. } => invalid("exchange records are append-only; nothing is updated"),
       _ => Ok(ValidateCallbackResult::Valid),
     },
+    // The same refusal for the authorities of the *original*: an update is also
+    // delivered, as its own op, to whoever holds the record it changes, and
+    // that authority never sees the two ops above.
+    FlatOp::Update(OpUpdate::Entry { .. }) => {
+      invalid("exchange records are append-only; nothing is updated")
+    }
     FlatOp::Link(OpLink::CreateLink { link_type, action }) => validate_link(
       link_type,
       &action.base_address,
@@ -748,6 +835,7 @@ mod counter_tests {
       terms: "".into(),
       delivery_timeframe: "Within 2 weeks".into(),
       counters: None,
+      grant: Some(hash(9)),
     }
   }
 
@@ -853,5 +941,32 @@ mod counter_tests {
     c.delivery_timeframe = "Flexible".into();
     c.reciprocal.resource_kind = ResourceKind::Gift;
     assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("both services"));
+  }
+}
+
+#[cfg(test)]
+mod update_op_tests {
+  use hdi::prelude::*;
+  use utils::validation_harness::{set_zome_types, update_op_for_the_original};
+
+  use crate::{validate, EntryTypes, Interest, LinkTypes, ListingType};
+
+  /// Goes red if the `FlatOp::Update` arm is removed from `validate`.
+  #[test]
+  fn an_update_is_refused_on_the_op_the_original_receives() {
+    set_zome_types(EntryTypes::ENUM_LEN, LinkTypes::ENUM_LEN);
+    let interest: SerializedBytes = Interest {
+      listing: ActionHash::from_raw_36(vec![1; 36]),
+      listing_type: ListingType::Offer,
+      user: ActionHash::from_raw_36(vec![2; 36]),
+      grant: None,
+    }
+    .try_into()
+    .unwrap();
+    let verdict = validate(update_op_for_the_original(0, interest)).unwrap();
+    assert_eq!(
+      verdict,
+      ValidateCallbackResult::Invalid("exchange records are append-only; nothing is updated".into())
+    );
   }
 }

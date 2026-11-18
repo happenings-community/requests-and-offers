@@ -132,7 +132,7 @@ The application includes utility functions for transforming between type represe
 const createUIServiceType = (record: HolochainRecord): UIServiceType => {
   const entry = decode((record.entry as any).Present.entry) as ServiceTypeInDHT;
   const actionHash = record.signed_action.hashed.hash;
-  const timestamp = record.signed_action.hashed.content.timestamp;
+  const timestamp = record.signed_action.hashed.content.header.timestamp;
 
   return {
     ...entry,

@@ -45,48 +45,43 @@ describe('useListingInterest reads (#344)', () => {
     showToast.mockClear();
   });
 
-  const make = (quiet = false) =>
-    useListingInterest({ listingHash: () => hash(1), listingType: () => 'Offer', quiet });
+  const make = () => useListingInterest({ listingHash: () => hash(1), listingType: () => 'Offer' });
 
   it('lists everyone interested except me, once read', async () => {
     state.interests = [interestBy(3), interestBy(4)];
     const interest = make();
     await interest.load();
     expect(interest.loaded).toBe(true);
-    expect(interest.loadFailed).toBe(false);
+    expect(interest.loadError).toBeNull();
     expect(interest.others.map((i) => i.user)).toEqual([hash(4)]);
   });
 
   it('marks a failed first read as unknown, not as nobody interested', async () => {
     state.failRead = true;
-    const interest = make(true);
+    const interest = make();
     await interest.load();
     expect(interest.loaded).toBe(false);
-    expect(interest.loadFailed).toBe(true);
+    expect(interest.loadError).not.toBeNull();
   });
 
-  it('stays quiet when asked, and toasts otherwise', async () => {
+  it('shows a failed read rather than toasting it', async () => {
+    // A toast fades and leaves the listing with no door; on My Listings it would be one
+    // toast per card. The reason stays on the composable for the card to show.
     state.failRead = true;
-    await make(true).load();
+    const interest = make();
+    await interest.load();
     expect(showToast).not.toHaveBeenCalled();
-    await make(false).load();
-    // #336 gives error toasts a longer life and a "Copy details" action.
-    expect(showToast).toHaveBeenCalledWith(
-      'read failed',
-      'error',
-      expect.any(Number),
-      expect.objectContaining({ label: 'Copy details' })
-    );
+    expect(interest.loadError).not.toBeNull();
   });
 
   it('clears the failure once a retry succeeds', async () => {
     state.failRead = true;
-    const interest = make(true);
+    const interest = make();
     await interest.load();
     state.failRead = false;
     state.interests = [interestBy(4)];
     await interest.load();
-    expect(interest.loadFailed).toBe(false);
+    expect(interest.loadError).toBeNull();
     expect(interest.others).toHaveLength(1);
   });
 });

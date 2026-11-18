@@ -1,0 +1,21 @@
+[package]
+name = "users_probe"
+version = "0.1.0"
+edition = "2021"
+
+# TEST ONLY. A coordinator zome that writes raw users_organizations links, so
+# Sweettest can check that the users_organizations integrity zome rejects links
+# the real coordinator would never make. Like exchanges_probe, it is built with
+# the other zomes but is not listed in dnas/requests_and_offers/workdir/dna.yaml,
+# so it is never packed into the shipped DNA, and a coordinator zome does not
+# change the DNA hash. tests/sweettest/tests/exchanges_attacks.rs fails if the
+# packed DNA ever contains a zome whose name contains "probe".
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "users_probe"
+
+[dependencies]
+hdk = { workspace = true }
+serde = { workspace = true }
+users_organizations_integrity = { workspace = true }

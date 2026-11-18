@@ -3,6 +3,7 @@ use hdk::prelude::*;
 use utils::{
   errors::{AdministrationError, CommonError},
   find_original_action_hash,
+  grants::{require_grant, Ability},
 };
 
 use crate::external_calls::{check_if_entity_is_accepted, get_agent_user};
@@ -324,14 +325,48 @@ pub fn create_interest(input: CreateInterestInput) -> ExternResult<Record> {
   if listing_record.action().author() == &my_pubkey()? {
     return Err(CommonError::InvalidData("a member cannot register interest in their own listing".to_string()).into());
   }
+  // Validation refuses a second live interest too (#354); asking our own chain
+  // first gives the member a plain answer instead of a validation failure.
+  if have_live_interest(&listing)? {
+    return Err(CommonError::InvalidData("you have already shown interest in this listing".to_string()).into());
+  }
+  let grant = require_grant(Ability::Participate, None)?;
   let hash = create_entry(&EntryTypes::Interest(Interest {
     listing: listing.clone(),
     listing_type: input.listing_type,
     user: me.clone(),
+    grant: Some(grant),
   }))?;
   create_link(listing, hash.clone(), LinkTypes::ListingInterests, ())?;
   create_link(me, hash.clone(), LinkTypes::UserInterests, ())?;
   record_at(hash, "interest")
+}
+
+/// Whether my own chain holds an interest in `listing` that I have not withdrawn.
+fn have_live_interest(listing: &ActionHash) -> ExternResult<bool> {
+  let interests = query(
+    ChainQueryFilter::new()
+      .entry_type(UnitEntryTypes::Interest.try_into()?)
+      .include_entries(true),
+  )?;
+  let withdrawn: Vec<ActionHash> = query(ChainQueryFilter::new().action_type(ActionType::Delete))?
+    .iter()
+    .filter_map(|record| match &record.action().data {
+      ActionData::Delete(delete) => Some(delete.deletes_address.clone()),
+      _ => None,
+    })
+    .collect();
+  for record in interests {
+    if withdrawn.contains(record.action_address()) {
+      continue;
+    }
+    if let Ok(Some(interest)) = record.entry().to_app_option::<Interest>() {
+      if interest.listing == *listing {
+        return Ok(true);
+      }
+    }
+  }
+  Ok(false)
 }
 
 #[hdk_extern]
@@ -393,6 +428,7 @@ pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<Record> {
     ListingType::Request => (interested_user, listing_author_user),
   };
 
+  let grant = require_grant(Ability::Participate, None)?;
   let hash = create_entry(&EntryTypes::Agreement(Agreement {
     listing: listing.clone(),
     listing_type: input.listing_type,
@@ -406,6 +442,7 @@ pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<Record> {
     terms: input.terms,
     delivery_timeframe: input.delivery_timeframe,
     counters: None,
+    grant: Some(grant),
   }))?;
   create_link(listing, hash.clone(), LinkTypes::ListingAgreements, ())?;
   create_link(my_user, hash.clone(), LinkTypes::UserAgreements, ())?;
@@ -433,6 +470,10 @@ pub fn counter_agreement(input: CounterAgreementInput) -> ExternResult<Record> {
   if !links_from(countered_hash.clone(), LinkTypes::AgreementCancellations)?.is_empty() {
     return Err(CommonError::InvalidData("this proposal was withdrawn".to_string()).into());
   }
+
+  // Read before the decline: the counter must follow the decline on the chain
+  // with nothing between them, and a grant lookup is a read, not a write.
+  let grant = require_grant(Ability::Participate, None)?;
 
   let decline = create_entry(&EntryTypes::Response(Response {
     agreement: countered_hash.clone(),
@@ -462,6 +503,7 @@ pub fn counter_agreement(input: CounterAgreementInput) -> ExternResult<Record> {
     medium: countered.medium.clone(),
     terms: countered.terms.clone(),
     delivery_timeframe: input.delivery_timeframe,
+    grant: Some(grant),
     counters: Some(Countering {
       agreement: countered_hash.clone(),
       decline: decline.clone(),
@@ -495,6 +537,9 @@ pub fn respond_to_agreement(input: RespondInput) -> ExternResult<Record> {
   }
   if !links_from(agreement_hash.clone(), LinkTypes::AgreementResponses)?.is_empty() {
     return Err(CommonError::InvalidData("this agreement already has a response".to_string()).into());
+  }
+  if !links_from(agreement_hash.clone(), LinkTypes::AgreementCancellations)?.is_empty() {
+    return Err(CommonError::InvalidData("this proposal was withdrawn".to_string()).into());
   }
   let hash = create_entry(&EntryTypes::Response(Response {
     agreement: agreement_hash.clone(),

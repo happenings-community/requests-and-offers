@@ -4,6 +4,7 @@
   import ServiceTypeSearch from '$lib/components/service-types/ServiceTypeSearch.svelte';
   import { useServiceTypesManagement } from '$lib/composables';
   import usersStore from '$lib/stores/users.store.svelte';
+  import { paths } from '$lib/paths';
 
   // Use the standardized composable in public mode (only approved service types)
   const management = useServiceTypesManagement();
@@ -33,7 +34,7 @@
   <div class="flex items-center justify-between">
     <h1 class="h1">Available Service Types</h1>
     {#if currentUser?.status?.status_type === 'accepted'}
-      <a href="/service-types/suggest" class="variant-filled-primary btn">
+      <a href={paths.serviceTypeSuggest()} class="variant-filled-primary btn">
         Suggest a Service Type
       </a>
     {/if}

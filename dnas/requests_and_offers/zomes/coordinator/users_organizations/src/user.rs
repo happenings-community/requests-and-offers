@@ -2,8 +2,8 @@ use hdk::prelude::*;
 use users_organizations_integrity::*;
 use utils::errors::{CommonError, UsersError};
 use utils::{
-  check_if_progenitor, external_local_call, find_original_action_hash, DnaProperties,
-  EntityActionHashAgents, OriginalActionHash, PreviousActionHash,
+  check_if_progenitor, external_local_call, find_original_action_hash, resolve_chain_root,
+  DnaProperties, EntityActionHashAgents, OriginalActionHash, PreviousActionHash,
 };
 
 use crate::external_calls::create_status;
@@ -63,12 +63,11 @@ pub fn create_user(input: User) -> ExternResult<Record> {
   let should_auto_register = if progenitor_configured {
     is_prog
   } else {
-    let no_admins_yet: Vec<Link> = external_local_call(
-      "get_all_administrators_links",
-      "administration",
-      "network".to_string(),
-    )?;
-    no_admins_yet.is_empty()
+    // Asked of the grants, as `add_administrator` asks: the roster is an index anyone can
+    // tombstone, and if the two disagreed this call would fail for every new user.
+    let an_administrator_exists: bool =
+      external_local_call("is_there_an_administrator", "administration", ())?;
+    !an_administrator_exists
   };
 
   if should_auto_register {
@@ -88,9 +87,12 @@ pub fn create_user(input: User) -> ExternResult<Record> {
 
 #[hdk_extern]
 pub fn get_latest_user_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+  // A client may hold a revision: the update links hang off the chain root, and from a
+  // revision none are found, so the revision came back as if it were the latest (#229).
+  let original_action_hash = resolve_chain_root(original_action_hash);
   let link_type_filter = LinkTypes::UserUpdates
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(original_action_hash.clone(), link_type_filter),
     GetStrategy::Network,

@@ -5,6 +5,7 @@
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
   import { Effect as E } from 'effect';
   import { onMount, onDestroy } from 'svelte';
+  import { paths } from '$lib/paths';
 
   const { allOrganizationsStatusesHistory } = $derived(administrationStore);
   let isLoading = $state(true);
@@ -40,7 +41,7 @@
   <h1 class="h1 text-center">Organizations Status History</h1>
 
   <div class="flex justify-center gap-4">
-    <a href="/admin/organizations" class="variant-ghost-secondary btn w-fit">
+    <a href={paths.adminOrganizations()} class="variant-ghost-secondary btn w-fit">
       Back to Organizations
     </a>
   </div>

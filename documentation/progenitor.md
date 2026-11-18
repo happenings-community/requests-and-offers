@@ -31,7 +31,9 @@ let progenitor_configured = DnaProperties::get_progenitor_pubkey()?.is_some();
 let should_auto_register = if progenitor_configured {
     is_prog  // production: only the progenitor auto-registers
 } else {
-    no_admins_yet.is_empty()  // dev mode: first user auto-registers
+    // dev mode: first user auto-registers. Asked of the grants, not the roster:
+    // administration::is_there_an_administrator
+    !an_administrator_exists
 };
 
 if should_auto_register {
@@ -41,20 +43,21 @@ if should_auto_register {
 
 ### Step 3: Progenitor bypass in add_administrator
 
-The `add_administrator` function in the `administration` coordinator zome accepts the call from any agent who is either the progenitor or an existing administrator:
+The `add_administrator` function in the `administration` coordinator zome writes an admin grant for each agent key that does not already hold one. What the grant rests on is settled by `authority_for` (`grants.rs`):
 
 ```rust
-// administration::administration.rs — simplified
-let is_admin = get_administrators()?.contains(&caller);
-let is_prog  = check_if_progenitor()?;
-let no_admins = get_administrators()?.is_empty();
-
-if !is_admin && !is_prog && !no_admins {
-    return Err(wasm_error!("Unauthorized"));
+// administration::grants.rs — simplified
+if let Some(grant) = can_local(&me, &Ability::Grant(Role::Admin), &None)? {
+    return Ok(Authority::Grant(grant));           // an existing administrator
 }
+let bootstrap = !progenitor_configured && live_administrators()?.is_empty();
+if check_if_progenitor()? || bootstrap {
+    return Ok(Authority::Progenitor { signature }); // the root
+}
+Err(AdministrationError::Unauthorized.into())
 ```
 
-This means the progenitor can add themselves (and others) to the admin list even before any admin record exists.
+So the progenitor can make themselves the first administrator before any administrator exists, and on a network with no key the first user can, while no agent holds a live admin grant. Both questions are asked of the grants, not of the roster links.
 
 ## Two Deployment Modes
 
@@ -73,6 +76,8 @@ This means the progenitor can add themselves (and others) to the admin list even
 - The very first agent to call `create_user` becomes admin automatically.
 - All subsequent users receive `Pending` status.
 - Useful for local development and integration tests where pre-generating a key adds friction.
+- **It is also the mode every desktop release runs in** (see Production below), so on a real network the creator installs first, creates the first profile, and appoints two or three further administrators on separate devices before the link goes to anyone else. The first admin's only unique power is that first grant; once others hold admin, the chain of grants carries on without them.
+- **What it does not protect.** The "no admins yet" check is a DHT read, not a lock: two agents whose first `create_user` calls each run before the other's administrator link has reached them can both become admin. That check and `add_administrator`'s refusal of a non-admin caller run in the coordinator zome (see *Coordinator-enforced* below), which is the member's own code, so a member running a modified client can write an administrator link that validation accepts, and until #377 validation does not read the key either. The key is what would give validation an anchor; without one, the practice above is the protection, and it holds on an invited network where the creator installs alone.
 
 ## Key Properties
 
@@ -109,7 +114,7 @@ Then rebuild:
 bun build:happ
 ```
 
-The Kangaroo desktop app does not automate this step. Its install ([`installHappIfNecessary`](https://github.com/happenings-community/requests-and-offers-kangaroo-electron/blob/8bcec07d/src/main/holochainManager.ts#L176-L190), kangaroo-electron #10 at `8bcec07d`) passes no role settings to `installApp`, so a desktop install keeps the hApp's own `progenitor_pubkey`, null unless it was set here before the build. With it null, the desktop network is in development mode: the first agent to create a profile becomes admin.
+The Kangaroo desktop app cannot reach this mode as built. Its install ([`installHappIfNecessary`](https://github.com/happenings-community/requests-and-offers-kangaroo-electron/blob/8bcec07d/src/main/holochainManager.ts#L176-L190), kangaroo-electron #10 at `8bcec07d`; unchanged at `fcd0821`) generates a fresh agent key with `generateAgentPubKey()` and passes no role settings to `installApp`, so the creator's key does not exist until the build that would have to contain it has been installed, and the install keeps the bundle's own `progenitor_pubkey`, null unless set before the build. The recipe above therefore works only for a conductor the creator drives through its admin API (generate the key, write it into `happ.yaml`, build, `installApp` with that `agent_key`), which is what the Sweettests do. Every desktop release runs in development mode until the Create Network branch of the joining flow (#95) binds the device's own key as `progenitor_pubkey` at install, with no rebuild and no key handled by a person.
 
 ## API Reference
 

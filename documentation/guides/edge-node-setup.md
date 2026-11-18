@@ -1,5 +1,7 @@
 # Running an Always-On Edge Node for Requests & Offers
 
+> **Out of date:** The bootstrap URLs and DNA hash below belong to the 0.5.x network. Tracked in [#481](https://github.com/happenings-community/requests-and-offers/issues/481).
+
 An Edge Node is a dedicated, always-on peer that holds a copy of the DHT data and ensures other peers can sync even when no one else is online. This guide walks you through setting one up using the [Holo Edge Node](https://github.com/holo-host/edgenode) Docker container.
 
 ## Prerequisites

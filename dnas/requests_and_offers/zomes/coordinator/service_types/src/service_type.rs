@@ -2,6 +2,7 @@ use hdk::prelude::*;
 use service_types_integrity::{EntryTypes, LinkTypes, ServiceType};
 use utils::{
   errors::{AdministrationError, CommonError, ServiceTypeError},
+  grants::{can_i, require_grant, Ability},
   resolve_chain_root, GetServiceTypeForEntityInput, OriginalActionHash, PreviousActionHash,
   ServiceTypeLinkInput, UpdateServiceTypeLinksInput,
 };
@@ -35,8 +36,12 @@ pub fn create_service_type(input: ServiceTypeInput) -> ExternResult<Record> {
     return Err(AdministrationError::Unauthorized.into());
   }
 
+  // Validation reads the grant, so it is ours, never the caller's.
+  let mut service_type = input.service_type;
+  service_type.grant = Some(require_grant(Ability::Administer, None)?);
+
   // Create the service type entry
-  let service_type_hash = create_entry(EntryTypes::ServiceType(input.service_type.clone()))?;
+  let service_type_hash = create_entry(EntryTypes::ServiceType(service_type))?;
 
   // Get the created record
   let record = get(service_type_hash.clone(), GetOptions::default())?.ok_or(
@@ -92,8 +97,16 @@ pub fn suggest_service_type(input: ServiceTypeInput) -> ExternResult<Record> {
     }
   }
 
+  // Validation reads the grant, so it is ours, never the caller's: an admin
+  // grant if we hold one, else a member grant.
+  let mut service_type = input.service_type;
+  service_type.grant = Some(match can_i(Ability::Administer, None)? {
+    Some(grant) => grant,
+    None => require_grant(Ability::Participate, None)?,
+  });
+
   // Create the service type entry
-  let service_type_hash = create_entry(EntryTypes::ServiceType(input.service_type.clone()))?;
+  let service_type_hash = create_entry(EntryTypes::ServiceType(service_type))?;
 
   // Get the created record
   let record = get(service_type_hash.clone(), GetOptions::default())?.ok_or(
@@ -136,9 +149,17 @@ pub fn get_service_type(service_type_hash: ActionHash) -> ExternResult<Option<Re
 pub fn get_latest_service_type_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
+  // A client may hold a revision: the update links hang off the chain root, and from a
+  // revision none are found, so the revision came back as if it were the latest (#229).
+  latest_service_type_record(resolve_chain_root(original_action_hash))
+}
+
+/// The latest revision of the service type whose chain root is `original_action_hash`.
+/// For the lists, whose links point at roots already, so they do not walk each chain.
+fn latest_service_type_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
   let link_type_filter = LinkTypes::ServiceTypeUpdates
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(original_action_hash.clone(), link_type_filter),
     GetStrategy::Network,
@@ -174,11 +195,12 @@ pub fn update_service_type(input: UpdateServiceTypeInput) -> ExternResult<Action
     return Err(AdministrationError::Unauthorized.into());
   }
 
+  // Validation reads the grant, so it is ours, never the caller's.
+  let mut updated_service_type = input.updated_service_type;
+  updated_service_type.grant = Some(require_grant(Ability::Administer, None)?);
+
   // Update the service type entry
-  let updated_action_hash = update_entry(
-    input.previous_action_hash.into(),
-    &input.updated_service_type,
-  )?;
+  let updated_action_hash = update_entry(input.previous_action_hash.into(), &updated_service_type)?;
 
   // Create a link from the original service type to the updated one. The caller's
   // "original" may itself be a revision (list surfaces hand back the latest record),
@@ -274,7 +296,7 @@ fn get_service_types_by_status(status_path: &str) -> ExternResult<Vec<Record>> {
   // Get all links from the path
   let link_type_filter = LinkTypes::AllServiceTypes
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(path_hash, link_type_filter),
     GetStrategy::Network,
@@ -284,7 +306,7 @@ fn get_service_types_by_status(status_path: &str) -> ExternResult<Vec<Record>> {
   let mut records = Vec::new();
   for link in links {
     if let Some(target_hash) = link.target.into_action_hash() {
-      if let Some(record) = get_latest_service_type_record(target_hash.clone())? {
+      if let Some(record) = latest_service_type_record(target_hash.clone())? {
         records.push(record);
       }
     }
@@ -615,19 +637,20 @@ pub fn get_service_type_status(service_type_hash: ActionHash) -> ExternResult<St
   Ok("pending".to_string())
 }
 
-fn get_records_for_service_type(links: Vec<Link>, entity: &str) -> ExternResult<Vec<Record>> {
-  let records: Result<Vec<Record>, WasmError> = links
-    .into_iter()
-    .map(|link| {
-      let record = get(
-        link.target.into_action_hash().unwrap(),
-        GetOptions::default(),
-      )?;
-      record.ok_or(CommonError::EntryNotFound(format!("Could not find {} record", entity)).into())
-    })
-    .collect();
-
-  records
+/// The records the links point at. A target that reads nothing is skipped, as the offer
+/// and request lists do (#233): a deleted listing's links and its records are removed by
+/// different authorities, so for a while a link can outlive its record, and that one
+/// listing must not fail the whole list.
+fn get_records_for_service_type(links: Vec<Link>) -> ExternResult<Vec<Record>> {
+  let mut records = Vec::new();
+  for link in links {
+    if let Some(hash) = link.target.into_action_hash() {
+      if let Some(record) = get(hash, GetOptions::default())? {
+        records.push(record);
+      }
+    }
+  }
+  Ok(records)
 }
 
 /// Get requests linked to a service type
@@ -635,13 +658,13 @@ fn get_records_for_service_type(links: Vec<Link>, entity: &str) -> ExternResult<
 pub fn get_requests_for_service_type(service_type_hash: ActionHash) -> ExternResult<Vec<Record>> {
   let link_type_filter = LinkTypes::ServiceTypeToRequest
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(service_type_hash, link_type_filter),
     GetStrategy::Network,
   )?;
 
-  get_records_for_service_type(links, "request")
+  get_records_for_service_type(links)
 }
 
 /// Get offers linked to a service type
@@ -649,13 +672,13 @@ pub fn get_requests_for_service_type(service_type_hash: ActionHash) -> ExternRes
 pub fn get_offers_for_service_type(service_type_hash: ActionHash) -> ExternResult<Vec<Record>> {
   let link_type_filter = LinkTypes::ServiceTypeToOffer
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(service_type_hash, link_type_filter),
     GetStrategy::Network,
   )?;
 
-  get_records_for_service_type(links, "offer")
+  get_records_for_service_type(links)
 }
 
 /// Get users linked to a service type
@@ -663,13 +686,13 @@ pub fn get_offers_for_service_type(service_type_hash: ActionHash) -> ExternResul
 pub fn get_users_for_service_type(service_type_hash: ActionHash) -> ExternResult<Vec<Record>> {
   let link_type_filter = LinkTypes::ServiceTypeToUser
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(service_type_hash, link_type_filter),
     GetStrategy::Network,
   )?;
 
-  get_records_for_service_type(links, "user")
+  get_records_for_service_type(links)
 }
 
 #[hdk_extern]

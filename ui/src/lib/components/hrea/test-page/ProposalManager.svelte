@@ -9,6 +9,7 @@
   import type { UIRequest, UIOffer } from '$lib/types/ui';
   import { runEffect } from '$lib/utils/effect';
   import { encodeHashToBase64 } from '@holochain/client';
+  import { paths } from '$lib/paths';
 
   let loading = $state(false);
   let error = $state<string | null>(null);
@@ -168,9 +169,9 @@
 
       // Navigate to the appropriate detail page
       if (source.type === 'request') {
-        goto(`/requests/${navigationHash}`);
+        goto(paths.requestDetail(navigationHash));
       } else if (source.type === 'offer') {
-        goto(`/offers/${navigationHash}`);
+        goto(paths.offerDetail(navigationHash));
       }
     } catch (err) {
       console.error('Error processing action hash for navigation:', err);

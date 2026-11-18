@@ -2,13 +2,14 @@
   import { goto } from '$app/navigation';
   import MediumOfExchangeForm from '$lib/components/mediums-of-exchange/MediumOfExchangeForm.svelte';
   import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
+  import { paths } from '$lib/paths';
 
   function handleSuccess(result: UIMediumOfExchange) {
-    goto('/admin/mediums-of-exchange');
+    goto(paths.adminMediumsOfExchange());
   }
 
   function handleCancel() {
-    goto('/admin/mediums-of-exchange');
+    goto(paths.adminMediumsOfExchange());
   }
 </script>
 

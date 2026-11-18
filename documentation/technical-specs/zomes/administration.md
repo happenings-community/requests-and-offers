@@ -121,6 +121,15 @@ pub fn is_there_an_administrator(_: ()) -> ExternResult<bool>
 - Whether any agent holds a live network administrator grant, read from the grants
 - `create_user` asks it before offering the first user the root on a network with no progenitor key, so it and `add_administrator` decide "first" from the same source
 
+##### `get_live_administrator_agents`
+
+```rust
+pub fn get_live_administrator_agents(_: ()) -> ExternResult<Vec<AgentPubKey>>
+```
+
+- The agents who hold a live network administrator grant, read from the grants, sorted
+- Messaging reads it to address a message to the administrators (`role_holders`), because the roster links keep a revoked administrator and can be emptied by anyone
+
 ##### `get_all_administrators_links`
 
 ```rust
@@ -328,7 +337,7 @@ Grants and revocations are records: never updated, never deleted. The only way t
 | `AllGrants` | `grants.{role}` path → grant | written by the granter; tag carries the grant's hash |
 | `GrantRevocations` | grant → revocation | written by the revoker; the target is a `RoleRevocation` entry of this zome, checked by entry type and not by shape, and names the grant the link starts at |
 
-`can` reads `AgentGrants` and `GrantRevocations`; `AllGrants` is the register by role, read to count the live administrators and to list a role's grants. **None of the three is ever tombstoned**: a tombstone on a holder's index would hide their grant from every reader, and one on a revocation link would bring a revoked grant back. No coordinator tombstones them. (The administrator roster links `AllAdministrators` / `AgentAdministrators` are tombstoned by `remove_administrator`; who may write that tombstone is still open, and `can` does not read them.)
+`can` reads `AgentGrants` and `GrantRevocations`; `AllGrants` is the register by role, read to count the live administrators, to address a message to them (`get_live_administrator_agents`) and to list a role's grants. **None of the three is ever tombstoned**: a tombstone on a holder's index would hide their grant from every reader, and one on a revocation link would bring a revoked grant back. No coordinator tombstones them. (The administrator roster links `AllAdministrators` / `AgentAdministrators` are tombstoned by `remove_administrator`; who may write that tombstone is still open, and `can` does not read them.)
 
 ### Reading authority
 
@@ -338,7 +347,7 @@ Grants and revocations are records: never updated, never deleted. The only way t
 
 The remedy for a removed holder who goes on acting is with people, not with this zome: the graduated response of the stewarding module, where removal needs a second signature, and the founder's key as the last resort (alpha 3).
 
-A record `can` needs and cannot fetch is an error, not a refusal: the caller hears that the question could not be answered. The same holds for `is_there_an_administrator`, and so for `create_user` on a network with no key: a newcomer whose node can see an admin grant's index link and not yet the grant itself is told to try again, where the roster count it replaces fetched nothing.
+A record `can` needs and cannot fetch is an error, not a refusal: the caller hears that the question could not be answered. The same holds for `is_there_an_administrator`, and so for `create_user` on a network with no key: a newcomer whose node can see an admin grant's index link and not yet the grant itself is told to try again, where the roster count it replaces fetched nothing. `get_live_administrator_agents` reads the same way, so a `send_role_message` to the administrators fails in the same window, where the roster read it replaces fetched only links.
 
 **Not closed here, and open for alpha 3** (they matter on a network with a progenitor key; without one a modified client can write itself a root and needs none of them):
 

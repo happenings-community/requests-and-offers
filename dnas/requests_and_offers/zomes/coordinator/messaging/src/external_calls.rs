@@ -48,12 +48,13 @@ pub fn check_if_agent_is_administrator(agent_pubkey: AgentPubKey) -> ExternResul
   external_local_call("check_if_agent_is_administrator", "administration", input)
 }
 
-/// Every network administrator's `User`, as links from the `administration` zome.
+/// The agents who hold a live network administrator grant, read from the grants by the
+/// `administration` zome.
 ///
-/// The link targets are `User` original action hashes, which is what fanning a role
-/// message out needs: `get_user_agents` takes exactly that. Read through
-/// `administration` rather than by reaching for its link types directly, so the admin
-/// index stays that zome's business.
-pub fn get_all_administrators_links(entity: String) -> ExternResult<Vec<Link>> {
-  external_local_call("get_all_administrators_links", "administration", entity)
+/// Since #377 an administrator is whoever holds a live admin grant, and this is that list.
+/// The roster links (`get_all_administrators_links`) are not: `revoke_role` leaves a
+/// revoked administrator on them, and anyone may tombstone one, so reading them sent role
+/// messages to former administrators and let any member empty the list.
+pub fn get_live_administrator_agents() -> ExternResult<Vec<AgentPubKey>> {
+  external_local_call("get_live_administrator_agents", "administration", ())
 }

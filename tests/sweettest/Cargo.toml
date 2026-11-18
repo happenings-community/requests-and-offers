@@ -77,6 +77,10 @@ name = "offers"
 path = "tests/offers.rs"
 
 [[test]]
+name = "timeframes"
+path = "tests/timeframes.rs"
+
+[[test]]
 name = "link_canonicalisation"
 path = "tests/link_canonicalisation.rs"
 

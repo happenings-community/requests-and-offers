@@ -102,6 +102,7 @@ jobs:
           - service_types_status
           - requests
           - offers
+          - timeframes
           - exchanges
           - exchanges_attacks
           - exchanges_attacks_review

@@ -1,6 +1,8 @@
 use hdi::prelude::*;
 use utils::errors::{invalid, CommonError, ExchangeValidationError};
 use utils::grants::{check_act, Ability};
+use utils::listing_rules::timeframe_problem;
+pub use utils::{Timeframe, TimeframePreset};
 
 /// Which kind of listing an exchange settles. Carried on entries so the
 /// coordinator looks the listing up in the right zome and a cross-zome error
@@ -89,7 +91,9 @@ pub struct Agreement {
   pub reciprocal: ExchangeTerm,
   pub medium: String,
   pub terms: String,
-  pub delivery_timeframe: String,
+  /// When the exchange is due: a preset or a window of dates (#380), typed so the
+  /// counter rule compares values and the hREA mirror can set a due date.
+  pub delivery_timeframe: Timeframe,
   /// Set on a counter-proposal: the proposal it answers and the decline that
   /// closed it. `None` on a first proposal. Rounds of one negotiation form a
   /// chain through this field (#333).
@@ -418,6 +422,12 @@ fn validate_agreement(action: &TypedAction<CreateData>, agreement: &Agreement) -
   if agreement.medium.trim().is_empty() {
     return invalid(ExchangeValidationError::NoMedium);
   }
+  // Against this action's own timestamp: a counter is a new agreement, so its
+  // window is checked when the counter is written, even when it copies the
+  // proposal's.
+  if let Some(problem) = timeframe_problem(&agreement.delivery_timeframe, action.timestamp()) {
+    return invalid(problem);
+  }
   if let Err(reason) = check_act(&agreement.grant, author, &Ability::Participate, &None)? {
     return invalid(ExchangeValidationError::AgreementIsRoleAct(reason.to_string()));
   }
@@ -507,7 +517,7 @@ pub fn counter_terms_problem(counter: &Agreement, countered: &Agreement) -> Opti
   }
   if same_quantity(&counter.primary.quantity, &countered.primary.quantity)
     && same_quantity(&counter.reciprocal.quantity, &countered.reciprocal.quantity)
-    && counter.delivery_timeframe.trim() == countered.delivery_timeframe.trim()
+    && counter.delivery_timeframe == countered.delivery_timeframe
   {
     return Some(ExchangeValidationError::CounterChangesNothing);
   }
@@ -843,7 +853,7 @@ mod counter_tests {
       },
       medium: "Time bank hours".into(),
       terms: "".into(),
-      delivery_timeframe: "Within 2 weeks".into(),
+      delivery_timeframe: Timeframe::Preset(TimeframePreset::WithinTwoWeeks),
       counters: None,
       grant: Some(hash(9)),
     }
@@ -858,7 +868,7 @@ mod counter_tests {
     c.reciprocal.quantity = None;
     assert_eq!(counter_terms_problem(&c, &proposal()), None);
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     assert_eq!(counter_terms_problem(&c, &proposal()), None);
   }
 
@@ -877,7 +887,7 @@ mod counter_tests {
       |a: &mut Agreement| a.listing_type = ListingType::Offer,
     ] {
       let mut c = proposal();
-      c.delivery_timeframe = "Flexible".into();
+      c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
       change(&mut c);
       assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("listing, the interest"));
     }
@@ -886,11 +896,11 @@ mod counter_tests {
   #[test]
   fn the_medium_and_terms_text_are_kept() {
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     c.medium = "Pounds".into();
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("medium"));
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     c.terms = "New words".into();
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("medium"));
   }
@@ -898,11 +908,11 @@ mod counter_tests {
   #[test]
   fn both_directions_are_kept() {
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     c.primary.direction = Direction::Receive;
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("both services"));
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     c.reciprocal.direction = Direction::Provide;
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("both services"));
   }
@@ -919,16 +929,28 @@ mod counter_tests {
   #[test]
   fn the_counterparty_may_differ_since_the_roles_swap() {
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     c.counterparty = hash(4);
     assert_eq!(counter_terms_problem(&c, &proposal()), None);
   }
 
   #[test]
-  fn whitespace_in_the_timeframe_is_not_a_change() {
-    let mut c = proposal();
-    c.delivery_timeframe = "  Within 2 weeks ".into();
+  fn the_timeframe_is_compared_as_a_value() {
+    // The same preset, written again, is not a change.
+    let c = proposal();
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("changes a quantity"));
+    // Another preset is.
+    let mut c = proposal();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::WithinAMonth);
+    assert_eq!(counter_terms_problem(&c, &proposal()), None);
+    // So is a window, and the same window again is not.
+    let window = Timeframe::Dates { start: None, end: Timestamp::from_micros(1_900_000_000_000_000) };
+    let mut original = proposal();
+    original.delivery_timeframe = window.clone();
+    let mut c = proposal();
+    c.delivery_timeframe = window.clone();
+    assert_eq!(counter_terms_problem(&c, &proposal()), None);
+    assert!(counter_terms_problem(&c, &original).unwrap().to_string().contains("changes a quantity"));
   }
 
   #[test]
@@ -944,11 +966,11 @@ mod counter_tests {
   #[test]
   fn both_services_are_kept() {
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     c.primary.resource_conforms_to = "Plumbing".into();
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("both services"));
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     c.reciprocal.resource_kind = ResourceKind::Gift;
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("both services"));
   }
@@ -956,7 +978,6 @@ mod counter_tests {
   #[test]
   fn the_same_amount_written_differently_is_not_a_change() {
     let mut c = proposal();
-    c.delivery_timeframe = "  Within 2 weeks ".into();
     c.primary.quantity = Some(Quantity { value: "3.00".into(), unit: "hours".into() });
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("changes a quantity"));
     let mut original = proposal();

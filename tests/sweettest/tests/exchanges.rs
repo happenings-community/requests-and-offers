@@ -25,7 +25,7 @@ struct Exchange {
 /// The parts of an `Agreement` entry the counter tests read.
 #[derive(Debug, Serialize, Deserialize)]
 struct AgreementView {
-    delivery_timeframe: String,
+    delivery_timeframe: Timeframe,
     counters: Option<CounteringView>,
 }
 holochain_serialized_bytes::holochain_serial!(AgreementView);
@@ -48,12 +48,13 @@ fn agreement_view(record: &Record) -> AgreementView {
     record.entry().to_app_option().unwrap().expect("agreement entry")
 }
 
-fn counter_input(agreement: &ActionHash, timeframe: &str) -> Value {
+/// `preset` is a timeframe preset's name ("WithinAMonth"), sent as `{ "Preset": .. }`.
+fn counter_input(agreement: &ActionHash, preset: &str) -> Value {
     json!({
         "agreement": agreement,
         "primary_quantity": { "value": "2", "unit": "h" },
         "reciprocal_quantity": null,
-        "delivery_timeframe": timeframe
+        "delivery_timeframe": { "Preset": preset }
     })
 }
 
@@ -84,7 +85,7 @@ fn agreement_input(listing: &ActionHash, interest: &ActionHash) -> Value {
         "reciprocal": gift_term(),
         "medium": "Pay it forward",
         "terms": "Two hours of design review over a call, agreed by phone.",
-        "delivery_timeframe": "Within two weeks"
+        "delivery_timeframe": { "Preset": "WithinTwoWeeks" }
     })
 }
 
@@ -558,11 +559,14 @@ async fn counter_proposals_form_a_chain() {
 
     // Bob counters with a different timeframe.
     let second: Record = conductors[1]
-        .call(&bob.zome("exchanges"), "counter_agreement", counter_input(&first_hash, "Within a month"))
+        .call(&bob.zome("exchanges"), "counter_agreement", counter_input(&first_hash, "WithinAMonth"))
         .await;
     let second_hash = second.signed_action.hashed.hash.clone();
     let second_view = agreement_view(&second);
-    assert_eq!(second_view.delivery_timeframe, "Within a month");
+    assert_eq!(
+        second_view.delivery_timeframe,
+        Timeframe::Preset(TimeframePreset::WithinAMonth)
+    );
     let countering = second_view.counters.expect("a counter names what it answers");
     assert_eq!(countering.agreement, first_hash);
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
@@ -640,7 +644,7 @@ async fn counter_refusals() {
         .call_fallible::<_, Record>(
             &bob.zome("exchanges"),
             "counter_agreement",
-            counter_input(&proposal_hash, "Within two weeks"),
+            counter_input(&proposal_hash, "WithinTwoWeeks"),
         )
         .await;
     let refusal = format!("{:?}", unchanged.expect_err("a counter must change a quantity or the timeframe"));
@@ -648,7 +652,7 @@ async fn counter_refusals() {
 
     // The same amount spelled with trailing zeros is still no change: amounts
     // compare as numbers, not as strings.
-    let mut respelled = counter_input(&proposal_hash, "Within two weeks");
+    let mut respelled = counter_input(&proposal_hash, "WithinTwoWeeks");
     respelled["primary_quantity"]["value"] = json!("2.00");
     let respelled = conductors[1]
         .call_fallible::<_, Record>(&bob.zome("exchanges"), "counter_agreement", respelled)
@@ -746,7 +750,7 @@ fn currency_agreement(listing: &ActionHash, listing_type: &str, interest: &Actio
         },
         "medium": "Time bank hours",
         "terms": "",
-        "delivery_timeframe": "Within 2 weeks"
+        "delivery_timeframe": { "Preset": "WithinTwoWeeks" }
     })
 }
 
@@ -768,9 +772,9 @@ async fn counters_on_a_request_and_each_permitted_change() {
     t.sync().await;
 
     let changes = [
-        ("the primary quantity", json!({ "value": "5", "unit": "h" }), json!({ "value": "2", "unit": "Time bank hours" }), "Within 2 weeks"),
-        ("the return quantity", json!({ "value": "2", "unit": "h" }), json!({ "value": "6", "unit": "Time bank hours" }), "Within 2 weeks"),
-        ("both quantities to none", Value::Null, Value::Null, "Within 2 weeks"),
+        ("the primary quantity", json!({ "value": "5", "unit": "h" }), json!({ "value": "2", "unit": "Time bank hours" }), "WithinTwoWeeks"),
+        ("the return quantity", json!({ "value": "2", "unit": "h" }), json!({ "value": "6", "unit": "Time bank hours" }), "WithinTwoWeeks"),
+        ("both quantities to none", Value::Null, Value::Null, "WithinTwoWeeks"),
         ("the timeframe", json!({ "value": "2", "unit": "h" }), json!({ "value": "2", "unit": "Time bank hours" }), "Flexible"),
     ];
     for (what, primary, reciprocal, timeframe) in changes {
@@ -788,7 +792,7 @@ async fn counters_on_a_request_and_each_permitted_change() {
                     "agreement": proposal,
                     "primary_quantity": primary,
                     "reciprocal_quantity": reciprocal,
-                    "delivery_timeframe": timeframe
+                    "delivery_timeframe": { "Preset": timeframe }
                 }),
             )
             .await
@@ -825,7 +829,7 @@ async fn parallel_negotiations_stay_separate() {
     t.sync().await;
 
     let mut counters = Vec::new();
-    for (p, timeframe) in proposals.iter().zip(["Within a month", "Flexible"]) {
+    for (p, timeframe) in proposals.iter().zip(["WithinAMonth", "Flexible"]) {
         let c: Record = t.conductors[1]
             .call(&t.bob.zome("exchanges"), "counter_agreement", counter_input(p, timeframe))
             .await;

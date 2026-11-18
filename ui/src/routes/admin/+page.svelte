@@ -343,7 +343,9 @@
                     >
                     {#if applicationStages.stageOf(user)}
                       {@const stage = applicationStages.stageOf(user)!}
-                      <span class="chip {STAGE_CHIP[stage]}">{APPLICATION_STAGE_LABEL[stage]}</span>
+                      <span class="chip shrink-0 {STAGE_CHIP[stage]}"
+                        >{APPLICATION_STAGE_LABEL[stage]}</span
+                      >
                     {/if}
                   </div>
                   <!-- Decided only from the details screen, after reading it (#331) -->

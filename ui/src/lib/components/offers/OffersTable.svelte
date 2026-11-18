@@ -166,7 +166,7 @@
               </td>
               <td class="max-w-32">
                 {#if offer.service_type_hash}
-                  <div class="flex flex-col gap-1">
+                  <div class="flex flex-col items-start gap-1">
                     <ServiceTypeTag
                       serviceTypeActionHash={offer.service_type_hash}
                       showLink={false}
@@ -178,7 +178,7 @@
               </td>
               <td class="max-w-32">
                 {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
-                  <div class="flex flex-col gap-1">
+                  <div class="flex flex-col items-start gap-1">
                     <MediumOfExchangeTag
                       mediumOfExchangeActionHash={offer.medium_of_exchange_hashes[0]!}
                     />

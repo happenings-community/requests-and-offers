@@ -310,7 +310,7 @@
           <h1 class="h1 mb-4 flex items-center gap-3 text-primary-500">
             {request.title}
             <span
-              class="chip"
+              class="chip shrink-0"
               class:variant-ghost-success={request.status === ListingStatus.Active}
               class:variant-ghost-tertiary={request.status === ListingStatus.Archived}
             >

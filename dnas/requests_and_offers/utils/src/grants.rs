@@ -22,7 +22,10 @@ use std::{fmt::Display, str::FromStr};
 
 use hdk::prelude::*;
 
-use crate::{errors::CommonError, external_local_call, DnaProperties};
+use crate::{
+  errors::{CommonError, GrantValidationError},
+  external_local_call, DnaProperties,
+};
 
 /// The integrity zome that registers `RoleGrant` and `RoleRevocation`, as named
 /// in `dnas/requests_and_offers/workdir/dna.yaml`. A validator in another zome
@@ -64,7 +67,7 @@ impl Display for Role {
 }
 
 impl FromStr for Role {
-  type Err = String;
+  type Err = GrantValidationError;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     match s {
@@ -72,7 +75,7 @@ impl FromStr for Role {
       "steward" => Ok(Role::Steward),
       "member" => Ok(Role::Member),
       "org_coordinator" => Ok(Role::OrgCoordinator),
-      _ => Err(format!("Unknown role: {}", s)),
+      _ => Err(GrantValidationError::UnknownRole(s.to_string())),
     }
   }
 }
@@ -111,7 +114,7 @@ impl RoleGrant {
     }
   }
 
-  pub fn parsed_role(&self) -> Result<Role, String> {
+  pub fn parsed_role(&self) -> Result<Role, GrantValidationError> {
     Role::from_str(&self.role)
   }
 }
@@ -263,21 +266,17 @@ pub fn root_is_valid<D: Serialize + std::fmt::Debug>(
   author: &AgentPubKey,
   signature: &Signature,
   payload: &D,
-) -> ExternResult<Option<Result<(), String>>> {
+) -> ExternResult<Option<Result<(), GrantValidationError>>> {
   match DnaProperties::get_progenitor_pubkey()? {
     None => Ok(None),
     Some(progenitor) => {
       // The signature first, then the author: a body nobody signed is refused
       // for the signature, a signed body written by someone else for the author.
       if !verify_signature(progenitor.clone(), signature.clone(), payload)? {
-        return Ok(Some(Err(
-          "the root grant is not signed by the progenitor key".to_string(),
-        )));
+        return Ok(Some(Err(GrantValidationError::RootNotSignedByProgenitor)));
       }
       if author != &progenitor {
-        return Ok(Some(Err(
-          "the root grant is written by the progenitor".to_string(),
-        )));
+        return Ok(Some(Err(GrantValidationError::RootNotWrittenByProgenitor)));
       }
       Ok(Some(Ok(())))
     }
@@ -314,15 +313,17 @@ fn is_administration_entry(action: &Action, entry_index: u8) -> ExternResult<boo
 /// grant found here has itself been checked one step up. The entry type is
 /// checked against the administration zome's, so a `RoleGrant`-shaped entry
 /// from another zome is refused.
-pub fn load_grant(hash: &ActionHash) -> ExternResult<Result<(RoleGrant, AgentPubKey), String>> {
+pub fn load_grant(
+  hash: &ActionHash,
+) -> ExternResult<Result<(RoleGrant, AgentPubKey), GrantValidationError>> {
   let record = must_get_valid_record(hash.clone())?;
   if !is_administration_entry(record.action(), ROLE_GRANT_ENTRY_INDEX)? {
-    return Ok(Err("the grant named is not a role grant".to_string()));
+    return Ok(Err(GrantValidationError::NotARoleGrant));
   }
   let grant: RoleGrant = match record.entry().to_app_option() {
     Ok(Some(grant)) => grant,
-    Ok(None) => return Ok(Err("the grant named has no entry".to_string())),
-    Err(e) => return Ok(Err(format!("the grant named does not read as one: {}", e))),
+    Ok(None) => return Ok(Err(GrantValidationError::GrantHasNoEntry)),
+    Err(e) => return Ok(Err(GrantValidationError::GrantUnreadable(e.to_string()))),
   };
   Ok(Ok((grant, record.action().author().clone())))
 }
@@ -355,26 +356,26 @@ pub fn check_act(
   author: &AgentPubKey,
   ability: &Ability,
   scope: &Option<ActionHash>,
-) -> ExternResult<Result<ActionHash, String>> {
+) -> ExternResult<Result<ActionHash, GrantValidationError>> {
   let Some(hash) = grant else {
-    return Ok(Err(format!("this write needs a grant for {:?}", ability)));
+    return Ok(Err(GrantValidationError::NeedsGrant(format!("{:?}", ability))));
   };
   let (grant, _) = match load_grant(hash)? {
     Ok(found) => found,
     Err(reason) => return Ok(Err(reason)),
   };
   if &grant.holder != author {
-    return Ok(Err("the grant carried is held by someone else".to_string()));
+    return Ok(Err(GrantValidationError::HeldBySomeoneElse));
   }
   let role = match grant.parsed_role() {
     Ok(role) => role,
     Err(reason) => return Ok(Err(reason)),
   };
   if !grant_covers(role, &grant.scope, ability, scope) {
-    return Ok(Err(format!(
-      "a {} grant does not cover {:?} here",
-      grant.role, ability
-    )));
+    return Ok(Err(GrantValidationError::DoesNotCover {
+      role: grant.role.clone(),
+      ability: format!("{:?}", ability),
+    }));
   }
   Ok(Ok(hash.clone()))
 }
@@ -383,19 +384,23 @@ pub fn check_act(
 /// an update chain, reached by following each `Update` back to the action it
 /// updated. Every record on the way has passed validation. Bounded by the
 /// chain's length.
-pub fn creator_of(action_hash: &ActionHash) -> ExternResult<Result<AgentPubKey, String>> {
+pub fn creator_of(
+  action_hash: &ActionHash,
+) -> ExternResult<Result<AgentPubKey, GrantValidationError>> {
   Ok(chain_root(action_hash)?.map(|(_, creator)| creator))
 }
 
 /// The root of an update chain and its author, reached the same way.
-pub fn chain_root(action_hash: &ActionHash) -> ExternResult<Result<(ActionHash, AgentPubKey), String>> {
+pub fn chain_root(
+  action_hash: &ActionHash,
+) -> ExternResult<Result<(ActionHash, AgentPubKey), GrantValidationError>> {
   let mut current = action_hash.clone();
   loop {
     let record = must_get_valid_record(current.clone())?;
     match &record.action().data {
       ActionData::Create(_) => return Ok(Ok((current, record.action().author().clone()))),
       ActionData::Update(update) => current = update.original_action_address.clone(),
-      _ => return Ok(Err("an entity's chain holds creates and updates only".to_string())),
+      _ => return Ok(Err(GrantValidationError::ChainNotCreatesAndUpdates)),
     }
   }
 }
@@ -408,7 +413,7 @@ pub fn check_author_or_act(
   author: &AgentPubKey,
   ability: &Ability,
   scope: &Option<ActionHash>,
-) -> ExternResult<Result<(), String>> {
+) -> ExternResult<Result<(), GrantValidationError>> {
   match creator_of(original)? {
     Ok(creator) if &creator == author => return Ok(Ok(())),
     Ok(_) => {}
@@ -422,9 +427,8 @@ pub fn grant_tag(grant: &ActionHash) -> LinkTag {
   LinkTag::new(grant.get_raw_39().to_vec())
 }
 
-pub fn grant_from_tag(tag: &LinkTag) -> Result<ActionHash, String> {
-  ActionHash::try_from_raw_39(tag.0.clone())
-    .map_err(|_| "the link's tag does not carry a grant".to_string())
+pub fn grant_from_tag(tag: &LinkTag) -> Result<ActionHash, GrantValidationError> {
+  ActionHash::try_from_raw_39(tag.0.clone()).map_err(|_| GrantValidationError::TagCarriesNoGrant)
 }
 
 /// Input to the administration coordinator's `revoke_roles_of`.

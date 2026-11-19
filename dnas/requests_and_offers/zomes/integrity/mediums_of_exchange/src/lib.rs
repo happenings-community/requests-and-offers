@@ -1,5 +1,6 @@
 use hdi::prelude::*;
 use utils::grants::{check_act, Ability};
+use utils::errors::{invalid, CommonValidationError, MediumOfExchangeValidationError};
 
 mod medium_of_exchange;
 pub use medium_of_exchange::*;
@@ -67,24 +68,18 @@ fn validate_medium_of_exchange_grant(
   is_update: bool,
 ) -> ExternResult<ValidateCallbackResult> {
   if is_update {
-    return Ok(match check_act(grant, author, &Ability::Administer, &None)? {
-      Ok(_) => ValidateCallbackResult::Valid,
-      Err(reason) => ValidateCallbackResult::Invalid(format!(
-        "Changing a medium of exchange is a role act: {}",
-        reason
-      )),
-    });
+    return match check_act(grant, author, &Ability::Administer, &None)? {
+      Ok(_) => Ok(ValidateCallbackResult::Valid),
+      Err(reason) => invalid(MediumOfExchangeValidationError::ChangeIsRoleAct(reason.to_string())),
+    };
   }
   if check_act(grant, author, &Ability::Administer, &None)?.is_ok() {
     return Ok(ValidateCallbackResult::Valid);
   }
-  Ok(match check_act(grant, author, &Ability::Participate, &None)? {
-    Ok(_) => ValidateCallbackResult::Valid,
-    Err(reason) => ValidateCallbackResult::Invalid(format!(
-      "Creating a medium of exchange is a role act: {}",
-      reason
-    )),
-  })
+  match check_act(grant, author, &Ability::Participate, &None)? {
+    Ok(_) => Ok(ValidateCallbackResult::Valid),
+    Err(reason) => invalid(MediumOfExchangeValidationError::CreateIsRoleAct(reason.to_string())),
+  }
 }
 
 #[allow(clippy::collapsible_match, clippy::single_match)]
@@ -133,9 +128,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           match TypedAction::<EntryCreationData>::try_from(original_record.action().clone()) {
             Ok(original_action) => original_action,
             Err(_) => {
-              return Ok(ValidateCallbackResult::Invalid(
-                "Original action for a delete must be a Create or Update action".to_string(),
-              ));
+              return invalid(CommonValidationError::DeleteOfNonCreation);
             }
           };
         let app_entry_type = match original_action.entry_type() {
@@ -148,9 +141,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           Some(entry) => entry,
           None => {
             if original_action.entry_type().visibility().is_public() {
-              return Ok(ValidateCallbackResult::Invalid(
-                "Original record for a delete of a public entry must contain an entry".to_string(),
-              ));
+              return invalid(CommonValidationError::DeletedPublicEntryMissing);
             } else {
               return Ok(ValidateCallbackResult::Valid);
             }
@@ -163,9 +154,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         )? {
           Some(app_entry) => app_entry,
           None => {
-            return Ok(ValidateCallbackResult::Invalid(
-              "Original app entry must be one of the defined entry types for this zome".to_string(),
-            ));
+            return invalid(CommonValidationError::UnknownAppEntry);
           }
         };
         match original_app_entry {
@@ -185,19 +174,13 @@ pub fn validate_medium_of_exchange(
   medium_of_exchange: MediumOfExchange,
 ) -> ExternResult<ValidateCallbackResult> {
   if medium_of_exchange.code.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "MediumOfExchange code cannot be empty".to_string(),
-    ));
+    return invalid(MediumOfExchangeValidationError::CodeEmpty);
   }
   if medium_of_exchange.name.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "MediumOfExchange name cannot be empty".to_string(),
-    ));
+    return invalid(MediumOfExchangeValidationError::NameEmpty);
   }
   if medium_of_exchange.exchange_type != "base" && medium_of_exchange.exchange_type != "currency" {
-    return Ok(ValidateCallbackResult::Invalid(
-      "MediumOfExchange exchange_type must be either 'base' or 'currency'".to_string(),
-    ));
+    return invalid(MediumOfExchangeValidationError::InvalidExchangeType);
   }
 
   Ok(ValidateCallbackResult::Valid)

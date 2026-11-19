@@ -53,7 +53,8 @@ holochain_serialized_bytes::holochain_serial!(Organization);
 pub struct Status {
     pub status_type: String,
     pub reason: Option<String>,
-    pub suspended_until: Option<String>,
+    /// A Holochain timestamp, in microseconds.
+    pub suspended_until: Option<i64>,
     #[serde(default)]
     pub grant: Option<ActionHash>,
 }

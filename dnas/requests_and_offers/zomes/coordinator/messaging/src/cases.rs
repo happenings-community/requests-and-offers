@@ -122,7 +122,12 @@ pub struct Case {
 /// because a send fans out one entry per recipient agent: `Claim` adds an agent that is
 /// not already claiming, `Release` removes one, `Complete` and `Reopen` set and clear a
 /// single field, and a second `HandOverAccept` finds no offer pending. So a reader that
-/// somehow sees two copies of one event computes the same state as one that sees one.
+/// somehow sees two copies of one event, one straight after the other, computes the same
+/// claims, the same open or closed state and the same outcome as one that sees one (with
+/// another event between them, the second copy acts again: a `Complete` after a `Reopen`
+/// closes the case again). The times are not stable: a
+/// second copy of a `Complete` or a `HandOverOffer` moves `closed.at` or
+/// `pending_hand_over.at` to its own copy's time.
 pub(crate) fn assemble_cases(messages: Vec<(Message, CaseRef)>) -> ExternResult<Vec<Case>> {
   // Oldest first, by the action timestamp of this reader's own copy. `deliver` writes one
   // entry per recipient agent, so every reader holds a different copy of each event, with

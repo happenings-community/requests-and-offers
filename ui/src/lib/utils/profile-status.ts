@@ -1,3 +1,5 @@
+import { suspensionEndDate } from '$lib/utils/suspension';
+
 /**
  * What a blocked member is told, by their status (#331 follow-up).
  *
@@ -44,13 +46,13 @@ export function headingFor(state: BlockedState): string {
 
 /**
  * The line under the heading. `action` is what the page blocks ("create
- * requests", "view or create offers"); `suspendedUntil` is the RFC 3339 end of a
- * temporary suspension, when known.
+ * requests", "view or create offers"); `suspendedUntil` is the end of a temporary
+ * suspension, a Holochain timestamp in microseconds, when known.
  */
 export function lineFor(
   state: BlockedState,
   action: string,
-  suspendedUntil?: string | null
+  suspendedUntil?: number | null
 ): string {
   switch (state) {
     case 'pending':
@@ -85,9 +87,8 @@ export function statusLabel(statusType: string | undefined): string {
 }
 
 /** A date in the member's own locale, or undefined when there is none to show. */
-function formatEnd(suspendedUntil: string | null | undefined): string | undefined {
-  if (!suspendedUntil) return undefined;
-  const date = new Date(suspendedUntil);
-  if (Number.isNaN(date.getTime())) return undefined;
+function formatEnd(suspendedUntil: number | null | undefined): string | undefined {
+  const date = suspensionEndDate(suspendedUntil);
+  if (!date || Number.isNaN(date.getTime())) return undefined;
   return date.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
 }

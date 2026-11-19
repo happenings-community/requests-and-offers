@@ -90,9 +90,9 @@
         <span>{youProvide ? 'Hours you provide' : `Hours ${otherName} provides`}</span>
         <input
           class="input"
-          type="number"
-          min="0"
-          step="0.5"
+          type="text"
+          inputmode="decimal"
+          autocomplete="off"
           bind:value={counter.primary}
           placeholder="Blank for no time estimate"
           data-testid="counter-primary"
@@ -111,9 +111,9 @@
           </span>
           <input
             class="input"
-            type="number"
-            min="0"
-            step="0.5"
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
             bind:value={counter.reciprocal}
             placeholder={counter.figure === 'amount'
               ? 'Blank for no amount'

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { suspensionEnd } from '$lib/utils/suspension';
   import { page } from '$app/state';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -466,7 +467,7 @@
     if (!entity.original_action_hash || !userStatus?.original_action_hash) return;
 
     try {
-      const suspendedUntil = new Date(Date.now() + duration * 24 * 60 * 60 * 1000).toISOString();
+      const suspendedUntil = suspensionEnd(duration);
       const previousActionHash = userStatus.previous_action_hash || userStatus.original_action_hash;
 
       if (entityType === AdministrationEntity.Users) {

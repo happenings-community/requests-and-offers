@@ -28,6 +28,7 @@
     termLabel,
     type ExchangeRole
   } from '$lib/utils/exchange-ui';
+  import { decimalFromNumber } from '$lib/utils/decimal';
   import type { ExchangeTerm, ListingType } from '$lib/types/holochain';
   import type { UIOffer, UIRequest, UIUser } from '$lib/types/ui';
 
@@ -148,6 +149,7 @@
       ? (listing as { time_estimate_hours?: number }).time_estimate_hours
       : undefined
   );
+  const hoursDecimal = $derived(decimalFromNumber(hours));
 
   const me = $derived(usersStore.currentUser?.original_action_hash);
   const iAmAuthor = $derived(
@@ -168,7 +170,8 @@
     direction: 'Provide',
     resource_conforms_to: service,
     resource_kind: 'Service',
-    quantity: hours ? { value: hours, unit: 'hours' } : null
+    // The listing's hours are a number; a quantity is an exact decimal string (#475).
+    quantity: hoursDecimal ? { value: hoursDecimal, unit: 'hours' } : null
   });
   const reciprocal = $derived(reciprocalTermFor({ medium, isCurrency, returnService }));
 
@@ -405,7 +408,7 @@
           <span class="text-surface-500"
             >{myRole === 'provider' ? 'Hours offered' : 'Hours requested'}</span
           >
-          {hours ?? 'not stated on the listing'}
+          {hoursDecimal ?? (hours == null ? S.form.hoursNotStated : S.form.hoursUnusable)}
         </p>
         <p class="text-xs text-surface-500">{FORM_TERMS_LOCKED}</p>
       </div>

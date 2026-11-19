@@ -24,16 +24,21 @@ describe('lineFor', () => {
   });
 
   it('gives the end of a temporary suspension when it is known', () => {
-    const line = lineFor('suspended_temporarily', 'create requests', '2026-11-05T12:00:00Z');
+    // A Holochain timestamp, in microseconds.
+    const line = lineFor(
+      'suspended_temporarily',
+      'create requests',
+      Date.UTC(2026, 10, 5, 12) * 1000
+    );
     expect(line).toMatch(/^You can't create requests while your profile is suspended\. /);
     expect(line).toMatch(/Your suspension ends on .*2026\.$/);
   });
 
-  it('leaves the end out when there is none, or it does not parse', () => {
+  it('leaves the end out when there is none, or it is not a number', () => {
     const base = "You can't create requests while your profile is suspended.";
     expect(lineFor('suspended_temporarily', 'create requests')).toBe(base);
     expect(lineFor('suspended_temporarily', 'create requests', null)).toBe(base);
-    expect(lineFor('suspended_temporarily', 'create requests', 'soon')).toBe(base);
+    expect(lineFor('suspended_temporarily', 'create requests', Number.NaN)).toBe(base);
   });
 });
 

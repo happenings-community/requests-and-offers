@@ -142,8 +142,7 @@ pub struct InboxDelta {
   /// Role messages in this inbox whose links still pass the author filters: never shown here,
   /// and listed so the caller can pass them back in `GetInboxDeltaInput::skipped`.
   /// Whether a message is a role message is inside the encryption, so the first read
-  /// has to fetch and decrypt it; without this list every later poll would too (Sacha's
-  /// review of #364).
+  /// has to fetch and decrypt it; without this list every later poll would too.
   #[serde(default)]
   pub skipped: Vec<ActionHash>,
 }
@@ -153,8 +152,8 @@ pub struct InboxDelta {
 /// A message never changes once written, so a client that polls has no reason to fetch
 /// the same message twice. The interface polls every fifteen seconds for the unopened
 /// count, and `get_inbox` cost one network `get` per message each time, for as long as
-/// the app was open (Sacha's review of #301, 7 October). Here a known message costs
-/// nothing: its author is the `Inbox` link's author, which validation proves wrote it,
+/// the app was open. Here a known message costs nothing: its author is the `Inbox`
+/// link's author, which validation proves wrote it,
 /// so the two reading filters that depend on who wrote it (accepted now; an
 /// administrator, while this agent is not accepted) run on the link alone. Only an
 /// unknown hash is fetched and decrypted.
@@ -324,7 +323,8 @@ impl AuthorFacts {
 /// an administrator, only an administrator may reach them.
 ///
 /// Both read paths call this, `read_inbox_entries` and `get_message`, so the rule cannot
-/// hold on one and not the other (Sacha's review of #304: the nudge path skipped it).
+/// hold on one and not the other: a path that skipped it would show a restricted
+/// reader a message the other path withholds.
 fn reader_is_restricted(me: &AgentPubKey, authors: &mut AuthorFacts) -> ExternResult<bool> {
   Ok(!authors.accepted(me)? && !check_if_agent_is_administrator(me.clone())?)
 }

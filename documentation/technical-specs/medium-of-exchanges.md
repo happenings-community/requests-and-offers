@@ -210,37 +210,44 @@ pub fn get_mediums_of_exchange_for_entity(input: GetMediumOfExchangeForEntityInp
 
 #### **Validation Rules**
 
+Each refusal is a variant of `MediumOfExchangeValidationError` in `utils/src/errors.rs`, given through `invalid` (see `CLAUDE.md`, Zome errors). Who may write one is a grant, not authorship (#378): a create needs an admin grant, or a member grant for a suggestion; an update needs an admin grant.
+
 ```rust
-// Entry validation
-pub fn validate_create_medium_of_exchange(
-    _action: &SignedActionHashed,
-    medium_of_exchange: &MediumOfExchange,
+// zomes/integrity/mediums_of_exchange/src/lib.rs
+pub fn validate_medium_of_exchange(
+  medium_of_exchange: MediumOfExchange,
 ) -> ExternResult<ValidateCallbackResult> {
-    if medium_of_exchange.code.is_empty() {
-        return Ok(ValidateCallbackResult::Invalid(
-            "MediumOfExchange code cannot be empty".to_string(),
-        ));
-    }
-    if medium_of_exchange.name.is_empty() {
-        return Ok(ValidateCallbackResult::Invalid(
-            "MediumOfExchange name cannot be empty".to_string(),
-        ));
-    }
-    Ok(ValidateCallbackResult::Valid)
+  if medium_of_exchange.code.is_empty() {
+    return invalid(MediumOfExchangeValidationError::CodeEmpty);
+  }
+  if medium_of_exchange.name.is_empty() {
+    return invalid(MediumOfExchangeValidationError::NameEmpty);
+  }
+  if medium_of_exchange.exchange_type != "base" && medium_of_exchange.exchange_type != "currency" {
+    return invalid(MediumOfExchangeValidationError::InvalidExchangeType);
+  }
+
+  Ok(ValidateCallbackResult::Valid)
 }
 
-// Author verification for updates/deletes
-pub fn validate_update_medium_of_exchange(
-    action: &SignedActionHashed,
-    // ... parameters
+fn validate_medium_of_exchange_grant(
+  grant: &Option<ActionHash>,
+  author: &AgentPubKey,
+  is_update: bool,
 ) -> ExternResult<ValidateCallbackResult> {
-    // Verify author matches original creator
-    if action.action().author() != original_create_action.author() {
-        return Ok(ValidateCallbackResult::Invalid(
-            "Only the original author can update the MediumOfExchange.".to_string(),
-        ));
-    }
-    Ok(ValidateCallbackResult::Valid)
+  if is_update {
+    return match check_act(grant, author, &Ability::Administer, &None)? {
+      Ok(_) => Ok(ValidateCallbackResult::Valid),
+      Err(reason) => invalid(MediumOfExchangeValidationError::ChangeIsRoleAct(reason.to_string())),
+    };
+  }
+  if check_act(grant, author, &Ability::Administer, &None)?.is_ok() {
+    return Ok(ValidateCallbackResult::Valid);
+  }
+  match check_act(grant, author, &Ability::Participate, &None)? {
+    Ok(_) => Ok(ValidateCallbackResult::Valid),
+    Err(reason) => invalid(MediumOfExchangeValidationError::CreateIsRoleAct(reason.to_string())),
+  }
 }
 ```
 

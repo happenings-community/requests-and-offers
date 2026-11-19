@@ -270,8 +270,9 @@ impl From<MessagingError> for WasmError {
 // ---------------------------------------------------------------------------
 
 /// A reason a validation callback may give: one of the enums below, and nothing else.
-/// The trait is sealed, so a string cannot be passed to `invalid` or `verdict`: the
-/// compiler holds the rule above, not review.
+/// The trait is sealed, so a string cannot be passed to `invalid` or `verdict`. That is
+/// as far as the compiler goes: `ValidateCallbackResult::Invalid(..)` written by hand
+/// still compiles, and review holds the rest of the rule above.
 pub trait ValidationReason: std::fmt::Display + sealed::Sealed {}
 
 mod sealed {

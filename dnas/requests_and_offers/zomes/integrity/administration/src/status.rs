@@ -47,7 +47,9 @@ impl FromStr for StatusType {
 /// ## Fields
 /// - `status_type` — One of the canonical status strings defined in [`StatusType`].
 /// - `reason` — Required for any `suspended*` status; `None` for all other states.
-/// - `suspended_until` — RFC 3339 timestamp string; only present for `"suspended temporarily"`.
+/// - `suspended_until` — when a temporary suspension ends, a Holochain timestamp (microseconds),
+///   so validation can check it and a reader never parses text. Only present for
+///   `"suspended temporarily"`, and it must be after the moment the status is written.
 /// - `grant` — the admin or steward grant the change rests on. Absent
 ///   only on the `"pending"` status an entity's own author writes at creation.
 #[hdk_entry_helper]
@@ -55,7 +57,7 @@ impl FromStr for StatusType {
 pub struct Status {
   pub status_type: String,
   pub reason: Option<String>,
-  pub suspended_until: Option<String>,
+  pub suspended_until: Option<Timestamp>,
   #[serde(default)]
   pub grant: Option<ActionHash>,
 }
@@ -105,7 +107,7 @@ impl Status {
   ///
   /// - If `time` is `None`, the status is `"suspended indefinitely"` with no expiry.
   /// - If `time` is `Some((duration, now))`, the status is `"suspended temporarily"` and
-  ///   `suspended_until` is set to `now + duration` as an RFC 3339 timestamp string.
+  ///   `suspended_until` is set to `now + duration`.
   ///
   /// A `reason` must be provided and will be stored in both suspension variants.
   pub fn suspend(reason: &str, time: Option<(Duration, &Timestamp)>) -> Self {
@@ -116,7 +118,7 @@ impl Status {
       return Self {
         status_type: "suspended temporarily".to_string(),
         reason: Some(reason.to_string()),
-        suspended_until: Some(Timestamp::from_micros(now + duration).to_string()),
+        suspended_until: Some(Timestamp::from_micros(now.saturating_add(duration))),
         grant: None,
       };
     }
@@ -140,7 +142,7 @@ impl Status {
 
       self.status_type = "suspended temporarily".to_string();
       self.reason = Some(reason.to_string());
-      self.suspended_until = Some(Timestamp::from_micros(now + duration).to_string());
+      self.suspended_until = Some(Timestamp::from_micros(now.saturating_add(duration)));
     } else {
       self.status_type = "suspended indefinitely".to_string();
       self.reason = Some(reason.to_string());
@@ -161,17 +163,17 @@ impl Status {
 
   /// Returns the remaining suspension duration relative to `now`, or `None` if the status
   /// has no `suspended_until` timestamp (i.e., is not a temporary suspension).
+  ///
+  /// A typed timestamp, so there is nothing to parse: the text this replaced was read
+  /// with an `unwrap`, and a malformed value made every later read of the status fail.
   pub fn get_suspension_time_remaining(&self, now: &Timestamp) -> Option<Duration> {
-    if let Some(timestamp) = &self.suspended_until {
-      return Some(Duration::microseconds(
-        Timestamp::from_str(timestamp)
-          .unwrap()
-          .checked_difference_signed(now)
-          .unwrap_or_default()
-          .num_microseconds()?,
-      ));
-    }
-    None
+    let until = self.suspended_until?;
+    Some(Duration::microseconds(
+      until
+        .checked_difference_signed(now)
+        .unwrap_or_default()
+        .num_microseconds()?,
+    ))
   }
 
   /// Unsuspends `self` once the suspension's time has run out, and not before.
@@ -192,18 +194,20 @@ impl Status {
 
 /// Validates that a `Status` entry conforms to the zome's business rules.
 ///
-/// Enforces five rules:
+/// Enforces six rules:
 /// 1. `status_type` must match a known [`StatusType`] discriminant string.
 /// 2. Any `suspended*` status must include a non-`None` `reason`.
 /// 3. `"suspended temporarily"` must have a `suspended_until` timestamp.
 /// 4. `"suspended indefinitely"` must NOT have a `suspended_until` timestamp.
-/// 5. A status change is a role act: every update, and any created status other than
+/// 5. A `suspended_until` ends after `at`, the moment the action writing it was made.
+/// 6. A status change is a role act: every update, and any created status other than
 ///    `"pending"`, carries an admin or steward grant held by its author. The `"pending"`
 ///    status an entity's author writes at creation is the one write without a grant.
 pub fn validate_status(
   status: Status,
   author: &AgentPubKey,
   is_update: bool,
+  at: Timestamp,
 ) -> ExternResult<ValidateCallbackResult> {
   if StatusType::from_str(&status.status_type).is_err() {
     return invalid(StatusValidationError::InvalidStatusType(
@@ -221,6 +225,14 @@ pub fn validate_status(
 
   if status.status_type == "suspended indefinitely" && status.suspended_until.is_some() {
     return invalid(StatusValidationError::IndefiniteSuspensionWithTimestamp);
+  }
+
+  // Measured from the writing action's own timestamp, never the clock, so every
+  // validator gives the same verdict.
+  if let Some(until) = status.suspended_until {
+    if until <= at {
+      return invalid(StatusValidationError::SuspensionEndsBeforeWritten);
+    }
   }
 
   if is_update || status.status_type != "pending" {

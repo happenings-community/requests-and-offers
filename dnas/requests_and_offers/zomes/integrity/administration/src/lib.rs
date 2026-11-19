@@ -163,9 +163,10 @@ fn validate_entry(
   app_entry: EntryTypes,
   author: &AgentPubKey,
   is_update: bool,
+  at: Timestamp,
 ) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
-    EntryTypes::Status(status) => validate_status(status, author, is_update),
+    EntryTypes::Status(status) => validate_status(status, author, is_update, at),
     // A grant or a revocation is a record: never updated, as it is never
     // deleted. An update would be the other way to rewrite one.
     EntryTypes::RoleGrant(_) | EntryTypes::RoleRevocation(_) if is_update => {
@@ -204,18 +205,18 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, action } => validate_entry(app_entry, action.author(), false),
+      OpEntry::CreateEntry { app_entry, action } => validate_entry(app_entry, action.author(), false, action.timestamp()),
       OpEntry::UpdateEntry { app_entry, action, .. } => {
-        validate_entry(app_entry, action.author(), true)
+        validate_entry(app_entry, action.author(), true, action.timestamp())
       }
       _ => Ok(ValidateCallbackResult::Valid),
     },
     FlatOp::CreateRecord(store_record) => match store_record {
       OpRecord::CreateEntry { app_entry, action } => {
-        validate_entry(app_entry, action.author(), false)
+        validate_entry(app_entry, action.author(), false, action.timestamp())
       }
       OpRecord::UpdateEntry { app_entry, action, .. } => {
-        validate_entry(app_entry, action.author(), true)
+        validate_entry(app_entry, action.author(), true, action.timestamp())
       }
       // Nothing in this zome is deleted: a status is a history, a grant or a
       // revocation is the record an act rests on. Routed here rather than left
@@ -229,7 +230,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     // above. Left to fall through, it would mark a grant deleted on the word
     // of a node whose own record authority had refused the delete.
     FlatOp::Update(OpUpdate::Entry { app_entry, action }) => {
-      validate_entry(app_entry, action.author(), true)
+      validate_entry(app_entry, action.author(), true, action.timestamp())
     }
     FlatOp::Delete(OpDelete { action }) => validate_delete(&action),
     FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
@@ -291,7 +292,7 @@ mod record_op_tests {
   //! and `must_get_valid_record` asks the record authority. So every rule the
   //! entry op runs must give the same verdict on the record op.
   use hdi::prelude::*;
-  use utils::validation_harness::{create_ops, set_zome_types, update_ops};
+  use utils::validation_harness::{create_ops, set_zome_types, update_ops, when};
 
   use crate::{validate, EntryTypes, LinkTypes, Status};
 
@@ -320,6 +321,57 @@ mod record_op_tests {
     assert_eq!(
       entry,
       ValidateCallbackResult::Invalid("Invalid status type: bogus".into())
+    );
+    assert_eq!(record, entry);
+  }
+
+  /// A temporary suspension ending `offset` microseconds after the harness's action.
+  fn suspended_until(offset: i64) -> SerializedBytes {
+    Status {
+      status_type: "suspended temporarily".to_string(),
+      reason: Some("a reason".to_string()),
+      suspended_until: Some(Timestamp::from_micros(when().as_micros() + offset)),
+      grant: None,
+    }
+    .try_into()
+    .unwrap()
+  }
+
+  const ENDS_BEFORE: &str = "a temporary suspension must end after the moment it is written";
+
+  /// A suspension's end is a timestamp checked against the writing action, on every op
+  /// that carries it. Goes red if the rule is dropped, or measured from anything but
+  /// the action's own timestamp.
+  #[test]
+  fn a_suspension_that_ends_at_or_before_its_writing_is_refused_on_every_op() {
+    for offset in [-1, 0] {
+      for (entry, record) in [
+        verdicts(create_ops(0, suspended_until(offset))),
+        verdicts(update_ops(0, suspended_until(offset))),
+      ] {
+        assert_eq!(entry, ValidateCallbackResult::Invalid(ENDS_BEFORE.into()));
+        assert_eq!(record, entry);
+      }
+      set_zome_types(EntryTypes::ENUM_LEN, LinkTypes::ENUM_LEN);
+      assert_eq!(
+        validate(utils::validation_harness::update_op_for_the_original(
+          0,
+          suspended_until(offset)
+        ))
+        .unwrap(),
+        ValidateCallbackResult::Invalid(ENDS_BEFORE.into())
+      );
+    }
+  }
+
+  /// One microsecond later passes this rule; what refuses it then is the grant rule,
+  /// since the harness's status carries no grant.
+  #[test]
+  fn a_suspension_that_ends_after_its_writing_passes_the_rule() {
+    let (entry, record) = verdicts(update_ops(0, suspended_until(1)));
+    assert!(
+      matches!(&entry, ValidateCallbackResult::Invalid(r) if r.starts_with("a status change is a role act")),
+      "{entry:?}"
     );
     assert_eq!(record, entry);
   }

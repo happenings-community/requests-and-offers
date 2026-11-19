@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { suspensionEndDate } from '$lib/utils/suspension';
   import { page } from '$app/state';
   import { Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import { onMount } from 'svelte';
@@ -41,9 +42,8 @@
 
       console.log('Debug UserDetailsModal - User status:', userStatus);
 
-      if (userStatus?.suspended_until) {
-        suspensionDate = new Date(userStatus.suspended_until).toLocaleString();
-      }
+      const ends = suspensionEndDate(userStatus?.suspended_until);
+      if (ends) suspensionDate = ends.toLocaleString();
     } catch (error) {
       console.log('Debug UserDetailsModal - Error fetching status:', error);
     }

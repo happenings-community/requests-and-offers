@@ -25,7 +25,8 @@ export type UserInDHT = {
 export type StatusInDHT = {
   status_type: StatusType;
   reason?: string;
-  suspended_until?: string;
+  /** When a temporary suspension ends: a Holochain timestamp, in microseconds. */
+  suspended_until?: number | null;
 };
 
 export type OrganizationInDHT = {

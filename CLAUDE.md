@@ -168,6 +168,7 @@ if offer.title.is_empty() {
   return invalid(OfferValidationError::TitleEmpty);
 }
 ```
+The sealed trait guards only `invalid` and `verdict`: a refusal written as `ValidateCallbackResult::Invalid(..)` by hand still compiles, and review flags it.
 
 ## Domains
 

@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { page } from '$app/state';
+  import { replaceState } from '$app/navigation';
   import requestsStore from '$lib/stores/requests.store.svelte';
   import offersStore from '$lib/stores/offers.store.svelte';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
@@ -9,10 +11,11 @@
   import {
     listingCounts,
     listingsFor,
+    openingView,
     type ListingView,
     type MyListingSets
   } from '$lib/utils/my-listings';
-  import { paths } from '$lib/paths';
+  import { paths, readView } from '$lib/paths';
 
   /**
    * My Listings (#344), as the design system lays it out: count cards that
@@ -45,7 +48,30 @@
     }
   ];
 
-  let view = $state<ListingView>('requests');
+  /**
+   * The view you last had is kept for this window (a light convenience, so a storage that
+   * throws or comes back empty just opens Requests), and written into the address, so Back
+   * from a listing returns to it.
+   */
+  const REMEMBERED = 'my-listings-view';
+  function remembered(): string | null {
+    try {
+      return sessionStorage.getItem(REMEMBERED);
+    } catch {
+      return null;
+    }
+  }
+  function choose(next: ListingView) {
+    view = next;
+    try {
+      sessionStorage.setItem(REMEMBERED, next);
+    } catch {
+      // nothing to remember it in: the address still holds it
+    }
+    replaceState(paths.myListings({ view: next }), page.state);
+  }
+
+  let view = $state<ListingView>(openingView(readView(page.url), remembered()));
   let sets = $state<MyListingSets>({
     activeRequests: [],
     activeOffers: [],
@@ -107,7 +133,7 @@
           ? `ring-2 ${v.ring}`
           : ''}"
         aria-pressed={view === v.key}
-        onclick={() => (view = v.key)}
+        onclick={() => choose(v.key)}
       >
         <span class="flex items-start justify-between">
           <span class="text-2xl">{v.icon}</span>

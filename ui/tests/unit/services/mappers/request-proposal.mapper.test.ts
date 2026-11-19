@@ -161,7 +161,7 @@ describe('Request to Proposal Mapper', () => {
 
     it('notes the timeframe by its label', async () => {
       const result = await mapped({ timeframe: { Preset: 'WithinAMonth' } });
-      expect(result.proposal.note).toContain('Timeframe: Within a month');
+      expect(result.proposal.note).toContain('Timeframe: Within a month of agreeing');
     });
 
     it('should fail when title is empty', async () => {

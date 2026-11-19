@@ -25,9 +25,9 @@ const window = (start: number | null, end: number): Timeframe => ({
 
 describe('timeframeLabel', () => {
   it('names each preset in words', () => {
-    expect(timeframeLabel({ Preset: 'WithinAFewDays' })).toBe('Within a few days');
-    expect(timeframeLabel({ Preset: 'WithinTwoWeeks' })).toBe('Within 2 weeks');
-    expect(timeframeLabel({ Preset: 'WithinAMonth' })).toBe('Within a month');
+    expect(timeframeLabel({ Preset: 'WithinAFewDays' })).toBe('Within a few days of agreeing');
+    expect(timeframeLabel({ Preset: 'WithinTwoWeeks' })).toBe('Within 2 weeks of agreeing');
+    expect(timeframeLabel({ Preset: 'WithinAMonth' })).toBe('Within a month of agreeing');
     expect(timeframeLabel({ Preset: 'Flexible' })).toBe('Flexible');
   });
 

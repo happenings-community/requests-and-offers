@@ -106,14 +106,15 @@ export const EXCHANGE_STRINGS = {
 
   /**
    * **When** (#380): a timeframe as a member reads it. The four presets the propose and
-   * counter pages offer, and the two forms a window of dates takes. The window wording
-   * is DRAFT copy for Anita.
+   * counter pages offer, and the two forms a window of dates takes. A preset is a
+   * turnaround counted from agreeing, so its label says so; a window is calendar dates.
+   * The wording is DRAFT copy for Anita.
    */
   timeframe: {
     presets: {
-      WithinAFewDays: 'Within a few days',
-      WithinTwoWeeks: 'Within 2 weeks',
-      WithinAMonth: 'Within a month',
+      WithinAFewDays: 'Within a few days of agreeing',
+      WithinTwoWeeks: 'Within 2 weeks of agreeing',
+      WithinAMonth: 'Within a month of agreeing',
       Flexible: 'Flexible'
     },
     by: 'by {end}',

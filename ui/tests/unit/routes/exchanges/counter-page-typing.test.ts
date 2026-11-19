@@ -139,7 +139,7 @@ describe('the counter page, typed into', () => {
   it('opens on the proposed timeframe and sends the one chosen, as a typed value', async () => {
     const { send } = await mounted();
     const select = screen.getByTestId('counter-timeframe') as HTMLSelectElement;
-    expect(select.options[select.selectedIndex].text).toBe('Within 2 weeks');
+    expect(select.options[select.selectedIndex].text).toBe('Within 2 weeks of agreeing');
     const flexible = [...select.options].findIndex((o) => o.text === 'Flexible');
     select.selectedIndex = flexible;
     await fireEvent.change(select);

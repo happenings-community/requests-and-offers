@@ -153,7 +153,7 @@ describe('mapAgreementToHrea', () => {
         specs,
         accepted
       );
-      expect(m!.primary.note).toContain('Timeframe: Within 2 weeks');
+      expect(m!.primary.note).toContain('Timeframe: Within 2 weeks of agreeing');
     });
   });
 });

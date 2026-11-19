@@ -181,7 +181,7 @@ describe('roundChanges', () => {
     const b = round(11, 200, { counters: 10, hours: '5', timeframe: { Preset: 'Flexible' } });
     expect(roundChanges(a, b)).toEqual([
       { field: 'primary', from: '3 hours', to: '5 hours' },
-      { field: 'timeframe', from: 'Within 2 weeks', to: 'Flexible' }
+      { field: 'timeframe', from: 'Within 2 weeks of agreeing', to: 'Flexible' }
     ]);
   });
 

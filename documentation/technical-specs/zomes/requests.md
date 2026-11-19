@@ -89,7 +89,8 @@ pub enum TimeframePreset {
   Flexible,
 }
 
-/// A preset, or a window of dates whose `end` is its due date
+/// A preset (a turnaround counted from agreeing), or a window of calendar
+/// dates whose `end` is its due date. `start` and `end` are instants, not days.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Timeframe {
   Preset(TimeframePreset),
@@ -438,7 +439,7 @@ Retrieves the organization associated with a request, if any.
 - Description must be between 10 and 1000 characters. Supports markdown formatting (rendered on frontend with `marked` + `DOMPurify`).
 - Exactly one service type, `service_type_hash`, which must be approved. This holds by convention for now: the coordinator and the form require it, but integrity validation does not check it yet. Enforcing it in validation is tracked in #257 and lands with the Holochain 0.7 migration.
 - Links array must be present (can be empty).
-- **Timeframe, estimate and amount** (#380). A timeframe is a preset or a window of dates; a window must end after the action that writes it, within 365 days of it, and must not start after it ends. An update that leaves the timeframe as it was is not checked again, so a listing whose window has passed can still be edited; one that changes it is. `time_estimate_hours` is an exact decimal string, checked by `decimal_problem`, and zero is allowed: it is an estimate of the task, not a quantity, and is never exchanged. `amount`, when present, is a quantity: a decimal above zero, with a unit, which is the name of a medium of exchange, as on an agreement; a proposal carries it only when it is in the medium chosen. The rules are in `utils::listing_rules`; the window is checked before the grant, so a refusal names the field.
+- **Timeframe, estimate and amount** (#380). A timeframe is a preset or a window of dates. A preset is a turnaround counted from agreeing (its due date is set when the exchange is accepted, however old the listing); a window is calendar dates, and its `start` and `end` are instants, not days: a form that offers a date (part 2 of #370) stores the end of the chosen day in the author's time zone. A window must end after the action that writes it, within 365 days of it, and must not start after it ends. An update that leaves the timeframe as it was is not checked again, so a listing whose window has passed can still be edited; one that changes it is. `time_estimate_hours` is an exact decimal string, checked by `decimal_problem`, and zero is allowed: it is an estimate of the task, not a quantity, and is never exchanged. `amount`, when present, is a quantity: a decimal above zero (`AmountNotPositive`), with a unit (`AmountWithoutUnit`), which is the name of a medium of exchange, as on an agreement; a proposal carries it only when it is in the medium chosen. The rules are in `utils::listing_rules`; the window is checked before the grant, so a refusal names the field.
 - **Grant** (#378). A request carries, in its `grant` field, the grant it rests on, held by its author. Posting one needs a member grant, which acceptance issues. Changing one needs its creator, who carries no grant, or an admin grant. The rule runs on the entry op, the record op and the op an update's original receives. The coordinator sets the field; it is never taken from the client. A tombstone carries no grant and is not checked by validation (see `documentation/architecture/validation.md`).
 
 ## Client Integration

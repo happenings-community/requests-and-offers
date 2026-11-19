@@ -101,8 +101,12 @@ pub enum TimePreference {
 }
 
 /// How soon, as a preset (#380): the four the propose and counter pages offer.
-/// A preset's due date is counted from acceptance (3, 14 or 30 days; Flexible
-/// has none) when it is read and by the hREA mirror; nothing in the DNA records it.
+/// A preset is a turnaround counted from agreeing, on a listing as on an
+/// agreement: "within two weeks" means within two weeks of the exchange being
+/// accepted, however old the listing is. Its due date (3, 14 or 30 days;
+/// Flexible has none) is worked out from the acceptance when it is read and by
+/// the hREA mirror; nothing in the DNA records it. Whether a listing is still
+/// current is a question for the listing, not for its preset.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum TimeframePreset {
   WithinAFewDays,
@@ -112,8 +116,11 @@ pub enum TimeframePreset {
 }
 
 /// When a listing is needed or offered, or an agreement delivered (#380): a
-/// preset, or a window of dates whose `end` is its due date. Typed timestamps,
-/// never text, so validation and the counter rule compare values.
+/// preset (a turnaround from agreeing), or a window of calendar dates whose
+/// `end` is its due date. Typed timestamps, never text, so validation and the
+/// counter rule compare values. `start` and `end` are instants, not days: a
+/// form that offers a date stores the end of that day in the author's time
+/// zone, and a reader sees it in theirs.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Timeframe {
   Preset(TimeframePreset),

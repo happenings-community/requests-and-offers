@@ -6,7 +6,11 @@ import { fill } from '$lib/strings/fill';
  * Timeframes (#380): when a listing is needed or offered, or an agreement delivered.
  *
  * A timeframe is a preset or a window of dates, typed end to end, so the counter rule
- * compares values and the hREA mirror can set a due date. These helpers are shared by
+ * compares values and the hREA mirror can set a due date. A preset is a turnaround
+ * counted from agreeing; a window is calendar dates. A window's `start` and `end` are
+ * instants, not days: a date input, when one is added (part 2 of #370), stores the end of
+ * the chosen day in the author's time zone (never UTC midnight), and a reader sees it in
+ * their own. These helpers are shared by
  * the listing cards, the propose and counter pages, the exchange page and the
  * conversation cards, so a timeframe reads the same everywhere.
  */

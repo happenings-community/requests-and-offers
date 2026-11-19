@@ -319,7 +319,7 @@ describe('a listing’s figures on the proposal', () => {
     openRequest({ timeframe: { Preset: 'WithinAMonth' } });
     await screen.findAllByText('CAD');
     const select = screen.getByTestId('propose-timeframe') as HTMLSelectElement;
-    expect(select.options[select.selectedIndex].text).toBe('Within a month');
+    expect(select.options[select.selectedIndex].text).toBe('Within a month of agreeing');
     expect((await sent()).delivery_timeframe).toEqual({ Preset: 'WithinAMonth' });
   });
 

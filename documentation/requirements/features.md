@@ -296,7 +296,7 @@ _Note: Service Types integration is handled through separate linking mechanisms 
 - **`title`**: (String) The title of the request - required field
 - **`description`**: (String, max 1000 chars) A detailed description of the request (supports markdown) - required field
 - **`contact_preference`**: (ContactPreference enum) How the requester prefers to be contacted (Email, Phone, Other)
-- **`timeframe`**: (Optional Timeframe) When the service is needed: a preset, or a window of dates that ends after it is written and within 365 days
+- **`timeframe`**: (Optional Timeframe) When the service is needed: a preset, which is a turnaround counted from agreeing, or a window of calendar dates that ends after it is written and within 365 days
 - **`time_estimate_hours`**: (Optional decimal string) An estimate of the time the task takes, in hours; zero allowed. It describes the task and is never exchanged
 - **`amount`**: (Optional Quantity) What the request offers in payment: a decimal above zero, in a unit (a currency, or a time-bank medium)
 - **`time_preference`**: (TimePreference enum) Preferred time of day (Morning, Afternoon, Evening, NoPreference, Other)

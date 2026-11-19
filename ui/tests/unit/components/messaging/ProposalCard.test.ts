@@ -88,7 +88,7 @@ describe('a long word in a proposal', () => {
 describe("a proposal's timeframe (#380)", () => {
   it('reads as its label, never as the raw value', () => {
     mount(proposal(THEM));
-    expect(screen.getByText('Within a few days')).toBeTruthy();
+    expect(screen.getByText('Within a few days of agreeing')).toBeTruthy();
     expect(screen.queryByText('[object Object]')).toBeNull();
   });
 });

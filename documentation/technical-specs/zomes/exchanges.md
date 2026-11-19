@@ -34,7 +34,7 @@ pub struct Agreement {
   pub reciprocal: ExchangeTerm, // what the provider receives
   pub medium: String,
   pub terms: String,
-  pub delivery_timeframe: Timeframe, // a preset or a window of dates (#380)
+  pub delivery_timeframe: Timeframe, // a preset counted from acceptance, or a window of dates (#380)
   pub counters: Option<Countering>, // set on a counter-proposal (#333)
 }
 

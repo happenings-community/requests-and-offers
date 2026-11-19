@@ -373,7 +373,7 @@ mod record_op_tests {
     let (entry, _) = verdicts(create_ops(0, bytes(offer_with(None, None, zero))));
     assert_eq!(
       entry,
-      ValidateCallbackResult::Invalid("an amount must be above zero, with a unit".into())
+      ValidateCallbackResult::Invalid("an amount must be above zero".into())
     );
   }
 }

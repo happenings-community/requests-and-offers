@@ -177,8 +177,8 @@ async fn time_estimates_and_amounts_must_be_decimals() {
         ("an estimate with an exponent", Some("1e3".into()), None, "a time estimate is not a decimal"),
         ("a negative estimate", Some("-1".into()), None, "a time estimate is not a decimal"),
         ("an estimate with a comma", Some("1,5".into()), None, "a time estimate is not a decimal"),
-        ("a zero amount", None, quantity("0", "GBP"), "an amount must be above zero, with a unit"),
-        ("an amount without a unit", None, quantity("5", ""), "an amount must be above zero, with a unit"),
+        ("a zero amount", None, quantity("0", "GBP"), "an amount must be above zero"),
+        ("an amount without a unit", None, quantity("5", ""), "an amount must name its unit"),
         ("a negative amount", None, quantity("-5", "GBP"), "an amount is not a decimal"),
         ("an amount that is not a number", None, quantity("NaN", "GBP"), "an amount is not a decimal"),
     ];

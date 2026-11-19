@@ -101,11 +101,9 @@ export const TimeEstimateSchema = Schema.String.pipe(
 export const ListingAmountSchema = Schema.Struct({
   value: Schema.String.pipe(
     Schema.filter((v) => decimalProblem(v) === null || `an amount ${decimalProblem(v)}`),
-    Schema.filter((v) => !isZeroDecimal(v) || 'an amount must be above zero, with a unit')
+    Schema.filter((v) => !isZeroDecimal(v) || 'an amount must be above zero')
   ),
-  unit: Schema.String.pipe(
-    Schema.minLength(1, { message: () => 'an amount must be above zero, with a unit' })
-  )
+  unit: Schema.String.pipe(Schema.minLength(1, { message: () => 'an amount must name its unit' }))
 });
 
 /** The three figures a request or an offer carries (#380). Each is optional. */

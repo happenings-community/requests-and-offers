@@ -64,8 +64,11 @@ pub fn amount_problem(amount: &Option<Quantity>) -> Option<ListingValidationErro
       problem.to_string(),
     ));
   }
-  if !is_positive(&amount.value) || amount.unit.is_empty() {
-    return Some(ListingValidationError::AmountInvalid);
+  if !is_positive(&amount.value) {
+    return Some(ListingValidationError::AmountNotPositive);
+  }
+  if amount.unit.is_empty() {
+    return Some(ListingValidationError::AmountWithoutUnit);
   }
   None
 }
@@ -182,13 +185,17 @@ mod tests {
     assert_eq!(amount_problem(&None), None);
     assert_eq!(amount_problem(&q("3", "GBP")), None);
     assert_eq!(amount_problem(&q("12.50", "Time Banking")), None);
-    for bad in [q("0", "GBP"), q("0.000", "GBP"), q("3", "")] {
+    for bad in [q("0", "GBP"), q("0.000", "GBP"), q("0", "")] {
       assert_eq!(
         amount_problem(&bad),
-        Some(ListingValidationError::AmountInvalid),
+        Some(ListingValidationError::AmountNotPositive),
         "{bad:?}"
       );
     }
+    assert_eq!(
+      amount_problem(&q("3", "")),
+      Some(ListingValidationError::AmountWithoutUnit)
+    );
     for bad in [q("-3", "GBP"), q("abc", "GBP"), q("1e3", "GBP")] {
       assert!(
         matches!(

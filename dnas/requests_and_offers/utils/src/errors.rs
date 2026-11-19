@@ -814,8 +814,11 @@ pub enum ListingValidationError {
   #[error("an amount is not a decimal: {0}")]
   AmountNotDecimal(String),
 
-  #[error("an amount must be above zero, with a unit")]
-  AmountInvalid,
+  #[error("an amount must be above zero")]
+  AmountNotPositive,
+
+  #[error("an amount must name its unit")]
+  AmountWithoutUnit,
 }
 
 /// Every validation reason keeps the exact text it had when each zome built
@@ -1485,8 +1488,12 @@ mod validation_reason_tests {
       "an amount is not a decimal: a sign",
     );
     reads(
-      ListingValidationError::AmountInvalid,
-      "an amount must be above zero, with a unit",
+      ListingValidationError::AmountNotPositive,
+      "an amount must be above zero",
+    );
+    reads(
+      ListingValidationError::AmountWithoutUnit,
+      "an amount must name its unit",
     );
   }
 }

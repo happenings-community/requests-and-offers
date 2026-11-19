@@ -50,6 +50,9 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Messaging**: A message to the administrator role reaches every administrator, who work it together as a case (claim, release, hand over, note, complete, reopen). There is no interface for cases yet (`5ee9f1bd`, #304)
 - **Messaging**: Read state and blocks live in the member's own app, not on the chain, and read receipts travel as signals, never stored (`b3084fe4`, #364)
 - **Messaging**: Messages in the app: one conversation per person, with shared listings, interests and proposals as cards in it; Go to chat and an Interested in tab on My Exchanges; blocking; read receipts with an overall and a per-chat setting; and an unopened count in the menu (`dd5656bc`, #308)
+- **Requests and Offers**: My Listings shows who is interested in each of your listings and folds My Requests and My Offers into it, with your own menus and a Back that goes back (`6f1573fb`, #349, closes #344)
+- **Users**: A member's profile follows the design system: a status chip, the details line and the exchanges you have had with them (`aff3b113`, #353, part of #350)
+- **Navigation**: My Exchanges and My Listings sit on the nav bar, and Messages is an envelope carrying the unopened count (`964987f0`, #521)
 
 ### Security
 
@@ -93,6 +96,7 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **UI**: A chip's text wraps inside its background instead of running past it (`415dd056`, #515)
 - **UI**: Each nav bar's status dot opens its own network details, on the admin pages too (`7db2b546`, #522)
 - **Administration**: The admin Users page moves a member between its lists as soon as a status is written, without a reload, and Retry Loading loads again after a failed load (`960e289e`, #524)
+- **UI**: The navigation dropdowns open and move by keyboard and are announced to screen readers (`8ad643f9`, #352, closes #204)
 
 ### Performance
 
@@ -129,6 +133,7 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Exchanges**: The derived state and the exchange UI predicates are pinned by tests (`8ce42848`, #258)
 - **Lint**: ESLint errors cleared in the files no open pull request touches (`922aeb07`, #450); the contrast test also reads Skeleton token pairs (`ab1a9419`, #448)
 - **E2E**: The test conductor runs on its own network (`9b2d8b24`, #372); the onboarding connection probes can go red (`5ad458df`, #314, closes #252); the organisation is re-read after the update toast (`5fcdc272`, #275, closes #274); the offer form test accepts either Medium of Exchange heading (`5fed7656`, #470)
+- **Release**: Every release is published as a full release marked Latest, alphas included (`b60bf26d`, #502); the desktop installers wait in a draft release until the network's first admin holds the seat taken from the dry run (`36fcff39`, #504)
 
 ## [0.6.0-alpha.1] - 2026-09-14
 

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { UIExchange, UIStatus, UIUser } from '$lib/types/ui';
 import { detailsLine, exchangesWith, exchangesWithLabel, statusChip } from '$lib/utils/profile';
 
+/** A Holochain timestamp, microseconds since the epoch, as the store gives it since #528. */
+const micros = (iso: string) => Date.parse(iso) * 1000;
 const hash = (n: number) => new Uint8Array([132, 41, 36, n]);
 const status = (s: Partial<UIStatus>) =>
   ({ original_action_hash: hash(90), previous_action_hash: hash(90), ...s }) as UIStatus;
@@ -22,7 +24,7 @@ describe('statusChip', () => {
 
   it('gives the end of a temporary suspension', () => {
     const chip = statusChip(
-      status({ status_type: 'suspended temporarily', suspended_until: '2026-11-01T12:00:00Z' }),
+      status({ status_type: 'suspended temporarily', suspended_until: micros('2026-11-01T12:00:00Z') }),
       Date.parse('2026-10-18T00:00:00Z')
     );
     expect(chip?.label).toBe('Suspended');
@@ -33,7 +35,7 @@ describe('statusChip', () => {
   it('reads a temporary suspension that has ended as in review', () => {
     expect(
       statusChip(
-        status({ status_type: 'suspended temporarily', suspended_until: '2026-10-01T00:00:00Z' }),
+        status({ status_type: 'suspended temporarily', suspended_until: micros('2026-10-01T00:00:00Z') }),
         Date.parse('2026-10-18T00:00:00Z')
       )
     ).toEqual({ label: 'In review', variant: 'variant-soft-warning' });
@@ -54,7 +56,7 @@ describe('statusChip', () => {
       statusChip(
         status({
           status_type: 'suspended temporarily',
-          suspended_until: '2026-11-01T12:00:00Z',
+          suspended_until: micros('2026-11-01T12:00:00Z'),
           reason
         }),
         Date.parse('2026-10-18T00:00:00Z')
@@ -64,7 +66,7 @@ describe('statusChip', () => {
       statusChip(
         status({
           status_type: 'suspended temporarily',
-          suspended_until: '2026-10-01T00:00:00Z',
+          suspended_until: micros('2026-10-01T00:00:00Z'),
           reason
         }),
         Date.parse('2026-10-18T00:00:00Z')

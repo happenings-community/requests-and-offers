@@ -121,6 +121,12 @@ pub fn live_administrators() -> ExternResult<HashSet<AgentPubKey>> {
 /// Messaging reads this to address a message to the administrators. The roster
 /// links cannot answer it: `revoke_role` leaves a revoked administrator on them,
 /// and a tombstone on one needs no grant, so any member can empty the roster.
+///
+/// It gives the answer `holds_role` gives, through a different index: `holds_role`
+/// reads the holder's `AgentGrants`, this reads `AllGrants`. They agree because
+/// [`write_grant`] writes both links for every grant and neither can be tombstoned;
+/// a granter with a modified client could write only one, and then the two disagree
+/// about the grant that granter wrote. A third index would have to keep the same pair.
 #[hdk_extern]
 pub fn get_live_administrator_agents(_: ()) -> ExternResult<Vec<AgentPubKey>> {
   let mut agents: Vec<AgentPubKey> = live_administrators()?.into_iter().collect();

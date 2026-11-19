@@ -3,13 +3,15 @@ import {
   MediumsOfExchangeServiceTag,
   MediumsOfExchangeServiceLive
 } from '$lib/services/zomes/mediums-of-exchange.service';
-import { Effect as E, pipe, Schedule } from 'effect';
+import { Deferred, Effect as E, FiberId, pipe, Schedule } from 'effect';
 import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import usersStore from '$lib/stores/users.store.svelte';
 import type { UIExchange } from '$lib/types/ui';
 import {
   agreementRefsFromHrea,
+  commitmentProblem,
+  exchangesToMirror,
   type HreaAgreementRefs,
   mapAgreementToHrea,
   mapCompletionToEvent,
@@ -20,6 +22,7 @@ import {
   unitRegistryFrom
 } from '$lib/services/mappers/agreement-commitment.mapper';
 import { HreaError } from '$lib/errors';
+import { reasonOf } from '$lib/utils/error-shape';
 import { proposalIntentLinks } from '$lib/services/mappers/proposal-links';
 
 // Import standardized store helpers
@@ -514,19 +517,19 @@ const createEventHandlers = (
 
   const handleExchangeAccepted = (exchange: UIExchange) => {
     pipe(createAgreementFromExchange(exchange), E.runPromise).catch((err) =>
-      console.error('hREA Store: Failed to mirror accepted exchange:', err)
+      console.error('hREA Store: Failed to mirror accepted exchange:', reasonOf(err), err)
     );
   };
 
   const handleExchangeCompleted = (exchange: UIExchange) => {
     pipe(recordCompletionEvent(exchange), E.runPromise).catch((err) =>
-      console.error('hREA Store: Failed to mirror completion:', err)
+      console.error('hREA Store: Failed to mirror completion:', reasonOf(err), err)
     );
   };
 
   const handleExchangeCancelled = (exchange: UIExchange) => {
     pipe(mirrorCancellation(exchange), E.runPromise).catch((err) =>
-      console.error('hREA Store: Failed to mirror cancellation:', err)
+      console.error('hREA Store: Failed to mirror cancellation:', reasonOf(err), err)
     );
   };
 
@@ -2064,8 +2067,37 @@ export const createHreaStore = (): E.Effect<
       );
     };
 
-    /** One hREA Agreement and two Commitments for an accepted R&O agreement. Idempotent per R&O hash, across reloads. */
-    const createAgreementFromExchange = (exchange: UIExchange): E.Effect<HreaAgreementRefs | null, HreaError> => {
+    /**
+     * Mirrors under way, by R&O ref. The live mirror on acceptance and the repair after
+     * the next read of the member's exchanges can start on the same exchange within a
+     * second of each other, and hREA keeps every record it is given, so a second
+     * Agreement would be permanent. The second caller waits for the first's answer.
+     */
+    const mirroring = new Map<string, Deferred.Deferred<HreaAgreementRefs | null, HreaError>>();
+
+    /** One hREA Agreement and two Commitments for an accepted R&O agreement. Idempotent per R&O hash, across reloads, and one at a time per R&O hash. */
+    const createAgreementFromExchange = (
+      exchange: UIExchange
+    ): E.Effect<HreaAgreementRefs | null, HreaError> =>
+      E.suspend(() => {
+        const ref = rnoAgreementRef(exchange);
+        const existing = state.agreementMappings.get(ref);
+        if (existing) return E.succeed(existing);
+        const running = mirroring.get(ref);
+        if (running) return Deferred.await(running);
+        const answer = Deferred.unsafeMake<HreaAgreementRefs | null, HreaError>(FiberId.none);
+        mirroring.set(ref, answer);
+        // onExit, not exit then tap: it also runs when the fiber is interrupted, so a
+        // waiter is never left on an answer that cannot come.
+        return pipe(
+          // Suspended, so a synchronous throw while it is built still reaches onExit.
+          E.suspend(() => mirrorAgreement(exchange)),
+          E.onExit((exit) => Deferred.done(answer, exit)),
+          E.ensuring(E.sync(() => mirroring.delete(ref)))
+        );
+      });
+
+    const mirrorAgreement = (exchange: UIExchange): E.Effect<HreaAgreementRefs | null, HreaError> => {
       const ref = rnoAgreementRef(exchange);
       const existing = state.agreementMappings.get(ref);
       if (existing) return E.succeed(existing);
@@ -2082,7 +2114,7 @@ export const createHreaStore = (): E.Effect<
               console.warn('hREA Store: exchange parties have no hREA agents yet, not mirroring', ref);
               return E.succeed(null);
             }
-            return createAgreementFromExchange(exchange);
+            return mirrorAgreement(exchange);
           })
         );
       }
@@ -2107,19 +2139,31 @@ export const createHreaStore = (): E.Effect<
     };
 
     // A Commitment is written once, dates included. hREA's adapter turns each
-    // ISO date into microseconds before the zome sees it, and datesFor makes
-    // well-formed dates or throws before anything is written, so there is no
-    // date refusal to work around. A failure fails the mirror as any hREA write
-    // does, and is never retried: after a timeout the first write may have
-    // landed. An Agreement left without its primary Commitment is skipped on
-    // the next attempt (agreementRefsFromHrea).
+    // ISO date into microseconds before the zome sees it, and datesFor only makes
+    // dates within that range, so there is no date refusal to work around. A
+    // failure fails the mirror as any hREA write does; it is not retried here,
+    // since after a timeout the first write may have landed. The repair
+    // (repairMissingMirrors) reads hREA first and mirrors only what it does not
+    // hold. An Agreement left without its primary Commitment by a failure is
+    // skipped by that read (agreementRefsFromHrea), so the repair writes a new
+    // one and the empty Agreement stays: the audit page lists that gap.
     const createCommitment = (input: CommitmentInput) => hreaService.createCommitment(input);
 
     const createMirror = (
       ref: string,
       mapped: NonNullable<ReturnType<typeof mapAgreementToHrea>>
-    ): E.Effect<HreaAgreementRefs, HreaError> =>
-      pipe(
+    ): E.Effect<HreaAgreementRefs, HreaError> => {
+      // Both Commitments are checked before the Agreement is written, in our words,
+      // because hREA cannot say what was wrong with an input it could not decode (it
+      // answers with the input's bytes), and an Agreement written before a refused
+      // Commitment would stay in hREA with nothing in it.
+      const problem =
+        commitmentProblem(mapped.primary) ??
+        (mapped.reciprocal ? commitmentProblem(mapped.reciprocal) : null);
+      if (problem !== null) {
+        return E.fail(new HreaError({ message: `hREA mirror: ${problem}`, context: 'createMirror' }));
+      }
+      return pipe(
         hreaService.createAgreement(mapped.agreement),
         E.flatMap((agreement) =>
           pipe(
@@ -2153,6 +2197,7 @@ export const createHreaStore = (): E.Effect<
           return refs;
         })
       );
+    };
 
     /** The completing party's EconomicEvent, and its Commitment marked finished. */
     const recordCompletionEvent = (exchange: UIExchange): E.Effect<EconomicEvent | null, HreaError> => {
@@ -2220,8 +2265,21 @@ export const createHreaStore = (): E.Effect<
      * Revisions are read fresh from hREA, since the cached ones go stale once
      * a completion finishes its side. Before acceptance hREA holds nothing for
      * the exchange (decline and withdrawal never reach it), so nothing is written.
+     * A mirror still under way for it (the live one, or a repair) is waited for
+     * first, so a cancel that comes while its Commitments are being written still
+     * closes them.
      */
-    const mirrorCancellation = (exchange: UIExchange): E.Effect<number, HreaError> => {
+    const mirrorCancellation = (exchange: UIExchange): E.Effect<number, HreaError> =>
+      E.suspend(() => {
+        const running = mirroring.get(rnoAgreementRef(exchange));
+        // Whatever the mirror's answer (written, failed, interrupted), close what is there.
+        return pipe(
+          running ? E.asVoid(E.exit(Deferred.await(running))) : E.void,
+          E.flatMap(() => closeCommitments(exchange))
+        );
+      });
+
+    const closeCommitments = (exchange: UIExchange): E.Effect<number, HreaError> => {
       if (exchange.response?.accepted !== true) return E.succeed(0);
       const parties = resolveParties(exchange);
       if (!parties) return E.succeed(0);
@@ -2714,12 +2772,123 @@ export const createHreaStore = (): E.Effect<
       handleExchangeCancelled
     );
 
+    // ========================================================================
+    // REPAIR: accepted exchanges whose mirror never landed
+    // ========================================================================
+
+    /**
+     * Refs already tried in this session, so the nav bar's polling of My Exchanges
+     * does not ask hREA again about the same exchange every time it reloads.
+     */
+    const repairTried = new Set<string>();
+
+    /**
+     * Mirrors the accepted exchanges this member wrote the acceptance of and that hREA
+     * has no record of (`exchangesToMirror`). A mirror that failed when the exchange was
+     * accepted (the conductor away, a refusal) was only logged; this is what brings it
+     * back. One read of hREA's lists sorts out what it already holds (remembered for the
+     * session) from what it does not, which is mirrored one at a time. Each exchange is tried once a
+     * session; a failure is logged with hREA's reason and tried again next session.
+     */
+    const repairMissingMirrors = (exchanges: UIExchange[]): E.Effect<number> => {
+      const me = usersStore.currentUser?.original_action_hash?.toString();
+      if (!me) return E.succeed(0);
+      const known = new Set([...state.agreementMappings.keys(), ...repairTried]);
+      const todo = exchangesToMirror(exchanges, me, known);
+      if (todo.length === 0) return E.succeed(0);
+      for (const ex of todo) repairTried.add(rnoAgreementRef(ex));
+      // One read of hREA's lists for the pass decides what it already holds, and that
+      // is remembered for the session, so an exchange mirrored long ago costs nothing
+      // after the first pass instead of two full reads every session. An exchange it
+      // does not hold is read again inside the one-at-a-time lock before it is written.
+      const sortOut = ([agreements, commitments]: [Agreement[], Commitment[]]) => {
+        const missing: UIExchange[] = [];
+        for (const ex of todo) {
+          const ref = rnoAgreementRef(ex);
+          // A mirror under way may have written only part of what it will: its own
+          // answer is the one to keep, so this exchange waits for it in repairOne.
+          if (mirroring.has(ref) || state.agreementMappings.has(ref)) {
+            missing.push(ex);
+            continue;
+          }
+          const parties = resolveParties(ex);
+          const refs = parties ? agreementRefsFromHrea(ref, parties, agreements, commitments) : null;
+          if (!refs) {
+            missing.push(ex);
+            continue;
+          }
+          // Held by hREA: nothing to write. A cancelled one is not closed again here:
+          // either party may be closing it too, and two closes could race and fork a
+          // revision. A close that failed stays open (the audit page says so).
+          state.agreementMappings.set(ref, refs);
+        }
+        return missing;
+      };
+      const repairOne = (ex: UIExchange) =>
+        pipe(
+          withFreshUnits(createAgreementFromExchange)(ex),
+          E.catchAll((err) =>
+            E.sync(() => {
+              console.error('hREA Store: repair of an unmirrored exchange failed:', reasonOf(err), err);
+              return null;
+            })
+          ),
+          // Mirrored after the exchange was cancelled: its Commitments were written
+          // open, so they are finished now, as the cancellation would have done.
+          E.tap((refs) =>
+            refs && ex.cancellation
+              ? pipe(
+                  mirrorCancellation(ex),
+                  E.catchAll((err) =>
+                    E.sync(() =>
+                      console.error(
+                        'hREA Store: a repaired exchange was cancelled, and closing its Commitments failed:',
+                        reasonOf(err),
+                        err
+                      )
+                    )
+                  )
+                )
+              : E.void
+          ),
+          E.map((refs) => (refs ? 1 : 0))
+        );
+      // An exchange is matched to hREA through its parties' agents, so they are loaded
+      // first when any of them is not yet known (the app loads them at boot, but a
+      // repair can come first).
+      const partiesKnown = todo.every((ex) => resolveParties(ex) !== null);
+      return pipe(
+        partiesKnown ? E.void : E.asVoid(E.all([getAllAgents(), getAllResourceSpecifications()])),
+        E.flatMap(() =>
+          E.all([hreaService.getAgreements(), hreaService.getCommitments()], {
+            concurrency: 'unbounded'
+          })
+        ),
+        E.map(sortOut),
+        E.flatMap((missing) => E.forEach(missing, repairOne, { concurrency: 1 })),
+        E.map((done) => done.reduce((a: number, b: number) => a + b, 0)),
+        E.catchAll((err) =>
+          E.sync(() => {
+            console.error('hREA Store: could not read hREA to repair unmirrored exchanges:', reasonOf(err), err);
+            return 0;
+          })
+        )
+      );
+    };
+
+    const unsubscribeExchangesLoaded = storeEventBus.on('exchanges:loaded', ({ exchanges }) => {
+      E.runPromise(repairMissingMirrors(exchanges)).catch((err) =>
+        console.error('hREA Store: repair of unmirrored exchanges stopped:', reasonOf(err), err)
+      );
+    });
+
     const dispose = () => {
       // Clear in-flight operations
       inFlightOperations.clear();
 
       // Unsubscribe from all events
       cleanupEventSubscriptions();
+      unsubscribeExchangesLoaded();
 
       // Reset state
       state.eventSubscriptionsActive = false;

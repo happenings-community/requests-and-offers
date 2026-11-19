@@ -375,9 +375,17 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
 /** Known gaps in the R&O to hREA mapping, shown on the dashboard rather than hidden. Fixing them is U15. */
 export const KNOWN_MAPPING_GAPS: { title: string; detail: string; where: string }[] = [
   {
-    title: 'Cancel, decline and review are not mirrored',
+    title: 'A cancellation only closes Commitments; decline and review are not mirrored',
     detail:
-      'A cancelled or declined exchange leaves its hREA Agreement and Commitments as they were, and a review writes nothing to hREA.',
-    where: 'stores/hrea.store.svelte.ts listens to exchange:accepted and exchange:completed only'
+      'A cancelled exchange marks its open hREA Commitments finished, with no record of why: hREA has no cancellation of its own, and a close that fails leaves them open. A declined proposal was never mirrored, so hREA holds nothing for it, and a review writes nothing to hREA.',
+    where:
+      'stores/hrea.store.svelte.ts mirrors acceptance, completion and cancellation only (mirrorCancellation)'
+  },
+  {
+    title: 'A mirror that failed is repaired only before completion, and only whole',
+    detail:
+      'An exchange whose mirror failed is mirrored again when the member who accepted it next reads their exchanges, unless either side has already marked it done: its completion was recorded without an Agreement. A mirror that wrote its Agreement and primary Commitment but not its reciprocal is taken as mirrored, and one that failed on the primary Commitment leaves an empty Agreement behind the repaired one.',
+    where:
+      'exchangesToMirror and agreementRefsFromHrea in services/mappers/agreement-commitment.mapper.ts'
   }
 ];

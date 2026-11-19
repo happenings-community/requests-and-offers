@@ -39,11 +39,20 @@
 
   const { connectionStatus, lastPingTime, pingError, networkSeed, networkInfo }: Props = $props();
 
+  /**
+   * **Each nav bar's network details have a name of their own.** The popup finds its panel
+   * once, by name, anywhere in the page, and the app has two nav bars (the admin pages
+   * draw their own). With one shared name, a bar drawn while the other was still on the
+   * page could bind to that bar's panel, which then went away, and the dot opened
+   * nothing until the bar was drawn again.
+   */
+  const barId = $props.id();
+  const statusPopupTarget = `popupStatus-${barId}`;
   const popupStatus: PopupSettings = {
     // Represents the type of event that opens/closed the popup
     event: 'click',
-    // Matches the data-popup value on your popup element
-    target: 'popupStatus',
+    // Matches the data-popup value on this bar's own popup element
+    target: statusPopupTarget,
     // Defines which side of your trigger the popup will appear
     placement: 'bottom'
   };
@@ -328,4 +337,11 @@
 </nav>
 
 <!-- Popup Status -->
-<NetworkStatusPopup {connectionStatus} {lastPingTime} {pingError} {networkSeed} {networkInfo} />
+<NetworkStatusPopup
+  target={statusPopupTarget}
+  {connectionStatus}
+  {lastPingTime}
+  {pingError}
+  {networkSeed}
+  {networkInfo}
+/>

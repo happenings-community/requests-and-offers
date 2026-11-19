@@ -361,3 +361,171 @@ async fn status_history_resolves_from_any_hash_in_the_chain() {
         );
     }
 }
+
+/// A temporary suspension's end is a typed timestamp, checked against the action that
+/// writes it. It was RFC 3339 text that validation never read and the coordinator
+/// parsed with an `unwrap`, so a malformed end broke every later read of the status.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_temporary_suspension_ends_at_a_typed_time_checked_when_written() {
+    const DAY: i64 = 24 * 60 * 60 * 1_000_000;
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
+
+    conductors[0]
+        .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
+        .await;
+    conductors[1]
+        .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let alice_links: Vec<Link> = conductors[0]
+        .call(&alice.zome("users_organizations"), "get_agent_user", alice.agent_pubkey().clone())
+        .await;
+    let bob_links: Vec<Link> = conductors[1]
+        .call(&bob.zome("users_organizations"), "get_agent_user", bob.agent_pubkey().clone())
+        .await;
+    let alice_user_hash = alice_links[0].target.clone().into_action_hash().unwrap();
+    let bob_user_hash = bob_links[0].target.clone().into_action_hash().unwrap();
+
+    conductors[0]
+        .call::<_, bool>(
+            &alice.zome("administration"),
+            "add_administrator",
+            EntityActionHashAgents {
+                entity: ENTITY_NETWORK.to_string(),
+                entity_original_action_hash: alice_user_hash.clone(),
+                agent_pubkeys: vec![alice.agent_pubkey().clone()],
+            },
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let latest = |label: &'static str| {
+        let conductor = &conductors[0];
+        let zome = alice.zome("administration");
+        let user = bob_user_hash.clone();
+        async move {
+            let record: Option<Record> = conductor
+                .call(
+                    &zome,
+                    "get_latest_status_record_for_entity",
+                    serde_json::json!({ "entity": ENTITY_USERS, "entity_original_action_hash": user }),
+                )
+                .await;
+            record.unwrap_or_else(|| panic!("Bob has a status record ({label})"))
+        }
+    };
+
+    let initial = latest("initial").await;
+    let status_hash = initial.signed_action.hashed.hash.clone();
+    let _: Record = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "update_entity_status",
+            UpdateEntityStatusInput {
+                entity: ENTITY_USERS.to_string(),
+                entity_original_action_hash: bob_user_hash.clone(),
+                status_original_action_hash: status_hash.clone(),
+                status_previous_action_hash: status_hash.clone(),
+                new_status: accepted_status(),
+            },
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    // The honest path: seven days, from the coordinator's own clock.
+    let accepted = latest("accepted").await;
+    let before = Timestamp::now().as_micros();
+    let suspended: bool = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "suspend_entity_temporarily",
+            SuspendEntityTemporarilyInput {
+                entity: ENTITY_USERS.to_string(),
+                entity_original_action_hash: bob_user_hash.clone(),
+                status_original_action_hash: status_hash.clone(),
+                status_previous_action_hash: accepted.signed_action.hashed.hash.clone(),
+                reason: "A week out".to_string(),
+                duration_in_days: 7,
+            },
+        )
+        .await;
+    assert!(suspended, "a seven-day suspension is written");
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let status: Option<Status> = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "get_latest_status_for_entity",
+            serde_json::json!({ "entity": ENTITY_USERS, "entity_original_action_hash": bob_user_hash }),
+        )
+        .await;
+    let status = status.unwrap();
+    assert_eq!(status.status_type, "suspended temporarily");
+    let until = status.suspended_until.expect("a temporary suspension has an end");
+    assert!(
+        until >= before + 7 * DAY && until <= Timestamp::now().as_micros() + 7 * DAY,
+        "the end is seven days from when it was written, in microseconds: {until}"
+    );
+
+    // Its time has not passed, so the time check leaves it in place.
+    let suspension = latest("suspended").await;
+    let lifted: bool = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "unsuspend_entity_if_time_passed",
+            UnsuspendEntityInput {
+                entity: ENTITY_USERS.to_string(),
+                entity_original_action_hash: bob_user_hash.clone(),
+                status_original_action_hash: status_hash.clone(),
+                status_previous_action_hash: suspension.signed_action.hashed.hash.clone(),
+            },
+        )
+        .await;
+    assert!(!lifted, "seven days remain");
+
+    // A suspension of no days is refused by the coordinator, naming the duration.
+    let no_days = conductors[0]
+        .call_fallible::<_, bool>(
+            &alice.zome("administration"),
+            "suspend_entity_temporarily",
+            SuspendEntityTemporarilyInput {
+                entity: ENTITY_USERS.to_string(),
+                entity_original_action_hash: bob_user_hash.clone(),
+                status_original_action_hash: status_hash.clone(),
+                status_previous_action_hash: suspension.signed_action.hashed.hash.clone(),
+                reason: "No time at all".to_string(),
+                duration_in_days: 0,
+            },
+        )
+        .await
+        .map_err(|e| format!("{e:?}"));
+    assert!(
+        matches!(&no_days, Err(e) if e.contains("at least one")),
+        "a suspension of no days must be refused: {no_days:?}"
+    );
+
+    // An end already past is refused, even from an administrator.
+    let refused = conductors[0]
+        .call_fallible::<_, Record>(
+            &alice.zome("administration"),
+            "update_entity_status",
+            UpdateEntityStatusInput {
+                entity: ENTITY_USERS.to_string(),
+                entity_original_action_hash: bob_user_hash.clone(),
+                status_original_action_hash: status_hash.clone(),
+                status_previous_action_hash: suspension.signed_action.hashed.hash.clone(),
+                new_status: StatusInput {
+                    status_type: "suspended temporarily".to_string(),
+                    reason: Some("Backdated".to_string()),
+                    suspended_until: Some(Timestamp::now().as_micros() - DAY),
+                },
+            },
+        )
+        .await
+        .map_err(|e| format!("{e:?}"));
+    assert!(
+        matches!(&refused, Err(e) if e.contains("a temporary suspension must end after the moment it is written")),
+        "an end in the past must be refused: {refused:?}"
+    );
+}

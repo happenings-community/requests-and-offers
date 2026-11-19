@@ -137,10 +137,12 @@ export class Message extends Schema.Class<Message>('Message')({
 /**
  * One inbox item.
  *
- * `Unreadable` is a *fault*, not a filter: every inbox link points at a message
- * encrypted to this agent, so one that will not decrypt means something is wrong. It is
- * surfaced as a fault row rather than dropped, and it is deliberately not counted as
- * new.
+ * `Unreadable` is a *fault*, not a filter: a message on this agent's inbox link that will
+ * not decrypt was either damaged or sealed wrongly by its sender, since validation proves
+ * who wrote a message but cannot prove who it was sealed to. It is held so it is not
+ * fetched again, and deliberately not counted as new. The Messages list shows it as a
+ * fault row (`FaultRow.svelte`); explaining it to members, Report to Admins and Block on
+ * that row are #516.
  */
 // `Read` spreads the class's fields rather than extending the class: `Schema.extend` on a
 // `Schema.Class` throws "Unsupported schema or overlapping types" the moment this module

@@ -51,7 +51,7 @@ fn agreement_view(record: &Record) -> AgreementView {
 fn counter_input(agreement: &ActionHash, timeframe: &str) -> Value {
     json!({
         "agreement": agreement,
-        "primary_quantity": { "value": 2.0, "unit": "h" },
+        "primary_quantity": { "value": "2", "unit": "h" },
         "reciprocal_quantity": null,
         "delivery_timeframe": timeframe
     })
@@ -62,7 +62,7 @@ fn service_term(direction: &str, what: &str) -> Value {
         "direction": direction,
         "resource_conforms_to": what,
         "resource_kind": "Service",
-        "quantity": { "value": 2.0, "unit": "h" }
+        "quantity": { "value": "2", "unit": "h" }
     })
 }
 
@@ -492,6 +492,50 @@ async fn exchange_refusals() {
     assert!(bad_review.is_err(), "a rating above five must be refused");
 }
 
+/// A quantity is a canonical decimal string; validation refuses anything else
+/// and accepts the well-formed spellings, trailing zeros included.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_quantity_must_be_a_canonical_decimal() {
+    let (conductors, alice, bob, offer_hash) = setup_with_offer().await;
+
+    let interest: Record = conductors[1]
+        .call(&bob.zome("exchanges"), "create_interest", json!({ "listing": offer_hash, "listing_type": "Offer" }))
+        .await;
+    let interest_hash = interest.signed_action.hashed.hash.clone();
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+
+    let with_value = |value: Value| {
+        let mut input = agreement_input(&offer_hash, &interest_hash);
+        input["primary"]["quantity"]["value"] = value;
+        input
+    };
+
+    // Each malformed spelling is refused, and the refusal names the rule.
+    for bad in ["", "-1", "1e3", ".5", "5.", "01", "1,5", "NaN", "0", "0.0", "1.1234567", "9999999999"] {
+        let result = conductors[0]
+            .call_fallible::<_, Record>(&alice.zome("exchanges"), "create_agreement", with_value(json!(bad)))
+            .await;
+        let error = format!("{:?}", result.expect_err(&format!("{bad:?} must be refused")));
+        // Zero is well formed but not positive; everything else is malformed.
+        let rule = if matches!(bad, "0" | "0.0") { "quantity must be positive" } else { "quantity is not a decimal" };
+        assert!(error.contains(rule), "{bad:?} was refused, but not by the rule {rule:?}: {error}");
+    }
+
+    // A float on the wire is no longer a quantity at all.
+    let float = conductors[0]
+        .call_fallible::<_, Record>(&alice.zome("exchanges"), "create_agreement", with_value(json!(2.5)))
+        .await;
+    assert!(float.is_err(), "a number is not a quantity");
+
+    // Well-formed spellings are accepted, one after the other (a refused write keeps nothing).
+    for good in ["2", "2.50", "0.05", "999999999.999999"] {
+        conductors[0]
+            .call_fallible::<_, Record>(&alice.zome("exchanges"), "create_agreement", with_value(json!(good)))
+            .await
+            .unwrap_or_else(|e| panic!("{good:?} must be accepted: {e:?}"));
+    }
+}
+
 /// A counter declines the proposal and answers it in one call, and each round
 /// names the one before it, so a negotiation reads as a chain (#333).
 #[tokio::test(flavor = "multi_thread")]
@@ -599,7 +643,18 @@ async fn counter_refusals() {
             counter_input(&proposal_hash, "Within two weeks"),
         )
         .await;
-    assert!(unchanged.is_err(), "a counter must change a quantity or the timeframe");
+    let refusal = format!("{:?}", unchanged.expect_err("a counter must change a quantity or the timeframe"));
+    assert!(refusal.contains("changes a quantity or the timeframe"), "refused, but not by the counter rule: {refusal}");
+
+    // The same amount spelled with trailing zeros is still no change: amounts
+    // compare as numbers, not as strings.
+    let mut respelled = counter_input(&proposal_hash, "Within two weeks");
+    respelled["primary_quantity"]["value"] = json!("2.00");
+    let respelled = conductors[1]
+        .call_fallible::<_, Record>(&bob.zome("exchanges"), "counter_agreement", respelled)
+        .await;
+    let refusal = format!("{:?}", respelled.expect_err("\"2.00\" is the same amount as \"2\", so it is no counter"));
+    assert!(refusal.contains("changes a quantity or the timeframe"), "refused, but not by the counter rule: {refusal}");
 
     // Once the proposal is accepted it cannot be countered.
     let _: Record = conductors[1]
@@ -687,7 +742,7 @@ fn currency_agreement(listing: &ActionHash, listing_type: &str, interest: &Actio
             "direction": "Receive",
             "resource_conforms_to": "Time bank hours",
             "resource_kind": "Currency",
-            "quantity": { "value": 2.0, "unit": "Time bank hours" }
+            "quantity": { "value": "2", "unit": "Time bank hours" }
         },
         "medium": "Time bank hours",
         "terms": "",
@@ -713,10 +768,10 @@ async fn counters_on_a_request_and_each_permitted_change() {
     t.sync().await;
 
     let changes = [
-        ("the primary quantity", json!({ "value": 5.0, "unit": "h" }), json!({ "value": 2.0, "unit": "Time bank hours" }), "Within 2 weeks"),
-        ("the return quantity", json!({ "value": 2.0, "unit": "h" }), json!({ "value": 6.0, "unit": "Time bank hours" }), "Within 2 weeks"),
+        ("the primary quantity", json!({ "value": "5", "unit": "h" }), json!({ "value": "2", "unit": "Time bank hours" }), "Within 2 weeks"),
+        ("the return quantity", json!({ "value": "2", "unit": "h" }), json!({ "value": "6", "unit": "Time bank hours" }), "Within 2 weeks"),
         ("both quantities to none", Value::Null, Value::Null, "Within 2 weeks"),
-        ("the timeframe", json!({ "value": 2.0, "unit": "h" }), json!({ "value": 2.0, "unit": "Time bank hours" }), "Flexible"),
+        ("the timeframe", json!({ "value": "2", "unit": "h" }), json!({ "value": "2", "unit": "Time bank hours" }), "Flexible"),
     ];
     for (what, primary, reciprocal, timeframe) in changes {
         // Alice proposes to Bob; Bob counters with one change.

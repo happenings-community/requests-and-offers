@@ -46,7 +46,8 @@ pub struct Review { pub agreement: ActionHash, pub rating: u8, pub on_time: bool
 pub struct Cancellation { pub agreement: ActionHash, pub note: String }
 ```
 
-`ExchangeTerm` carries a `direction` (`Provide` / `Receive`), a `resource_conforms_to` string, a `resource_kind` (`Service` / `Currency` / `Gift` / `Tbd`) and an optional `Quantity { value: f64, unit: String }`.
+`ExchangeTerm` carries a `direction` (`Provide` / `Receive`), a `resource_conforms_to` string, a `resource_kind` (`Service` / `Currency` / `Gift` / `Tbd`) and an optional `Quantity { value: String, unit: String }`.
+The `value` is an exact decimal string such as `"12.50"`, never a binary float (see [Quantities](#quantities) below).
 
 ### 2.2. Validation Rules
 
@@ -63,7 +64,32 @@ Validation may read only what the entry names, through `must_get_valid_record`; 
 
 **The member grant** (#378). An `Interest` and an `Agreement` each carry, in their `grant` field, a member grant held by their author: starting an exchange and proposing terms are acts of an accepted member. The coordinator sets the field. The four later steps carry none; each names an agreement, and only a party to it may write them. Forged writes: `an_interest_carries_the_member_grant_its_author_holds` in `grants.rs`, `an_agreement_carries_the_member_grant_its_author_holds` in `exchanges_attacks.rs`.
 
-**The kind rule** (`validate_term`): a `Gift` or `Tbd` term names no resource and carries no quantity; a `Service` or `Currency` term names the specification it conforms to. Any quantity present must be finite, greater than zero, and carry a unit.
+**The kind rule** (`validate_term`): a `Gift` or `Tbd` term names no resource and carries no quantity; a `Service` or `Currency` term names the specification it conforms to. Any quantity present must be a well-formed decimal (see [Quantities](#quantities)), greater than zero, and carry a unit.
+
+### Quantities
+
+A quantity's `value` is a decimal string, so an amount is exact: `"0.1"` is one tenth, not the nearest binary float.
+`Quantity` covers hours as well as currency, which is why the value is a decimal string and not an integer count of minor units.
+
+`decimal_problem` in the integrity zome is the one rule for the spelling:
+
+- ASCII digits and at most one dot, nothing else: no sign, no exponent, no spaces, no thousands separator, no `NaN` or `inf`.
+- At least one digit before the dot and, when there is a dot, at least one after it: `".5"` and `"5."` are refused, `"0.5"` is accepted.
+- At most 9 digits before the dot and 6 after it, so at most 15 significant digits, which an f64 holds exactly enough for the one conversion at the hREA boundary.
+- No leading zero except a lone `"0"` before the dot: `"01"` and `"00.5"` are refused.
+- The value must be greater than zero. `"0"` and `"0.000"` are well formed but are not a quantity; a term with no quantity carries `None`.
+
+Trailing zeros are kept as written, so `"1.5"` and `"1.50"` are two spellings of one amount.
+A counter compares quantities with `same_amount`, which reads both as numbers, so re-spelling an amount does not count as changing it.
+Never compare the strings with `==` for this.
+
+The UI mirrors the rule in `ui/src/lib/utils/decimal.ts`, which also does the exact comparison and sums, and in the `ExchangeQuantity` schema.
+What a member types is read by `parseTypedDecimal`: a decimal comma becomes a dot (`"2,5"` is 2.5), except a comma followed by exactly three digits (other than after a lone `0`) or beside a dot, which is refused, so `"1,000"` is never read as one; `typedDecimalProblem` tells the member to write it as `1000`.
+Both sides are tested with the same malformed inputs.
+A proposal's hours that come from a request's `time_estimate_hours`, an f32, become a quantity through `decimalFromNumber`: spelled with the fewest significant digits that give back the same f32 (so 1.1 is `"1.1"`, not `"1.100000023841858"`), then rounded to six places. A value no quantity can carry gives no quantity, and the propose page says so.
+
+This is a change to the `Agreement` entry format (`value` was an `f64`), so it changes the DNA hash and old entries cannot be read.
+It is acceptable inside the alpha 2 network reset.
 
 **Refused outright**: every update of all six types (on the entry op, the record op, and the op the original's authorities receive), every link delete, and every entry delete except an `Interest` deleted by its author.
 

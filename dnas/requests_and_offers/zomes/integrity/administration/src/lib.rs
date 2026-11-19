@@ -1,6 +1,7 @@
 use grants::*;
 use hdi::prelude::*;
 use status::*;
+use utils::errors::{invalid, CommonValidationError, GrantValidationError, StatusValidationError};
 use utils::grants::{Role, RoleGrant, RoleRevocation};
 
 pub mod grants;
@@ -117,18 +118,16 @@ fn validate_create_link_agent_administrators(
 /// grant, whose delete Holochain shows to every integrity zome, or another zome's entry.
 fn deleted_entry(
   action: &TypedAction<DeleteData>,
-) -> ExternResult<Result<Option<EntryTypes>, String>> {
+) -> ExternResult<Result<Option<EntryTypes>, CommonValidationError>> {
   let original = must_get_valid_record(action.deletes_address.clone())?;
   let Ok(creation) = TypedAction::<EntryCreationData>::try_from(original.action().clone()) else {
-    return Ok(Err(
-      "Original action for a delete must be a Create or Update action".to_string(),
-    ));
+    return Ok(Err(CommonValidationError::DeleteOfNonCreation));
   };
   let EntryType::App(def) = creation.entry_type() else {
     return Ok(Ok(None));
   };
   let Some(entry) = original.entry().as_option() else {
-    return Ok(Err("Original record for a delete must contain an entry".to_string()));
+    return Ok(Err(CommonValidationError::DeletedEntryMissing));
   };
   Ok(Ok(EntryTypes::deserialize_from_type(
     *def.zome_index,
@@ -143,17 +142,13 @@ fn deleted_entry(
 /// so the rule cannot hold on one and not the other (#234).
 fn validate_delete(action: &TypedAction<DeleteData>) -> ExternResult<ValidateCallbackResult> {
   match deleted_entry(action)? {
-    Ok(Some(EntryTypes::Status(_))) => Ok(ValidateCallbackResult::Invalid(String::from(
-      "Status cannot be deleted",
-    ))),
+    Ok(Some(EntryTypes::Status(_))) => invalid(StatusValidationError::DeleteRefused),
     Ok(Some(EntryTypes::RoleGrant(_))) | Ok(Some(EntryTypes::RoleRevocation(_))) => {
-      Ok(ValidateCallbackResult::Invalid(String::from(
-        "A grant or a revocation is a record and cannot be deleted; revoke a grant instead",
-      )))
+      invalid(GrantValidationError::DeleteRefused)
     }
     // Not this zome's entry: nothing here to refuse.
     Ok(None) => Ok(ValidateCallbackResult::Valid),
-    Err(reason) => Ok(ValidateCallbackResult::Invalid(reason)),
+    Err(reason) => invalid(reason),
   }
 }
 
@@ -168,14 +163,15 @@ fn validate_entry(
   app_entry: EntryTypes,
   author: &AgentPubKey,
   is_update: bool,
+  at: Timestamp,
 ) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
-    EntryTypes::Status(status) => validate_status(status, author, is_update),
+    EntryTypes::Status(status) => validate_status(status, author, is_update, at),
     // A grant or a revocation is a record: never updated, as it is never
     // deleted. An update would be the other way to rewrite one.
-    EntryTypes::RoleGrant(_) | EntryTypes::RoleRevocation(_) if is_update => Ok(
-      ValidateCallbackResult::Invalid(String::from("a grant or a revocation is never updated")),
-    ),
+    EntryTypes::RoleGrant(_) | EntryTypes::RoleRevocation(_) if is_update => {
+      invalid(GrantValidationError::UpdateRefused)
+    }
     EntryTypes::RoleGrant(grant) => validate_role_grant(author, &grant),
     EntryTypes::RoleRevocation(revocation) => validate_role_revocation(author, &revocation),
   }
@@ -209,18 +205,18 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, action } => validate_entry(app_entry, action.author(), false),
+      OpEntry::CreateEntry { app_entry, action } => validate_entry(app_entry, action.author(), false, action.timestamp()),
       OpEntry::UpdateEntry { app_entry, action, .. } => {
-        validate_entry(app_entry, action.author(), true)
+        validate_entry(app_entry, action.author(), true, action.timestamp())
       }
       _ => Ok(ValidateCallbackResult::Valid),
     },
     FlatOp::CreateRecord(store_record) => match store_record {
       OpRecord::CreateEntry { app_entry, action } => {
-        validate_entry(app_entry, action.author(), false)
+        validate_entry(app_entry, action.author(), false, action.timestamp())
       }
       OpRecord::UpdateEntry { app_entry, action, .. } => {
-        validate_entry(app_entry, action.author(), true)
+        validate_entry(app_entry, action.author(), true, action.timestamp())
       }
       // Nothing in this zome is deleted: a status is a history, a grant or a
       // revocation is the record an act rests on. Routed here rather than left
@@ -234,7 +230,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     // above. Left to fall through, it would mark a grant deleted on the word
     // of a node whose own record authority had refused the delete.
     FlatOp::Update(OpUpdate::Entry { app_entry, action }) => {
-      validate_entry(app_entry, action.author(), true)
+      validate_entry(app_entry, action.author(), true, action.timestamp())
     }
     FlatOp::Delete(OpDelete { action }) => validate_delete(&action),
     FlatOp::Link(OpLink::CreateLink { link_type, action }) => {
@@ -278,9 +274,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       // link would bring a revoked grant back. No coordinator tombstones
       // them, so every such delete is a forgery.
       LinkTypes::AgentGrants | LinkTypes::AllGrants | LinkTypes::GrantRevocations => {
-        Ok(ValidateCallbackResult::Invalid(String::from(
-          "a grant index is a record and is never tombstoned",
-        )))
+        invalid(GrantValidationError::IndexTombstoneRefused)
       }
       // The administrator roster links are tombstoned by `remove_administrator`,
       // by another administrator; a tombstone carries no grant, so who may
@@ -298,7 +292,7 @@ mod record_op_tests {
   //! and `must_get_valid_record` asks the record authority. So every rule the
   //! entry op runs must give the same verdict on the record op.
   use hdi::prelude::*;
-  use utils::validation_harness::{create_ops, set_zome_types, update_ops};
+  use utils::validation_harness::{create_ops, set_zome_types, update_ops, when};
 
   use crate::{validate, EntryTypes, LinkTypes, Status};
 
@@ -327,6 +321,57 @@ mod record_op_tests {
     assert_eq!(
       entry,
       ValidateCallbackResult::Invalid("Invalid status type: bogus".into())
+    );
+    assert_eq!(record, entry);
+  }
+
+  /// A temporary suspension ending `offset` microseconds after the harness's action.
+  fn suspended_until(offset: i64) -> SerializedBytes {
+    Status {
+      status_type: "suspended temporarily".to_string(),
+      reason: Some("a reason".to_string()),
+      suspended_until: Some(Timestamp::from_micros(when().as_micros() + offset)),
+      grant: None,
+    }
+    .try_into()
+    .unwrap()
+  }
+
+  const ENDS_BEFORE: &str = "a temporary suspension must end after the moment it is written";
+
+  /// A suspension's end is a timestamp checked against the writing action, on every op
+  /// that carries it. Goes red if the rule is dropped, or measured from anything but
+  /// the action's own timestamp.
+  #[test]
+  fn a_suspension_that_ends_at_or_before_its_writing_is_refused_on_every_op() {
+    for offset in [-1, 0] {
+      for (entry, record) in [
+        verdicts(create_ops(0, suspended_until(offset))),
+        verdicts(update_ops(0, suspended_until(offset))),
+      ] {
+        assert_eq!(entry, ValidateCallbackResult::Invalid(ENDS_BEFORE.into()));
+        assert_eq!(record, entry);
+      }
+      set_zome_types(EntryTypes::ENUM_LEN, LinkTypes::ENUM_LEN);
+      assert_eq!(
+        validate(utils::validation_harness::update_op_for_the_original(
+          0,
+          suspended_until(offset)
+        ))
+        .unwrap(),
+        ValidateCallbackResult::Invalid(ENDS_BEFORE.into())
+      );
+    }
+  }
+
+  /// One microsecond later passes this rule; what refuses it then is the grant rule,
+  /// since the harness's status carries no grant.
+  #[test]
+  fn a_suspension_that_ends_after_its_writing_passes_the_rule() {
+    let (entry, record) = verdicts(update_ops(0, suspended_until(1)));
+    assert!(
+      matches!(&entry, ValidateCallbackResult::Invalid(r) if r.starts_with("a status change is a role act")),
+      "{entry:?}"
     );
     assert_eq!(record, entry);
   }

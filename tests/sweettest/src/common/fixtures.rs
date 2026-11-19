@@ -127,7 +127,8 @@ pub struct UnsuspendEntityInput {
 pub struct StatusInput {
     pub status_type: String,
     pub reason: Option<String>,
-    pub suspended_until: Option<String>,
+    /// A Holochain timestamp, in microseconds.
+    pub suspended_until: Option<i64>,
 }
 
 /// Build an "accepted" status input.

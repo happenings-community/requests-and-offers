@@ -92,6 +92,20 @@ Messages are stored encrypted on the shared DNA and linked from the recipient's 
 
 There are two kinds of message: **personal**, from one member to another (`send_message`), and **role messages**, to or from the holders of a role and grouped into cases (`send_role_message`, section 6.5). Both travel the same way, as `EncryptedMessage` entries with an `Inbox` link, and both pass through `deliver`, the one path every send takes.
 
+The inbox's externs, beside the signal layer's in 2.1:
+
+| Extern | What it does |
+|---|---|
+| `send_message(SendMessageInput)` | sends a personal message to every agent of a member (section 6.3) |
+| `send_role_message(SendRoleMessageInput)` | writes to the holders of a role, or as one, inside a case (section 6.5) |
+| `get_inbox` | every personal message addressed to this agent that passes the reading filters, decrypted; one that will not decrypt comes back as `Unreadable` (section 6.4) |
+| `get_inbox_delta(GetInboxDeltaInput)` | the same, for a caller that already holds some: only what it does not hold |
+| `get_message(ActionHash)` | one message by its action hash, which is what a nudge carries, with the same filters |
+| `get_sent` | everything this agent has sent, read from its own chain |
+| `find_sent(FindSentInput)` | whether a send with a given send id is on this agent's chain, after a send got no answer |
+| `get_role_inbox(RoleRef)` | the cases addressed to this agent as a holder of the role, refused unless it holds it now |
+| `get_my_role_correspondence` | this member's own role conversations, grouped by role |
+
 ### 6.1. What is public and what is private
 
 | Data | Where it lives | Who can read it |
@@ -162,6 +176,7 @@ A member writes to a role, not to a person, and every holder of the role receive
 - **Any accepted member may write to a role**, which is how a case is opened and followed up. Writing on your own case claims nothing.
 - **Only a current holder may reply on another member's case, or send a case event.** Checked here, and again by every reader, because a status can change in between and a modified client can skip the send-side check.
 - **The message reaches every holder, the sender's own agents, and on a reply the member who opened the case.** The sender's own copy is deliberate: every participant reads the whole case from one inbox read, with no chain walk.
+- **Who holds the role is read from the grants, the same source `holds_role` reads.** For `Admin`, `role_holders` asks `administration` for the agents with a live admin grant (`get_live_administrator_agents`) and resolves each to its `User`. It does not read the `AllAdministrators` roster links: `revoke_role` leaves a revoked administrator on them, a tombstone on one needs no grant, and a roster link's rule checks the grant in its tag but not its target, so reading them sent cases to former administrators, let any member empty the list, and let an administrator with a modified client add any member to it.
 - **The opener and the direction are worked out from the sender's own `User`**, never taken from the input, so a forged opener cannot write into somebody else's case. The direction (`ToHolders`, `FromHolder`) is a label for the interface and is never used for authorisation.
 - **A case is keyed by its opener's `User` and its ID together**, because the sender chooses the ID (at most 64 bytes); a member reusing another member's ID opens a separate case.
 
@@ -201,7 +216,7 @@ The member-grant rule is tested with the other grant rules, in `tests/sweettest/
 
 `messaging_inbox` proves the encryption before anything rests on it (the recipient reads, the sender reads their own copy, a third member holds the ciphertext and cannot read it, either party can be offline), then the access rules (an unaccepted sender is refused, only an administrator may write to a member who is not accepted, a reader who is not accepted hears only from administrators on both read paths, a since-rejected author is hidden), then what #364 adds: a reader that keeps what it read is sent only what is new, a send id rides along and `find_sent` locates it, a message carries text or a listing and never both or neither, a receipt arrives as a signal from its sender, and the chain functions for blocks and read markers no longer exist. Then the size limit: a message at the limit in two-byte characters, the heaviest Lair has to carry, is sent and read (`a_message_at_the_size_limit_in_two_byte_characters_is_sent_and_read`), and one byte over is refused by the zome (`a_message_one_byte_over_the_size_limit_is_refused`).
 
-`messaging_roles` proves that a case reaches every holder and the reply comes back, that a holder may reply to an opener who is no longer accepted, claiming, completing, reopening and handing over, that a removed administrator's role messages are withheld (from the role inbox, the member's own area and `get_message`), that a reused case ID from another member opens a separate case, that the role calls refuse a non-holder and the roles not yet built, and that a polling reader is told which messages are role messages and is never sent one as chat; and that a case message at the size limit reaches every holder and the reply comes back (`a_case_message_at_the_size_limit_reaches_every_holder_and_back`).
+`messaging_roles` proves that a case reaches every holder and the reply comes back, that a holder may reply to an opener who is no longer accepted, claiming, completing, reopening and handing over, that a removed administrator's role messages are withheld (from the role inbox, the member's own area and `get_message`), that a reused case ID from another member opens a separate case, that the role calls refuse a non-holder and the roles not yet built, and that a polling reader is told which messages are role messages and is never sent one as chat; that a case message at the size limit reaches every holder and the reply comes back (`a_case_message_at_the_size_limit_reaches_every_holder_and_back`); and that who receives a case is read from the grants, not the roster: an administrator revoked by `revoke_role` is sent no case though the roster still lists them (`a_revoked_administrator_is_sent_no_case`), a roster emptied by a member's tombstones still lets a case reach the administrators (`a_roster_emptied_by_a_member_still_reaches_the_administrators`), and a member put on the roster by a modified client, with a grant its author wrote in the link's tag, is sent no case (`a_member_put_on_the_roster_by_a_modified_client_is_sent_no_case`).
 
 The pure validation rules are unit-tested in `messaging_integrity`.
 

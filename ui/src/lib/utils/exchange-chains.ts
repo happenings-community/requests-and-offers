@@ -1,6 +1,7 @@
 import { encodeHashToBase64, type ActionHash } from '@holochain/client';
 import type { ExchangeTerm } from '$lib/types/holochain';
 import type { UIExchange } from '$lib/types/ui';
+import { isOne } from '$lib/utils/decimal';
 import { awaitingMe, counterpartyOf, termLabel } from '$lib/utils/exchange-ui';
 
 /**
@@ -138,7 +139,7 @@ function quantityText(term: ExchangeTerm): string {
   if (!term.quantity) return 'none';
   const { value, unit } = term.quantity;
   // One hour, as termLabel says it; a currency's name is left as it is.
-  const shown = term.resource_kind === 'Service' && value === 1 ? unit.replace(/s$/, '') : unit;
+  const shown = term.resource_kind === 'Service' && isOne(value) ? unit.replace(/s$/, '') : unit;
   return `${value} ${shown}`;
 }
 

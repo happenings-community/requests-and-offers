@@ -1,17 +1,12 @@
-import { describe, it, expect, beforeAll, vi } from 'vitest';
-import { Effect as E, Exit } from 'effect';
+import { describe, it, expect, beforeAll } from 'vitest';
 import {
   setUnitRegistry,
   unitRegistryFrom,
   actionForKind,
-  carriesDates,
   mapAgreementToHrea,
   mapCompletionToEvent,
   rnoAgreementRef,
-  agreementRefsFromHrea,
-  withoutDates,
-  isRecognisedRefusal,
-  writeCommitment
+  agreementRefsFromHrea
 } from '$lib/services/mappers/agreement-commitment.mapper';
 import type { UIExchange } from '$lib/types/ui';
 
@@ -148,31 +143,7 @@ describe('mapAgreementToHrea', () => {
         expect(c.due).toBeUndefined();
         expect(c.hasBeginning).toBeUndefined();
         expect(c.hasEnd).toBeUndefined();
-        expect(carriesDates(c)).toBe(false);
       }
-    });
-
-    it('withoutDates strips exactly the three dates, for the write made when hREA refuses them', () => {
-      const m = mapAgreementToHrea(
-        exchange({
-          delivery_timeframe: {
-            Dates: { start: Date.UTC(2026, 8, 10) * 1000, end: Date.UTC(2026, 8, 20) * 1000 }
-          }
-        }),
-        parties,
-        specs,
-        accepted
-      );
-      expect(carriesDates(m!.primary)).toBe(true);
-      const bare = withoutDates(m!.primary);
-      expect(carriesDates(bare)).toBe(false);
-      expect(bare).toEqual({
-        ...m!.primary,
-        due: undefined,
-        hasBeginning: undefined,
-        hasEnd: undefined
-      });
-      expect(Object.keys(bare)).not.toContain('due');
     });
 
     it('keeps the timeframe label in the note', () => {
@@ -184,78 +155,6 @@ describe('mapAgreementToHrea', () => {
       );
       expect(m!.primary.note).toContain('Timeframe: Within 2 weeks');
     });
-  });
-});
-
-describe('writeCommitment', () => {
-  // Error shapes as they reach the store: HreaError wrapping Apollo's error,
-  // whose graphQLErrors keep the Holochain client's error as originalError.
-  const wrapped = (name: string, message: string) => ({
-    _tag: 'HreaError',
-    name: 'HreaError',
-    message,
-    cause: {
-      name: 'ApolloError',
-      message,
-      graphQLErrors: [{ message, originalError: { name, message } }]
-    }
-  });
-  const refusal = wrapped('ribosome_error', 'Deserialize([...]) at rea_commitment.rs');
-  const timeout = wrapped('Error', 'Request timed out in 60000 ms: call_zome');
-  const dated = { action: 'work', provider: 'p', receiver: 'r', due: '2026-09-20T00:00:00.000Z' };
-  const written = { id: 'c1', revisionId: 'r1', action: 'work', provider: 'p', receiver: 'r' };
-
-  it('recognises a refusal only by the two conductor error names a bad input produces', () => {
-    expect(isRecognisedRefusal(refusal)).toBe(true);
-    expect(isRecognisedRefusal(wrapped('deserialization', 'bad input'))).toBe(true);
-    expect(isRecognisedRefusal(wrapped('zome_call_unauthorized', 'no grant'))).toBe(false);
-    expect(isRecognisedRefusal(wrapped('zome_call_authentication_failed', 'bad signature'))).toBe(false);
-    expect(isRecognisedRefusal(timeout)).toBe(false);
-    expect(isRecognisedRefusal(wrapped('internal_error', 'conductor'))).toBe(false);
-    expect(isRecognisedRefusal(new Error('Request timed out in 60000 ms: x'))).toBe(false);
-    expect(isRecognisedRefusal(null)).toBe(false);
-    expect(isRecognisedRefusal('ribosome_error')).toBe(false);
-  });
-
-  it('on a recognised refusal writes once more without the dates', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const create = vi
-      .fn()
-      .mockReturnValueOnce(E.fail(refusal))
-      .mockReturnValueOnce(E.succeed(written));
-    const out = await E.runPromise(writeCommitment(create, dated, 'ref'));
-    expect(out).toBe(written);
-    expect(create).toHaveBeenCalledTimes(2);
-    expect(create.mock.calls[0][0]).toBe(dated);
-    expect(create.mock.calls[1][0]).toEqual({ action: 'work', provider: 'p', receiver: 'r' });
-  });
-
-  it('on a timeout does not retry, since the first write may have landed', async () => {
-    const create = vi.fn().mockReturnValue(E.fail(timeout));
-    const exit = await E.runPromiseExit(writeCommitment(create, dated, 'ref'));
-    expect(Exit.isFailure(exit)).toBe(true);
-    expect(create).toHaveBeenCalledTimes(1);
-  });
-
-  it('on an unauthorized call does not retry, since dates are not the cause', async () => {
-    const create = vi.fn().mockReturnValue(E.fail(wrapped('zome_call_unauthorized', 'no grant')));
-    const exit = await E.runPromiseExit(writeCommitment(create, dated, 'ref'));
-    expect(Exit.isFailure(exit)).toBe(true);
-    expect(create).toHaveBeenCalledTimes(1);
-  });
-
-  it('on any other error does not retry either', async () => {
-    const create = vi.fn().mockReturnValue(E.fail(wrapped('internal_error', 'conductor')));
-    const exit = await E.runPromiseExit(writeCommitment(create, dated, 'ref'));
-    expect(Exit.isFailure(exit)).toBe(true);
-    expect(create).toHaveBeenCalledTimes(1);
-  });
-
-  it('writes an input without dates once, even when refused', async () => {
-    const create = vi.fn().mockReturnValue(E.fail(refusal));
-    const exit = await E.runPromiseExit(writeCommitment(create, withoutDates(dated), 'ref'));
-    expect(Exit.isFailure(exit)).toBe(true);
-    expect(create).toHaveBeenCalledTimes(1);
   });
 });
 

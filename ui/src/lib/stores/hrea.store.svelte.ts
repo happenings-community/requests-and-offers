@@ -14,7 +14,6 @@ import {
   mapAgreementToHrea,
   mapCompletionToEvent,
   rnoAgreementRef,
-  writeCommitment,
   type ResolvedParties,
   type ResolvedSpecs,
   setUnitRegistry,
@@ -2107,10 +2106,14 @@ export const createHreaStore = (): E.Effect<
       );
     };
 
-    // A date hREA refuses must not cost the Commitment; a timeout must not
-    // write it twice. writeCommitment holds that rule.
-    const createCommitment = (input: CommitmentInput, ref: string) =>
-      writeCommitment(hreaService.createCommitment, input, ref);
+    // A Commitment is written once, dates included. hREA's adapter turns each
+    // ISO date into microseconds before the zome sees it, and datesFor makes
+    // well-formed dates or throws before anything is written, so there is no
+    // date refusal to work around. A failure fails the mirror as any hREA write
+    // does, and is never retried: after a timeout the first write may have
+    // landed. An Agreement left without its primary Commitment is skipped on
+    // the next attempt (agreementRefsFromHrea).
+    const createCommitment = (input: CommitmentInput) => hreaService.createCommitment(input);
 
     const createMirror = (
       ref: string,
@@ -2120,7 +2123,7 @@ export const createHreaStore = (): E.Effect<
         hreaService.createAgreement(mapped.agreement),
         E.flatMap((agreement) =>
           pipe(
-            createCommitment({ ...mapped.primary, clauseOf: agreement.id }, ref),
+            createCommitment({ ...mapped.primary, clauseOf: agreement.id }),
             E.flatMap(
               (
                 primary
@@ -2130,7 +2133,7 @@ export const createHreaStore = (): E.Effect<
               > =>
               mapped.reciprocal
                 ? pipe(
-                    createCommitment({ ...mapped.reciprocal, clauseOf: agreement.id }, ref),
+                    createCommitment({ ...mapped.reciprocal, clauseOf: agreement.id }),
                     E.map((reciprocal) => ({ agreement, primary, reciprocal }))
                   )
                 : E.succeed({ agreement, primary, reciprocal: undefined })

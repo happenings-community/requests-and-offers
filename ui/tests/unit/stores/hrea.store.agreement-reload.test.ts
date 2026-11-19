@@ -173,21 +173,14 @@ describe('hREA agreement mirror after a reload (agreementMappings empty)', () =>
 
   /**
    * #380: a commitment's due date comes from the agreement's timeframe, counted from
-   * acceptance, and a date hREA refuses must not cost the commitment.
-   * **To make this go red:** call `hreaService.createCommitment` directly in the store.
+   * acceptance, and is written with the commitment in one write.
+   * **To make this go red:** drop the dates from the mapped input.
    */
-  it('dates both commitments from acceptance, and writes them without dates when hREA refuses those', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('dates both commitments from acceptance, in one write each', async () => {
     const svc = service();
     svc.getAgreements.mockReturnValue(E.succeed([]));
     svc.getCommitments.mockReturnValue(E.succeed([]));
-    const refusal = new HreaError({
-      message: 'Deserialize at rea_commitment.rs',
-      cause: { name: 'ribosome_error', message: 'Deserialize' }
-    });
-    svc.createCommitment
-      .mockReturnValueOnce(E.fail(refusal))
-      .mockReturnValue(E.succeed({ id: 'c-NEW', revisionId: 'x' }));
+    svc.createCommitment.mockReturnValue(E.succeed({ id: 'c-NEW', revisionId: 'x' }));
     const store = await freshStore(svc);
     const accepted = Date.UTC(2026, 9, 1);
     const dated = {
@@ -200,10 +193,36 @@ describe('hREA agreement mirror after a reload (agreementMappings empty)', () =>
 
     const due = new Date(accepted + 14 * 24 * 60 * 60 * 1000).toISOString();
     const inputs = svc.createCommitment.mock.calls.map((c) => c[0]);
-    expect(inputs[0].due, 'the first write carries the due date').toBe(due);
-    expect(inputs[1].due, 'refused, it goes again without it').toBeUndefined();
-    expect(inputs[2].due, 'the reciprocal carries it too').toBe(due);
-    expect(inputs).toHaveLength(3);
+    expect(inputs.map((i) => i.due)).toEqual([due, due]);
+  });
+
+  /**
+   * A refused commitment fails the mirror and is not written again, with or without
+   * its dates: the refusal hREA returns cannot say which field it was about, and after a
+   * timeout the first write may have landed.
+   * **To make this go red:** retry `createCommitment` on failure.
+   */
+  it('writes a refused commitment once, and the mirror fails', async () => {
+    const svc = service();
+    svc.getAgreements.mockReturnValue(E.succeed([]));
+    svc.getCommitments.mockReturnValue(E.succeed([]));
+    // The shape a zome's refusal of its input takes: the input's bytes, not its field names.
+    const refusal = new HreaError({
+      message: 'Deserialize([130, 163, 100, 117, 101]) at rea_commitment.rs',
+      cause: { name: 'ribosome_error', message: 'Deserialize([130, 163, 100, 117, 101])' }
+    });
+    svc.createCommitment.mockReturnValue(E.fail(refusal));
+    const store = await freshStore(svc);
+    const dated = {
+      ...exchange(),
+      agreement: { ...exchange().agreement, delivery_timeframe: { Preset: 'WithinTwoWeeks' } },
+      response: { agreement: hash(1), accepted: true, note: '', created_at: Date.UTC(2026, 9, 1) }
+    } as unknown as UIExchange;
+
+    const exit = await E.runPromiseExit(store.createAgreementFromExchange(dated));
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    expect(svc.createCommitment).toHaveBeenCalledTimes(1);
   });
 
   it('an acceptance whose hREA read fails is not mirrored, so no duplicate Agreement can be minted', async () => {

@@ -6,8 +6,6 @@ import type {
   EconomicEventInput
 } from '$lib/services/hrea.service';
 import { timeframeLabel } from '$lib/utils/timeframe';
-import type { Commitment } from '$lib/types/hrea';
-import { Effect as E, pipe } from 'effect';
 
 /**
  * Pure mapping from an accepted R&O exchange to hREA inputs. Everything here
@@ -172,84 +170,6 @@ export function datesFor(timeframe: Timeframe, acceptedAtMs: number): Commitment
   const days = PRESET_DAYS[timeframe.Preset];
   if (days === null) return {};
   return { due: new Date(acceptedAtMs + days * 24 * 60 * 60 * 1000).toISOString() };
-}
-
-/** True when a commitment input carries any of the three dates. */
-export function carriesDates(input: CommitmentInput): boolean {
-  return input.due !== undefined || input.hasBeginning !== undefined || input.hasEnd !== undefined;
-}
-
-/** The same input with the three dates left out, for the write hREA makes when it refuses them. */
-export function withoutDates(input: CommitmentInput): CommitmentInput {
-  const bare = { ...input };
-  delete bare.due;
-  delete bare.hasBeginning;
-  delete bare.hasEnd;
-  return bare;
-}
-
-/**
- * The conductor's wire error names a bad date can produce: the zome answered
- * and said no to the input itself (`ExternalApiWireError` in
- * `holochain_conductor_api`). Unauthorized and authentication failures
- * are answers too, but dates do not cause them, so a write without dates
- * cannot succeed; they fail as they are. A timeout or a dropped socket is
- * never on the list, by construction: those are not answers.
- */
-const REFUSED_THE_INPUT = new Set(['ribosome_error', 'deserialization']);
-
-/** Every `name` on the error and on what it wraps (cause, originalError, networkError, graphQLErrors), read by shape, never by class. */
-function namesIn(error: unknown, depth = 0, seen = new Set<object>()): string[] {
-  if (depth > 6 || error === null || typeof error !== 'object' || seen.has(error)) return [];
-  seen.add(error);
-  const e = error as {
-    name?: unknown;
-    cause?: unknown;
-    originalError?: unknown;
-    networkError?: unknown;
-    graphQLErrors?: unknown;
-  };
-  const names = typeof e.name === 'string' ? [e.name] : [];
-  const inner = [e.cause, e.originalError, e.networkError].concat(
-    Array.isArray(e.graphQLErrors) ? e.graphQLErrors : []
-  );
-  return names.concat(...inner.map((x) => namesIn(x, depth + 1, seen)));
-}
-
-/**
- * True when hREA's zome answered and refused the input (a deserialize or
- * validation error). Refusal has to be earned by a positive match; a timeout
- * or a lost reply is not one, since the first write may have landed.
- */
-export function isRecognisedRefusal(error: unknown): boolean {
-  return namesIn(error).some((name) => REFUSED_THE_INPUT.has(name));
-}
-
-/**
- * Writes a Commitment, keeping the mirror when hREA refuses its dates: on a
- * recognised refusal the same input goes again without `due`, `hasBeginning`
- * and `hasEnd`, with a console warning. Anything else fails as it is, because
- * a retry after a timeout or a lost reply could write a duplicate Commitment.
- * An input without dates is written once, whatever happens.
- */
-export function writeCommitment<Err>(
-  create: (input: CommitmentInput) => E.Effect<Commitment, Err>,
-  input: CommitmentInput,
-  ref: string
-): E.Effect<Commitment, Err> {
-  if (!carriesDates(input)) return create(input);
-  return pipe(
-    create(input),
-    E.catchAll((error) => {
-      if (!isRecognisedRefusal(error)) return E.fail(error);
-      console.warn(
-        'hREA Store: commitment refused with its dates, writing it without them',
-        ref,
-        error
-      );
-      return create(withoutDates(input));
-    })
-  );
 }
 
 /** The R&O agreement hash as a string, used as agreedIn and as the map key. */

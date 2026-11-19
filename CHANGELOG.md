@@ -44,7 +44,7 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Messaging**: Messages in the app: one conversation per person, with shared listings, interests and proposals as cards in it; Go to chat and an Interested in tab on My Exchanges; blocking; read receipts with an overall and a per-chat setting; and an unopened count in the menu (`dd5656bc`, #308)
 - **Requests and Offers**: A listing's timeframe is typed: a preset, or a window of dates that validation checks ends after it is written, within 365 days, and does not start after it ends. A request or an offer can also publish an estimate of the task in hours, an exact decimal with zero allowed, and an amount it asks or offers in payment. This changes the request and offer entry formats, so it needs a network reset (closes #307, part of #370)
 - **Exchanges**: An agreement's timeframe is typed and checked as a listing's is, and a counter compares timeframes as values. This changes the `Agreement` entry format, inside the same reset. A proposal starts from the listing's estimate as written, its amount when it is in the medium chosen, and its timeframe while that can still be met (closes #525)
-- **hREA**: A Commitment's due date comes from the agreement's timeframe, counted from acceptance for a preset; a date hREA refuses costs the date, not the Commitment
+- **hREA**: A Commitment's due date comes from the agreement's timeframe, counted from acceptance for a preset, or a window's end, and is written with the Commitment in one write
 
 ### Security
 

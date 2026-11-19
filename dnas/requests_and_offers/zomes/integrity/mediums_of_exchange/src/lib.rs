@@ -1,4 +1,6 @@
 use hdi::prelude::*;
+use utils::grants::{check_act, Ability};
+use utils::errors::{invalid, CommonValidationError, MediumOfExchangeValidationError};
 
 mod medium_of_exchange;
 pub use medium_of_exchange::*;
@@ -37,11 +39,46 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
 /// `must_get_valid_record` trusts the record authority's verdict. A rule run
 /// on the entry op alone is never seen by the authority that answers for
 /// the record.
-fn validate_entry(app_entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
+fn validate_entry(
+  app_entry: EntryTypes,
+  author: &AgentPubKey,
+  is_update: bool,
+) -> ExternResult<ValidateCallbackResult> {
   match app_entry {
     EntryTypes::MediumOfExchange(medium_of_exchange) => {
-      validate_medium_of_exchange(medium_of_exchange)
+      let grant = medium_of_exchange.grant.clone();
+      match validate_medium_of_exchange(medium_of_exchange)? {
+        ValidateCallbackResult::Valid => {
+          validate_medium_of_exchange_grant(&grant, author, is_update)
+        }
+        invalid => Ok(invalid),
+      }
     }
+  }
+}
+
+/// Who may write a medium of exchange. An update needs an
+/// admin grant. A create needs an admin grant, or else a member grant: an
+/// accepted member suggests one, and it waits for an admin to approve it. A
+/// delete carries no entry, so no grant; `delete_medium_of_exchange` checks
+/// for an admin.
+fn validate_medium_of_exchange_grant(
+  grant: &Option<ActionHash>,
+  author: &AgentPubKey,
+  is_update: bool,
+) -> ExternResult<ValidateCallbackResult> {
+  if is_update {
+    return match check_act(grant, author, &Ability::Administer, &None)? {
+      Ok(_) => Ok(ValidateCallbackResult::Valid),
+      Err(reason) => invalid(MediumOfExchangeValidationError::ChangeIsRoleAct(reason.to_string())),
+    };
+  }
+  if check_act(grant, author, &Ability::Administer, &None)?.is_ok() {
+    return Ok(ValidateCallbackResult::Valid);
+  }
+  match check_act(grant, author, &Ability::Participate, &None)? {
+    Ok(_) => Ok(ValidateCallbackResult::Valid),
+    Err(reason) => invalid(MediumOfExchangeValidationError::CreateIsRoleAct(reason.to_string())),
   }
 }
 
@@ -63,14 +100,27 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
-      OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
-        return validate_entry(app_entry);
+      OpEntry::CreateEntry { app_entry, action } => {
+        return validate_entry(app_entry, action.author(), false);
+      }
+      OpEntry::UpdateEntry { app_entry, action, .. } => {
+        return validate_entry(app_entry, action.author(), true);
       }
       _ => (),
     },
+    // The same rules again for the authorities of the *original*: an update is
+    // also delivered, as its own op, to whoever holds the record it changes,
+    // and that authority never sees the record op below. Left to fall through,
+    // it would show an update whose own record authority had refused it.
+    FlatOp::Update(OpUpdate::Entry { app_entry, action }) => {
+      return validate_entry(app_entry, action.author(), true);
+    }
     FlatOp::CreateRecord(store_record) => match store_record {
-      OpRecord::CreateEntry { app_entry, .. } | OpRecord::UpdateEntry { app_entry, .. } => {
-        return validate_entry(app_entry);
+      OpRecord::CreateEntry { app_entry, action } => {
+        return validate_entry(app_entry, action.author(), false);
+      }
+      OpRecord::UpdateEntry { app_entry, action, .. } => {
+        return validate_entry(app_entry, action.author(), true);
       }
       OpRecord::DeleteEntry { action } => {
         let original_record = must_get_valid_record(action.deletes_address.clone())?;
@@ -78,9 +128,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           match TypedAction::<EntryCreationData>::try_from(original_record.action().clone()) {
             Ok(original_action) => original_action,
             Err(_) => {
-              return Ok(ValidateCallbackResult::Invalid(
-                "Original action for a delete must be a Create or Update action".to_string(),
-              ));
+              return invalid(CommonValidationError::DeleteOfNonCreation);
             }
           };
         let app_entry_type = match original_action.entry_type() {
@@ -93,9 +141,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           Some(entry) => entry,
           None => {
             if original_action.entry_type().visibility().is_public() {
-              return Ok(ValidateCallbackResult::Invalid(
-                "Original record for a delete of a public entry must contain an entry".to_string(),
-              ));
+              return invalid(CommonValidationError::DeletedPublicEntryMissing);
             } else {
               return Ok(ValidateCallbackResult::Valid);
             }
@@ -108,9 +154,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         )? {
           Some(app_entry) => app_entry,
           None => {
-            return Ok(ValidateCallbackResult::Invalid(
-              "Original app entry must be one of the defined entry types for this zome".to_string(),
-            ));
+            return invalid(CommonValidationError::UnknownAppEntry);
           }
         };
         match original_app_entry {
@@ -130,19 +174,13 @@ pub fn validate_medium_of_exchange(
   medium_of_exchange: MediumOfExchange,
 ) -> ExternResult<ValidateCallbackResult> {
   if medium_of_exchange.code.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "MediumOfExchange code cannot be empty".to_string(),
-    ));
+    return invalid(MediumOfExchangeValidationError::CodeEmpty);
   }
   if medium_of_exchange.name.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "MediumOfExchange name cannot be empty".to_string(),
-    ));
+    return invalid(MediumOfExchangeValidationError::NameEmpty);
   }
   if medium_of_exchange.exchange_type != "base" && medium_of_exchange.exchange_type != "currency" {
-    return Ok(ValidateCallbackResult::Invalid(
-      "MediumOfExchange exchange_type must be either 'base' or 'currency'".to_string(),
-    ));
+    return invalid(MediumOfExchangeValidationError::InvalidExchangeType);
   }
 
   Ok(ValidateCallbackResult::Valid)
@@ -155,7 +193,9 @@ mod record_op_tests {
   //! and `must_get_valid_record` asks the record authority. So every rule the
   //! entry op runs must give the same verdict on the record op.
   use hdi::prelude::*;
-  use utils::validation_harness::{create_ops, set_zome_types, update_ops};
+  use utils::validation_harness::{
+    create_ops, set_zome_types, update_op_for_the_original, update_ops,
+  };
 
   use crate::{validate, EntryTypes, LinkTypes, MediumOfExchange};
 
@@ -166,6 +206,20 @@ mod record_op_tests {
       description: None,
       exchange_type: "base".to_string(),
       resource_spec_hrea_id: None,
+      grant: None,
+    }
+    .try_into()
+    .unwrap()
+  }
+
+  fn ungranted_medium() -> SerializedBytes {
+    MediumOfExchange {
+      code: "HOURS".to_string(),
+      name: "Hours".to_string(),
+      description: None,
+      exchange_type: "base".to_string(),
+      resource_spec_hrea_id: None,
+      grant: None,
     }
     .try_into()
     .unwrap()
@@ -197,5 +251,42 @@ mod record_op_tests {
       ValidateCallbackResult::Invalid("MediumOfExchange code cannot be empty".into())
     );
     assert_eq!(record, entry);
+  }
+
+  #[test]
+  fn a_create_without_a_grant_is_refused_on_both_ops() {
+    let (entry, record) = verdicts(create_ops(0, ungranted_medium()));
+    assert_eq!(
+      entry,
+      ValidateCallbackResult::Invalid(
+        "Creating a medium of exchange is a role act: this write needs a grant for Participate"
+          .into()
+      )
+    );
+    assert_eq!(record, entry);
+  }
+
+  #[test]
+  fn an_update_without_a_grant_is_refused_on_both_ops() {
+    let (entry, record) = verdicts(update_ops(0, ungranted_medium()));
+    assert_eq!(
+      entry,
+      ValidateCallbackResult::Invalid(
+        "Changing a medium of exchange is a role act: this write needs a grant for Administer"
+          .into()
+      )
+    );
+    assert_eq!(record, entry);
+  }
+
+  /// Goes red if the `FlatOp::Update` arm is removed from `validate`.
+  #[test]
+  fn an_update_the_entry_op_refuses_is_refused_on_the_op_the_original_receives() {
+    set_zome_types(EntryTypes::ENUM_LEN, LinkTypes::ENUM_LEN);
+    let verdict = validate(update_op_for_the_original(0, codeless_medium())).unwrap();
+    assert_eq!(
+      verdict,
+      ValidateCallbackResult::Invalid("MediumOfExchange code cannot be empty".into())
+    );
   }
 }

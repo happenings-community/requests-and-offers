@@ -13,14 +13,14 @@ const service = {
   direction: 'Provide',
   resource_conforms_to: 'Web development',
   resource_kind: 'Service',
-  quantity: { value: 4, unit: 'hours' }
+  quantity: { value: '4', unit: 'hours' }
 };
 
 const currency = {
   direction: 'Receive',
   resource_conforms_to: 'CAD',
   resource_kind: 'Currency',
-  quantity: { value: 200, unit: 'CAD' }
+  quantity: { value: '200', unit: 'CAD' }
 };
 
 const agreement = {
@@ -55,7 +55,7 @@ describe('exchange term schema', () => {
       direction: 'Receive',
       resource_conforms_to: '',
       resource_kind: 'Gift',
-      quantity: { value: 1, unit: 'hours' }
+      quantity: { value: '1', unit: 'hours' }
     });
     expect(failure(result)).toContain('carries no quantity');
   });
@@ -81,12 +81,39 @@ describe('exchange term schema', () => {
   });
 
   it('refuses a quantity of zero', () => {
-    const result = decodeExchangeTerm({ ...service, quantity: { value: 0, unit: 'hours' } });
+    const result = decodeExchangeTerm({ ...service, quantity: { value: '0', unit: 'hours' } });
     expect(failure(result)).toContain('greater than zero');
   });
 
+  it('refuses a zero in any spelling', () => {
+    for (const zero of ['0.0', '0.000000']) {
+      const result = decodeExchangeTerm({ ...service, quantity: { value: zero, unit: 'hours' } });
+      expect(failure(result)).toContain('greater than zero');
+    }
+  });
+
+  it.each(['', '-1', '1e3', 'NaN', '.5', '5.', '01', '1,5', '1.1234567', '9999999999'])(
+    'refuses %j as not a plain number',
+    (bad) => {
+      const result = decodeExchangeTerm({ ...service, quantity: { value: bad, unit: 'hours' } });
+      expect(failure(result)).toContain('plain number');
+    }
+  );
+
+  it('refuses a float on the wire: a quantity is a decimal string', () => {
+    const result = decodeExchangeTerm({ ...service, quantity: { value: 2.5, unit: 'hours' } });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it('accepts exact decimals, trailing zeros included', () => {
+    for (const ok of ['2.50', '0.05', '0.000001', '999999999.999999']) {
+      const result = decodeExchangeTerm({ ...service, quantity: { value: ok, unit: 'hours' } });
+      expect(Either.isRight(result)).toBe(true);
+    }
+  });
+
   it('refuses a quantity with no unit', () => {
-    const result = decodeExchangeTerm({ ...service, quantity: { value: 2, unit: '' } });
+    const result = decodeExchangeTerm({ ...service, quantity: { value: '2', unit: '' } });
     expect(failure(result)).toContain('needs a unit');
   });
 });

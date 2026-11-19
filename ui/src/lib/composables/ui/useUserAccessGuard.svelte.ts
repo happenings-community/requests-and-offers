@@ -3,6 +3,7 @@ import usersStore from '$lib/stores/users.store.svelte';
 import administrationStore from '$lib/stores/administration.store.svelte';
 import { runEffect } from '$lib/utils/effect';
 import type { UIUser } from '$lib/types/ui';
+import { paths } from '$lib/paths';
 
 export type UserAccessStatus =
   | 'no-profile'
@@ -157,30 +158,34 @@ export function useUserAccessGuard(options: UseUserAccessGuardOptions = {}): Use
         actions.push(
           {
             label: 'Create Profile',
-            href: '/user/create',
+            href: paths.myProfileCreate(),
             variant: 'variant-filled-primary',
             primary: true
           },
-          { label: 'Browse Community', href: '/users', variant: 'variant-soft' }
+          { label: 'Browse Community', href: paths.users(), variant: 'variant-soft' }
         );
         break;
 
       case 'pending':
         actions.push(
           { label: 'Check Status', action: 'retry', variant: 'variant-soft' },
-          { label: 'View My Profile', href: '/user', variant: 'variant-soft' },
-          { label: 'Browse Community', href: '/users', variant: 'variant-soft' }
+          { label: 'View My Profile', href: paths.myProfile(), variant: 'variant-soft' },
+          { label: 'Browse Community', href: paths.users(), variant: 'variant-soft' }
         );
         break;
 
       case 'rejected':
       case 'suspended':
         actions.push(
-          { label: 'View My Profile', href: '/user', variant: 'variant-soft' },
-          { label: 'Browse Community', href: '/users', variant: 'variant-soft' }
+          { label: 'View My Profile', href: paths.myProfile(), variant: 'variant-soft' },
+          { label: 'Browse Community', href: paths.users(), variant: 'variant-soft' }
         );
         if (isAdmin) {
-          actions.push({ label: 'Admin Panel', href: '/admin', variant: 'variant-filled-warning' });
+          actions.push({
+            label: 'Admin Panel',
+            href: paths.admin(),
+            variant: 'variant-filled-warning'
+          });
         }
         break;
 

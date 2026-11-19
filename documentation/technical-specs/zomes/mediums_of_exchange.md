@@ -44,7 +44,8 @@ pub struct MediumOfExchange {
   - `description`: Optional field for detailed explanation.
   - `exchange_type`: Must be either "base" or "currency". Validated strictly.
   - `resource_spec_hrea_id`: Optional initially (for suggested state), set during approval.
-- **Updates/Deletes**: Only original author can update/delete entries (author validation enforced).
+- **Grant** (#378): a `MediumOfExchange` carries, in its `grant` field, the grant it rests on, held by its author. A create needs an admin grant, or else a member grant: an accepted member suggests a medium and it waits for an administrator. An update needs an admin grant. The rule runs on the entry op, the record op and the op an update's original receives. The coordinator sets the field; it is never taken from the client.
+- **Deletes**: a delete carries no entry, so no grant. `delete_medium_of_exchange` checks for an administrator in the coordinator; validation does not check a tombstone (see `documentation/architecture/validation.md`).
 
 ### 2.3. Link Types
 
@@ -162,7 +163,7 @@ Input/Output structs are defined in Rust for type safety and clarity.
   - **Returns**: `Some(Record)` if found, `None` otherwise.
 
 - **`get_latest_medium_of_exchange_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>>`**
-  - **Description**: Gets the latest version of a medium of exchange given the original action hash.
+  - **Description**: Gets the latest version of a medium of exchange given the original action hash, or any revision's, which it resolves to the chain root first (#229).
   - **Access Control**: Public.
   - **Returns**: Latest version `Record` or original if no updates.
 
@@ -217,12 +218,12 @@ Input/Output structs are defined in Rust for type safety and clarity.
 #### Cross-Entity Discovery Functions
 
 - **`get_requests_for_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternResult<Vec<Record>>`**
-  - **Description**: Retrieves all requests linked to a specific medium of exchange.
+  - **Description**: Retrieves all requests linked to a specific medium of exchange. A link whose record no longer reads is skipped, so one deleted listing does not fail the list.
   - **Access Control**: Public.
   - **Returns**: A vector of Request `Record`s.
 
 - **`get_offers_for_medium_of_exchange(medium_of_exchange_hash: ActionHash) -> ExternResult<Vec<Record>>`**
-  - **Description**: Retrieves all offers linked to a specific medium of exchange.
+  - **Description**: Retrieves all offers linked to a specific medium of exchange. A link whose record no longer reads is skipped, as for requests.
   - **Access Control**: Public.
   - **Returns**: A vector of Offer `Record`s.
 
@@ -317,7 +318,7 @@ Input/Output structs are defined in Rust for type safety and clarity.
 ### Validation Layers
 
 - **Entry Validation**: Field presence and format validation
-- **Permission Validation**: User role and acceptance status checks
+- **Permission Validation**: the grant a create or an update carries, checked by integrity validation (section 2.2); acceptance status and the operations in the matrix above, checked by the coordinator
 - **Business Logic Validation**: Exchange type restrictions and approval status verification
 - **Link Validation**: Only approved mediums can be linked to entities
 

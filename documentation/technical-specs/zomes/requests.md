@@ -158,11 +158,11 @@ During creation, the `requests_coordinator` zome must:
 pub fn get_latest_request_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>>
 ```
 
-Retrieves the latest record for a request, following any update links.
+Retrieves the latest record for a request, following any update links. A revision's hash is accepted too: the read resolves it to the chain root first, where the update links are. Asked with a revision, it used to return that revision as if it were the latest (#229).
 
 **Parameters:**
 
-- `original_action_hash`: The original action hash of the request
+- `original_action_hash`: The original action hash of the request, or any revision's
 
 **Returns:**
 
@@ -215,18 +215,18 @@ During an update, the `requests_coordinator` zome replaces the `RequestToService
 ### Delete Request
 
 ```rust
-pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<Record>
+pub fn delete_request(original_action_hash: ActionHash) -> ExternResult<bool>
 ```
 
-Deletes a request and all associated links, including `RequestToServiceType` links.
+Deletes a request, every revision of it, and all associated links: its place in the requests, member and organisation lists, the active and archived lists, and the service type and medium of exchange links, which each edit makes from its own revision. A revision's hash is accepted and walked back to the chain root first; if it cannot be, the delete fails rather than delete only what it was given. Before #229 a delete matched only the hash it was given and deleted only that record, so an edited request stayed in the active list and under its service type, and its other revisions could still be read.
 
 **Parameters:**
 
-- `original_action_hash`: The action hash of the request to delete
+- `original_action_hash`: The action hash of the request to delete, or any revision's
 
 **Returns:**
 
-- `Record`: The deleted request record
+- `bool`: `true` once deleted
 - `Error`: If deletion fails
 
 **Access Control:**
@@ -418,6 +418,7 @@ Retrieves the organization associated with a request, if any.
 - Description must be between 10 and 1000 characters. Supports markdown formatting (rendered on frontend with `marked` + `DOMPurify`).
 - Exactly one service type, `service_type_hash`, which must be approved. This holds by convention for now: the coordinator and the form require it, but integrity validation does not check it yet. Enforcing it in validation is tracked in #257 and lands with the Holochain 0.7 migration.
 - Links array must be present (can be empty).
+- **Grant** (#378). A request carries, in its `grant` field, the grant it rests on, held by its author. Posting one needs a member grant, which acceptance issues. Changing one needs its creator, who carries no grant, or an admin grant. The rule runs on the entry op, the record op and the op an update's original receives. The coordinator sets the field; it is never taken from the client. A tombstone carries no grant and is not checked by validation (see `documentation/architecture/validation.md`).
 
 ## Client Integration
 

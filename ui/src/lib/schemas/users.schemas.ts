@@ -26,7 +26,8 @@ export type OrganizationRole = S.Schema.Type<typeof OrganizationRoleSchema>;
 export const StatusInDHTSchema = S.Struct({
   status_type: StatusTypeSchema,
   reason: S.optional(S.String),
-  suspended_until: S.optional(S.String)
+  // A Holochain timestamp, in microseconds.
+  suspended_until: S.optional(S.NullOr(S.Number.pipe(S.int())))
 });
 export type StatusInDHT = S.Schema.Type<typeof StatusInDHTSchema>;
 

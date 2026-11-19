@@ -96,6 +96,7 @@ pub fn get_latest_user_record(original_action_hash: ActionHash) -> ExternResult<
 ```
 
 - Retrieves most recent profile record
+- Accepts a revision's hash too, resolving it to the chain root first (#229)
 - Follows update links
 - Returns optional record
 

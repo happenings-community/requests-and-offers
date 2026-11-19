@@ -1,6 +1,6 @@
 # Project Status
 
-This document reflects the current implementation state as of **v0.6.0-alpha.2 (2026-11-17)**.
+This document reflects the current implementation state as of **v0.6.0-alpha.2 (2026-11-18)**.
 For full change history, see [CHANGELOG.md](../CHANGELOG.md).
 
 **Current Phase: Alpha Testing** — Core MVP features are live; active bug triage underway from alpha user feedback.
@@ -19,11 +19,12 @@ Pattern established: `Context.Tag` services → Effect-native stores → `Schema
 ### Core Infrastructure
 
 **Holochain Backend (Rust):**
-- All 7 coordinator + integrity zome pairs in place
+- Holochain 0.7 (HDK 0.7.0, HDI 0.8.0)
+- 9 coordinator zomes and 7 integrity zomes: `messaging` and `misc` are coordinator-only
 - Progenitor pattern — secure designated network creator for trusted bootstrapping
 - Action hash type safety — compile-time distinct types preventing hash kind confusion
 - Active/Archived/Deleted listing status management across requests and offers
-- Sweettest integration tests (37 tests, all passing — replaced Tryorama in v0.5.0)
+- Sweettest integration tests (101 cases across 21 files, 5 of them under `administration/`; replaced Tryorama in v0.5.0)
 
 **Frontend (SvelteKit + Effect-TS):**
 - Svelte 5 Runes (`$state`, `$derived`, `$effect`) throughout
@@ -47,9 +48,12 @@ Pattern established: `Context.Tag` services → Effect-native stores → `Schema
 
 | Layer | Count | Status |
 |-------|-------|--------|
-| Backend (Sweettest / Rust) | 37 tests | All passing |
-| Frontend unit tests (Vitest) | ~367 tests across 22 files | All passing |
-| E2E / Playwright | Planned ([#10](https://github.com/happenings-community/requests-and-offers/issues/10)) | Not yet implemented |
+| Backend (Sweettest / Rust) | 101 cases across 21 files | Off the pull-request path: run with the `run:sweettest` label or the Heavy tests workflow |
+| Frontend unit tests (Vitest) | 934 tests across 68 files | All passing, on every pull request |
+| Frontend integration tests (Vitest) | 43 tests across 4 files | All passing |
+| E2E / Playwright | 11 specs, an ordered journey on one sandbox conductor ([#10](https://github.com/happenings-community/requests-and-offers/issues/10)) | Off the pull-request path: run with the `run:e2e` label or the Heavy tests workflow |
+
+How these counts were taken, so they can be refreshed: `grep -rhE '#\[(tokio::test|test)' tests/sweettest/tests | wc -l`, `cd ui && bun run test:unit` and `cd ui && bun run test:integration` (with `VITE_MOCK_BUTTONS_ENABLED` unset), and `ls ui/tests/e2e/specs`.
 
 ---
 
@@ -61,12 +65,7 @@ Bugs from alpha testing, ordered by priority. See the [project board](https://gi
 
 | Issue | Title | Status |
 |-------|-------|--------|
-| [#56](https://github.com/happenings-community/requests-and-offers/issues/56) | Status Table: only shows last 2 entries, requires page refresh | In progress |
 | [#158](https://github.com/happenings-community/requests-and-offers/issues/158) | Profile creation fails with 60s call_zome timeout | Ready |
-| [#133](https://github.com/happenings-community/requests-and-offers/issues/133) | Request form: Links and Organization optional fields don't persist on save | Ready |
-| [#134](https://github.com/happenings-community/requests-and-offers/issues/134) | Request update→navigate race triggers Wasm deserialize error | Ready |
-| [#115](https://github.com/happenings-community/requests-and-offers/issues/115) | Organisation not shown in Request or Offer listings | Backlog |
-| [#120](https://github.com/happenings-community/requests-and-offers/issues/120) | Organization Page — needs Edit button | Backlog |
 | [#127](https://github.com/happenings-community/requests-and-offers/issues/127) | Profile creation fails with CellDisabled conductor error | Backlog |
 | [#147](https://github.com/happenings-community/requests-and-offers/issues/147) | Alpha Test Step 2.5 — Fail | Backlog |
 
@@ -75,20 +74,15 @@ Bugs from alpha testing, ordered by priority. See the [project board](https://gi
 | Issue | Title | Status |
 |-------|-------|--------|
 | [#96](https://github.com/happenings-community/requests-and-offers/issues/96) | Profile — variable ability to see others' Request/Offer details | Ready |
-| [#136](https://github.com/happenings-community/requests-and-offers/issues/136) | Archive functionality inconsistent across listing views | Ready |
-| [#138](https://github.com/happenings-community/requests-and-offers/issues/138) | Connection status shows 'Connected' in airplane mode | Ready |
-| [#157](https://github.com/happenings-community/requests-and-offers/issues/157) | Timezone dropdown in profile form does not commit selection | Ready |
 | [#86](https://github.com/happenings-community/requests-and-offers/issues/86) | Request — Time Estimate field not included | Ready |
+
+Fixed since this page last listed them: #56, #133, #134, #115, #120, #136, #138 and #157.
 
 ---
 
 ## In Progress
 
-| Issue | Title | Priority |
-|-------|-------|----------|
-| [#1](https://github.com/happenings-community/requests-and-offers/issues/1) | hREA Entity Mapping: Proposals, Intents & Resource Specifications | P1 |
-| [#56](https://github.com/happenings-community/requests-and-offers/issues/56) | Status Table bug fix | P1 |
-| [#64](https://github.com/happenings-community/requests-and-offers/issues/64) | Epic: hREA Integration | P1 |
+The alpha 2 work is tracked on its milestone, [v0.6.0-alpha.2](https://github.com/happenings-community/requests-and-offers/milestone/17). The two hREA items this table used to list are closed: entity mapping ([#1](https://github.com/happenings-community/requests-and-offers/issues/1)) is done, and the hREA integration epic ([#64](https://github.com/happenings-community/requests-and-offers/issues/64)) was closed as not planned.
 
 ---
 
@@ -101,16 +95,8 @@ Items prioritized and ready to implement:
 | [#95](https://github.com/happenings-community/requests-and-offers/issues/95) | Network Creation & Joining UX (Kangaroo splash + QR invite) | M | P2 |
 | [#143](https://github.com/happenings-community/requests-and-offers/issues/143) | In-app version drift detection and non-breaking auto-update | L | P2 |
 | [#27](https://github.com/happenings-community/requests-and-offers/issues/27) | Role Management Utility Functions for Anchor-Based System | — | P3 |
-| [#155](https://github.com/happenings-community/requests-and-offers/issues/155) | Markdown toolbar scrolls to top after wrap action | XS | P3 |
 
-### Tests and Documentation Needed
-
-Implemented but missing tests or documentation:
-
-| Issue | Title |
-|-------|-------|
-| [#139](https://github.com/happenings-community/requests-and-offers/issues/139) | Profile — First Name and Last Name required fields |
-| [#55](https://github.com/happenings-community/requests-and-offers/issues/55) | Navigation: Alt+A keybinding for contextual admin/public page navigation |
+The markdown toolbar fix (#155), and the tests and documentation this page asked for on #139 and #55, are done and closed.
 
 ---
 
@@ -120,7 +106,6 @@ Large features deferred to upcoming milestones.
 
 | Issue | Title | Size | Priority |
 |-------|-------|------|----------|
-| [#1](https://github.com/happenings-community/requests-and-offers/issues/1) | hREA Entity Mapping completion | XL | P1 |
 | [#12](https://github.com/happenings-community/requests-and-offers/issues/12) | Real-time Signals integration | — | P2 |
 | [#91](https://github.com/happenings-community/requests-and-offers/issues/91) | Chat System: Conversation-First Messaging | XL | P1 |
 | [#51](https://github.com/happenings-community/requests-and-offers/issues/51) | Global Notification System | — | P2 |

@@ -1,5 +1,9 @@
 use hdi::prelude::*;
-use utils::{ContactPreference, DateRange, InteractionType, TimePreference, TimeZone};
+use utils::{
+  errors::{invalid, RequestValidationError},
+  grants::{check_act, check_author_or_act, Ability},
+  ContactPreference, DateRange, InteractionType, TimePreference, TimeZone,
+};
 
 /// Represents the status of a listing
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
@@ -39,39 +43,57 @@ pub struct Request {
   /// The status of the request (defaults to Active for backward compatibility)
   #[serde(default)]
   pub status: ListingStatus,
+  /// The grant this write rests on: a member grant held by the
+  /// author on a create; on an update, an admin grant when the author is not
+  /// the request's creator.
+  #[serde(default)]
+  pub grant: Option<ActionHash>,
 }
 
 /// Validates a request entry
 pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult> {
   // Validate title
   if request.title.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Request title cannot be empty".to_string(),
-    ));
+    return invalid(RequestValidationError::TitleEmpty);
   }
 
   // Validate description
   if request.description.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Request description cannot be empty".to_string(),
-    ));
+    return invalid(RequestValidationError::DescriptionEmpty);
   }
 
   // Validate description length (1000 character limit)
   if request.description.len() > 1000 {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Request description cannot exceed 1000 characters".to_string(),
-    ));
+    return invalid(RequestValidationError::DescriptionTooLong);
   }
 
   // Validate time_estimate_hours if present
   if let Some(time_estimate) = request.time_estimate_hours {
     if time_estimate <= 0.0 {
-      return Ok(ValidateCallbackResult::Invalid(
-        "Time estimate must be greater than zero".to_string(),
-      ));
+      return invalid(RequestValidationError::TimeEstimateNotPositive);
     }
   }
 
   Ok(ValidateCallbackResult::Valid)
+}
+
+/// The grant rule for a request, run after the field rules.
+/// A create needs a member grant held by the author. An update (`update` is the
+/// action it updates) needs the request's creator, or an admin grant.
+pub fn validate_request_grant(
+  grant: &Option<ActionHash>,
+  author: &AgentPubKey,
+  update: Option<&ActionHash>,
+) -> ExternResult<ValidateCallbackResult> {
+  let verdict = match update {
+    None => check_act(grant, author, &Ability::Participate, &None)?
+      .map(|_| ())
+      .map_err(|reason| RequestValidationError::PostIsRoleAct(reason.to_string())),
+    Some(original) => check_author_or_act(original, grant, author, &Ability::Administer, &None)?
+      .map_err(|reason| RequestValidationError::ChangeIsRoleAct(reason.to_string())),
+  };
+  match verdict {
+    Ok(()) => Ok(ValidateCallbackResult::Valid),
+    Err(reason) => invalid(reason),
+  }
 }

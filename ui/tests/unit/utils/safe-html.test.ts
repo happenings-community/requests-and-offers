@@ -85,3 +85,17 @@ describe('escapeHtml', () => {
     expect(div.textContent).toBe(`Hello ${name}`);
   });
 });
+
+/**
+ * **The sanitiser is a release with its known bypasses fixed.** DOMPurify cleans what
+ * members write before the app shows it, and members' text comes off the network. 3.3.1
+ * had several published cross-site scripting bypasses; 3.4.18 is the first release past
+ * all of them. This holds the floor, so a lockfile can't slip back under it.
+ */
+describe('the DOMPurify in use', () => {
+  it('is 3.4.18 or later', () => {
+    const [major, minor, patch] = DOMPurify.version.split('.').map(Number);
+    expect(major).toBe(3);
+    expect(minor * 1000 + patch).toBeGreaterThanOrEqual(4 * 1000 + 18);
+  });
+});

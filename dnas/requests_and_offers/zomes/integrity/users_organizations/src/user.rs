@@ -2,7 +2,10 @@ use std::{fmt::Display, str::FromStr};
 
 use email_address::EmailAddress;
 use hdi::prelude::*;
-use utils::{errors::CommonError, is_image};
+use utils::{
+  errors::{invalid, UserValidationError},
+  is_image,
+};
 
 /// Represents a user Entry with various attributes such as name, nickname, bio, etc.
 #[hdk_entry_helper]
@@ -56,31 +59,24 @@ impl FromStr for AllowedTypes {
 
 pub fn validate_user(user: User) -> ExternResult<ValidateCallbackResult> {
   if user.name.trim().is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "User name cannot be empty",
-    )));
+    return invalid(UserValidationError::NameEmpty);
   }
 
   if AllowedTypes::from_str(user.user_type.as_str()).is_err() {
-    return Ok(ValidateCallbackResult::Invalid(format!(
-      "User Type must be '{}' or '{}'.",
-      AllowedTypes::Advocate,
-      AllowedTypes::Creator,
-    )));
+    return invalid(UserValidationError::InvalidUserType(
+      AllowedTypes::Advocate.to_string(),
+      AllowedTypes::Creator.to_string(),
+    ));
   };
 
   if let Some(bytes) = user.picture {
     if !is_image(bytes) {
-      return Ok(ValidateCallbackResult::Invalid(String::from(
-        "User picture must be a valid image",
-      )));
+      return invalid(UserValidationError::PictureInvalid);
     }
   }
 
   if !EmailAddress::is_valid(user.email.trim()) {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "Email is not valid",
-    )));
+    return invalid(UserValidationError::EmailInvalid);
   }
 
   Ok(ValidateCallbackResult::Valid)
@@ -91,37 +87,24 @@ pub fn validate_delete_user(
   _original_action: TypedAction<EntryCreationData>,
   _original_user: User,
 ) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Invalid(String::from(
-    "User profile cannot be deleted",
-  )))
+  invalid(UserValidationError::DeleteRefused)
 }
 
+/// A `UserUpdates` link runs from a User's original record to an update in its
+/// chain, and is written by that update's author (`validate_update_link`).
 pub fn validate_create_link_user_updates(
-  _action: TypedAction<CreateLinkData>,
-  base_address: AnyLinkableHash,
-  target_address: AnyLinkableHash,
-  _tag: LinkTag,
+  link_author: &AgentPubKey,
+  base_address: &AnyLinkableHash,
+  target_address: &AnyLinkableHash,
 ) -> ExternResult<ValidateCallbackResult> {
-  let action_hash = base_address
-    .into_action_hash()
-    .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
-  let record = must_get_valid_record(action_hash)?;
-  let _user: User = record
-    .entry()
-    .to_app_option()
-    .map_err(CommonError::Serialize)?
-    .ok_or(CommonError::EntryNotFound("user".to_string()))?;
-  // Check the entry type for the given action hash
-  let action_hash = target_address
-    .into_action_hash()
-    .ok_or(CommonError::ActionHashNotFound("user".to_string()))?;
-  let record = must_get_valid_record(action_hash)?;
-  let _user: User = record
-    .entry()
-    .to_app_option()
-    .map_err(CommonError::Serialize)?
-    .ok_or(CommonError::EntryNotFound("user".to_string()))?;
-  Ok(ValidateCallbackResult::Valid)
+  crate::validate_update_link(
+    link_author,
+    base_address,
+    target_address,
+    |entry| matches!(entry, crate::EntryTypes::User(_)),
+    "a UserUpdates",
+    "a User",
+  )
 }
 
 pub fn validate_delete_link_user_updates(
@@ -131,7 +114,5 @@ pub fn validate_delete_link_user_updates(
   _target: AnyLinkableHash,
   _tag: LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Invalid(String::from(
-    "UserUpdates links cannot be deleted",
-  )))
+  invalid(UserValidationError::UpdatesLinkDeleteRefused)
 }

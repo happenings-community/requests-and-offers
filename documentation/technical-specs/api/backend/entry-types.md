@@ -268,48 +268,25 @@ pub struct UserSuspension {
 
 ### Field Validation
 
+Every refusal is a variant of a per-domain validation enum in `utils/src/errors.rs`, given through `invalid`, never a string written at the call site (`CLAUDE.md`, Zome errors). The variant's text is what peers, tests and the interface read, and `validation_reason_tests` pins each one.
+
 ```rust
-// Example validation for ServiceType
-pub fn validate_service_type(service_type: &ServiceType) -> ExternResult<ValidateCallbackResult> {
-    // Name validation
-    if service_type.name.trim().is_empty() {
-        return Ok(ValidateCallbackResult::Invalid("Name cannot be empty".to_string()));
-    }
+// zomes/integrity/service_types/src/lib.rs
+pub fn validate_service_type(service_type: ServiceType) -> ExternResult<ValidateCallbackResult> {
+  if service_type.name.is_empty() {
+    return invalid(ServiceTypeValidationError::NameEmpty);
+  }
+  if service_type.description.is_empty() {
+    return invalid(ServiceTypeValidationError::DescriptionEmpty);
+  }
 
-    if service_type.name.len() > 100 {
-        return Ok(ValidateCallbackResult::Invalid("Name too long".to_string()));
-    }
-
-    // Description validation
-    if service_type.description.trim().is_empty() {
-        return Ok(ValidateCallbackResult::Invalid("Description cannot be empty".to_string()));
-    }
-
-    // Tags validation
-    if service_type.tags.is_empty() {
-        return Ok(ValidateCallbackResult::Invalid("At least one tag required".to_string()));
-    }
-
-    Ok(ValidateCallbackResult::Valid)
+  Ok(ValidateCallbackResult::Valid)
 }
 ```
 
-### Status Transition Validation
+### Status Validation
 
-```rust
-pub fn validate_status_transition(
-    old_status: &EntityStatus,
-    new_status: &EntityStatus
-) -> ExternResult<ValidateCallbackResult> {
-    match (old_status, new_status) {
-        (EntityStatus::Pending, EntityStatus::Approved) => Ok(ValidateCallbackResult::Valid),
-        (EntityStatus::Pending, EntityStatus::Rejected) => Ok(ValidateCallbackResult::Valid),
-        (EntityStatus::Approved, EntityStatus::Rejected) => Ok(ValidateCallbackResult::Valid),
-        (EntityStatus::Rejected, EntityStatus::Approved) => Ok(ValidateCallbackResult::Valid),
-        _ => Ok(ValidateCallbackResult::Invalid("Invalid status transition".to_string())),
-    }
-}
-```
+A status is a string checked against the known `StatusType`s, and a change of status is a role act that carries an admin or steward grant. See `technical-specs/zomes/administration.md` for the rules and `StatusValidationError` for their texts.
 
 ## Entry Relationships
 

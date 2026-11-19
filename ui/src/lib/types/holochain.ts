@@ -25,7 +25,8 @@ export type UserInDHT = {
 export type StatusInDHT = {
   status_type: StatusType;
   reason?: string;
-  suspended_until?: string;
+  /** When a temporary suspension ends: a Holochain timestamp, in microseconds. */
+  suspended_until?: number | null;
 };
 
 export type OrganizationInDHT = {
@@ -150,8 +151,14 @@ export type ListingType = 'Request' | 'Offer';
 export type ExchangeDirection = 'Provide' | 'Receive';
 export type ResourceKind = 'Service' | 'Currency' | 'Gift' | 'Tbd';
 
+/**
+ * An amount in a unit. `value` is a decimal string such as "12.50", never a
+ * float: see `$lib/utils/decimal` for the accepted spelling and the exact
+ * comparison, and `decimal_problem` in the exchanges integrity zome for the rule
+ * that validates it.
+ */
 export type ExchangeQuantity = {
-  value: number;
+  value: string;
   unit: string;
 };
 
@@ -213,6 +220,24 @@ export type CancellationInDHT = {
   note: string;
 };
 
+/**
+ * Every exchange status, in one place.
+ *
+ * The list exists so the places where status actually decides something — what a card
+ * says, and whose turn it is — can switch over it exhaustively with a `never` check, and
+ * fail to compile when a status is added. Keeping separate lists of "terminal" states
+ * beside each of them is how one gets forgotten.
+ */
+export const EXCHANGE_STATUSES = [
+  'Proposed',
+  'Agreed',
+  'OneSideDone',
+  'Complete',
+  'Reviewed',
+  'Declined',
+  'Cancelled'
+] as const;
+
 export type ExchangeStatus =
   | 'Proposed'
   | 'Agreed'
@@ -239,8 +264,8 @@ export type ExchangeReadModel = {
 /** The payload of `counter_agreement`: the proposal and the three things a counter may change. */
 export type CounterAgreementInput = {
   agreement: ActionHash;
-  primary_quantity: { value: number; unit: string } | null;
-  reciprocal_quantity: { value: number; unit: string } | null;
+  primary_quantity: ExchangeQuantity | null;
+  reciprocal_quantity: ExchangeQuantity | null;
   delivery_timeframe: string;
 };
 

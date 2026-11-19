@@ -24,13 +24,14 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Holochain**: The hApp moves to Holochain 0.7 and hREA `happ-0.5.0-beta.1` (`a2c5fd40`, #295, closes #192)
 - **hREA**: The GraphQL adapter `0.700.0-rc.0` is vendored as a release tarball until npm serves it (`3282e649`, #317, closes #316), and `hrea.dna` is pinned by sha256 so a pin bump reaches existing clones (`e15b0e2a`, #290, closes #223)
 - **hREA**: The GraphQL adapter is installed from npm and the vendored tarball is gone (`04aeee0d`, #455)
-- **Zomes**: chrono moves from 0.3 to 0.4, riding the alpha 2 network reset (`bac79cf4`, #366, closes #305)
+- **Zomes**: chrono moves from 0.3 to 0.4 before the network reset, which changes the DNA hash (`bac79cf4`, #366, closes #305)
 
 ### Features
 
 - **hREA**: Listings, exchanges and their completion are mirrored into hREA end to end (`30a7b7b6`, #255); the exchange record stays as it is for alpha 2, with no migration (`a83fda1b`, #402, closes #250)
 - **Requests and Offers**: A listing names exactly one service type, and needs an approved service type before it can be published. Several services in one exchange belong on the agreement, as separate commitments. Not yet enforced in validation; tracked in #257 (`4992fb30`, #256)
 - **Exchanges**: Either party may mark their part done first (`de9f2410`, #259)
+- **Exchanges**: A quantity is an exact decimal string (`"12.50"`), not a float, in the zome and in the UI; validation refuses malformed values and a counter compares amounts as numbers. This changes the `Agreement` entry format, inside the alpha 2 network reset; hREA still receives a number, converted at one place until h-REA/hREA#382 lands (`093e56d7`, #475)
 - **Exchanges**: A counter-proposal changes only quantities and timeframe (`d81bc7d3`, #341, closes #332)
 - **Exchanges**: A counter records the proposal it answers and the decline that closed it, as the next action on its author's chain, enforced by validation; an `AgreementCounters` link lets the rounds be read forwards (`dea6bf01`, #343, part of #333)
 - **Exchanges**: My Exchanges shows a negotiation as one card, with Group by and an All card (`89ca159a`, #345, closes #333)
@@ -40,15 +41,15 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Network**: `get_network_info` names the DNA's integrity zomes (`219978e3`, #320)
 - **Exchanges**: The interest dialog says "Get in touch", invites an introduction before a proposal, and closes with × (`d481f448`, #419, closes #368)
 - **hREA**: Each completion's EconomicEvent fulfills its side's Commitment, so hREA records which promise a delivery kept (`04692616`, #439)
-- **Development**: `bun start:web` runs the app in browser tabs, one URL per member, with Vite's hot reload (`1047000b`, #423); a reload on any route keeps the member's connection (`baf1d05c`, #430); `bun start` and `bun start:web` also open a graph inspector of every member's conductor (`583dac09`, #434)
+- **Development**: `bun start:web` runs the app in browser tabs, one URL per member, with Vite's hot reload (`1047000b`, #423); a reload on any route keeps the member's connection (`baf1d05c`, #430); `bun start` and `bun start:web` also open a graph inspector of every member's conductor (`583dac09`, #434), whose graph is clustered and fits itself (`d5be3152`, #474)
 - **hREA**: A cancelled exchange ends its hREA Commitments (`984944a6`, #444)
 - **Administration**: An hREA dashboard audits the mirror against R&O (`73416bff`, #421)
 - **Administration**: The progenitor is told to accept their own membership (`480a2fd9`, #361, closes #358)
-- **Messaging**: An encrypted inbox: messages are stored encrypted on the shared DNA and linked from the recipient's agent key, with blocking, read markers and technical reports; sender, recipient and timing are public for the life of the network, the content is private (`931311e2`, #301)
-- **Messaging**: Messages to a role, such as the administrators, open cases that any holder of the role can claim (`5ee9f1bd`, #304)
-- **Messaging**: A message carries its author's member grant, checked by validation as every other role-gated write (`a677c286`, #412, part of #234)
-- **Messaging**: Message state: send ids, read state kept off the chain, and read receipts sent as signals (`b3084fe4`, #364)
-- **Messaging**: Conversations in the interface, with message cards and proposals started from a listing (`dd5656bc`, #308)
+- **Administration**: Roles are grants the network validates: a `RoleGrant` gives one agent one role in one scope, a `RoleRevocation` withdraws it, and adding or removing an administrator and changing a status carry the grant they rest on (`06c391bd`, #377)
+- **Messaging**: Members have an encrypted inbox: a message's content is encrypted to each recipient's key; who wrote to whom, and when, stays public for the life of the network. A member must be accepted to send, and only an administrator may write to a member not yet accepted (`931311e2`, #301)
+- **Messaging**: A message to the administrator role reaches every administrator, who work it together as a case (claim, release, hand over, note, complete, reopen). There is no interface for cases yet (`5ee9f1bd`, #304)
+- **Messaging**: Read state and blocks live in the member's own app, not on the chain, and read receipts travel as signals, never stored (`b3084fe4`, #364)
+- **Messaging**: Messages in the app: one conversation per person, with shared listings, interests and proposals as cards in it; Go to chat and an Interested in tab on My Exchanges; blocking; read receipts with an overall and a per-chat setting; and an unopened count in the menu (`dd5656bc`, #308)
 
 ### Security
 
@@ -57,8 +58,11 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **UI**: A typed link opens only when it is a web address (`9ce13eac`, #382), inside rendered markdown too (`551f157f`, #312)
 - **Build**: Faker and the mock data stay out of the production build (`cae758a7`, #365, part of #363)
 - **Users**: Validation decides who may write `UserAgents` and `MyUser` links: only a User's author links agents to it, only to their own key, and `MyUser` runs from the author's key to the author's User (`11bcf7a4`, #473)
-- **Administration**: A role is held through a chain of grants: a `RoleGrant` names one agent, one role and one scope, signed by the progenitor key for the first administrators or authorised by its writer's own grant; a `RoleRevocation` withdraws one, read-side (`06c391bd`, #377, part of #234)
-- **Validation**: Every role-gated write carries the grant it rests on and its validator checks it: requests, offers, interests and agreements need a member grant, service types and mediums of exchange an admin grant (a member grant for a suggestion), and the author-only rules nothing routed to are gone (`c3db8659`, #378, part of #234)
+- **Validation**: Every role-gated write outside the administration zome carries the grant it rests on, and the network refuses an act by anyone never given the role. Requests, offers, interests and agreements need the author's member grant, and an organisation is updated by its creator, a coordinator of it, or an administrator. On a network with no progenitor key, as alpha 2 is (#466), validation accepts a root grant from any author, so a modified client can still grant itself a role (`c3db8659`, #378)
+- **Messaging**: A message carries its author's member grant, and validation refuses one that does not. On a network with no progenitor key, as alpha 2 is (#466), a modified client can write itself a root grant and so a member grant (`a677c286`, #412); validation refuses a ciphertext over 3,840 bytes, inside the 3,959 a recipient's keystore can open (`20c05eee`, #488)
+- **Messaging**: A message to a role goes to the agents its live grants name, so a revoked administrator, an emptied roster or a roster link written by a modified client no longer changes who receives it (`c1784a45`, #520, closes #518)
+- **Administration**: A temporary suspension's end is a timestamp that validation checks is after its writing; it was text nothing checked, and a malformed one made every later read of that status fail. This changes the Status entry format, so it needs a network reset (`e8b51aac`, #528)
+- **UI**: DOMPurify, which cleans members' markdown, moves to 3.4.18, past the bypasses published against 3.3.1 (`93444f3e`, #530)
 
 ### Bug Fixes
 
@@ -83,10 +87,12 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Users**: A blocked member is told about their status, not about a missing profile (`a47b8d8d`, #392)
 - **UI**: The loading screen gives an honest first-start wait (`9b2f5946`, #469)
 - **Exchanges**: A withdrawn proposal can no longer be accepted or declined (`fc50275f`, #485)
-- **Requests and Offers**: A revision's hash reads the latest version, and a delete removes the whole listing (`dbd42041`, #487, closes #229)
-- **Exchanges**: A member holds one live interest per listing, enforced by validation reading the author's chain back to their profile (`ed628e2e`, #362, with #492)
-- **Messaging**: A message fits what Lair can carry, and a refusal from Holochain 0.7 is shown as a refusal (`20c05eee`, #488)
+- **Zomes**: Given a revision's hash, the seven latest-record reads return the latest version, and deleting an edited listing removes the whole listing, from the active and archived lists too (`dbd42041`, #487, closes #229)
+- **Exchanges**: A member holds one live interest per listing, enforced by validation; a withdrawn interest does not count (`ed628e2e`, #362 with #492, closes #354)
+- **Messaging**: A message is limited to 3 KiB, what the keystore can encrypt, and under Holochain 0.7 a refusal from the zome is shown as a refusal again, rather than waiting in the outbox (`20c05eee`, #488)
 - **UI**: A chip's text wraps inside its background instead of running past it (`415dd056`, #515)
+- **UI**: Each nav bar's status dot opens its own network details, on the admin pages too (`7db2b546`, #522)
+- **Administration**: The admin Users page moves a member between its lists as soon as a status is written, without a reload, and Retry Loading loads again after a failed load (`960e289e`, #524)
 
 ### Performance
 
@@ -96,6 +102,7 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 ### Refactoring
 
 - **Exchanges**: The domain lands on the seven-layer architecture (`3950bf84`, #264, closes #251)
+- **Validation**: Every `Invalid` reason comes from a per-domain enum, and `invalid()` and `verdict()` take only a `ValidationReason`, a sealed trait those enums implement, so a reason can no longer be a free string; the wording of every reason is unchanged, and the DNA hash changes inside the alpha 2 reset (`b250479e`, #476)
 
 ### Documentation
 
@@ -104,16 +111,21 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Contributing**: The review rules are written down (`d852be25`, #293, closes #225)
 - **Release**: The announcement is gated on a launched packaged build (`162ca5e4`, #271); a discussion form for release feedback (`d110f10b`, #294); the Homebrew cask is installed by full name for tap trust (`14666074`, #267); production checks: never on a Friday, the built app run before the tag, two peers checked before announcing (`f71f5aa4`, #447, part of #276)
 - **Zome errors**: Zome errors come from `utils/src/errors.rs`, written down as a rule in `CLAUDE.md` (`23825ddc`, #472)
-- **Progenitor**: A desktop release runs in development mode; what that mode protects, what it does not, and the first-admin practice (`ca31467f`, #466)
-- **Sync**: The documentation matches the alpha 2 code, with the pages that stay out of date until alpha 3 flagged (`72098ffe`, #477), the status page matches the alpha 2 tree (`725fe638`, #489), and the README's roadmap names what shipped, what is in progress and what comes later (`e65039c4`, #501), part of #415
 - **Installation**: The Kangaroo desktop app does not set the progenitor key, so a new desktop network runs in development mode and its first profile becomes admin (`8ad45332`, #445)
 - **Development**: The inspector's adapter contract, packaging options and a Nondominium trial (`15d069e8`, #446); the guides follow what `bun start` and `bun start:web` now launch, and the ports they take (`ff26c178`, #449)
+- **Installation**: A desktop release runs in development mode: what that protects, what it does not, and the first-admin practice (`ca31467f`, #466)
+- **Sync**: The documentation matches the alpha 2 code, with the pages that stay out of date until alpha 3 flagged (`72098ffe`, #477, part of #415)
+- **Status**: The status page matches the alpha 2 tree (`725fe638`, #489, part of #415)
+- **README**: The roadmap names what shipped, what is in progress and what comes later (`e65039c4`, #501)
+- **Messaging**: The notes from the stack reviews, and that a block holds on this device only (`bd2b0d60`, #519)
+- **Validation**: The validation guide says what the sealed trait holds, and three examples written before #476 are updated (`8e187dd1`, #531)
 
 ### CI and Testing
 
 - **CI**: The fast checks run on every pull request and the heavy suites on demand (`bcd17fa4`, #262); the zome crates' own unit tests run (`6f798a2c`, #272); runners are pinned to ubuntu-24.04 with actions on Node 24 (`a201e5d2`, #282); `impl-issue-status` points at the In Review column (`feaa65e7`, #313)
 - **Release**: A tag-triggered release chain with a gated build (`120ea83b`, #277)
 - **Sweettest**: The scripts are fixed and `link_canonicalisation` runs in CI (`c9967fd4`, #298, closes #297)
+- **Messaging**: A member put on the administrator roster by a modified client is sent no case, red on the code before #520 (`bedac6e1`, #523)
 - **Exchanges**: The derived state and the exchange UI predicates are pinned by tests (`8ce42848`, #258)
 - **Lint**: ESLint errors cleared in the files no open pull request touches (`922aeb07`, #450); the contrast test also reads Skeleton token pairs (`ab1a9419`, #448)
 - **E2E**: The test conductor runs on its own network (`9b2d8b24`, #372); the onboarding connection probes can go red (`5ad458df`, #314, closes #252); the organisation is re-read after the update toast (`5fcdc272`, #275, closes #274); the offer form test accepts either Medium of Exchange heading (`5fed7656`, #470)

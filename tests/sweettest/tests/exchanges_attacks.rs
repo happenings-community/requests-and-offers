@@ -22,7 +22,7 @@ use serde_json::json;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 struct Quantity {
-    value: f64,
+    value: String,
     unit: String,
 }
 
@@ -54,6 +54,8 @@ struct Agreement {
     terms: String,
     delivery_timeframe: String,
     counters: Option<Countering>,
+    /// The member grant the write rests on (the grants stack, #378).
+    grant: Option<ActionHash>,
 }
 holochain_serialized_bytes::holochain_serial!(Agreement);
 
@@ -62,6 +64,15 @@ struct Response {
     agreement: ActionHash,
     accepted: bool,
     note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct Interest {
+    listing: ActionHash,
+    listing_type: String,
+    user: ActionHash,
+    /// The member grant the interest rests on (the grants stack, #378).
+    grant: Option<ActionHash>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -98,6 +109,11 @@ struct World {
     service_type: ActionHash,
     offer: ActionHash,
     interest: ActionHash,
+    /// Each member's grant, which a write through the probe must carry: an
+    /// agreement is a role act (#378) before it is anything else.
+    alice_grant: ActionHash,
+    bob_grant: ActionHash,
+    carol_grant: ActionHash,
 }
 
 impl World {
@@ -122,13 +138,13 @@ impl World {
                         "direction": "Provide",
                         "resource_conforms_to": "Web design",
                         "resource_kind": "Service",
-                        "quantity": { "value": 2.0, "unit": "h" }
+                        "quantity": { "value": "2", "unit": "h" }
                     },
                     "reciprocal": {
                         "direction": "Receive",
                         "resource_conforms_to": "Time bank hours",
                         "resource_kind": "Currency",
-                        "quantity": { "value": 2.0, "unit": "Time bank hours" }
+                        "quantity": { "value": "2", "unit": "Time bank hours" }
                     },
                     "medium": "Time bank hours",
                     "terms": "Two hours over a call.",
@@ -168,6 +184,22 @@ async fn member_hash(conductor: &SweetConductor, cell: &SweetCell) -> ActionHash
         .call(&cell.zome("users_organizations"), "get_agent_user", cell.agent_pubkey().clone())
         .await;
     links[0].target.clone().into_action_hash().unwrap()
+}
+
+/// The agent's live member grant, as issued on acceptance.
+async fn member_grant(conductor: &SweetConductor, cell: &SweetCell) -> ActionHash {
+    let records: Vec<Record> = conductor
+        .call(&cell.zome("administration"), "get_agent_grants", cell.agent_pubkey().clone())
+        .await;
+    records
+        .into_iter()
+        .find(|r| {
+            let grant: RoleGrant = r.entry().to_app_option().unwrap().expect("a grant entry");
+            grant.role == "member"
+        })
+        .expect("an accepted member holds a member grant")
+        .action_address()
+        .clone()
 }
 
 async fn world() -> World {
@@ -214,13 +246,19 @@ async fn world() -> World {
     let interest = interest.signed_action.hashed.hash.clone();
     await_consistency_s(30, [&alice, &bob, &carol]).await.unwrap();
 
-    World { conductors, alice, bob, carol, service_type, offer, interest }
+    let alice_grant = member_grant(&conductors[0], &alice).await;
+    let bob_grant = member_grant(&conductors[1], &bob).await;
+    let carol_grant = member_grant(&conductors[2], &carol).await;
+
+    World { conductors, alice, bob, carol, service_type, offer, interest, alice_grant, bob_grant, carol_grant }
 }
 
 /// A valid counter of `proposal`: the same terms with a new timeframe, naming
 /// the proposal. The probe fills in the decline.
-fn counter_of(countered: &ActionHash, proposal: &Agreement) -> Agreement {
+/// A counter of `countered`, written by the member holding `grant`.
+fn counter_of(countered: &ActionHash, proposal: &Agreement, grant: &ActionHash) -> Agreement {
     let mut counter = proposal.clone();
+    counter.grant = Some(grant.clone());
     // The proposal's author becomes the counterparty of the counter.
     counter.counterparty = if proposal.counterparty == proposal.provider {
         proposal.receiver.clone()
@@ -295,7 +333,7 @@ async fn only_the_recipient_may_counter() {
             "probe_decline_then_counter",
             ProbeDeclineThenCounter {
                 decline: decline_of(&p),
-                counter: counter_of(&p, &proposal),
+                counter: counter_of(&p, &proposal, &w.alice_grant),
                 gap: false,
             },
         )
@@ -310,7 +348,7 @@ async fn only_the_recipient_may_counter() {
             "probe_decline_then_counter",
             ProbeDeclineThenCounter {
                 decline: decline_of(&p),
-                counter: counter_of(&p, &proposal),
+                counter: counter_of(&p, &proposal, &w.carol_grant),
                 gap: false,
             },
         )
@@ -320,7 +358,7 @@ async fn only_the_recipient_may_counter() {
 
     // Alice writing a counter entry alone, with no decline of her own: the
     // counter names a decline that is not a response.
-    let mut forged = counter_of(&p, &proposal);
+    let mut forged = counter_of(&p, &proposal, &w.alice_grant);
     // Written by Alice, so Bob is the other party: everything about it is
     // valid except who wrote it, which is the rule under test.
     forged.counterparty = proposal.counterparty.clone();
@@ -332,9 +370,46 @@ async fn only_the_recipient_may_counter() {
     refused(alone, "only the member a proposal was sent to may counter it", "a counter by the author");
 
     // Control: Bob, the recipient, through the same probe.
-    w.bob_decline_then_counter(&p, counter_of(&p, &proposal), false)
+    w.bob_decline_then_counter(&p, counter_of(&p, &proposal, &w.bob_grant), false)
         .await
         .expect("a valid counter through the probe is accepted");
+}
+
+// ---------------------------------------------------------------------------
+// The grant an agreement rests on
+// ---------------------------------------------------------------------------
+
+/// An agreement carries the member grant its author holds (#378). Bob, the
+/// right member to counter, sends a counter that is valid in every other way
+/// with no grant, then with Alice's. Both are refused for the grant; the same
+/// counter with his own is accepted.
+///
+/// **To make this go red:** remove the `check_act` call from
+/// `validate_agreement` in `exchanges_integrity/src/lib.rs`. Both forgeries
+/// are then written.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_agreement_carries_the_member_grant_its_author_holds() {
+    let w = world().await;
+    let (p, proposal) = w.propose().await;
+
+    let mut no_grant = counter_of(&p, &proposal, &w.bob_grant);
+    no_grant.grant = None;
+    refused(
+        w.bob_decline_then_counter(&p, no_grant, false).await,
+        "an agreement is a role act: this write needs a grant for Participate",
+        "a counter with no grant",
+    );
+
+    refused(
+        w.bob_decline_then_counter(&p, counter_of(&p, &proposal, &w.alice_grant), false).await,
+        "an agreement is a role act: the grant carried is held by someone else",
+        "a counter with Alice's grant",
+    );
+
+    // Control: the same counter with Bob's own grant.
+    w.bob_decline_then_counter(&p, counter_of(&p, &proposal, &w.bob_grant), false)
+        .await
+        .expect("a counter with its author's member grant is accepted");
 }
 
 // ---------------------------------------------------------------------------
@@ -355,7 +430,7 @@ async fn a_counter_carries_its_own_decline() {
             "probe_decline_then_counter",
             ProbeDeclineThenCounter {
                 decline: decline_of(&other),
-                counter: counter_of(&p, &proposal),
+                counter: counter_of(&p, &proposal, &w.bob_grant),
                 gap: false,
             },
         )
@@ -370,7 +445,7 @@ async fn a_counter_carries_its_own_decline() {
             "probe_decline_then_counter",
             ProbeDeclineThenCounter {
                 decline: Response { agreement: p.clone(), accepted: true, note: String::new() },
-                counter: counter_of(&p, &proposal),
+                counter: counter_of(&p, &proposal, &w.bob_grant),
                 gap: false,
             },
         )
@@ -379,7 +454,7 @@ async fn a_counter_carries_its_own_decline() {
     refused(accepting, "must decline the proposal", "an acceptance backing a counter");
 
     // The decline must be a response at all: here it names the interest.
-    let mut not_a_response = counter_of(&p, &proposal);
+    let mut not_a_response = counter_of(&p, &proposal, &w.bob_grant);
     not_a_response.counters = Some(Countering { agreement: p.clone(), decline: w.interest.clone() });
     let r = w.conductors[1]
         .call_fallible::<_, ActionHash>(&w.bob.zome("exchanges_probe"), "probe_create_agreement", not_a_response)
@@ -388,11 +463,11 @@ async fn a_counter_carries_its_own_decline() {
     assert!(r.is_err(), "a counter naming something that is not a response must be refused");
 
     // The counter must come immediately after the decline on Bob's chain.
-    let gap = w.bob_decline_then_counter(&p, counter_of(&p, &proposal), true).await;
+    let gap = w.bob_decline_then_counter(&p, counter_of(&p, &proposal, &w.bob_grant), true).await;
     refused(gap, "immediately after its decline", "a counter written after another action");
 
     // Control.
-    w.bob_decline_then_counter(&p, counter_of(&p, &proposal), false)
+    w.bob_decline_then_counter(&p, counter_of(&p, &proposal, &w.bob_grant), false)
         .await
         .expect("a valid counter through the probe is accepted");
 }
@@ -413,8 +488,8 @@ async fn a_negotiation_cannot_be_forked() {
             "counter_agreement",
             json!({
                 "agreement": p,
-                "primary_quantity": { "value": 3.0, "unit": "h" },
-                "reciprocal_quantity": { "value": 2.0, "unit": "Time bank hours" },
+                "primary_quantity": { "value": "3", "unit": "h" },
+                "reciprocal_quantity": { "value": "2", "unit": "Time bank hours" },
                 "delivery_timeframe": "Within 2 weeks"
             }),
         )
@@ -425,7 +500,7 @@ async fn a_negotiation_cannot_be_forked() {
 
     // A second decline of the same proposal, then a second counter: the decline
     // is refused because Bob has already responded.
-    let fork = w.bob_decline_then_counter(&p, counter_of(&p, &proposal), false).await;
+    let fork = w.bob_decline_then_counter(&p, counter_of(&p, &proposal, &w.bob_grant), false).await;
     refused(fork, "already responded to this proposal", "a second decline and counter");
 
     // A second response on its own: refused the same way.
@@ -446,7 +521,7 @@ async fn a_negotiation_cannot_be_forked() {
 
     // A second counter reusing the first counter's decline: it does not follow
     // that decline on the chain, so it is refused.
-    let mut reuse = counter_of(&p, &proposal);
+    let mut reuse = counter_of(&p, &proposal, &w.bob_grant);
     reuse.counters = Some(Countering { agreement: p.clone(), decline: used_decline });
     let r = w.conductors[1]
         .call_fallible::<_, ActionHash>(&w.bob.zome("exchanges_probe"), "probe_create_agreement", reuse)
@@ -480,16 +555,23 @@ struct ExchangeView {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_counter_changes_only_quantities_and_timeframe() {
-    let w = world().await;
+    let mut w = world().await;
     let (p, proposal) = w.propose().await;
     let elsewhere: Record = w.conductors[2]
         .call(&w.carol.zome("offers"), "create_offer", sample_offer("Something else", w.service_type.clone()))
         .await;
     let elsewhere = elsewhere.signed_action.hashed.hash.clone();
+    // Bob may hold one live interest per listing (#354), so he withdraws the
+    // first (the proposal above still names it) before showing interest again.
+    // The later proposals use the new one.
+    let _: ActionHash = w.conductors[1]
+        .call(&w.bob.zome("exchanges"), "withdraw_interest", w.interest.clone())
+        .await;
     let second_interest: Record = w.conductors[1]
         .call(&w.bob.zome("exchanges"), "create_interest", json!({ "listing": w.offer, "listing_type": "Offer" }))
         .await;
     let second_interest = second_interest.signed_action.hashed.hash.clone();
+    w.interest = second_interest.clone();
     w.sync().await;
 
     type Change = (&'static str, &'static str, Box<dyn Fn(&mut Agreement)>);
@@ -501,7 +583,7 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
             Box::new(move |a| a.listing = e.clone())
         }),
         ("the listing type", "listing type", Box::new(|a| a.listing_type = "Request".into())),
-        // Bob's second interest on the same offer: valid on its own, so only
+        // Bob's renewed interest on the same offer: valid on its own, so only
         // the counter rule can catch it.
         ("the interest", "keeps the listing, the interest and the parties", {
             let i = second_interest.clone();
@@ -518,10 +600,10 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
             a.reciprocal.quantity = None;
         })),
         ("the primary unit", "keeps each quantity's unit", Box::new(|a| {
-            a.primary.quantity = Some(Quantity { value: 2.0, unit: "days".into() });
+            a.primary.quantity = Some(Quantity { value: "2".into(), unit: "days".into() });
         })),
         ("the return unit", "keeps each quantity's unit", Box::new(|a| {
-            a.reciprocal.quantity = Some(Quantity { value: 2.0, unit: "Pounds".into() });
+            a.reciprocal.quantity = Some(Quantity { value: "2".into(), unit: "Pounds".into() });
         })),
         ("the primary direction", "", Box::new(|a| a.primary.direction = "Receive".into())),
         ("nothing at all", "changes a quantity or the timeframe", Box::new(|a| {
@@ -530,7 +612,7 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
     ];
 
     for (what, reason, change) in changes {
-        let mut counter = counter_of(&p, &proposal);
+        let mut counter = counter_of(&p, &proposal, &w.bob_grant);
         change(&mut counter);
         let result = w.bob_decline_then_counter(&p, counter, false).await;
         if reason.is_empty() {
@@ -547,11 +629,11 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
     let permitted: Vec<(&str, Box<dyn Fn(&mut Agreement)>)> = vec![
         ("the primary quantity", Box::new(|a| {
             a.delivery_timeframe = "Within 2 weeks".into();
-            a.primary.quantity = Some(Quantity { value: 5.0, unit: "h".into() });
+            a.primary.quantity = Some(Quantity { value: "5".into(), unit: "h".into() });
         })),
         ("the return quantity", Box::new(|a| {
             a.delivery_timeframe = "Within 2 weeks".into();
-            a.reciprocal.quantity = Some(Quantity { value: 9.0, unit: "Time bank hours".into() });
+            a.reciprocal.quantity = Some(Quantity { value: "9".into(), unit: "Time bank hours".into() });
         })),
         ("removing the return quantity", Box::new(|a| {
             a.delivery_timeframe = "Within 2 weeks".into();
@@ -561,7 +643,7 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
     ];
     for (what, change) in permitted {
         let (open, proposal) = w.propose().await;
-        let mut counter = counter_of(&open, &proposal);
+        let mut counter = counter_of(&open, &proposal, &w.bob_grant);
         change(&mut counter);
         w.bob_decline_then_counter(&open, counter, false)
             .await
@@ -579,7 +661,7 @@ async fn a_counter_names_a_real_proposal() {
     let (p, proposal) = w.propose().await;
 
     // `counters.agreement` naming the interest, which is not an agreement.
-    let mut forged = counter_of(&p, &proposal);
+    let mut forged = counter_of(&p, &proposal, &w.bob_grant);
     forged.counters = Some(Countering { agreement: w.interest.clone(), decline: p.clone() });
     let r = w.conductors[1]
         .call_fallible::<_, ActionHash>(&w.bob.zome("exchanges_probe"), "probe_create_agreement", forged)
@@ -588,7 +670,7 @@ async fn a_counter_names_a_real_proposal() {
     assert!(r.is_err(), "a counter naming something that is not an agreement must be refused");
 
     // `counters.agreement` naming a hash that does not exist.
-    let mut missing = counter_of(&p, &proposal);
+    let mut missing = counter_of(&p, &proposal, &w.bob_grant);
     missing.counters = Some(Countering {
         agreement: ActionHash::from_raw_36(vec![7; 36]),
         decline: p.clone(),
@@ -629,11 +711,11 @@ async fn a_counter_names_a_real_proposal() {
         .await;
     let q = q.signed_action.hashed.hash.clone();
     w.sync().await;
-    let cross = w.bob_decline_then_counter(&q, counter_of(&q, &proposal), false).await;
+    let cross = w.bob_decline_then_counter(&q, counter_of(&q, &proposal, &w.bob_grant), false).await;
     refused(cross, "keeps the listing, the interest and the parties", "countering across listings");
 
     // Control.
-    w.bob_decline_then_counter(&p, counter_of(&p, &proposal), false)
+    w.bob_decline_then_counter(&p, counter_of(&p, &proposal, &w.bob_grant), false)
         .await
         .expect("a valid counter through the probe is accepted");
 }
@@ -648,7 +730,7 @@ async fn a_counter_link_points_at_the_real_counter() {
     let (p, proposal) = w.propose().await;
     let (unrelated, _) = w.propose().await;
     let real = w
-        .bob_decline_then_counter(&p, counter_of(&p, &proposal), false)
+        .bob_decline_then_counter(&p, counter_of(&p, &proposal, &w.bob_grant), false)
         .await
         .expect("counter");
     w.sync().await;
@@ -677,4 +759,89 @@ async fn a_counter_link_points_at_the_real_counter() {
         )
         .await
         .expect("the true counter link is accepted");
+}
+
+// ---------------------------------------------------------------------------
+// One live interest per member per listing (#354)
+// ---------------------------------------------------------------------------
+
+/// Bob already holds a live interest in Alice's offer (the world's). A second
+/// one written past `create_interest`, so past the coordinator's look at his
+/// own chain, is refused by validation with the rule named. Carol's first
+/// through the same probe is accepted, and once Bob withdraws his, a new one
+/// of his is accepted too.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_second_live_interest_is_refused_past_the_coordinator() {
+    let w = world().await;
+    let bob_user = member_hash(&w.conductors[1], &w.bob).await;
+    let bobs = Interest {
+        listing: w.offer.clone(),
+        listing_type: "Offer".into(),
+        user: bob_user,
+        grant: Some(w.bob_grant.clone()),
+    };
+
+    let second = w.conductors[1]
+        .call_fallible::<_, ActionHash>(&w.bob.zome("exchanges_probe"), "probe_create_interest", bobs.clone())
+        .await
+        .map_err(|e| format!("{e:?}"));
+    refused(
+        second,
+        "this member already has an interest in this listing",
+        "a second live interest past the coordinator",
+    );
+
+    // Control: Carol's first interest, through the same probe.
+    let carol_user = member_hash(&w.conductors[2], &w.carol).await;
+    w.conductors[2]
+        .call_fallible::<_, ActionHash>(
+            &w.carol.zome("exchanges_probe"),
+            "probe_create_interest",
+            Interest {
+                listing: w.offer.clone(),
+                listing_type: "Offer".into(),
+                user: carol_user,
+                grant: Some(w.carol_grant.clone()),
+            },
+        )
+        .await
+        .expect("a first interest through the probe is accepted");
+
+    // Withdrawn, the slot is free again: Bob's new one through the probe is accepted.
+    let _: ActionHash = w.conductors[1]
+        .call(&w.bob.zome("exchanges"), "withdraw_interest", w.interest.clone())
+        .await;
+    w.conductors[1]
+        .call_fallible::<_, ActionHash>(&w.bob.zome("exchanges_probe"), "probe_create_interest", bobs)
+        .await
+        .expect("after withdrawing, an interest through the probe is accepted");
+}
+
+/// The bound of the chain read cannot be moved by naming a later Create as the user.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_second_live_interest_cannot_name_a_later_create_as_its_user() {
+    let w = world().await;
+    let own: Record = w.conductors[1]
+        .call(&w.bob.zome("offers"), "create_offer", sample_offer("Bob's own offer", w.service_type.clone()))
+        .await;
+    let own = own.signed_action.hashed.hash.clone();
+    w.sync().await;
+    let second = w.conductors[1]
+        .call_fallible::<_, ActionHash>(
+            &w.bob.zome("exchanges_probe"),
+            "probe_create_interest",
+            Interest {
+                listing: w.offer.clone(),
+                listing_type: "Offer".into(),
+                user: own,
+                grant: Some(w.bob_grant.clone()),
+            },
+        )
+        .await
+        .map_err(|e| format!("{e:?}"));
+    refused(
+        second,
+        "this member already has an interest in this listing",
+        "a second live interest naming a later Create as its user",
+    );
 }

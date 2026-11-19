@@ -3,12 +3,16 @@ use chrono::Duration;
 use hdk::prelude::*;
 use status::*;
 use utils::{
-  errors::{AdministrationError, CommonError, StatusError},
-  find_original_action_hash, get_all_revisions_for_entry, EntityActionHash, EntityAgent,
-  OriginalActionHash, PreviousActionHash,
+  errors::{CommonError, StatusError},
+  find_original_action_hash, get_all_revisions_for_entry,
+  grants::{grant_tag, Ability, Authority, Role},
+  resolve_chain_root, EntityActionHash, OriginalActionHash, PreviousActionHash,
 };
 
-use crate::administration::check_if_agent_is_administrator;
+use crate::{
+  external_calls::{get_agent_user, get_user_agents, register_approved_coordinator, ApprovedCoordinatorInput},
+  grants::{live_grants_of, require, revoke_all, was_ever_granted, write_grant},
+};
 
 /// Creates the initial `Status` entry (always `"pending"`) for the entity identified by
 /// `input.entity_original_action_hash`.
@@ -92,9 +96,19 @@ fn get_entity_status_link(input: EntityActionHash) -> ExternResult<Link> {
 /// latest, or no updates were ever made).
 #[hdk_extern]
 pub fn get_latest_status_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+  // A client may hold a revision: the update links hang off the chain root, and from a
+  // revision none are found, so the revision came back as if it were the latest (#229).
+  latest_status_record(resolve_chain_root(original_action_hash))
+}
+
+/// The latest revision of the status whose chain root is `original_action_hash`, or of
+/// the status itself when given its newest revision, which is what the rotating
+/// `EntityStatus` link points at. For the internal callers that hold that target, so they
+/// do not walk the whole status chain on every read.
+fn latest_status_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
   let link_type_filter = LinkTypes::StatusUpdates
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(original_action_hash.clone(), link_type_filter),
     GetStrategy::Network,
@@ -117,7 +131,11 @@ pub fn get_latest_status_record(original_action_hash: ActionHash) -> ExternResul
 /// status action hash, or `Ok(None)` if the record has no app entry.
 #[hdk_extern]
 pub fn get_latest_status(original_action_hash: ActionHash) -> ExternResult<Option<Status>> {
-  let latest_status_record = get_latest_status_record(original_action_hash)?;
+  status_of(get_latest_status_record(original_action_hash)?)
+}
+
+/// The `Status` in a status record, for `get_latest_status` and the internal readers.
+fn status_of(latest_status_record: Option<Record>) -> ExternResult<Option<Status>> {
   let latest_status_option: Option<Status> = latest_status_record
     .ok_or(CommonError::RecordNotFound("status".to_string()))?
     .entry()
@@ -142,14 +160,14 @@ pub fn get_latest_status_record_for_entity(
 
   let link_type_filter = LinkTypes::EntityStatus
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(resolved_original_action_hash.0.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
 
   if let Some(first_link) = links.first() {
-    get_latest_status_record(
+    latest_status_record(
       first_link
         .clone()
         .target
@@ -173,20 +191,20 @@ pub fn get_latest_status_for_entity(input: EntityActionHash) -> ExternResult<Opt
 
   let link_type_filter = LinkTypes::EntityStatus
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let links = get_links(
     LinkQuery::new(resolved_original_action_hash.0.clone(), link_type_filter),
     GetStrategy::Network,
   )?;
 
   let latest_status: Option<Status> = if let Some(first_link) = links.first() {
-    get_latest_status(
+    status_of(latest_status_record(
       first_link
         .target
         .clone()
         .into_action_hash()
         .ok_or(CommonError::ActionHashNotFound("status".to_string()))?,
-    )?
+    )?)?
   } else {
     None
   };
@@ -195,15 +213,17 @@ pub fn get_latest_status_for_entity(input: EntityActionHash) -> ExternResult<Opt
 }
 
 /// Creates an `AcceptedEntity` link from `"{entity}.status.accepted"` path → entity original
-/// action hash, registering the entity in the accepted-entity index.
+/// action hash, registering the entity in the accepted-entity index. The link carries the
+/// caller's admin or steward grant in its tag: the index is a role act.
 #[hdk_extern]
 pub fn create_accepted_entity_link(input: EntityActionHash) -> ExternResult<bool> {
+  let grant = require(Ability::ChangeStatus, None)?;
   let path = Path::from(format!("{}.status.accepted", input.entity));
   create_link(
     path.path_entry_hash()?,
     input.entity_original_action_hash,
     LinkTypes::AcceptedEntity,
-    (),
+    grant_tag(&grant),
   )?;
   Ok(true)
 }
@@ -306,8 +326,16 @@ pub struct UpdateEntityActionHash {
 
 /// Updates the status of the entity identified by `input.entity_original_action_hash`.
 ///
-/// Requires the caller to be an administrator of `input.entity`. Returns
+/// A status change is a role act: the caller needs an admin grant (or a steward grant where
+/// stewarding is present), the new
+/// `Status` carries it, and its validator checks it. Returns
 /// `Err(AdministrationError::Unauthorized)` otherwise.
+///
+/// What a change issues: accepting a member writes a member grant for
+/// each of their agents, and any other status revokes it. The first approval of an
+/// organisation writes its creator's coordinator grant and their member and
+/// coordinator links (`approve_organization`); no other status change on an
+/// organisation issues or revokes anything.
 ///
 /// Two branches:
 /// - **No existing status link** — creates a new `Status` entry plus `AllStatuses` and
@@ -319,12 +347,11 @@ pub struct UpdateEntityActionHash {
 /// if `input.new_status.status_type == "accepted"`.
 #[hdk_extern]
 pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Record> {
-  if !check_if_agent_is_administrator(EntityAgent {
-    agent_pubkey: agent_info()?.agent_initial_pubkey.clone(),
-    entity: input.entity.clone(),
-  })? {
-    return Err(AdministrationError::Unauthorized.into());
-  }
+  // `ChangeStatus` is answered by an admin grant, or by a steward grant on a network
+  // with the stewarding module: only there can a steward grant be valid.
+  let authority = require(Ability::ChangeStatus, None)?;
+  let mut new_status = input.new_status.clone();
+  new_status.grant = Some(authority.clone());
 
   // Resolve the original action hash in case we received an updated action hash
   let resolved_original_action_hash =
@@ -343,7 +370,7 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
 
   if entity_links.is_empty() {
     // Entity has no status yet, create initial status
-    let new_status_hash = create_entry(&EntryTypes::Status(input.new_status.clone()))?;
+    let new_status_hash = create_entry(&EntryTypes::Status(new_status.clone()))?;
     action_hash = new_status_hash;
 
     // Create the path link
@@ -366,7 +393,7 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
     // Entity has existing status, update it
     action_hash = update_entry(
       input.status_previous_action_hash.clone().into(),
-      input.new_status.clone(),
+      new_status.clone(),
     )?;
 
     // Anchor the StatusUpdates link at the status chain's true root. Callers pass
@@ -410,11 +437,26 @@ pub fn update_entity_status(input: UpdateEntityActionHash) -> ExternResult<Recor
     entity: input.entity.clone(),
   })?;
 
-  if input.new_status.status_type == "accepted" {
+  let accepted = new_status.status_type == "accepted";
+  if accepted {
     create_accepted_entity_link(EntityActionHash {
-      entity_original_action_hash: resolved_original_action_hash,
-      entity: input.entity,
+      entity_original_action_hash: resolved_original_action_hash.clone(),
+      entity: input.entity.clone(),
     })?;
+  }
+
+  match input.entity.as_str() {
+    "users" => {
+      if accepted {
+        issue_member_grants(&resolved_original_action_hash.0, &authority)?;
+      } else {
+        revoke_member_grants(&resolved_original_action_hash.0, &new_status.status_type)?;
+      }
+    }
+    "organizations" if accepted => {
+      approve_organization(&resolved_original_action_hash.0, &authority)?;
+    }
+    _ => {}
   }
 
   let record = get(action_hash.clone(), GetOptions::default())?
@@ -443,7 +485,10 @@ pub struct SuspendEntityInput {
 
 /// Suspends the entity temporarily for `input.duration_in_days` days.
 ///
-/// Returns `Err(StatusError::DurationInDaysNotProvided)` if `duration_in_days` is `None`.
+/// Returns `Err(StatusError::DurationInDaysNotProvided)` if `duration_in_days` is `None`, and
+/// `Err(StatusError::DurationInDaysOutOfRange)` for zero, a negative number, or more days
+/// than a timestamp can hold. Validation would refuse the first two anyway, with a message
+/// about the end; this names the duration.
 /// Delegates to [`update_entity_status`] with a `Status::suspend(reason, Some(...))` value.
 #[hdk_extern]
 pub fn suspend_entity_temporarily(input: SuspendEntityInput) -> ExternResult<bool> {
@@ -454,7 +499,10 @@ pub fn suspend_entity_temporarily(input: SuspendEntityInput) -> ExternResult<boo
     }
   };
 
-  let duration = Duration::days(duration_in_days);
+  let duration = Some(duration_in_days)
+    .filter(|days| *days > 0)
+    .and_then(Duration::try_days)
+    .ok_or(StatusError::DurationInDaysOutOfRange(duration_in_days))?;
   let now = &sys_time()?;
 
   let update_status_input = UpdateEntityActionHash {
@@ -496,7 +544,7 @@ pub fn suspend_entity_indefinitely(input: SuspendEntityInput) -> ExternResult<bo
 pub fn unsuspend_entity_if_time_passed(input: UpdateInput) -> ExternResult<bool> {
   let link_type_filter = LinkTypes::EntityStatus
     .try_into_filter()
-    .map_err(|e| wasm_error!(WasmErrorInner::Guest(e.to_string())))?;
+    .map_err(|e| CommonError::LinkError(e.to_string()))?;
   let link = get_links(
     LinkQuery::new(
       input.entity_original_action_hash.0.clone(),
@@ -516,7 +564,7 @@ pub fn unsuspend_entity_if_time_passed(input: UpdateInput) -> ExternResult<bool>
     .into_action_hash()
     .ok_or(CommonError::ActionHashNotFound("status".to_string()))?;
 
-  let mut status = get_latest_status(status_action_hash)?
+  let mut status = status_of(latest_status_record(status_action_hash)?)?
     .ok_or(CommonError::EntryNotFound("status".to_string()))?;
 
   if status.status_type == "suspended temporarily" {
@@ -562,13 +610,15 @@ pub fn unsuspend_entity(input: UpdateInput) -> ExternResult<bool> {
   Ok(update_entity_status(update_status_input).is_ok())
 }
 
-/// Deletes the `EntityStatus` link and the underlying `Status` entry for the given entity.
+/// Takes an entity out of the status index: its `EntityStatus` link and any
+/// `AcceptedEntity` link. Its `Status` entries stand; statuses are never deleted
+/// (`validate` refuses the delete). Until #234 passed, this deleted the entity's own
+/// record instead of its status, so deleting an organisation tombed it twice and left
+/// its status index in place.
 ///
-/// Also removes any `AcceptedEntity` link so the entity no longer appears in the accepted
-/// index. Note: `Status` entries themselves are immutable by integrity validation
-/// (`validate_delete_status` always returns `Invalid`), so this operation will fail at the
-/// DHT validation layer — this function exists for coordinator-level cleanup scenarios
-/// where entry deletion is permitted by a future policy change.
+/// Deleting an organisation (two role holders) comes later. Until then
+/// `delete_organization` clears the organisation's links, calls this, and tombs the
+/// organisation record itself.
 #[hdk_extern]
 pub fn delete_status(input: EntityActionHash) -> ExternResult<bool> {
   let link = get_entity_status_link(input.clone())?;
@@ -579,8 +629,78 @@ pub fn delete_status(input: EntityActionHash) -> ExternResult<bool> {
   })?;
 
   delete_link(link.create_link_hash, GetOptions::default())?;
-  let hash: ActionHash = input.entity_original_action_hash.into();
-  delete_entry(hash)?;
 
   Ok(true)
+}
+
+/// Accepting a member issues a member grant to each of their agents, resting on the
+/// accepter's grant. An agent who already holds one keeps it.
+fn issue_member_grants(user: &ActionHash, authority: &ActionHash) -> ExternResult<()> {
+  for agent in get_user_agents(user.clone())? {
+    let held = live_grants_of(&agent)?
+      .into_iter()
+      .any(|(_, g)| g.parsed_role() == Ok(Role::Member));
+    if !held {
+      write_grant(
+        Role::Member,
+        agent,
+        None,
+        Authority::Grant(authority.clone()),
+      )?;
+    }
+  }
+  Ok(())
+}
+
+/// Any status other than accepted withdraws the member's grants: the app refuses their
+/// writes from here on, and what they wrote while accepted stands.
+fn revoke_member_grants(user: &ActionHash, status_type: &str) -> ExternResult<()> {
+  for agent in get_user_agents(user.clone())? {
+    revoke_all(&agent, Role::Member, &None, status_type)?;
+  }
+  Ok(())
+}
+
+/// Approval is what makes an organisation's creator its coordinator (Sam, 18 October):
+/// the approver writes the creator's coordinator grant, resting on their own, and the
+/// coordinator link that carries it.
+///
+/// Once only. This runs on every move to accepted, so on the return from a suspension
+/// too, and a creator who has since stood down or been removed as coordinator is not
+/// made one again by it: a grant for this organisation in their history, live or
+/// revoked, means the first approval has already happened. Giving the role back is a
+/// coordinator's act, through `add_coordinator_to_organization`.
+fn approve_organization(organization: &ActionHash, authority: &ActionHash) -> ExternResult<()> {
+  let record = get(organization.clone(), GetOptions::default())?
+    .ok_or_else(|| CommonError::RecordNotFound("organization".to_string()))?;
+  let creator = record.action().author().clone();
+  let scope = Some(organization.clone());
+  if was_ever_granted(&creator, Role::OrgCoordinator, &scope)? {
+    return Ok(());
+  }
+  let user = get_agent_user(creator.clone())?
+    .first()
+    .and_then(|link| link.target.clone().into_action_hash())
+    .ok_or_else(|| CommonError::ActionHashNotFound("user".to_string()))?;
+  // The creating key, and any other agent of the same member, as
+  // `add_coordinator_to_organization` gives the role to every agent of a user.
+  let mut holders = vec![creator.clone()];
+  for agent in get_user_agents(user.clone())? {
+    if agent != creator {
+      holders.push(agent);
+    }
+  }
+  for holder in holders {
+    write_grant(
+      Role::OrgCoordinator,
+      holder,
+      scope.clone(),
+      Authority::Grant(authority.clone()),
+    )?;
+  }
+  register_approved_coordinator(ApprovedCoordinatorInput {
+    organization_original_action_hash: organization.clone(),
+    user_original_action_hash: user,
+  })?;
+  Ok(())
 }

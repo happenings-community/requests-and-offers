@@ -2,7 +2,10 @@ use std::str::FromStr;
 
 use chrono::Duration;
 use hdi::prelude::*;
-use utils::errors::CommonError;
+use utils::{
+  errors::{invalid, CommonError, StatusValidationError},
+  grants::{check_act, Ability},
+};
 
 /// Canonical set of status type discriminants used to validate `Status.status_type` strings.
 ///
@@ -29,7 +32,7 @@ impl FromStr for StatusType {
       "archived" => Ok(Self::Archived),
       "suspended indefinitely" => Ok(Self::SuspendedIndefinitely),
       "suspended temporarily" => Ok(Self::SuspendedTemporarily),
-      _ => Err(format!("Invalid status type: {}", s)),
+      _ => Err(StatusValidationError::InvalidStatusType(s.to_string()).to_string()),
     }
   }
 }
@@ -44,13 +47,19 @@ impl FromStr for StatusType {
 /// ## Fields
 /// - `status_type` — One of the canonical status strings defined in [`StatusType`].
 /// - `reason` — Required for any `suspended*` status; `None` for all other states.
-/// - `suspended_until` — RFC 3339 timestamp string; only present for `"suspended temporarily"`.
+/// - `suspended_until` — when a temporary suspension ends, a Holochain timestamp (microseconds),
+///   so validation can check it and a reader never parses text. Only present for
+///   `"suspended temporarily"`, and it must be after the moment the status is written.
+/// - `grant` — the admin or steward grant the change rests on. Absent
+///   only on the `"pending"` status an entity's own author writes at creation.
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct Status {
   pub status_type: String,
   pub reason: Option<String>,
-  pub suspended_until: Option<String>,
+  pub suspended_until: Option<Timestamp>,
+  #[serde(default)]
+  pub grant: Option<ActionHash>,
 }
 
 impl Status {
@@ -60,6 +69,7 @@ impl Status {
       status_type: "pending".to_string(),
       reason: None,
       suspended_until: None,
+      grant: None,
     }
   }
 
@@ -69,6 +79,7 @@ impl Status {
       status_type: "accepted".to_string(),
       reason: None,
       suspended_until: None,
+      grant: None,
     }
   }
 
@@ -78,6 +89,7 @@ impl Status {
       status_type: "rejected".to_string(),
       reason: None,
       suspended_until: None,
+      grant: None,
     }
   }
 
@@ -87,6 +99,7 @@ impl Status {
       status_type: "archived".to_string(),
       reason: None,
       suspended_until: None,
+      grant: None,
     }
   }
 
@@ -94,7 +107,7 @@ impl Status {
   ///
   /// - If `time` is `None`, the status is `"suspended indefinitely"` with no expiry.
   /// - If `time` is `Some((duration, now))`, the status is `"suspended temporarily"` and
-  ///   `suspended_until` is set to `now + duration` as an RFC 3339 timestamp string.
+  ///   `suspended_until` is set to `now + duration`.
   ///
   /// A `reason` must be provided and will be stored in both suspension variants.
   pub fn suspend(reason: &str, time: Option<(Duration, &Timestamp)>) -> Self {
@@ -105,7 +118,8 @@ impl Status {
       return Self {
         status_type: "suspended temporarily".to_string(),
         reason: Some(reason.to_string()),
-        suspended_until: Some(Timestamp::from_micros(now + duration).to_string()),
+        suspended_until: Some(Timestamp::from_micros(now.saturating_add(duration))),
+        grant: None,
       };
     }
 
@@ -113,6 +127,7 @@ impl Status {
       status_type: "suspended indefinitely".to_string(),
       reason: Some(reason.to_string()),
       suspended_until: None,
+      grant: None,
     }
   }
 
@@ -127,7 +142,7 @@ impl Status {
 
       self.status_type = "suspended temporarily".to_string();
       self.reason = Some(reason.to_string());
-      self.suspended_until = Some(Timestamp::from_micros(now + duration).to_string());
+      self.suspended_until = Some(Timestamp::from_micros(now.saturating_add(duration)));
     } else {
       self.status_type = "suspended indefinitely".to_string();
       self.reason = Some(reason.to_string());
@@ -148,17 +163,17 @@ impl Status {
 
   /// Returns the remaining suspension duration relative to `now`, or `None` if the status
   /// has no `suspended_until` timestamp (i.e., is not a temporary suspension).
+  ///
+  /// A typed timestamp, so there is nothing to parse: the text this replaced was read
+  /// with an `unwrap`, and a malformed value made every later read of the status fail.
   pub fn get_suspension_time_remaining(&self, now: &Timestamp) -> Option<Duration> {
-    if let Some(timestamp) = &self.suspended_until {
-      return Some(Duration::microseconds(
-        Timestamp::from_str(timestamp)
-          .unwrap()
-          .checked_difference_signed(now)
-          .unwrap_or_default()
-          .num_microseconds()?,
-      ));
-    }
-    None
+    let until = self.suspended_until?;
+    Some(Duration::microseconds(
+      until
+        .checked_difference_signed(now)
+        .unwrap_or_default()
+        .num_microseconds()?,
+    ))
   }
 
   /// Unsuspends `self` once the suspension's time has run out, and not before.
@@ -179,38 +194,87 @@ impl Status {
 
 /// Validates that a `Status` entry conforms to the zome's business rules.
 ///
-/// Enforces four rules:
+/// Enforces six rules:
 /// 1. `status_type` must match a known [`StatusType`] discriminant string.
 /// 2. Any `suspended*` status must include a non-`None` `reason`.
 /// 3. `"suspended temporarily"` must have a `suspended_until` timestamp.
 /// 4. `"suspended indefinitely"` must NOT have a `suspended_until` timestamp.
-pub fn validate_status(status: Status) -> ExternResult<ValidateCallbackResult> {
+/// 5. A `suspended_until` ends after `at`, the moment the action writing it was made.
+/// 6. A status change is a role act: every update, and any created status other than
+///    `"pending"`, carries an admin or steward grant held by its author. The `"pending"`
+///    status an entity's author writes at creation is the one write without a grant.
+pub fn validate_status(
+  status: Status,
+  author: &AgentPubKey,
+  is_update: bool,
+  at: Timestamp,
+) -> ExternResult<ValidateCallbackResult> {
   if StatusType::from_str(&status.status_type).is_err() {
-    return Ok(ValidateCallbackResult::Invalid(format!(
-      "Invalid status type: {}",
-      status.status_type
-    )));
+    return invalid(StatusValidationError::InvalidStatusType(
+      status.status_type.to_string(),
+    ));
   }
 
   if status.status_type.starts_with("suspended") && status.reason.is_none() {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "Suspended status must have a reason",
-    )));
+    return invalid(StatusValidationError::SuspendedWithoutReason);
   }
 
   if status.status_type == "suspended temporarily" && status.suspended_until.is_none() {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "Temporarily suspended status must have a timestamp",
-    )));
+    return invalid(StatusValidationError::TemporarySuspensionWithoutTimestamp);
   }
 
   if status.status_type == "suspended indefinitely" && status.suspended_until.is_some() {
-    return Ok(ValidateCallbackResult::Invalid(String::from(
-      "Indefinitely suspended status must not have a timestamp",
-    )));
+    return invalid(StatusValidationError::IndefiniteSuspensionWithTimestamp);
+  }
+
+  // Measured from the writing action's own timestamp, never the clock, so every
+  // validator gives the same verdict.
+  if let Some(until) = status.suspended_until {
+    if until <= at {
+      return invalid(StatusValidationError::SuspensionEndsBeforeWritten);
+    }
+  }
+
+  if is_update || status.status_type != "pending" {
+    if let Err(reason) = check_act(&status.grant, author, &Ability::ChangeStatus, &None)? {
+      return invalid(StatusValidationError::ChangeIsRoleAct(reason.to_string()));
+    }
   }
 
   Ok(ValidateCallbackResult::Valid)
+}
+
+/// An `EntityStatus` link is written by the author of the status it points at: an
+/// entity's own author linking their `"pending"` status, or the administrator or steward
+/// linking the change they made. Nobody links an entity to someone else's status.
+pub fn validate_create_link_entity_status(
+  link_author: &AgentPubKey,
+  target_address: &AnyLinkableHash,
+) -> ExternResult<ValidateCallbackResult> {
+  let Some(status_hash) = target_address.clone().into_action_hash() else {
+    return invalid(StatusValidationError::EntityStatusLinkTarget);
+  };
+  let record = must_get_valid_record(status_hash)?;
+  if record.entry().to_app_option::<Status>().ok().flatten().is_none() {
+    return invalid(StatusValidationError::EntityStatusLinkTarget);
+  }
+  if record.action().author() != link_author {
+    return invalid(StatusValidationError::EntityStatusLinkAuthor);
+  }
+  Ok(ValidateCallbackResult::Valid)
+}
+
+/// An `AcceptedEntity` link is the accepted index itself, so it carries the admin or
+/// steward grant of the agent who wrote it, in its tag.
+pub fn validate_create_link_accepted_entity(
+  link_author: &AgentPubKey,
+  tag: &LinkTag,
+) -> ExternResult<ValidateCallbackResult> {
+  let grant = utils::grants::grant_from_tag(tag).ok();
+  match check_act(&grant, link_author, &Ability::ChangeStatus, &None)? {
+    Ok(_) => Ok(ValidateCallbackResult::Valid),
+    Err(reason) => invalid(StatusValidationError::AcceptedIndexWithoutGrant(reason.to_string())),
+  }
 }
 
 /// Validates a `Status` delete — always returns `Invalid`.
@@ -222,9 +286,7 @@ pub fn validate_delete_status(
   _original_action: TypedAction<EntryCreationData>,
   _original_status: Status,
 ) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Invalid(String::from(
-    "Status cannot be deleted",
-  )))
+  invalid(StatusValidationError::DeleteRefused)
 }
 
 /// Validates a `StatusUpdates` link creation by asserting both base and target resolve to
@@ -269,7 +331,5 @@ pub fn validate_delete_link_status_updates(
   _target: AnyLinkableHash,
   _tag: LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Invalid(String::from(
-    "StatusUpdates links cannot be deleted",
-  )))
+  invalid(StatusValidationError::UpdatesLinkDeleteRefused)
 }

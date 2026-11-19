@@ -52,6 +52,7 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Validation**: Every role-gated write outside the administration zome carries the grant it rests on, and the network refuses an act by anyone never given the role. Requests, offers, interests and agreements need the author's member grant, and an organisation is updated by its creator, a coordinator of it, or an administrator. On a network with no progenitor key, as alpha 2 is (#466), validation accepts a root grant from any author, so a modified client can still grant itself a role (`c3db8659`, #378)
 - **Messaging**: A message carries its author's member grant, and validation refuses one that does not. On a network with no progenitor key, as alpha 2 is (#466), a modified client can write itself a root grant and so a member grant (`a677c286`, #412); validation refuses a ciphertext over 3,840 bytes, inside the 3,959 a recipient's keystore can open (`20c05eee`, #488)
 - **Messaging**: A message to a role goes to the agents its live grants name, so a revoked administrator, an emptied roster or a roster link written by a modified client no longer changes who receives it (`c1784a45`, #520, closes #518)
+- **Administration**: A temporary suspension's end is a timestamp that validation checks is after its writing; it was text nothing checked, and a malformed one made every later read of that status fail. This changes the Status entry format, so it needs a network reset
 
 ### Bug Fixes
 

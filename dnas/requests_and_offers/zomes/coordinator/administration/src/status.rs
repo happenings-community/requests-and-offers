@@ -485,7 +485,10 @@ pub struct SuspendEntityInput {
 
 /// Suspends the entity temporarily for `input.duration_in_days` days.
 ///
-/// Returns `Err(StatusError::DurationInDaysNotProvided)` if `duration_in_days` is `None`.
+/// Returns `Err(StatusError::DurationInDaysNotProvided)` if `duration_in_days` is `None`, and
+/// `Err(StatusError::DurationInDaysOutOfRange)` for zero, a negative number, or more days
+/// than a timestamp can hold. Validation would refuse the first two anyway, with a message
+/// about the end; this names the duration.
 /// Delegates to [`update_entity_status`] with a `Status::suspend(reason, Some(...))` value.
 #[hdk_extern]
 pub fn suspend_entity_temporarily(input: SuspendEntityInput) -> ExternResult<bool> {
@@ -496,7 +499,10 @@ pub fn suspend_entity_temporarily(input: SuspendEntityInput) -> ExternResult<boo
     }
   };
 
-  let duration = Duration::days(duration_in_days);
+  let duration = Some(duration_in_days)
+    .filter(|days| *days > 0)
+    .and_then(Duration::try_days)
+    .ok_or(StatusError::DurationInDaysOutOfRange(duration_in_days))?;
   let now = &sys_time()?;
 
   let update_status_input = UpdateEntityActionHash {

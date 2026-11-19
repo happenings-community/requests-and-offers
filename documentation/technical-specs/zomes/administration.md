@@ -46,7 +46,7 @@ The first administrator is registered automatically when the progenitor calls `c
 pub struct Status {
     pub status_type: String,
     pub reason: Option<String>,
-    pub suspended_until: Option<String>,
+    pub suspended_until: Option<Timestamp>, // when a temporary suspension ends
     /// The admin or steward grant the change rests on. Absent only on the
     /// "pending" status an entity's own author writes at creation.
     pub grant: Option<ActionHash>,
@@ -406,6 +406,7 @@ Forged-client coverage lives in `tests/sweettest/tests/grants.rs`, where one con
 - Status type must be one of the defined `StatusType` variants.
 - Suspended statuses must include a reason.
 - Temporarily suspended statuses must include a `suspended_until` timestamp; indefinitely suspended ones must not.
+- A `suspended_until` must be after the moment the action writing it was made, measured from that action's own timestamp. It is a typed `Timestamp` (microseconds), never text, so a reader has nothing to parse.
 - Any status other than the author's own initial `pending`, and every update, carries a `ChangeStatus` grant held by its author.
 
 ## Usage Examples

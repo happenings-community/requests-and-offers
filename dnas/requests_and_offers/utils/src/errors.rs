@@ -128,6 +128,9 @@ pub enum StatusError {
 
   #[error("Duration in days not provided")]
   DurationInDaysNotProvided,
+
+  #[error("A temporary suspension lasts a whole number of days, at least one: {0}")]
+  DurationInDaysOutOfRange(i64),
 }
 
 #[derive(Debug, Error)]
@@ -415,6 +418,9 @@ pub enum StatusValidationError {
 
   #[error("Indefinitely suspended status must not have a timestamp")]
   IndefiniteSuspensionWithTimestamp,
+
+  #[error("a temporary suspension must end after the moment it is written")]
+  SuspensionEndsBeforeWritten,
 
   #[error("Status cannot be deleted")]
   DeleteRefused,
@@ -881,6 +887,10 @@ mod validation_reason_tests {
     reads(
       StatusValidationError::IndefiniteSuspensionWithTimestamp,
       "Indefinitely suspended status must not have a timestamp",
+    );
+    reads(
+      StatusValidationError::SuspensionEndsBeforeWritten,
+      "a temporary suspension must end after the moment it is written",
     );
     reads(
       StatusValidationError::DeleteRefused,

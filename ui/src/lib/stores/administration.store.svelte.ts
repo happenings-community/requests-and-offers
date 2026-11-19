@@ -339,8 +339,13 @@ const createUIStatusFromRecord = (record: HolochainRecord): UIStatus | null => {
       duration: remainingMs(suspended_until, record.signed_action.hashed.content.header.timestamp),
       original_action_hash: record.signed_action.hashed.hash,
       previous_action_hash: record.signed_action.hashed.hash,
-      created_at: record.signed_action.hashed.content.header.timestamp,
-      updated_at: record.signed_action.hashed.content.header.timestamp
+      // In milliseconds, as convertToUIStatus gives created_at from a read (the action's
+      // time is in microseconds). A status remembered from a write stands in for a read
+      // in the member and organisation lists for up to a minute (preferRecentWrites), so
+      // created_at read from those lists means the same whichever it came from. (A read
+      // gives no updated_at; a write's is in the same unit.)
+      created_at: Math.floor(record.signed_action.hashed.content.header.timestamp / 1000),
+      updated_at: Math.floor(record.signed_action.hashed.content.header.timestamp / 1000)
     };
 
     console.log('🎉 createUIStatusFromRecord - final result:', result);

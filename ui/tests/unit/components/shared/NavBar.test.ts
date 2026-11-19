@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/svelte';
 import NavBar from '$lib/components/shared/NavBar.svelte';
 import { visit } from '../../../mocks/app-state';
 
@@ -42,6 +42,7 @@ vi.mock('$lib/stores/users.store.svelte', () => ({
   default: {
     get currentUser() {
       return {
+        name: 'Sam',
         original_action_hash: new Uint8Array(Array(39).fill(1)),
         status: { status_type: member.status }
       };
@@ -141,6 +142,24 @@ describe('the nav bar', () => {
     }
     expect(screen.queryByRole('button', { name: /my activity/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /resources/i })).toBeNull();
+  });
+
+  /**
+   * My Exchanges, My Listings and Messages left this menu for the bar (#521); this keeps
+   * them from drifting back. **To make this go red:** add any item to `myProfileItems`.
+   */
+  it('keeps the menu under your picture to your profile', async () => {
+    unread.count = 2;
+    render(NavBar);
+    await fireEvent.click(screen.getByRole('button', { name: /^Sam menu/ }), { detail: 1 });
+
+    // Named by its button since #352, so found by that name.
+    const menu = screen.getByRole('menu', { name: /^Sam menu/ });
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((i) => i.textContent?.trim())
+    ).toEqual([expect.stringContaining('My Profile')]);
   });
 
   it('keeps Service Types under Community', async () => {

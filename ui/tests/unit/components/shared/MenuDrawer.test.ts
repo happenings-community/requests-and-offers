@@ -8,8 +8,13 @@ import MenuDrawer from '$lib/components/shared/drawers/MenuDrawer.svelte';
  * (review of 16 October, F14).
  */
 
-const { presence, unread, member, exchanges } = vi.hoisted(() => ({
+const { presence, unread, member, exchanges, admin } = vi.hoisted(() => ({
   member: { status: 'accepted' },
+  admin: {
+    agentIsAdministrator: false,
+    allUsers: [] as unknown[],
+    allOrganizations: [] as unknown[]
+  },
   presence: { isAbsent: false },
   unread: { count: undefined as number | undefined },
   exchanges: { list: [] as unknown[] }
@@ -40,7 +45,7 @@ vi.mock('$lib/stores/users.store.svelte', () => ({
 }));
 
 vi.mock('$lib/stores/administration.store.svelte', () => ({
-  default: { agentIsAdministrator: false }
+  default: admin
 }));
 
 vi.mock('$lib/stores/exchanges.store.svelte', () => ({
@@ -61,6 +66,8 @@ beforeEach(() => {
   presence.isAbsent = false;
   unread.count = undefined;
   exchanges.list = [{ waitsOnMe: true }, { waitsOnMe: false }];
+  admin.agentIsAdministrator = false;
+  admin.allUsers = [];
 });
 
 describe('the mobile menu', () => {
@@ -117,5 +124,30 @@ describe('the mobile menu', () => {
     expect(screen.getByRole('link', { name: /My Exchanges/ }).textContent).not.toMatch(
       /waiting on you/
     );
+  });
+
+  it('counts who is waiting on Members, in words, for an administrator (#359)', () => {
+    admin.agentIsAdministrator = true;
+    admin.allUsers = [
+      { status: { status_type: 'pending' } },
+      { status: { status_type: 'accepted' } }
+    ];
+    render(MenuDrawer);
+
+    const members = screen.getByRole('link', { name: /Members/ });
+    expect(members.textContent).toContain('1 waiting to be accepted');
+  });
+
+  it('keeps Administration for an administrator still waiting to be accepted, with no My Activity', () => {
+    member.status = 'pending';
+    admin.agentIsAdministrator = true;
+    admin.allUsers = [{ status: { status_type: 'pending' } }];
+    render(MenuDrawer);
+
+    expect(screen.getByRole('link', { name: /Members/ }).textContent).toContain(
+      '1 waiting to be accepted'
+    );
+    expect(screen.queryByText('My Activity')).toBeNull();
+    expect(screen.queryByTestId('drawer-messages')).toBeNull();
   });
 });

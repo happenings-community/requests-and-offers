@@ -106,11 +106,14 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await page.getByRole('button', { name: 'Open the members page' }).click();
     await expect(page).toHaveURL(/\/admin\/users/, { timeout: 15_000 });
 
-    // The Admin button carries the hint, by its accessible name, while the
-    // administrator's own membership is pending. It goes once they accept it
-    // (asserted below, after the approval).
+    // The Admin menu (#411) carries the hint, by its accessible name, while the
+    // administrator's own membership is pending, and counts them: they are the one
+    // member waiting. Both go once they accept it (asserted below, after the approval).
     await expect(
-      page.getByRole('link', { name: /Accept your membership to finish setup/ })
+      page.getByRole('button', {
+        name: 'Admin menu, 1 waiting to be accepted. Accept your membership to finish setup',
+        exact: true
+      })
     ).toBeVisible({ timeout: 10_000 });
 
     await gotoApp(page, '/user');
@@ -177,11 +180,13 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     // Wait in the same session: a reload here would cut the write off.
     await agentWritten;
 
-    // The membership is accepted, so the Admin button no longer carries the hint.
+    // The membership is accepted, so the Admin menu no longer carries the hint.
     await expect(
-      page.getByRole('link', { name: /Accept your membership to finish setup/ })
+      page.getByRole('button', { name: /Accept your membership to finish setup/ })
     ).toHaveCount(0, { timeout: 10_000 });
-    await expect(page.getByRole('link', { name: 'Access administration panel' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Admin menu', exact: true })).toBeVisible({
+      timeout: 10_000
+    });
   });
 
   test('accepted profile can now create offers', async ({ page }) => {

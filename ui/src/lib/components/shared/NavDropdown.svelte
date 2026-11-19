@@ -33,9 +33,33 @@
     avatar?: string;
     /** An icon shown before the title. */
     icon?: NavIconName;
+    /**
+     * What a badge's number counts, said after it by a screen reader ("3 waiting to be
+     * accepted"), for a menu whose items do not say it themselves. Without it the trigger
+     * says what its one counted item counts if that item says it, otherwise "new", and an
+     * item "waiting on you".
+     */
+    badgeLabel?: string;
+    /** A sentence added to the trigger's name, e.g. the progenitor's setup hint (#361). */
+    hint?: string;
+    /**
+     * A line under the items, not one of them: the arrow keys pass it by, and the trigger
+     * gives it as its description so a screen reader hears it too. The Admin menu's Alt+A
+     * hint (#359).
+     */
+    footer?: string;
   };
 
-  let { title, items, alignRight = false, avatar, icon }: Props = $props();
+  let {
+    title,
+    items,
+    alignRight = false,
+    avatar,
+    icon,
+    badgeLabel,
+    hint,
+    footer
+  }: Props = $props();
 
   const total = $derived(items.reduce((n, item) => n + (item.badge ?? 0), 0));
   /**
@@ -142,7 +166,10 @@
     aria-controls={open ? id : undefined}
     onclick={onTriggerClick}
     onkeydown={onTriggerKey}
-    aria-label={total > 0 ? `${title} menu, ${totalLabel}` : `${title} menu`}
+    aria-label={(total > 0
+      ? `${title} menu, ${badgeLabel ? `${total} ${badgeLabel}` : totalLabel}`
+      : `${title} menu`) + (hint ? `. ${hint}` : '')}
+    aria-describedby={footer ? `${id}-footer` : undefined}
   >
     {#if avatar}
       <img src={avatar} alt="" class="mr-2 h-8 w-8 rounded-full bg-surface-200 object-cover" />
@@ -159,9 +186,7 @@
       >
     {/if}
     <svg
-      class="ml-1 h-4 w-4 shrink-0 transition-transform duration-200 {open
-        ? 'rotate-180'
-        : ''}"
+      class="ml-1 h-4 w-4 shrink-0 transition-transform duration-200 {open ? 'rotate-180' : ''}"
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
@@ -172,50 +197,60 @@
   </button>
 
   {#if open}
-  <!-- pt-1 rather than a margin, so the pointer can cross to the menu without leaving it -->
-  <div class="absolute top-full z-50 w-64 pt-1 {alignRight ? 'right-0' : 'left-0'}">
-  <div
-    class="rounded-lg border border-gray-200 bg-white shadow-xl"
-    {id}
-    role="menu"
-    aria-labelledby="{id}-trigger"
-  >
-    <div class="py-2">
-      {#each items as item, index}
-        <a
-          href={item.href}
-          class="block px-4 py-3 text-gray-700 transition-colors hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
-          role="menuitem"
-          tabindex="-1"
-          bind:this={links[index]}
-          onkeydown={(e) => onItemKey(e, index)}
-          onclick={() => close()}
-        >
-          <div class="flex items-center gap-3">
-            <span class="flex-shrink-0 text-lg">{item.icon}</span>
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2 font-medium text-gray-900">
-                {item.label}
-                {#if item.badge}
-                  <!-- The number is for the eye; the words, for a screen reader. -->
-                  <span class="variant-filled-primary badge px-1.5 py-0 text-xs"
-                    ><span aria-hidden="true">{shown(item.badge)}</span><span class="sr-only"
-                      >{item.badgeLabel
-                        ? item.badgeLabel(item.badge)
-                        : `${item.badge} waiting on you`}</span
-                    ></span
-                  >
-                {/if}
+    <!-- pt-1 rather than a margin, so the pointer can cross to the menu without leaving it -->
+    <div class="absolute top-full z-50 w-64 pt-1 {alignRight ? 'right-0' : 'left-0'}">
+      <div
+        class="rounded-lg border border-gray-200 bg-white shadow-xl"
+        {id}
+        role="menu"
+        aria-labelledby="{id}-trigger"
+      >
+        <div class="py-2">
+          {#each items as item, index}
+            <a
+              href={item.href}
+              class="block px-4 py-3 text-gray-700 transition-colors hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
+              role="menuitem"
+              tabindex="-1"
+              bind:this={links[index]}
+              onkeydown={(e) => onItemKey(e, index)}
+              onclick={() => close()}
+            >
+              <div class="flex items-center gap-3">
+                <span class="flex-shrink-0 text-lg">{item.icon}</span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2 font-medium text-gray-900">
+                    {item.label}
+                    {#if item.badge}
+                      <!-- The number is for the eye; the words, for a screen reader. -->
+                      <span class="variant-filled-primary badge px-1.5 py-0 text-xs"
+                        ><span aria-hidden="true">{shown(item.badge)}</span><span class="sr-only"
+                          >{item.badgeLabel
+                            ? item.badgeLabel(item.badge)
+                            : `${item.badge} ${badgeLabel ?? 'waiting on you'}`}</span
+                        ></span
+                      >
+                    {/if}
+                  </div>
+                  {#if item.description}
+                    <div class="truncate text-sm text-gray-500">{item.description}</div>
+                  {/if}
+                </div>
               </div>
-              {#if item.description}
-                <div class="truncate text-sm text-gray-500">{item.description}</div>
-              {/if}
-            </div>
-          </div>
-        </a>
-      {/each}
+            </a>
+          {/each}
+        </div>
+        {#if footer}
+          <!-- Outside the menu's items, so the arrow keys pass it by. -->
+          <p class="border-t border-gray-200 px-4 py-2 text-xs text-gray-500" aria-hidden="true">
+            {footer}
+          </p>
+        {/if}
+      </div>
     </div>
-  </div>
-  </div>
+  {/if}
+  {#if footer}
+    <!-- The trigger's description, there whether or not the menu is open. -->
+    <span id="{id}-footer" class="sr-only">{footer}</span>
   {/if}
 </div>

@@ -14,15 +14,16 @@
   import { page } from '$app/state';
   import { getUserPictureUrl, isUserApproved } from '$lib/utils';
   import { myProfileItems } from '$lib/navigation/my-menu';
+  import { adminMenuItems, adminWaiting } from '$lib/navigation/admin-menu';
   import NetworkStatusPopup from '$lib/components/network/NetworkStatusPopup.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
   import { runEffect } from '$lib/utils/effect';
-  import { ADMIN_SHORTCUT_ARIA } from '$lib/utils/admin-shortcut';
+  import { ADMIN_SHORTCUT_HINT } from '$lib/utils/admin-shortcut';
+  import { onMount, untrack } from 'svelte';
   import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
   import { storeEventBus } from '$lib/stores/storeEvents';
-  import { onMount } from 'svelte';
   import {
     getConnectionStatusContext,
     type ConnectionStatus
@@ -108,11 +109,6 @@
     counts.unreadCount ? `Messages, ${counts.totalLabel}` : 'Messages'
   );
 
-  // The menu button is the whole bar on a narrow window, so it carries the count too.
-  const menuButtonLabel = $derived(
-    counts.total ? `Open navigation menu, ${counts.totalLabel}` : 'Open navigation menu'
-  );
-
   onMount(() => {
     const refresh = () => {
       if (!usersStore.currentUser) return;
@@ -134,6 +130,48 @@
       clearInterval(interval);
       stopListening();
     };
+  });
+
+  // The Admin menu (#359), with who is waiting to be accepted. Read from the
+  // store's lists, which the admin pages fill too; refreshed while the member
+  // is an administrator, once a minute, so a new application shows without a
+  // visit to the dashboard. The refresh is the background kind for the
+  // administration store: no loading flag there, and its answer is dropped if
+  // the administrator wrote a status while it was on its way, so a tick never
+  // undoes a suspend on screen (#340). It reads each entry through the users
+  // and organisations stores, whose loading flags do rise during a tick; nothing
+  // an administrator with a profile sees hides behind them (review of 15 November).
+  // A read that only counts, whatever the network's size, is #499.
+  const adminItems = $derived(
+    adminMenuItems(adminWaiting(administrationStore.allUsers, administrationStore.allOrganizations))
+  );
+  const adminWaitingCount = $derived(
+    agentIsAdministrator ? adminItems.reduce((n, item) => n + (item.badge ?? 0), 0) : 0
+  );
+
+  // The menu button is the whole bar on a narrow window, so it carries the counts too:
+  // the member's own and, for an administrator, who is waiting to be accepted.
+  const menuButtonCount = $derived(counts.total + adminWaitingCount);
+  const menuButtonLabel = $derived(
+    [
+      'Open navigation menu',
+      counts.totalLabel,
+      adminWaitingCount ? `${adminWaitingCount} waiting to be accepted` : ''
+    ]
+      .filter(Boolean)
+      .join(', ')
+  );
+
+  $effect(() => {
+    if (!agentIsAdministrator) return;
+    const refresh = () => {
+      runEffect(administrationStore.refreshLists()).catch(() => {});
+    };
+    // The fetches write the lists this component reads; untrack keeps that
+    // write from re-running the effect that started it.
+    untrack(refresh);
+    const interval = setInterval(refresh, 60000);
+    return () => clearInterval(interval);
   });
 
   const communityItems = [
@@ -303,15 +341,17 @@
 
     <!-- Admin Access -->
     {#if agentIsAdministrator}
-      <a
-        href={paths.admin()}
-        class="variant-ringed-secondary btn relative border-2 px-4 py-2 text-sm text-white transition-colors hover:variant-filled-secondary"
-        aria-label={showSetupHint
-          ? `Access administration panel. ${SELF_ACCEPTANCE_LABEL}`
-          : 'Access administration panel'}
-        aria-keyshortcuts={ADMIN_SHORTCUT_ARIA}
-      >
-        ⚙️ Admin
+      <!-- #411's Admin menu, with #361's hint for a progenitor who has not yet accepted
+           their own membership: the dot and pulse sit on the menu button. -->
+      <div class="relative text-white">
+        <NavDropdown
+          title="Admin"
+          items={adminItems}
+          badgeLabel="waiting to be accepted"
+          alignRight={true}
+          hint={showSetupHint ? SELF_ACCEPTANCE_LABEL : undefined}
+          footer={ADMIN_SHORTCUT_HINT}
+        />
         {#if showSetupHint}
           <!-- Red stays on the dot: elsewhere in the app red means danger. -->
           <span
@@ -319,11 +359,11 @@
             aria-hidden="true"
           ></span>
           <span
-            class="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-error-500 ring-2 ring-primary-500"
+            class="pointer-events-none absolute -right-1 -top-1 h-3 w-3 rounded-full bg-error-500 ring-2 ring-primary-500"
             aria-hidden="true"
           ></span>
         {/if}
-      </a>
+      </div>
     {/if}
 
     <!-- The member's own menu: their picture and name, top right -->
@@ -353,10 +393,10 @@
     data-testid="menu-button"
   >
     <Bars svgClass="fill-white h-6 w-6" />
-    {#if counts.total}
+    {#if menuButtonCount}
       <span
         class="badge absolute -right-1.5 -top-1.5 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700 ring-2 ring-primary-500"
-        aria-hidden="true">{shownCount(counts.total)}</span
+        aria-hidden="true">{shownCount(menuButtonCount)}</span
       >
     {/if}
   </button>

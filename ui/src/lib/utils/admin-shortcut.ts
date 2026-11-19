@@ -30,9 +30,6 @@ export function isAdminShortcut(event: ShortcutEvent): boolean {
   return !isTypingTarget(event.target);
 }
 
-/** The value for `aria-keyshortcuts` on the Admin button. */
-export const ADMIN_SHORTCUT_ARIA = 'Alt+A';
-
 /**
  * The one sentence that teaches the shortcut. Every place that explains Alt+A reads it from
  * here (the admin menu, the progenitor's first-run message), and the handbook quotes it.

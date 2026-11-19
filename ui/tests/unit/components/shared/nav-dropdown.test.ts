@@ -23,6 +23,84 @@ const item = (label: string) => screen.getByRole('menuitem', { name: new RegExp(
 beforeEach(cleanup);
 
 describe('NavDropdown', () => {
+  it('adds a hint to the trigger name, after any count (#361 on #411)', () => {
+    render(NavDropdown, {
+      props: {
+        title: 'Admin',
+        items: [{ ...ITEMS[0], badge: 1 }],
+        badgeLabel: 'waiting to be accepted',
+        hint: 'Accept your membership to finish setup'
+      }
+    });
+    expect(
+      screen.getByRole('button', {
+        name: 'Admin menu, 1 waiting to be accepted. Accept your membership to finish setup'
+      })
+    ).toBeTruthy();
+  });
+
+  it('shows a footer under the items, outside them, and gives it as the trigger description (#359)', async () => {
+    render(NavDropdown, {
+      props: {
+        title: 'Admin',
+        items: ITEMS,
+        footer: 'Alt+A switches between a page and its admin view'
+      }
+    });
+    const button = screen.getByRole('button', { name: 'Admin menu' });
+    // Heard from the trigger, whether or not the menu is open.
+    expect(button.getAttribute('aria-describedby')).toBeTruthy();
+    expect(document.getElementById(button.getAttribute('aria-describedby')!)?.textContent).toBe(
+      'Alt+A switches between a page and its admin view'
+    );
+
+    await fireEvent.keyDown(button, { key: 'Enter' });
+    await tick();
+    // Seen under the items, and not one of them: the arrow keys pass it by.
+    expect(screen.getAllByRole('menuitem')).toHaveLength(ITEMS.length);
+    expect(screen.getByRole('menu').textContent).toContain(
+      'Alt+A switches between a page and its admin view'
+    );
+  });
+
+  it('says the count in words: the trigger "new" by default, an item in badgeLabel', async () => {
+    render(NavDropdown, {
+      props: {
+        title: 'Admin',
+        items: [{ ...ITEMS[0], badge: 2 }],
+        badgeLabel: 'waiting to be accepted'
+      }
+    });
+    const button = screen.getByRole('button', { name: 'Admin menu, 2 waiting to be accepted' });
+    await fireEvent.keyDown(button, { key: 'Enter' });
+    await tick();
+    expect(screen.getByRole('menuitem').textContent).toContain('2 waiting to be accepted');
+    cleanup();
+
+    render(NavDropdown, { props: { title: 'Mine', items: [{ ...ITEMS[0], badge: 3 }] } });
+    expect(screen.getByRole('button', { name: 'Mine menu, 3 new' })).toBeTruthy();
+  });
+
+  it("says its one counted item's own wording when the menu gives none (#521 with #411)", () => {
+    render(NavDropdown, {
+      props: {
+        title: 'Mine',
+        items: [
+          { ...ITEMS[0], badge: 2, badgeLabel: (n: number) => `${n} unopened conversations` },
+          ITEMS[1]
+        ]
+      }
+    });
+    expect(
+      screen.getByRole('button', { name: 'Mine menu, 2 unopened conversations' })
+    ).toBeTruthy();
+  });
+
+  it('has no aria-keyshortcuts: Alt+A does not open a menu (#411 review)', () => {
+    mount();
+    expect(trigger().hasAttribute('aria-keyshortcuts')).toBe(false);
+  });
+
   it('is closed at first, and names no panel in aria-controls while closed', () => {
     mount();
     expect(trigger().getAttribute('aria-expanded')).toBe('false');

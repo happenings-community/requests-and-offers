@@ -1333,3 +1333,337 @@ async fn a_case_message_at_the_size_limit_reaches_every_holder_and_back() {
         messages.iter().map(|m| m.content.len()).collect::<Vec<_>>()
     );
 }
+
+// -- who receives a role message: the grants, not the roster --
+
+/// The agent's live network administrator grant, or `None`.
+async fn admin_grant_of(
+    conductor: &SweetConductor,
+    cell: &SweetCell,
+    agent: &AgentPubKey,
+) -> Option<ActionHash> {
+    conductor
+        .call(
+            &cell.zome("administration"),
+            "can",
+            serde_json::json!({ "agent": agent, "ability": "Administer", "scope": null }),
+        )
+        .await
+}
+
+/// The agent keys a send wrote a copy for.
+fn agents_of(sent: &[SentMessage]) -> Vec<AgentPubKey> {
+    sent.iter().map(|copy| copy.agent.clone()).collect()
+}
+
+/// An administrator revoked by `revoke_role` is sent no case.
+///
+/// `revoke_role` ends a role without touching the `AllAdministrators` roster, so the
+/// roster still lists Bob after his grant is revoked. Who receives a role message is read
+/// from the grants, as `holds_role` reads who may act as one, so Carol's report reaches
+/// Alice and Carol's own agent, and no copy is sealed to Bob.
+///
+/// **To make this go red:** have `role_holders` read the roster links again
+/// (`get_all_administrators_links`): Bob's agent is back among the copies.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_revoked_administrator_is_sent_no_case() {
+    let (conductors, alice, bob, carol, _alice_user, _bob_user, _carol_user) =
+        two_admins_and_a_member().await;
+
+    let bobs_grant = admin_grant_of(&conductors[0], &alice, bob.agent_pubkey())
+        .await
+        .expect("Bob administers the network before the revocation");
+    let _: ActionHash = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "revoke_role",
+            serde_json::json!({ "grant": bobs_grant, "reason": "testing who a case reaches" }),
+        )
+        .await;
+    await_consistency_s(15, [&alice, &bob, &carol])
+        .await
+        .unwrap();
+    assert_eq!(
+        admin_grant_of(&conductors[2], &carol, bob.agent_pubkey()).await,
+        None,
+        "Bob no longer administers, read from Carol's node"
+    );
+    let roster: Vec<Link> = conductors[2]
+        .call(
+            &carol.zome("administration"),
+            "get_all_administrators_links",
+            ENTITY_NETWORK.to_string(),
+        )
+        .await;
+    assert_eq!(
+        roster.len(),
+        2,
+        "the roster still lists Bob, which is the disagreement this case is about"
+    );
+
+    let sent: Vec<SentMessage> = conductors[2]
+        .call(
+            &carol.zome("messaging"),
+            "send_role_message",
+            open_case("after-revocation", "the kettle again"),
+        )
+        .await;
+    let reached = agents_of(&sent);
+    assert!(
+        reached.contains(alice.agent_pubkey()),
+        "Alice still administers, so the case reaches her; copies went to {reached:?}"
+    );
+    assert!(
+        reached.contains(carol.agent_pubkey()),
+        "the sender keeps her own copy"
+    );
+    assert!(
+        !reached.contains(bob.agent_pubkey()),
+        "no copy is sealed to Bob, whose grant is revoked; copies went to {reached:?}"
+    );
+}
+
+/// A roster emptied by a member does not stop a case reaching the administrators.
+///
+/// A tombstone on an `AllAdministrators` link carries no grant, so any member may write
+/// one (who may is #234's open question). Mallory, an ordinary member, tombstones every
+/// roster link. Reading holders from the roster, her report then failed with
+/// `RoleHasNoHolders`, and so would every member's; read from the grants, it reaches
+/// Alice, and Alice finds the case in her role inbox.
+///
+/// **To make this go red:** have `role_holders` read the roster links again: the send
+/// fails with "That role has no holders".
+#[tokio::test(flavor = "multi_thread")]
+async fn a_roster_emptied_by_a_member_still_reaches_the_administrators() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(1, true).await;
+    let alice = &cells[0];
+
+    for (i, cell, name) in [(0usize, alice, "Alice"), (1, &mallory, "Mallory")] {
+        conductors[i]
+            .call::<_, Record>(
+                &cell.zome("users_organizations"),
+                "create_user",
+                sample_user(name),
+            )
+            .await;
+    }
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    for (i, cell) in [(0usize, alice), (1, &mallory)] {
+        let user = user_hash_of(&conductors[i], cell).await;
+        accept_entity(&conductors[0], alice, ENTITY_USERS, user).await;
+    }
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    assert!(
+        admin_grant_of(&conductors[1], &mallory, alice.agent_pubkey())
+            .await
+            .is_some(),
+        "Alice administers the network, read from Mallory's node"
+    );
+
+    let roster: Vec<Link> = conductors[1]
+        .call(
+            &mallory.zome("administration"),
+            "get_all_administrators_links",
+            ENTITY_NETWORK.to_string(),
+        )
+        .await;
+    assert!(!roster.is_empty(), "Alice is on the roster to begin with");
+    for link in roster {
+        let _: ActionHash = conductors[1]
+            .call(
+                &mallory.zome("forge"),
+                "forge_delete_link",
+                link.create_link_hash,
+            )
+            .await;
+    }
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    let roster_after: Vec<Link> = conductors[1]
+        .call(
+            &mallory.zome("administration"),
+            "get_all_administrators_links",
+            ENTITY_NETWORK.to_string(),
+        )
+        .await;
+    assert!(
+        roster_after.is_empty(),
+        "Mallory's tombstones empty the roster, as no rule refuses them yet"
+    );
+
+    let sent: Vec<SentMessage> = conductors[1]
+        .call(
+            &mallory.zome("messaging"),
+            "send_role_message",
+            open_case("emptied-roster", "is anyone there?"),
+        )
+        .await;
+    let reached = agents_of(&sent);
+    assert!(
+        reached.contains(alice.agent_pubkey()),
+        "the case reaches Alice, who holds the role, though the roster is empty; copies went to {reached:?}"
+    );
+    await_consistency_s(15, [alice, &mallory]).await.unwrap();
+    let cases = role_inbox(&conductors[0], alice).await;
+    assert_eq!(
+        cases.len(),
+        1,
+        "Alice finds Mallory's case in her role inbox"
+    );
+}
+
+// -- the third door: a member put on the roster by a modified client --
+
+/// `RoleGrant`'s entry index in `administration_integrity`, as in `grants.rs`.
+const ROLE_GRANT: u8 = 1;
+
+/// The index of an integrity zome, read from the DNA, so a forged write lands in the
+/// zome it is aimed at.
+async fn zome_index(conductor: &SweetConductor, mallory: &SweetCell, name: &str) -> u8 {
+    let names: Vec<String> = conductor
+        .call(&mallory.zome("forge"), "integrity_zome_names", ())
+        .await;
+    names
+        .iter()
+        .position(|n| n == name)
+        .unwrap_or_else(|| panic!("{name} is not an integrity zome; got {names:?}")) as u8
+}
+
+/// Mallory writes an entry of the given type with the bytes as given.
+async fn forge_entry<E: TryInto<SerializedBytes>>(
+    conductor: &SweetConductor,
+    mallory: &SweetCell,
+    zome_index: u8,
+    entry_index: u8,
+    entry: E,
+) -> ActionHash
+where
+    E::Error: std::fmt::Debug,
+{
+    let bytes: SerializedBytes = entry.try_into().expect("the entry should serialize");
+    conductor
+        .call(
+            &mallory.zome("forge"),
+            "forge_entry",
+            serde_json::json!({ "zome_index": zome_index, "entry_index": entry_index, "entry": bytes }),
+        )
+        .await
+}
+
+/// A member put on the roster by a modified client is sent no case.
+///
+/// A roster link is valid when its tag carries an admin grant its author wrote
+/// (`validate_roster_link`); the rule does not look at the target. Mallory, an
+/// administrator running the `forge` zome, writes an admin grant of her own and then a
+/// roster link with that grant in its tag, from the real roster's base to Bob, an
+/// ordinary member who holds no admin grant. Reading holders from the roster, Carol's report
+/// then reached Bob: this door leaks a case rather than stopping one. Read from the
+/// grants, no copy is sealed to Bob.
+///
+/// **To make this go red:** have `role_holders` read the roster links again
+/// (`get_all_administrators_links`): Bob's agent is among the copies.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_member_put_on_the_roster_by_a_modified_client_is_sent_no_case() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(3, true).await;
+    let (alice, bob, carol) = (&cells[0], &cells[1], &cells[2]);
+    let everyone = [alice, bob, carol, &mallory];
+
+    for (i, (cell, name)) in everyone
+        .iter()
+        .zip(["Alice", "Bob", "Carol", "Mallory"])
+        .enumerate()
+    {
+        conductors[i]
+            .call::<_, Record>(&cell.zome("users_organizations"), "create_user", sample_user(name))
+            .await;
+    }
+    await_consistency_s(15, everyone).await.unwrap();
+    let mut users = Vec::new();
+    for (i, cell) in everyone.iter().enumerate() {
+        users.push(user_hash_of(&conductors[i], cell).await);
+    }
+    for user in &users {
+        accept_entity(&conductors[0], alice, ENTITY_USERS, user.clone()).await;
+    }
+    await_consistency_s(15, everyone).await.unwrap();
+
+    // Alice makes Mallory an administrator, so the grant Mallory writes is valid.
+    add_network_admin(&conductors[0], alice, users[3].clone(), mallory.agent_pubkey().clone()).await;
+    await_consistency_s(15, everyone).await.unwrap();
+    let hers = admin_grant_of(&conductors[3], &mallory, mallory.agent_pubkey())
+        .await
+        .expect("Mallory administers the network");
+
+    let administration = zome_index(&conductors[3], &mallory, "administration_integrity").await;
+    let written = forge_entry(
+        &conductors[3],
+        &mallory,
+        administration,
+        ROLE_GRANT,
+        RoleGrant {
+            role: "admin".to_string(),
+            holder: mallory.agent_pubkey().clone(),
+            scope: None,
+            authority: Authority::Grant(hers),
+        },
+    )
+    .await;
+
+    // The forged roster link: base, zome and type copied from a real roster link, the
+    // target Bob's profile, the tag the grant Mallory just wrote.
+    let roster: Vec<Link> = conductors[3]
+        .call(
+            &mallory.zome("administration"),
+            "get_all_administrators_links",
+            ENTITY_NETWORK.to_string(),
+        )
+        .await;
+    let real = roster.first().expect("the roster lists the administrators");
+    let _: ActionHash = conductors[3]
+        .call(
+            &mallory.zome("forge"),
+            "forge_link",
+            serde_json::json!({
+                "base": real.base,
+                "target": AnyLinkableHash::from(users[1].clone()),
+                "zome_index": real.zome_index.0,
+                "link_type": real.link_type.0,
+                "tag": written.get_raw_39().to_vec(),
+            }),
+        )
+        .await;
+    await_consistency_s(15, everyone).await.unwrap();
+
+    let listed: Vec<Link> = conductors[2]
+        .call(
+            &carol.zome("administration"),
+            "get_all_administrators_links",
+            ENTITY_NETWORK.to_string(),
+        )
+        .await;
+    assert!(
+        listed.iter().any(|link| link.target == users[1].clone().into()),
+        "the roster lists Bob, read from Carol's node: the link is valid"
+    );
+    assert_eq!(
+        admin_grant_of(&conductors[2], carol, bob.agent_pubkey()).await,
+        None,
+        "Bob holds no admin grant"
+    );
+
+    let sent: Vec<SentMessage> = conductors[2]
+        .call(
+            &carol.zome("messaging"),
+            "send_role_message",
+            open_case("forged-roster", "who reads this?"),
+        )
+        .await;
+    let reached = agents_of(&sent);
+    assert!(
+        reached.contains(alice.agent_pubkey()),
+        "the case reaches Alice, who holds the role; copies went to {reached:?}"
+    );
+    assert!(
+        !reached.contains(bob.agent_pubkey()),
+        "no copy is sealed to Bob, whom only a forged roster link names; copies went to {reached:?}"
+    );
+}

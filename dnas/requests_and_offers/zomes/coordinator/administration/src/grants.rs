@@ -116,6 +116,24 @@ pub fn live_administrators() -> ExternResult<HashSet<AgentPubKey>> {
   Ok(holders)
 }
 
+/// The agents who hold a live network administrator grant, sorted, for another zome.
+///
+/// Messaging reads this to address a message to the administrators. The roster
+/// links cannot answer it: `revoke_role` leaves a revoked administrator on them,
+/// and a tombstone on one needs no grant, so any member can empty the roster.
+///
+/// It gives the answer `holds_role` gives, through a different index: `holds_role`
+/// reads the holder's `AgentGrants`, this reads `AllGrants`. They agree because
+/// [`write_grant`] writes both links for every grant and neither can be tombstoned;
+/// a granter with a modified client could write only one, and then the two disagree
+/// about the grant that granter wrote. A third index would have to keep the same pair.
+#[hdk_extern]
+pub fn get_live_administrator_agents(_: ()) -> ExternResult<Vec<AgentPubKey>> {
+  let mut agents: Vec<AgentPubKey> = live_administrators()?.into_iter().collect();
+  agents.sort();
+  Ok(agents)
+}
+
 /// Whether any agent holds a live network administrator grant. `create_user`
 /// asks this before offering the first user the root on a network with no
 /// progenitor key, so it and [`authority_for`] cannot disagree.
@@ -252,7 +270,7 @@ pub fn revoke_role(input: RevokeRoleInput) -> ExternResult<ActionHash> {
   let grant = grant_at(&input.grant)?;
   let role = grant
     .parsed_role()
-    .map_err(CommonError::InvalidData)?;
+    .map_err(|reason| CommonError::InvalidData(reason.to_string()))?;
   let authority = require(Ability::Grant(role), grant.scope.clone())?;
   if role == Role::Admin && grant.scope.is_none() {
     // Only when this is the holder's last live admin grant does the holder leave.

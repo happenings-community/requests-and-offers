@@ -423,7 +423,7 @@ async fn admin_grant_of(
 struct StatusShapedLikeARevocation {
     status_type: String,
     reason: Option<String>,
-    suspended_until: Option<String>,
+    suspended_until: Option<i64>,
     grant: Option<ActionHash>,
     authority: ActionHash,
 }

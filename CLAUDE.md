@@ -148,7 +148,7 @@ Key helpers used across all stores:
 ### Zome errors (`utils/src/errors.rs`)
 
 **Rule for every zome function, human or agent written:** a zome returns errors from `dnas/requests_and_offers/utils/src/errors.rs`, never a message built by hand with `wasm_error!(WasmErrorInner::Guest(...))`.
-`CommonError` covers the generic cases (`EntryNotFound`, `RecordNotFound`, `LinkNotFound`, `EntryOperationFailed`, `InvalidData`, ...), and each domain has its own `thiserror` enum (`UsersError`, `OrganizationsError`, `AdministrationError`, `StatusError`, `ServiceTypeError`), each with an `impl From<...> for WasmError`, so `?` converts it.
+`CommonError` covers the generic cases (`EntryNotFound`, `RecordNotFound`, `LinkNotFound`, `EntryOperationFailed`, `InvalidData`, ...), and each domain has its own `thiserror` enum (`UsersError`, `OrganizationsError`, `AdministrationError`, `StatusError`, `ServiceTypeError`, `MessagingError`), each with an `impl From<...> for WasmError`, so `?` converts it.
 A domain without an enum gets one there, with its `From` impl, in the PR that needs it.
 ```rust
 use utils::errors::CommonError;
@@ -157,6 +157,18 @@ let record = get(hash.clone(), GetOptions::default())?
   .ok_or(CommonError::RecordNotFound("the just created request".to_string()))?;
 ```
 Older code on dev still builds errors by hand in places; it migrates when it is touched, and a review flags any new one.
+
+**The same rule holds for validation.** Every `ValidateCallbackResult::Invalid` reason in an integrity zome comes from a per-domain validation enum in `utils/src/errors.rs` (`CommonValidationError`, `UserValidationError`, `OrganizationValidationError`, `StatusValidationError`, `ServiceTypeValidationError`, `MediumOfExchangeValidationError`, `RequestValidationError`, `OfferValidationError`, `ExchangeValidationError`, `MessagingValidationError`, and `GrantValidationError` for the chain of grants, which the shared checks in `utils/src/grants.rs` return too), through the shared helper `invalid`, never a string written at the call site. `invalid` takes only a `ValidationReason`, a sealed trait those enums implement, so a string does not compile there. The validation enums have no `From<...> for WasmError`: a refusal is a verdict, not an error. A rule written as a pure function returning `ValidateCallbackResult`, as messaging's are, uses `verdict`, which is `invalid` without the `Ok`.
+A variant's `#[error]` text is what peers, tests and the UI read, so changing it changes the network's verdicts; `validation_reason_tests` pins every one.
+A new rule adds its variant, and its text to that test, in the PR that needs it.
+```rust
+use utils::errors::{invalid, OfferValidationError};
+
+if offer.title.is_empty() {
+  return invalid(OfferValidationError::TitleEmpty);
+}
+```
+The sealed trait guards only `invalid` and `verdict`: a refusal written as `ValidateCallbackResult::Invalid(..)` by hand still compiles, and review flags it.
 
 ## Domains
 

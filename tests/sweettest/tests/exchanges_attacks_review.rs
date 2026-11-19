@@ -11,7 +11,7 @@ use std::time::Instant;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 struct Quantity {
-    value: f64,
+    value: String,
     unit: String,
 }
 
@@ -112,13 +112,13 @@ impl World {
                         "direction": "Provide",
                         "resource_conforms_to": "Web design",
                         "resource_kind": "Service",
-                        "quantity": { "value": 2.0, "unit": "h" }
+                        "quantity": { "value": "2", "unit": "h" }
                     },
                     "reciprocal": {
                         "direction": "Receive",
                         "resource_conforms_to": "Time bank hours",
                         "resource_kind": "Currency",
-                        "quantity": { "value": 2.0, "unit": "Time bank hours" }
+                        "quantity": { "value": "2", "unit": "Time bank hours" }
                     },
                     "medium": "Time bank hours",
                     "terms": "Two hours over a call.",
@@ -277,8 +277,8 @@ async fn review_withdrawn_proposal_through_the_probe() {
             "counter_agreement",
             json!({
                 "agreement": p,
-                "primary_quantity": { "value": 3.0, "unit": "h" },
-                "reciprocal_quantity": { "value": 2.0, "unit": "Time bank hours" },
+                "primary_quantity": { "value": "3", "unit": "h" },
+                "reciprocal_quantity": { "value": "2", "unit": "Time bank hours" },
                 "delivery_timeframe": "Within 2 weeks"
             }),
         )
@@ -321,8 +321,8 @@ async fn review_remote_members_validate_the_chain() {
             "counter_agreement",
             json!({
                 "agreement": p,
-                "primary_quantity": { "value": 3.0, "unit": "h" },
-                "reciprocal_quantity": { "value": 2.0, "unit": "Time bank hours" },
+                "primary_quantity": { "value": "3", "unit": "h" },
+                "reciprocal_quantity": { "value": "2", "unit": "Time bank hours" },
                 "delivery_timeframe": "Within 2 weeks"
             }),
         )
@@ -346,8 +346,8 @@ async fn review_remote_members_validate_the_chain() {
             "counter_agreement",
             json!({
                 "agreement": c1,
-                "primary_quantity": { "value": 3.0, "unit": "h" },
-                "reciprocal_quantity": { "value": 3.0, "unit": "Time bank hours" },
+                "primary_quantity": { "value": "3", "unit": "h" },
+                "reciprocal_quantity": { "value": "3", "unit": "Time bank hours" },
                 "delivery_timeframe": "Within 2 weeks"
             }),
         )

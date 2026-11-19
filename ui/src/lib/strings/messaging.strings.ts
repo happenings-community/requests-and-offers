@@ -301,7 +301,7 @@ export const MESSAGING_STRINGS = {
     button: 'Block',
     confirm: {
       title: 'Block {name}?',
-      body: "You won't see messages from {name} while they're blocked. Anything they send while blocked appears again when you unblock. They aren't told.",
+      body: "You won't see messages from {name} on this device while they're blocked. Anything they send while blocked appears again when you unblock. They aren't told, and it doesn't carry to your other devices: block them there too.",
       yes: 'Block {name}'
     },
     blockedNotice: "You've blocked {name}.",

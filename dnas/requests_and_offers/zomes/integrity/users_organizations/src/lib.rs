@@ -6,6 +6,7 @@ pub use organization::*;
 pub use user::*;
 
 use hdi::prelude::*;
+use utils::errors::{invalid, CommonValidationError, UserValidationError};
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -120,9 +121,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           match TypedAction::<EntryCreationData>::try_from(original_record.action().clone()) {
             Ok(original_action) => original_action,
             Err(_) => {
-              return Ok(ValidateCallbackResult::Invalid(
-                "Original action for a delete must be a Create or Update action".to_string(),
-              ));
+              return invalid(CommonValidationError::DeleteOfNonCreation);
             }
           };
         let app_entry_type = match original_action.entry_type() {
@@ -135,9 +134,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           Some(entry) => entry,
           None => {
             if original_action.entry_type().visibility().is_public() {
-              return Ok(ValidateCallbackResult::Invalid(
-                "Original record for a delete of a public entry must contain an entry".to_string(),
-              ));
+              return invalid(CommonValidationError::DeletedPublicEntryMissing);
             } else {
               return Ok(ValidateCallbackResult::Valid);
             }
@@ -150,17 +147,11 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         )? {
           Some(app_entry) => app_entry,
           None => {
-            return Ok(ValidateCallbackResult::Invalid(
-              "Original app entry must be one of the defined entry types for this zome".to_string(),
-            ));
+            return invalid(CommonValidationError::UnknownAppEntry);
           }
         };
         match original_app_entry {
-          EntryTypes::User(_original_user) => {
-            return Ok(ValidateCallbackResult::Invalid(String::from(
-              "User profile cannot be deleted",
-            )))
-          }
+          EntryTypes::User(_original_user) => return invalid(UserValidationError::DeleteRefused),
           EntryTypes::Organization(_original_organization) => {
             return Ok(ValidateCallbackResult::Valid)
           }
@@ -238,7 +229,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       }
       // the links that say who a member is are never tombstoned, by anyone (documentation/architecture/validation.md)
       LinkTypes::UserAgents | LinkTypes::MyUser => {
-        return invalid("UserAgents and MyUser links are never deleted");
+        return invalid(UserValidationError::IdentityLinkDeleteRefused);
       }
       _ => (),
     },
@@ -303,35 +294,36 @@ pub(crate) fn validate_update_link(
   match entry_at(base)? {
     Some((record, entry)) if is_kind(&entry) && matches!(record.action().data, ActionData::Create(_)) => {}
     _ => {
-      return invalid(&format!(
-        "{name} link starts at the original record of {kind}"
-      ))
+      return invalid(CommonValidationError::UpdatesLinkBase {
+        name: name.to_string(),
+        kind: kind.to_string(),
+      })
     }
   }
   let update = match entry_at(target)? {
     Some((record, entry)) if is_kind(&entry) && matches!(record.action().data, ActionData::Update(_)) => {
       record
     }
-    _ => return invalid(&format!("{name} link points at an update of {kind}")),
+    _ => return invalid(updates_link_target(name, kind)),
   };
   let Some(target_hash) = target.clone().into_action_hash() else {
-    return invalid(&format!("{name} link points at an update of {kind}"));
+    return invalid(updates_link_target(name, kind));
   };
   match utils::grants::chain_root(&target_hash)? {
     Ok((root, _)) if AnyLinkableHash::from(root.clone()) == *base => {}
     Ok(_) => {
-      return invalid(&format!(
-        "{name} link points at an update of the record it starts at"
-      ))
+      return invalid(CommonValidationError::UpdatesLinkOtherRecord(name.to_string()))
     }
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   }
   if update.action().author() != link_author {
-    return invalid(&format!(
-      "{name} link is written by the author of the update it points at"
-    ));
+    return invalid(CommonValidationError::UpdatesLinkAuthor(name.to_string()));
   }
   Ok(ValidateCallbackResult::Valid)
+}
+
+fn updates_link_target(name: &str, kind: &str) -> CommonValidationError {
+  CommonValidationError::UpdatesLinkTarget { name: name.to_string(), kind: kind.to_string() }
 }
 
 fn is_user_authored_by(hash: &AnyLinkableHash, author: &AgentPubKey) -> ExternResult<bool> {
@@ -341,10 +333,6 @@ fn is_user_authored_by(hash: &AnyLinkableHash, author: &AgentPubKey) -> ExternRe
     }
     _ => false,
   })
-}
-
-fn invalid(reason: &str) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Invalid(reason.to_string()))
 }
 
 /// Who may write the two links that say who a member is.
@@ -357,20 +345,20 @@ fn validate_create_identity_link(
   match link_type {
     LinkTypes::UserAgents => {
       if !is_user_authored_by(base, author)? {
-        return invalid("only a User's author may link agents to it");
+        return invalid(UserValidationError::AgentsLinkFromForeignUser);
       }
       // A second device of the same member needs a rule of its own (a proof
       // from the first key); until then a User has exactly its author's key.
       if target.clone().into_agent_pub_key().as_ref() != Some(author) {
-        return invalid("a UserAgents link must point to its author's own key");
+        return invalid(UserValidationError::AgentsLinkToForeignKey);
       }
     }
     LinkTypes::MyUser => {
       if base.clone().into_agent_pub_key().as_ref() != Some(author) {
-        return invalid("a MyUser link must start at its author's own key");
+        return invalid(UserValidationError::MyUserLinkFromForeignKey);
       }
       if !is_user_authored_by(target, author)? {
-        return invalid("a MyUser link must point to a User its author wrote");
+        return invalid(UserValidationError::MyUserLinkToForeignUser);
       }
     }
     _ => (),

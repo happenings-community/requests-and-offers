@@ -14,6 +14,17 @@ Design note, 2026-11-02. Status: proposed. The inspector began inside Requests a
 
 A test (`scripts/tests/inspector-adapter.test.ts`) fails if an R&O or hREA name appears in a core file. With `genericAdapter`, the inspector already works on any hApp: types show by index (`zome_resource #2`), roles by their manifest names.
 
+### The entry graph's layout and view
+
+The layout is computed in `inspector-view.mts`, not by a Cytoscape force layout, so it needs no extension and is tested like the rest of the view logic.
+
+- **Clustered by entry type.** `clusteredLayout` gives each entry type one block, framed by a compound node labelled with the type and its count (a block of one node, such as a collapsed group, has no frame). Records sit on a grid inside their block, in creation order, one cell (150 by 58 model pixels) each, wider than the longest label the page draws (110 pixels, then an ellipsis), so nodes and their labels never touch and types never mix.
+- **Blocks that point at each other sit together.** `typeOrder` lays first the type with the most edges to other types, then always the type most connected to those already laid; the blocks are packed into rows, trying every row width the blocks allow (the first one, two, three side by side) and keeping the packing whose overall shape is closest to a 1.6 aspect ratio, the graph pane's usual shape, so two blocks sit side by side rather than one above the other.
+- **Deterministic.** The positions are a pure function of what is on screen: the same records give the same positions, in any order they arrive. A Live refresh that changes nothing moves nothing; one that adds a record puts it at the end of its type's block and animates the few records that have to make room. A record the reader drags keeps his place until Re-layout.
+- **Auto-fit,** on by default, toggled by the button beside Fit. While on, the view refits after anything that changes what is on the graph or the room it has: a DNA switch, a type chip, Hide unlinked, Group large types, the author filter, Re-layout, a refresh that adds or removes records, a group opened or closed, and a resize of the window or a panel. A search fits the matches, and everything again once it is cleared. A refit after records move waits until they have arrived, so it measures the final box. Any pan or zoom by the reader (wheel, drag, pinch, a double-click focus, Zoom to selection, a record centred from the chain or the detail) turns it off, and the button reads "Auto-fit off", so the view never moves under him. F, the Fit button, Esc and the toggle turn it back on. The rules are `autoFit` in `inspector-view.mts`.
+- **The fit** (`fitView`) keeps 36 screen pixels clear around the graph and never zooms past 1.25, so a graph of three records does not fill the pane.
+- **Zoom.** The page handles the wheel itself (`wheelZoom`), before Cytoscape's handler: the zoom changes by `exp(-0.002 × deltaY)` per event, centred on the cursor, so a trackpad's small events glide and a mouse notch steps about 18 percent; a trackpad pinch (a wheel event with `ctrlKey`) gets a gain of 0.01; line-mode wheels count 16 pixels per line; one event never more than doubles or halves the zoom; a sideways swipe pans. The zoom stays between 0.1 and 3. The network panel uses the same wheel.
+
 ## The adapter contract
 
 An adapter is everything the conductor cannot tell the inspector. The contract is the one `scripts/inspector-adapter.mts` and `scripts/inspector-types.mts` define today, unchanged:

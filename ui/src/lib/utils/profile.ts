@@ -1,6 +1,7 @@
 import type { ActionHash } from '@holochain/client';
 import type { UIExchange, UIStatus, UIUser } from '$lib/types/ui';
 import { counterpartyOf } from '$lib/utils/exchange-ui';
+import { suspensionEndDate } from '$lib/utils/suspension';
 
 /**
  * The member profile (#350), as the design system lays it out: the status
@@ -19,8 +20,8 @@ export interface StatusChip {
   reason?: string;
 }
 
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+const formatDate = (date: Date) =>
+  date.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
 
 /**
  * Accepted is green; pending and an expired suspension waiting on review are
@@ -39,8 +40,9 @@ export function statusChip(status: UIStatus | undefined, now = Date.now()): Stat
     case 'suspended indefinitely':
       return { label: 'Suspended', variant: 'variant-soft-error', reason: status.reason };
     case 'suspended temporarily': {
-      const until = status.suspended_until;
-      if (until && new Date(until).getTime() <= now) {
+      // A Holochain timestamp in microseconds since #528, read through suspension.ts.
+      const until = suspensionEndDate(status.suspended_until);
+      if (until && until.getTime() <= now) {
         return { label: 'In review', variant: 'variant-soft-warning', reason: status.reason };
       }
       return {

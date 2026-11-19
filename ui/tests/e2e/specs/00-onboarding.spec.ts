@@ -39,12 +39,15 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     // initializes; it reads "Connected" or "Online, no peers" only once the
     // conductor has answered (the connect step sets 'connected', the peer
     // poll then refines it to 'alone' with no peers), and the home heading
-    // renders only inside the connected app shell. The indicator lives in
+    // renders only inside the connected app shell. The indicator is a button
+    // (it opens the network details) and lives in
     // the NavBar's desktop-only block (hidden below the lg breakpoint,
     // 1024px); every Playwright project runs at 1280x720, so a narrower
     // project would need a different probe here.
     await expect(
-      page.getByRole('img', { name: /^Connection status: (Connected|Online, no peers)$/ })
+      page.getByRole('button', {
+        name: /^Connection status: (Connected|Online, no peers)\. Show network details$/
+      })
     ).toBeVisible({ timeout: 15_000 });
     await expect(
       page.getByRole('heading', { name: 'Welcome to Requests & Offers', exact: true })
@@ -69,7 +72,10 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await expect(page.getByRole('heading', { name: 'Members only' })).toBeVisible({
       timeout: 15_000
     });
-    await expect(page.getByRole('link', { name: 'Create Profile', exact: true })).toBeVisible();
+    // The nav bar has its own Create Profile link, so look in the page body.
+    await expect(
+      page.getByRole('main').getByRole('link', { name: 'Create Profile', exact: true })
+    ).toBeVisible();
   });
 
   test('visitor creates a profile through the real form', async ({ page }) => {
@@ -133,6 +139,10 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await gotoApp(page, '/user');
 
     await expect(page.locator('text=e2e_tester').first()).toBeVisible({ timeout: 15_000 });
+    // My Listings and My Exchanges are members only, so a pending member gets no
+    // menu that leads to that wall (#349 review). The accepted test below checks
+    // the same name is there, so this one cannot pass for a wrong name.
+    await expect(page.getByRole('button', { name: /^My Activity menu/ })).toHaveCount(0);
   });
 
   test('first agent approves its own profile from the admin dashboard', async ({ page }) => {
@@ -180,6 +190,7 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await expect(page.getByRole('button', { name: 'Create Offer', exact: true })).toBeVisible({
       timeout: 15_000
     });
+    await expect(page.getByRole('button', { name: /^My Activity menu/ })).toBeVisible();
   });
 
   test('user edits their profile through the form', async ({ page }) => {

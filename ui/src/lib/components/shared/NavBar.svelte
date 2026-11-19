@@ -9,6 +9,9 @@
     type PopupSettings
   } from '@skeletonlabs/skeleton';
   import NavDropdown from '$lib/components/shared/NavDropdown.svelte';
+  import { getUserPictureUrl } from '$lib/utils';
+  import { MY_MESSAGES, myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
+  import { isUserApproved } from '$lib/utils';
   import NetworkStatusPopup from '$lib/components/network/NetworkStatusPopup.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -63,6 +66,7 @@
   );
 
   const currentUser = $derived(usersStore.currentUser);
+  const myPicture = $derived(currentUser ? getUserPictureUrl(currentUser) : undefined);
   const agentIsAdministrator = $derived(administrationStore.agentIsAdministrator);
   const showSetupHint = $derived(
     needsSelfAcceptance(agentIsAdministrator, currentUser?.status?.status_type)
@@ -79,67 +83,34 @@
   }
 
   // Navigation menu configurations
-  function profileItems() {
-    const user = currentUser; // dereference the signal
-    return [
-      {
-        href: user ? paths.myProfile() : paths.myProfileCreate(),
-        label: user ? 'My Profile' : 'Create Profile',
-        icon: '👤',
-        description: user ? 'View and edit your profile' : 'Join the community'
-      },
-      {
-        href: paths.requests({ filter: 'my' }),
-        label: 'My Requests',
-        icon: '📋',
-        description: 'Manage your requests for help'
-      },
-      {
-        href: paths.offers({ filter: 'my' }),
-        label: 'My Offers',
-        icon: '🎯',
-        description: 'Manage your offers to help others'
-      },
-      {
-        href: paths.myListings(),
-        label: 'My Listings',
-        icon: '📋',
-        description: 'Manage your requests and offers'
-      },
-      {
-        href: paths.exchanges(),
-        label: 'My Exchanges',
-        // **No number here where there is messaging** (Sam, 4 October). A proposal
-        // arriving is one thing to deal with, and there it is already counted as an
-        // unopened conversation; a second badge over the same event made it look like
-        // two. An exchange waiting on this member says "Your turn" on its own row instead.
-        // **Without messaging nothing else counts it**, so this keeps the number it had:
-        // the exchanges waiting on this member.
-        badge: messagingPresence.isAbsent ? pendingCount : undefined,
-        badgeLabel: (n: number) => `${n} waiting on you`,
-        icon: '🤝',
-        description: 'Agreements you are part of'
-      },
-      /**
-       * **My Messages is only here when this network has messaging** (R121, brief H4).
-       *
-       * Read from the DNA through H2's module, which is the one question shared chrome may
-       * ask. Not read yet counts as present, so the item is there from the first frame and
-       * disappears only if the DNA says this network has no messaging.
-       */
-      ...(messagingPresence.isAbsent
-        ? []
-        : [
-            {
-              href: paths.messages(),
-              label: 'My Messages',
-              badge: unreadCount,
-              badgeLabel: unreadCountLabel,
-              icon: '✉️',
-              description: 'Your conversations with other members'
-            }
-          ])
-    ];
+  // My Activity. **No number on My Exchanges where there is messaging** (Sam, 4 October).
+  // A proposal arriving is one thing to deal with, and there it is already counted as an
+  // unopened conversation; a second badge over the same event made it look like two. An
+  // exchange waiting on this member says "Your turn" on its own row instead. **Without
+  // messaging nothing else counts it**, so it keeps the number: the exchanges waiting on
+  // this member.
+  //
+  // **My Messages is only here when this network has messaging** (R121, brief H4), with
+  // the unread count, and only for an accepted member like the rest of My Activity, since
+  // Messages is behind the Members only wall. Presence is read from the DNA through H2's
+  // module, which is the one question shared chrome may ask. Not read yet counts as
+  // present, so the item is there from the first frame and disappears only if the DNA says
+  // this network has no messaging. Messages is an activity, not part of who you are, so it
+  // is here rather than under your picture (Sam, 16 November).
+  function activityItems() {
+    return myActivityItems(isUserApproved(currentUser), !messagingPresence.isAbsent).map((item) => {
+      if (item.href === paths.exchanges()) {
+        return {
+          ...item,
+          badge: messagingPresence.isAbsent ? pendingCount : undefined,
+          badgeLabel: (n: number) => `${n} waiting on you`
+        };
+      }
+      if (item.href === MY_MESSAGES.href) {
+        return { ...item, badge: unreadCount, badgeLabel: unreadCountLabel };
+      }
+      return item;
+    });
   }
 
   /**
@@ -260,14 +231,16 @@
   <div class="flex items-center">
     <a href="/" class="flex items-center gap-3 transition-opacity hover:opacity-80">
       <img src="/hAppeningsCIClogo.png" alt="hAppenings Community Logo" class="h-12 w-12" />
-      <span class="hidden text-lg font-bold text-white sm:block">Requests & Offers</span>
+      <span class="hidden whitespace-nowrap text-lg font-bold text-white sm:block"
+        >Requests & Offers</span
+      >
     </a>
   </div>
 
   <!-- Desktop Navigation -->
-  <div class="hidden items-center gap-8 lg:flex">
+  <div class="hidden items-center gap-4 lg:flex xl:gap-8">
     <!-- Primary Actions -->
-    <div class="flex items-center gap-6">
+    <div class="flex items-center gap-3 xl:gap-6">
       <a
         href={paths.requests()}
         class="variant-filled-secondary btn px-6 py-2 font-semibold shadow-md transition-colors hover:variant-filled-tertiary hover:shadow-lg"
@@ -285,27 +258,28 @@
     </div>
 
     <!-- Secondary Navigation -->
-    <div class="flex items-center gap-4 text-white">
-      <NavDropdown title="Profile" items={profileItems()} />
+    <div class="flex items-center gap-2 text-white xl:gap-4">
+      {#if activityItems().length}
+        <NavDropdown title="My Activity" items={activityItems()} />
+      {/if}
 
       <NavDropdown title="Community" items={communityItems} />
 
       <NavDropdown title="Resources" items={resourceItems} alignRight={true} />
     </div>
 
-    <!-- Connection Status Indicator -->
-    <div
-      class="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm transition-colors"
+    <!-- Connection Status Indicator: a button, so it reads as one -->
+    <button
+      type="button"
+      class="flex cursor-pointer items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm transition-colors hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-secondary-300"
+      aria-label={`Connection status: ${getConnectionText(finalConnectionStatus)}. Show network details`}
+      title="Network details"
       use:popup={popupStatus}
     >
-      <span
-        class="text-sm"
-        role="img"
-        aria-label={`Connection status: ${getConnectionText(finalConnectionStatus)}`}
-      >
+      <span class="text-sm" aria-hidden="true">
         {getConnectionIcon(finalConnectionStatus)}
       </span>
-    </div>
+    </button>
 
     <!-- Admin Access -->
     {#if agentIsAdministrator}
@@ -321,7 +295,7 @@
         {#if showSetupHint}
           <!-- Red stays on the dot: elsewhere in the app red means danger. -->
           <span
-            class="pointer-events-none absolute inset-0 rounded-token ring-2 ring-white motion-safe:animate-pulse"
+            class="pointer-events-none absolute inset-0 ring-2 ring-white rounded-token motion-safe:animate-pulse"
             aria-hidden="true"
           ></span>
           <span
@@ -330,6 +304,25 @@
           ></span>
         {/if}
       </a>
+    {/if}
+
+    <!-- The member's own menu: their picture and name, top right -->
+    {#if currentUser}
+      <!-- A test id rather than the name, which differs from member to member -->
+      <div class="text-white" data-testid="member-menu">
+        <NavDropdown
+          title={currentUser.name}
+          avatar={myPicture}
+          items={myProfileItems(true)}
+          alignRight={true}
+        />
+      </div>
+    {:else}
+      <a
+        href={paths.myProfileCreate()}
+        class="variant-ringed-secondary btn border-2 px-4 py-2 text-sm text-white transition-colors hover:variant-filled-secondary"
+        >Create Profile</a
+      >
     {/if}
   </div>
 

@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/svelte';
 import NavBar from '$lib/components/shared/NavBar.svelte';
 
 /**
- * The Profile menu's two counts.
+ * The two counts in My Activity (#344; My Messages sits beside My Exchanges there, since
+ * messages are something you do, not part of who you are: Sam, 16 November).
  *
  * With messaging, a proposal arriving is counted once, as an unopened conversation on My
  * Messages, and My Exchanges carries no number. **Without messaging nothing else counts
@@ -11,7 +12,8 @@ import NavBar from '$lib/components/shared/NavBar.svelte';
  * on every network left a network without messaging with no sign of a proposal at all.
  */
 
-const { presence, unread, exchanges } = vi.hoisted(() => ({
+const { presence, unread, exchanges, member } = vi.hoisted(() => ({
+  member: { status: 'accepted' },
   presence: { isAbsent: false },
   unread: { count: undefined as number | undefined },
   exchanges: { list: [] as unknown[] }
@@ -29,8 +31,18 @@ vi.mock('$lib/extensions/unread-count', async (importActual) => ({
 vi.mock('$lib/components/network/NetworkStatusPopup.svelte', async () => ({
   default: (await import('../../../mocks/Empty.svelte')).default
 }));
+// Accepted by default, because My Activity is for accepted members only (#349); a case
+// sets another status.
 vi.mock('$lib/stores/users.store.svelte', () => ({
-  default: { currentUser: { original_action_hash: new Uint8Array(Array(39).fill(1)) } }
+  default: {
+    get currentUser() {
+      return {
+        name: 'Sam',
+        original_action_hash: new Uint8Array(Array(39).fill(1)),
+        status: { status_type: member.status }
+      };
+    }
+  }
 }));
 vi.mock('$lib/stores/administration.store.svelte', () => ({
   default: { agentIsAdministrator: false }
@@ -49,33 +61,65 @@ vi.mock('$lib/utils/exchange-ui', () => ({
   turnOf: (e: { waitsOnMe: boolean }) => (e.waitsOnMe ? 'you' : 'them')
 }));
 
-const openProfileMenu = async () => {
-  await fireEvent.click(screen.getByRole('button', { name: /profile/i }));
+const openMenu = async (name: RegExp) => {
+  await fireEvent.click(screen.getByRole('button', { name }));
 };
 
 beforeEach(() => {
   cleanup();
+  member.status = 'accepted';
   presence.isAbsent = false;
   unread.count = undefined;
   exchanges.list = [{ waitsOnMe: true }, { waitsOnMe: false }];
 });
 
-describe('the Profile menu', () => {
+describe("the member's menus", () => {
   it('counts unopened conversations on My Messages, and nothing on My Exchanges', async () => {
     unread.count = 2;
     render(NavBar);
-    await openProfileMenu();
+    expect(
+      screen.getByRole('button', { name: 'My Activity menu, 2 unopened conversations' })
+    ).toBeTruthy();
+    await openMenu(/^My Activity menu/);
 
+    expect(screen.getByRole('menuitem', { name: /My Messages/ })).toBeTruthy();
     expect(screen.getByText('2 unopened conversations')).toBeTruthy();
-    expect(screen.queryByLabelText(/waiting on you/)).toBeNull();
+    expect(screen.queryByText(/waiting on you/)).toBeNull();
+  });
+
+  it('keeps the menu under your picture to your profile', async () => {
+    unread.count = 2;
+    render(NavBar);
+    await openMenu(/^Sam menu/);
+
+    // Found by the wrapper's test id: before #352 a menu is not named by its button.
+    const menu = screen.getByTestId('member-menu');
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((i) => i.textContent?.trim())
+    ).toEqual([expect.stringContaining('My Profile')]);
   });
 
   it('counts exchanges waiting on me on My Exchanges when there is no messaging', async () => {
     presence.isAbsent = true;
     render(NavBar);
-    await openProfileMenu();
+    // The trigger says what it counts, as its one counted item does, not "1 new".
+    expect(screen.getByRole('button', { name: 'My Activity menu, 1 waiting on you' })).toBeTruthy();
+    await openMenu(/^My Activity menu/);
 
     expect(screen.getByText('1 waiting on you')).toBeTruthy();
-    expect(screen.queryByText('My Messages')).toBeNull();
+    // Asked while My Activity is open: once a menu's items exist only while it is open
+    // (#352), a check made after opening another menu would pass whatever My Activity held.
+    expect(screen.queryByRole('menuitem', { name: /My Messages/ })).toBeNull();
+  });
+
+  it('gives a member who is not accepted no My Activity, and no count (#349 review)', () => {
+    member.status = 'pending';
+    unread.count = 2;
+    render(NavBar);
+
+    expect(screen.queryByRole('button', { name: /^My Activity menu/ })).toBeNull();
+    expect(screen.queryByText(/unopened conversations|waiting on you/)).toBeNull();
   });
 });

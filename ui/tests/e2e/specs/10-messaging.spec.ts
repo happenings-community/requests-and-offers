@@ -11,7 +11,7 @@ import {
 // 10 — MESSAGING
 //
 // One agent per run, so this covers what one member sees on their own: My
-// Messages in the Profile menu, the Messages page with no conversations, and the
+// Messages in the My Activity menu, the Messages page with no conversations, and the
 // Blocked members page with nobody on it. All three go red on a network that has
 // lost its messaging zome (the pages show a notice instead) or on a missing route.
 // The second also depends on reading the zome: "No conversations yet" shows only
@@ -36,13 +36,13 @@ test.describe.serial('10 — messaging', () => {
     await closeTestClient(client);
   });
 
-  test('My Messages is in the Profile menu and opens Messages', async ({ page }) => {
+  test('My Messages is in the My Activity menu and opens Messages', async ({ page }) => {
     await gotoApp(page, '/');
-    // The menu opens on hover; its button is named "Profile menu", with a count after
+    // The menu opens on hover; its button is named "My Activity menu", with a count after
     // it when something is new.
     await page
       .getByRole('navigation')
-      .getByRole('button', { name: /^Profile menu/ })
+      .getByRole('button', { name: /^My Activity menu/ })
       .hover();
     await page.getByRole('menuitem', { name: /My Messages/ }).click();
 

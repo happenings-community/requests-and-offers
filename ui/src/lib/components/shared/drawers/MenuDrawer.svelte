@@ -2,6 +2,9 @@
   import { getDrawerStore } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
+  import { getUserPictureUrl } from '$lib/utils';
+  import { MY_MESSAGES, myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
+  import { isUserApproved } from '$lib/utils';
   import messagingPresence from '$lib/services/messagingPresence.svelte';
   import { getUnreadCount, unreadCountLabel } from '$lib/extensions/unread-count';
   import { paths } from '$lib/paths';
@@ -9,16 +12,19 @@
 
   const drawerStore = getDrawerStore();
   const { currentUser } = $derived(usersStore);
+  const activity = $derived(
+    myActivityItems(isUserApproved(currentUser), !messagingPresence.isAbsent)
+  );
   const { agentIsAdministrator } = $derived(administrationStore);
   const showSetupHint = $derived(
     needsSelfAcceptance(agentIsAdministrator, currentUser?.status?.status_type)
   );
 
-  // The same entry the nav bar's Profile menu has, asked for the same way: whether this
-  // network has messaging comes from the one presence module, and the count from the
-  // extension point, so the drawer knows nothing of messaging itself. On a narrow screen
-  // this is the only menu, and without the entry the only way to Messages was a Go to
-  // chat link or the address bar.
+  // My Messages: the same entry the nav bar's My Activity menu has, asked for the same
+  // way: whether this network has messaging comes from the one presence module, and the
+  // count from the extension point, so the drawer knows nothing of messaging itself. On a
+  // narrow screen this is the only menu, and without the entry the only way to Messages was
+  // a Go to chat link or the address bar.
   const unread = getUnreadCount();
   const unreadCount = $derived(unread());
 
@@ -52,6 +58,34 @@
 
   <!-- Navigation Content -->
   <div class="flex-1 space-y-6 overflow-y-auto p-4">
+    <!-- The member's own section first, as in the nav bar's top right -->
+    <div class="space-y-3">
+      {#if currentUser}
+        <div class="flex items-center gap-3">
+          <img
+            src={getUserPictureUrl(currentUser)}
+            alt=""
+            class="h-10 w-10 rounded-full bg-surface-200 object-cover"
+          />
+          <span class="truncate font-semibold">{currentUser.name}</span>
+        </div>
+      {:else}
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Profile</h3>
+      {/if}
+      <div class="space-y-2">
+        {#each myProfileItems(!!currentUser) as item (item.href)}
+          <a
+            href={item.href}
+            onclick={closeDrawer}
+            class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
+          >
+            <span class="text-lg">{item.icon}</span>
+            <span>{item.label}</span>
+          </a>
+        {/each}
+      </div>
+    </div>
+
     <!-- Primary Actions -->
     <div class="space-y-3">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Main Actions</h3>
@@ -73,82 +107,36 @@
       </a>
     </div>
 
-    <!-- Profile -->
-    <div class="space-y-3">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Profile</h3>
-      <div class="space-y-2">
-        {#if currentUser}
-          <a
-            href={paths.myProfile()}
-            onclick={closeDrawer}
-            class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-          >
-            <span class="text-lg">👤</span>
-            <span>My Profile</span>
-          </a>
-        {:else}
-          <a
-            href={paths.myProfileCreate()}
-            onclick={closeDrawer}
-            class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-          >
-            <span class="text-lg">👤</span>
-            <span>Create Profile</span>
-          </a>
-        {/if}
-        <a
-          href={paths.requests({ filter: 'my' })}
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-        >
-          <span class="text-lg">📋</span>
-          <span>My Requests</span>
-        </a>
-        <a
-          href={paths.offers({ filter: 'my' })}
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-        >
-          <span class="text-lg">🎯</span>
-          <span>My Offers</span>
-        </a>
-        <a
-          href={paths.myListings()}
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-        >
-          <span class="text-lg">📋</span>
-          <span>My Listings</span>
-        </a>
-        <a
-          href={paths.exchanges()}
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-        >
-          <span class="text-xl">🤝</span>
-          <span>My Exchanges</span>
-        </a>
-        {#if !messagingPresence.isAbsent}
-          <a
-            href={paths.messages()}
-            onclick={closeDrawer}
-            class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
-            data-testid="drawer-messages"
-          >
-            <span class="text-xl">✉️</span>
-            <span>My Messages</span>
-            {#if unreadCount}
-              <!-- Said in words: a bare number told a screen reader nothing. -->
-              <span class="variant-filled-secondary badge ml-auto"
-                ><span aria-hidden="true">{unreadCount}</span><span class="sr-only"
-                  >{unreadCountLabel(unreadCount)}</span
-                ></span
-              >
-            {/if}
-          </a>
-        {/if}
+    <!-- My Activity, as in the nav bar: accepted members only -->
+    {#if activity.length}
+      <div class="space-y-3">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">
+          My Activity
+        </h3>
+        <div class="space-y-2">
+          {#each activity as item (item.href)}
+            {@const isMessages = item.href === MY_MESSAGES.href}
+            <a
+              href={item.href}
+              onclick={closeDrawer}
+              class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
+              data-testid={isMessages ? 'drawer-messages' : undefined}
+            >
+              <span class="text-lg">{item.icon}</span>
+              <span>{item.label}</span>
+              {#if isMessages && unreadCount}
+                <!-- Said in words: a bare number told a screen reader nothing. -->
+                <span class="variant-filled-secondary badge ml-auto"
+                  ><span aria-hidden="true">{unreadCount}</span><span class="sr-only"
+                    >{unreadCountLabel(unreadCount)}</span
+                  ></span
+                >
+              {/if}
+            </a>
+          {/each}
+        </div>
       </div>
-    </div>
+    {/if}
 
     <!-- Community -->
     <div class="space-y-3">

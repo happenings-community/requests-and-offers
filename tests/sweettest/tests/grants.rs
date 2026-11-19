@@ -121,6 +121,43 @@ fn an_offer(title: &str, grant: Option<ActionHash>) -> Offer {
     }
 }
 
+/// Mirror of `EncryptedMessage` from `messaging_integrity`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct EncryptedMessage {
+    encrypted: XSalsa20Poly1305EncryptedData,
+    #[serde(default)]
+    grant: Option<ActionHash>,
+}
+holochain_serialized_bytes::holochain_serial!(EncryptedMessage);
+
+/// Mirror of the messaging coordinator's `SendMessageInput`.
+#[derive(Debug, Clone)]
+struct SendMessageInput {
+    to_user: ActionHash,
+    content: String,
+}
+
+impl serde::Serialize for SendMessageInput {
+    /// With a fresh send id: the coordinator refuses a send without one, and no case here
+    /// is about it.
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let mut out = serializer.serialize_struct("SendMessageInput", 3)?;
+        out.serialize_field("toUser", &self.to_user)?;
+        out.serialize_field("content", &self.content)?;
+        out.serialize_field("sendId", &fresh_send_id())?;
+        out.end()
+    }
+}
+
+/// Mirror of the messaging coordinator's `SentMessage`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SentMessage {
+    agent: AgentPubKey,
+    hash: ActionHash,
+}
+
 /// Mirror of `Interest` from `exchanges_integrity`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Interest {
@@ -386,7 +423,7 @@ async fn admin_grant_of(
 struct StatusShapedLikeARevocation {
     status_type: String,
     reason: Option<String>,
-    suspended_until: Option<String>,
+    suspended_until: Option<i64>,
     grant: Option<ActionHash>,
     authority: ActionHash,
 }
@@ -408,6 +445,9 @@ fn refused(outcome: &Result<ActionHash, String>, expected: &str, what: &str) {
 const STATUS: u8 = 0;
 const REQUEST: u8 = 0;
 const OFFER: u8 = 0;
+const ENCRYPTED_MESSAGE: u8 = 0;
+/// `Inbox` in `messaging_integrity::LinkTypes`.
+const INBOX_LINK: u8 = 0;
 /// `Interest`, the first entry type of `exchanges_integrity`.
 const INTEREST: u8 = 0;
 /// `UserUpdates` and `OrganizationUpdates` in `users_organizations_integrity::LinkTypes`.
@@ -514,6 +554,130 @@ async fn a_listing_carries_the_member_grant_its_author_holds() {
         .call(&alice.zome("requests"), "get_request", hash)
         .await;
     assert!(read.is_some(), "Alice should read the listing Mallory wrote with her grant");
+}
+
+/// A message carries the member grant its author holds, so an agent who was
+/// never accepted cannot use the network to carry messages.
+///
+/// Mallory applies and is not accepted. The coordinator refuses her; past it,
+/// she replays the ciphertext of a real message Bob sent, under her own name,
+/// with no grant and then with Bob's. Both are refused, so neither is
+/// published and no `Inbox` link can point at them. Once Alice accepts her,
+/// her own grant carries a forged message and its `Inbox` link, and the
+/// coordinator sends for her, filling the grant in itself.
+///
+/// **To make this go red:** in `messaging_integrity/src/message.rs`, return
+/// `Valid` from `validate_encrypted_message` after the size rule. Both
+/// forgeries are then written. Leaving the grant out of `deliver` in the
+/// coordinator instead fails the last step, and every honest send in the
+/// messaging suites.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_message_carries_the_member_grant_its_author_holds() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let users = everyone_accepted(&conductors, &[alice, bob]).await;
+    conductors[2]
+        .call::<_, Record>(
+            &mallory.zome("users_organizations"),
+            "create_user",
+            sample_user("Mallory"),
+        )
+        .await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let mallorys_user = user_of(&conductors[2], &mallory).await;
+    let messaging = zome_index(&conductors[2], &mallory, "messaging_integrity").await;
+
+    // The coordinator refuses an applicant first, with the clearer error.
+    let through_the_app: Result<Vec<SentMessage>, String> = reason(
+        conductors[2]
+            .call_fallible(
+                &mallory.zome("messaging"),
+                "send_message",
+                SendMessageInput {
+                    to_user: users[1].clone(),
+                    content: "let me in".to_string(),
+                },
+            )
+            .await,
+    );
+    match through_the_app {
+        Ok(sent) => panic!("an applicant's message should be refused, but was sent as {sent:?}"),
+        Err(text) => assert!(
+            text.contains("not accepted yet"),
+            "an applicant's message should be refused as not accepted; got {text}"
+        ),
+    }
+
+    // A real ciphertext to replay: Bob writes to Alice through the app.
+    let sent: Vec<SentMessage> = conductors[1]
+        .call(
+            &bob.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: users[0].clone(),
+                content: "the kettle is on".to_string(),
+            },
+        )
+        .await;
+    await_consistency_s(30, [alice, bob, &mallory]).await.unwrap();
+    let bobs_record: Option<Record> = conductors[2]
+        .call(&mallory.zome("forge"), "forge_get", sent[0].hash.clone())
+        .await;
+    let bobs_message: EncryptedMessage = bobs_record
+        .expect("Mallory should see the message Bob sent")
+        .entry()
+        .to_app_option()
+        .unwrap()
+        .expect("an EncryptedMessage entry");
+    assert!(bobs_message.grant.is_some(), "Bob's message should carry his member grant");
+    let replay = |grant: Option<ActionHash>| EncryptedMessage {
+        encrypted: bobs_message.encrypted.clone(),
+        grant,
+    };
+
+    // No grant.
+    let no_grant = forge_entry(&conductors[2], &mallory, messaging, ENCRYPTED_MESSAGE, replay(None)).await;
+    refused(&no_grant, "needs a grant for Participate", "an applicant's message with no grant");
+
+    // Bob's grant, copied from his own message.
+    let borrowed = forge_entry(&conductors[2], &mallory, messaging, ENCRYPTED_MESSAGE, replay(bobs_message.grant.clone())).await;
+    refused(&borrowed, "held by someone else", "an applicant's message with Bob's grant");
+
+    // Accepted, her own grant carries a message and its Inbox link.
+    accept_entity(&conductors[0], alice, ENTITY_USERS, mallorys_user).await;
+    await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
+    let mine = grant_for_role(&conductors[2], &mallory, mallory.agent_pubkey(), "member").await;
+    let honest = forge_entry(&conductors[2], &mallory, messaging, ENCRYPTED_MESSAGE, replay(Some(mine))).await;
+    let hash = honest.unwrap_or_else(|e| panic!("a member's message with her own grant should be written; got {e}"));
+    let link = reason(
+        conductors[2]
+            .call_fallible::<_, ActionHash>(
+                &mallory.zome("forge"),
+                "forge_link",
+                serde_json::json!({
+                    "base": AnyLinkableHash::from(bob.agent_pubkey().clone()),
+                    "target": AnyLinkableHash::from(hash),
+                    "zome_index": messaging,
+                    "link_type": INBOX_LINK,
+                    "tag": Vec::<u8>::new(),
+                }),
+            )
+            .await,
+    );
+    link.unwrap_or_else(|e| panic!("an Inbox link to a member's own message should be written; got {e}"));
+
+    // And the coordinator fills the grant in for her.
+    let sent: Vec<SentMessage> = conductors[2]
+        .call(
+            &mallory.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: users[1].clone(),
+                content: "thanks for having me".to_string(),
+            },
+        )
+        .await;
+    assert!(!sent.is_empty(), "an accepted member's message should be sent through the app");
 }
 
 /// A listing is edited by its author, who needs no grant, or by an
@@ -1860,6 +2024,149 @@ async fn with_a_progenitor_key_the_root_is_written_by_the_progenitor() {
     refused(&forged, "written by the progenitor", "a root grant Mallory wrote with Alice's signature");
 }
 
+/// Mirror of the messaging coordinator's `InboxEntry`, enough to see who wrote each one.
+#[derive(Debug, serde::Deserialize)]
+#[serde(tag = "type")]
+enum InboxEntry {
+    Read(InboxMessage),
+    Unreadable { from: AgentPubKey },
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct InboxMessage {
+    from: AgentPubKey,
+}
+
+impl InboxEntry {
+    fn from(&self) -> &AgentPubKey {
+        match self {
+            InboxEntry::Read(m) => &m.from,
+            InboxEntry::Unreadable { from } => from,
+        }
+    }
+}
+
+async fn inbox_authors(conductor: &SweetConductor, cell: &SweetCell) -> Vec<AgentPubKey> {
+    let inbox: Vec<InboxEntry> = conductor.call(&cell.zome("messaging"), "get_inbox", ()).await;
+    inbox.iter().map(|entry| entry.from().clone()).collect()
+}
+
+/// While a member is not accepted, only an administrator reaches their inbox.
+///
+/// `send_message` refuses a non-administrator writing to a member who is not
+/// accepted, but a modified client can skip it: Mallory, accepted and holding
+/// her own member grant, forges a message and an `Inbox` link to Carol, who is
+/// still pending. Validation lets both through (the grant is hers), so the rule
+/// has to hold where Carol reads. Two controls show it holds for that reason:
+/// Alice's message, an administrator's, does reach pending Carol; and once
+/// Carol is accepted, Mallory's forged message is shown.
+///
+/// **To make this go red:** remove the `restricted` check in
+/// `read_inbox_entries` (coordinator `messaging/src/inbox.rs`). Pending Carol
+/// then sees Mallory's message.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_member_who_is_not_accepted_hears_only_from_administrators() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(3, true).await;
+    let (alice, bob, carol) = (&cells[0], &cells[1], &cells[2]);
+    let users = everyone_accepted(&conductors, &[alice, bob]).await;
+
+    // Carol applies and stays pending; Mallory applies and is accepted.
+    conductors[2]
+        .call::<_, Record>(&carol.zome("users_organizations"), "create_user", sample_user("Carol"))
+        .await;
+    conductors[3]
+        .call::<_, Record>(&mallory.zome("users_organizations"), "create_user", sample_user("Mallory"))
+        .await;
+    await_consistency_s(15, [alice, bob, carol, &mallory]).await.unwrap();
+    let carols_user = user_of(&conductors[2], carol).await;
+    let mallorys_user = user_of(&conductors[3], &mallory).await;
+    accept_entity(&conductors[0], alice, ENTITY_USERS, mallorys_user).await;
+    await_consistency_s(15, [alice, bob, carol, &mallory]).await.unwrap();
+
+    // Control: an administrator may write to a member who is not accepted.
+    let _: Vec<SentMessage> = conductors[0]
+        .call(
+            &alice.zome("messaging"),
+            "send_message",
+            SendMessageInput { to_user: carols_user.clone(), content: "welcome, Carol".to_string() },
+        )
+        .await;
+
+    // The app refuses Mallory, who is no administrator.
+    let through_the_app: Result<Vec<SentMessage>, String> = reason(
+        conductors[3]
+            .call_fallible(
+                &mallory.zome("messaging"),
+                "send_message",
+                SendMessageInput { to_user: carols_user.clone(), content: "hello".to_string() },
+            )
+            .await,
+    );
+    assert!(
+        through_the_app.as_ref().is_err_and(|e| e.contains("not accepted yet")),
+        "the app should refuse a member writing to a pending member; got {through_the_app:?}"
+    );
+
+    // So she forges it: a real ciphertext of hers (sent to Bob), stored again with her
+    // own grant, and an Inbox link at Carol's key. Both pass validation.
+    let sent: Vec<SentMessage> = conductors[3]
+        .call(
+            &mallory.zome("messaging"),
+            "send_message",
+            SendMessageInput { to_user: users[1].clone(), content: "a ciphertext to reuse".to_string() },
+        )
+        .await;
+    let record: Option<Record> = conductors[3]
+        .call(&mallory.zome("forge"), "forge_get", sent[0].hash.clone())
+        .await;
+    let theirs: EncryptedMessage =
+        record.expect("her own message").entry().to_app_option().unwrap().expect("an EncryptedMessage");
+    let messaging = zome_index(&conductors[3], &mallory, "messaging_integrity").await;
+    let grant = grant_for_role(&conductors[3], &mallory, mallory.agent_pubkey(), "member").await;
+    let forged = forge_entry(
+        &conductors[3],
+        &mallory,
+        messaging,
+        ENCRYPTED_MESSAGE,
+        EncryptedMessage { encrypted: theirs.encrypted.clone(), grant: Some(grant) },
+    )
+    .await
+    .unwrap_or_else(|e| panic!("a member's message with her own grant should be written; got {e}"));
+    reason(
+        conductors[3]
+            .call_fallible::<_, ActionHash>(
+                &mallory.zome("forge"),
+                "forge_link",
+                serde_json::json!({
+                    "base": AnyLinkableHash::from(carol.agent_pubkey().clone()),
+                    "target": AnyLinkableHash::from(forged),
+                    "zome_index": messaging,
+                    "link_type": INBOX_LINK,
+                    "tag": Vec::<u8>::new(),
+                }),
+            )
+            .await,
+    )
+    .unwrap_or_else(|e| panic!("the forged Inbox link should be written; got {e}"));
+    await_consistency_s(30, [alice, bob, carol, &mallory]).await.unwrap();
+
+    let pending = inbox_authors(&conductors[2], carol).await;
+    assert!(pending.contains(alice.agent_pubkey()), "pending Carol should see the administrator's message");
+    assert!(
+        !pending.contains(mallory.agent_pubkey()),
+        "pending Carol should not see a message from a member who is not an administrator"
+    );
+
+    // Control: accepted, Carol hears from members too, the forged message included.
+    accept_entity(&conductors[0], alice, ENTITY_USERS, carols_user).await;
+    await_consistency_s(15, [alice, bob, carol, &mallory]).await.unwrap();
+    let accepted = inbox_authors(&conductors[2], carol).await;
+    assert!(
+        accepted.contains(mallory.agent_pubkey()),
+        "once accepted, Carol should see Mallory's message; the rule is about her status"
+    );
+}
+
 /// A revocation link points at a revocation, not at anything shaped like one.
 ///
 /// Mallory, an ordinary member, wants Alice's admin grant to read as revoked.
@@ -2657,5 +2964,164 @@ async fn several_keys_are_removed_in_one_call_the_callers_own_last() {
     assert!(
         admin_grant_of(&conductors[1], bob, bob.agent_pubkey()).await.is_some(),
         "Bob is left administering the network"
+    );
+}
+
+/// An `Inbox` link is its author's record of their own message, through
+/// `validate` and not only as pure functions.
+///
+/// Three of the link rules of `messaging_integrity` (the tag, the author
+/// match, who may delete) are unit-tested as `check_*` functions; the other
+/// two (the base is an agent key, the target is a message) are inline in
+/// `validate`. This drives all five through the network with a forged link,
+/// so a rule computed in `validate` and not returned would show. Everyone is
+/// an accepted member, so the grant rule is not what refuses anything here.
+///
+/// **To make it go red:** in `messaging_integrity/src/lib.rs`, the `Inbox`
+/// arms of `validate`, return `Valid` before the check a row names: that
+/// row's link, or the tombstone, is written.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_inbox_link_is_its_authors_record_of_their_own_message() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let users = everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let messaging = zome_index(&conductors[2], &mallory, "messaging_integrity").await;
+    let me = mallory.agent_pubkey().clone();
+    let alice_key = alice.agent_pubkey().clone();
+
+    // Bob writes to Alice, and Mallory to Bob, through the app.
+    let from_bob: Vec<SentMessage> = conductors[1]
+        .call(
+            &bob.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: users[0].clone(),
+                content: "for Alice only".to_string(),
+            },
+        )
+        .await;
+    let from_mallory: Vec<SentMessage> = conductors[2]
+        .call(
+            &mallory.zome("messaging"),
+            "send_message",
+            SendMessageInput {
+                to_user: users[1].clone(),
+                content: "hello Bob".to_string(),
+            },
+        )
+        .await;
+    await_consistency_s(30, [alice, bob, &mallory]).await.unwrap();
+    let bobs_message = from_bob
+        .iter()
+        .find(|sent| sent.agent == alice_key)
+        .expect("Bob's message has a copy for Alice")
+        .hash
+        .clone();
+    let mallorys_message = from_mallory[0].hash.clone();
+
+    let link = |base: AnyLinkableHash, target: AnyLinkableHash, tag: Vec<u8>| {
+        forge_link(&conductors[2], &mallory, base, target, messaging, INBOX_LINK, tag)
+    };
+
+    // An interloper cannot link somebody else's message into an inbox.
+    refused(
+        &link(me.clone().into(), bobs_message.clone().into(), Vec::new()).await,
+        "must be authored by the author of the message it points to",
+        "linking Bob's message into another inbox",
+    );
+    // Her own message, but a tag that could carry a label.
+    refused(
+        &link(alice_key.clone().into(), mallorys_message.clone().into(), vec![1]).await,
+        "tag must be empty",
+        "an Inbox link with a tag",
+    );
+    // Her own message, hung from something that is not anybody's inbox.
+    refused(
+        &link(users[0].clone().into(), mallorys_message.into(), Vec::new()).await,
+        "An Inbox link's base must be an agent key",
+        "an Inbox link whose base is a User record",
+    );
+    // A target that is not a message at all.
+    refused(
+        &link(alice_key.clone().into(), users[0].clone().into(), Vec::new()).await,
+        "target must be an EncryptedMessage",
+        "an Inbox link to a User record",
+    );
+
+    // And nobody but its author takes a link out of an inbox.
+    let inbox = links_of(&conductors[2], &mallory, alice_key.into(), messaging, INBOX_LINK).await;
+    let bobs_link = inbox
+        .iter()
+        .find(|l| l.target == bobs_message.clone().into())
+        .expect("Bob's Inbox link to Alice is held by Mallory's node")
+        .create_link_hash
+        .clone();
+    let removed = forge_delete_link(&conductors[2], &mallory, bobs_link).await;
+    refused(
+        &removed,
+        "Only the author of an Inbox link may delete it",
+        "tombstoning Bob's Inbox link",
+    );
+}
+
+/// An accepted member with no member grant is told so, and nothing is written.
+///
+/// Acceptance writes the grant and the accepted link together, so the usual way
+/// to be accepted without a grant is propagation: one reached this node before
+/// the other. The same state is reached here without a race: Alice revokes
+/// Bob's member grant with `revoke_role` and leaves his status accepted. His
+/// send is then refused by the app with the error that names the grant, before
+/// anything is encrypted or committed, and he has sent nothing.
+///
+/// **To make it go red:** in `deliver`, attach `None` when `can_i` finds no
+/// grant instead of returning `NoMemberGrantYet`: the send then fails on the
+/// validation reason ("Sending a message is a member act: ..."), not on this one.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_accepted_member_with_no_grant_is_told_so_and_sends_nothing() {
+    let (conductors, cells, mallory) = setup_agents_and_a_forger(2, true).await;
+    let (alice, bob) = (&cells[0], &cells[1]);
+    let users = everyone_accepted(&conductors, &[alice, bob, &mallory]).await;
+    let bobs_member_grant = grants_of(&conductors[0], alice, bob.agent_pubkey())
+        .await
+        .into_iter()
+        .find(|(_, grant)| grant.role == "member")
+        .map(|(hash, _)| hash)
+        .expect("an accepted member holds a member grant");
+
+    let _: ActionHash = conductors[0]
+        .call(
+            &alice.zome("administration"),
+            "revoke_role",
+            serde_json::json!({ "grant": bobs_member_grant, "reason": "testing a send with no grant" }),
+        )
+        .await;
+    await_consistency_s(30, [alice, bob, &mallory]).await.unwrap();
+
+    let sent = reason(
+        conductors[1]
+            .call_fallible::<_, Vec<SentMessage>>(
+                &bob.zome("messaging"),
+                "send_message",
+                SendMessageInput {
+                    to_user: users[0].clone(),
+                    content: "can you hear me".to_string(),
+                },
+            )
+            .await,
+    );
+    match &sent {
+        Ok(copies) => panic!("a member with no grant should not send; wrote {copies:?}"),
+        Err(text) => assert!(
+            text.contains("no member grant yet"),
+            "the refusal should name the missing grant; got {text}"
+        ),
+    }
+
+    let bobs_sent: Vec<serde_json::Value> = conductors[1]
+        .call(&bob.zome("messaging"), "get_sent", ())
+        .await;
+    assert!(
+        bobs_sent.is_empty(),
+        "nothing was written by the refused send; got {bobs_sent:?}"
     );
 }

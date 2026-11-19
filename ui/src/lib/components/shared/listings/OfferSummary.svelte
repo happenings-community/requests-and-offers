@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { encodeHashToBase64 } from '@holochain/client';
+  import { paths } from '$lib/paths';
   import type { UIOffer } from '$lib/types/ui';
   import { formatDate } from '$lib/utils';
   import { stripMarkdown } from '$lib/utils/markdown';
@@ -54,7 +54,7 @@
     {#if showActions}
       <div class="mt-3 flex gap-2">
         <a
-          href="/offers/{encodeHashToBase64(offer.original_action_hash!)}"
+          href={paths.offerDetail(offer.original_action_hash!)}
           class="variant-filled-secondary btn btn-sm flex-1"
         >
           View Details

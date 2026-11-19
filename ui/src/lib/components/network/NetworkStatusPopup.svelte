@@ -15,11 +15,19 @@
 
   // Type guard function to check if Kangaroo API is available
   function hasKangarooAPI(window: Window): window is Window & { __KANGAROO__: KangarooAPI } {
-    return '__KANGAROO__' in window && typeof (window as unknown as { __KANGAROO__?: unknown }).__KANGAROO__ === 'object';
+    return (
+      '__KANGAROO__' in window &&
+      typeof (window as unknown as { __KANGAROO__?: unknown }).__KANGAROO__ === 'object'
+    );
   }
 
   // Props for connection status
   type Props = {
+    /**
+     * The name its trigger's popup looks it up by: unique to each nav bar, and required,
+     * so no two bars can share one by default.
+     */
+    target: string;
     connectionStatus?: ConnectionStatus;
     lastPingTime?: Date | null;
     pingError?: string | null;
@@ -27,7 +35,14 @@
     networkInfo?: { dnaHash: string; roleName: string } | null;
   };
 
-  const { connectionStatus, lastPingTime, pingError, networkSeed, networkInfo }: Props = $props();
+  const {
+    target,
+    connectionStatus,
+    lastPingTime,
+    pingError,
+    networkSeed,
+    networkInfo
+  }: Props = $props();
 
   // Get connection status from context as fallback
   const connectionContext = getConnectionStatusContext();
@@ -185,7 +200,7 @@
 
 <div
   class="z-20 max-w-md rounded-lg border border-surface-700 bg-surface-800 p-4 text-white"
-  data-popup="popupStatus"
+  data-popup={target}
 >
   <div class="space-y-2">
     {#each getTooltipLines(finalConnectionStatus) as line}

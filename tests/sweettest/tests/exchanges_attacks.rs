@@ -22,7 +22,7 @@ use serde_json::json;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 struct Quantity {
-    value: f64,
+    value: String,
     unit: String,
 }
 
@@ -64,6 +64,15 @@ struct Response {
     agreement: ActionHash,
     accepted: bool,
     note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct Interest {
+    listing: ActionHash,
+    listing_type: String,
+    user: ActionHash,
+    /// The member grant the interest rests on (the grants stack, #378).
+    grant: Option<ActionHash>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -129,13 +138,13 @@ impl World {
                         "direction": "Provide",
                         "resource_conforms_to": "Web design",
                         "resource_kind": "Service",
-                        "quantity": { "value": 2.0, "unit": "h" }
+                        "quantity": { "value": "2", "unit": "h" }
                     },
                     "reciprocal": {
                         "direction": "Receive",
                         "resource_conforms_to": "Time bank hours",
                         "resource_kind": "Currency",
-                        "quantity": { "value": 2.0, "unit": "Time bank hours" }
+                        "quantity": { "value": "2", "unit": "Time bank hours" }
                     },
                     "medium": "Time bank hours",
                     "terms": "Two hours over a call.",
@@ -479,8 +488,8 @@ async fn a_negotiation_cannot_be_forked() {
             "counter_agreement",
             json!({
                 "agreement": p,
-                "primary_quantity": { "value": 3.0, "unit": "h" },
-                "reciprocal_quantity": { "value": 2.0, "unit": "Time bank hours" },
+                "primary_quantity": { "value": "3", "unit": "h" },
+                "reciprocal_quantity": { "value": "2", "unit": "Time bank hours" },
                 "delivery_timeframe": "Within 2 weeks"
             }),
         )
@@ -546,16 +555,23 @@ struct ExchangeView {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_counter_changes_only_quantities_and_timeframe() {
-    let w = world().await;
+    let mut w = world().await;
     let (p, proposal) = w.propose().await;
     let elsewhere: Record = w.conductors[2]
         .call(&w.carol.zome("offers"), "create_offer", sample_offer("Something else", w.service_type.clone()))
         .await;
     let elsewhere = elsewhere.signed_action.hashed.hash.clone();
+    // Bob may hold one live interest per listing (#354), so he withdraws the
+    // first (the proposal above still names it) before showing interest again.
+    // The later proposals use the new one.
+    let _: ActionHash = w.conductors[1]
+        .call(&w.bob.zome("exchanges"), "withdraw_interest", w.interest.clone())
+        .await;
     let second_interest: Record = w.conductors[1]
         .call(&w.bob.zome("exchanges"), "create_interest", json!({ "listing": w.offer, "listing_type": "Offer" }))
         .await;
     let second_interest = second_interest.signed_action.hashed.hash.clone();
+    w.interest = second_interest.clone();
     w.sync().await;
 
     type Change = (&'static str, &'static str, Box<dyn Fn(&mut Agreement)>);
@@ -567,7 +583,7 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
             Box::new(move |a| a.listing = e.clone())
         }),
         ("the listing type", "listing type", Box::new(|a| a.listing_type = "Request".into())),
-        // Bob's second interest on the same offer: valid on its own, so only
+        // Bob's renewed interest on the same offer: valid on its own, so only
         // the counter rule can catch it.
         ("the interest", "keeps the listing, the interest and the parties", {
             let i = second_interest.clone();
@@ -584,10 +600,10 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
             a.reciprocal.quantity = None;
         })),
         ("the primary unit", "keeps each quantity's unit", Box::new(|a| {
-            a.primary.quantity = Some(Quantity { value: 2.0, unit: "days".into() });
+            a.primary.quantity = Some(Quantity { value: "2".into(), unit: "days".into() });
         })),
         ("the return unit", "keeps each quantity's unit", Box::new(|a| {
-            a.reciprocal.quantity = Some(Quantity { value: 2.0, unit: "Pounds".into() });
+            a.reciprocal.quantity = Some(Quantity { value: "2".into(), unit: "Pounds".into() });
         })),
         ("the primary direction", "", Box::new(|a| a.primary.direction = "Receive".into())),
         ("nothing at all", "changes a quantity or the timeframe", Box::new(|a| {
@@ -613,11 +629,11 @@ async fn a_counter_changes_only_quantities_and_timeframe() {
     let permitted: Vec<(&str, Box<dyn Fn(&mut Agreement)>)> = vec![
         ("the primary quantity", Box::new(|a| {
             a.delivery_timeframe = "Within 2 weeks".into();
-            a.primary.quantity = Some(Quantity { value: 5.0, unit: "h".into() });
+            a.primary.quantity = Some(Quantity { value: "5".into(), unit: "h".into() });
         })),
         ("the return quantity", Box::new(|a| {
             a.delivery_timeframe = "Within 2 weeks".into();
-            a.reciprocal.quantity = Some(Quantity { value: 9.0, unit: "Time bank hours".into() });
+            a.reciprocal.quantity = Some(Quantity { value: "9".into(), unit: "Time bank hours".into() });
         })),
         ("removing the return quantity", Box::new(|a| {
             a.delivery_timeframe = "Within 2 weeks".into();
@@ -743,4 +759,89 @@ async fn a_counter_link_points_at_the_real_counter() {
         )
         .await
         .expect("the true counter link is accepted");
+}
+
+// ---------------------------------------------------------------------------
+// One live interest per member per listing (#354)
+// ---------------------------------------------------------------------------
+
+/// Bob already holds a live interest in Alice's offer (the world's). A second
+/// one written past `create_interest`, so past the coordinator's look at his
+/// own chain, is refused by validation with the rule named. Carol's first
+/// through the same probe is accepted, and once Bob withdraws his, a new one
+/// of his is accepted too.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_second_live_interest_is_refused_past_the_coordinator() {
+    let w = world().await;
+    let bob_user = member_hash(&w.conductors[1], &w.bob).await;
+    let bobs = Interest {
+        listing: w.offer.clone(),
+        listing_type: "Offer".into(),
+        user: bob_user,
+        grant: Some(w.bob_grant.clone()),
+    };
+
+    let second = w.conductors[1]
+        .call_fallible::<_, ActionHash>(&w.bob.zome("exchanges_probe"), "probe_create_interest", bobs.clone())
+        .await
+        .map_err(|e| format!("{e:?}"));
+    refused(
+        second,
+        "this member already has an interest in this listing",
+        "a second live interest past the coordinator",
+    );
+
+    // Control: Carol's first interest, through the same probe.
+    let carol_user = member_hash(&w.conductors[2], &w.carol).await;
+    w.conductors[2]
+        .call_fallible::<_, ActionHash>(
+            &w.carol.zome("exchanges_probe"),
+            "probe_create_interest",
+            Interest {
+                listing: w.offer.clone(),
+                listing_type: "Offer".into(),
+                user: carol_user,
+                grant: Some(w.carol_grant.clone()),
+            },
+        )
+        .await
+        .expect("a first interest through the probe is accepted");
+
+    // Withdrawn, the slot is free again: Bob's new one through the probe is accepted.
+    let _: ActionHash = w.conductors[1]
+        .call(&w.bob.zome("exchanges"), "withdraw_interest", w.interest.clone())
+        .await;
+    w.conductors[1]
+        .call_fallible::<_, ActionHash>(&w.bob.zome("exchanges_probe"), "probe_create_interest", bobs)
+        .await
+        .expect("after withdrawing, an interest through the probe is accepted");
+}
+
+/// The bound of the chain read cannot be moved by naming a later Create as the user.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_second_live_interest_cannot_name_a_later_create_as_its_user() {
+    let w = world().await;
+    let own: Record = w.conductors[1]
+        .call(&w.bob.zome("offers"), "create_offer", sample_offer("Bob's own offer", w.service_type.clone()))
+        .await;
+    let own = own.signed_action.hashed.hash.clone();
+    w.sync().await;
+    let second = w.conductors[1]
+        .call_fallible::<_, ActionHash>(
+            &w.bob.zome("exchanges_probe"),
+            "probe_create_interest",
+            Interest {
+                listing: w.offer.clone(),
+                listing_type: "Offer".into(),
+                user: own,
+                grant: Some(w.bob_grant.clone()),
+            },
+        )
+        .await
+        .map_err(|e| format!("{e:?}"));
+    refused(
+        second,
+        "this member already has an interest in this listing",
+        "a second live interest naming a later Create as its user",
+    );
 }

@@ -6,14 +6,11 @@
 //! the administration zome, which registers the entries, enforces on them.
 
 use hdi::prelude::*;
+use utils::errors::{invalid, GrantValidationError};
 use utils::grants::{
   grant_from_tag, load_grant, load_revocation, may_grant, role_available,
   root_is_valid, scope_fits, stewarding_present, Authority, Role, RoleGrant, RoleRevocation,
 };
-
-fn invalid(reason: impl Into<String>) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Invalid(reason.into()))
-}
 
 /// A grant is valid when its role is known and held on this network (the
 /// steward role needs the stewarding module), its scope fits the role, and what
@@ -29,23 +26,20 @@ pub fn validate_role_grant(
     Err(reason) => return invalid(reason),
   };
   if !role_available(role, stewarding_present()?) {
-    return invalid(format!(
-      "a {} grant needs the stewarding module, and this network does not have it",
-      grant.role
-    ));
+    return invalid(GrantValidationError::NeedsStewarding(grant.role.clone()));
   }
   if !scope_fits(role, &grant.scope) {
-    return invalid(format!(
-      "a {} grant {} a scope",
-      grant.role,
-      if grant.scope.is_some() { "does not take" } else { "needs" }
-    ));
+    return invalid(if grant.scope.is_some() {
+      GrantValidationError::ScopeNotTaken(grant.role.clone())
+    } else {
+      GrantValidationError::ScopeNeeded(grant.role.clone())
+    });
   }
 
   match &grant.authority {
     Authority::Progenitor { signature } => {
       if role != Role::Admin {
-        return invalid("the progenitor key grants the first administrators, nothing else");
+        return invalid(GrantValidationError::ProgenitorGrantsAdminsOnly);
       }
       match root_is_valid(author, signature, &grant.body())? {
         // No progenitor key in the DNA properties: development, Sweettest. The
@@ -61,17 +55,17 @@ pub fn validate_role_grant(
         Err(reason) => return invalid(reason),
       };
       if &above.holder != author {
-        return invalid("a grant is written by the holder of the grant it rests on");
+        return invalid(GrantValidationError::NotHolderOfParent);
       }
       let above_role = match above.parsed_role() {
         Ok(role) => role,
         Err(reason) => return invalid(reason),
       };
       if !may_grant(above_role, &above.scope, role, &grant.scope) {
-        return invalid(format!(
-          "a {} may not grant {} here",
-          above.role, grant.role
-        ));
+        return invalid(GrantValidationError::MayNotGrant {
+          granter: above.role.clone(),
+          role: grant.role.clone(),
+        });
       }
       Ok(ValidateCallbackResult::Valid)
     }
@@ -94,17 +88,17 @@ pub fn validate_role_revocation(
     Err(reason) => return invalid(reason),
   };
   if &authority.holder != author {
-    return invalid("a revocation is written by the holder of the grant it rests on");
+    return invalid(GrantValidationError::RevocationNotByHolder);
   }
   let (revoked_role, authority_role) = match (revoked.parsed_role(), authority.parsed_role()) {
     (Ok(r), Ok(a)) => (r, a),
     (Err(reason), _) | (_, Err(reason)) => return invalid(reason),
   };
   if !may_grant(authority_role, &authority.scope, revoked_role, &revoked.scope) {
-    return invalid(format!(
-      "a {} may not revoke a {} grant here",
-      authority.role, revoked.role
-    ));
+    return invalid(GrantValidationError::MayNotRevoke {
+      authority: authority.role.clone(),
+      role: revoked.role.clone(),
+    });
   }
   Ok(ValidateCallbackResult::Valid)
 }
@@ -116,7 +110,7 @@ pub fn grant_in_tag(
   link_author: &AgentPubKey,
   tag: &LinkTag,
   role: Role,
-) -> ExternResult<Result<RoleGrant, String>> {
+) -> ExternResult<Result<RoleGrant, GrantValidationError>> {
   let hash = match grant_from_tag(tag) {
     Ok(hash) => hash,
     Err(reason) => return Ok(Err(reason)),
@@ -126,13 +120,13 @@ pub fn grant_in_tag(
     Err(reason) => return Ok(Err(reason)),
   };
   if &granter != link_author {
-    return Ok(Err("an index link is written by the agent who wrote the grant".to_string()));
+    return Ok(Err(GrantValidationError::IndexLinkNotByGranter));
   }
   if grant.parsed_role() != Ok(role) {
-    return Ok(Err(format!(
-      "this index holds {} grants, and the tag carries a {} grant",
-      role, grant.role
-    )));
+    return Ok(Err(GrantValidationError::IndexHoldsOtherRole {
+      index: role.to_string(),
+      carried: grant.role.clone(),
+    }));
   }
   Ok(Ok(grant))
 }
@@ -155,17 +149,17 @@ pub fn validate_grant_index_link(
     Err(reason) => return invalid(reason),
   };
   if target != &AnyLinkableHash::from(hash.clone()) {
-    return invalid("a grant index link points at the grant its tag carries");
+    return invalid(GrantValidationError::IndexLinkTargetMismatch);
   }
   let (grant, granter) = match load_grant(&hash)? {
     Ok(found) => found,
     Err(reason) => return invalid(reason),
   };
   if &granter != link_author {
-    return invalid("an index link is written by the agent who wrote the grant");
+    return invalid(GrantValidationError::IndexLinkNotByGranter);
   }
   if holder_keyed && base != &AnyLinkableHash::from(grant.holder) {
-    return invalid("an agent's grant index holds that agent's grants");
+    return invalid(GrantValidationError::AgentIndexHoldsOthers);
   }
   Ok(ValidateCallbackResult::Valid)
 }
@@ -184,7 +178,7 @@ pub fn validate_holder_role_link(
     Err(reason) => return invalid(reason),
   };
   if base != &AnyLinkableHash::from(grant.holder) {
-    return invalid(format!("a {} index link starts at the grant's holder", role));
+    return invalid(GrantValidationError::HolderLinkBaseMismatch(role.to_string()));
   }
   Ok(ValidateCallbackResult::Valid)
 }
@@ -211,17 +205,17 @@ pub fn validate_grant_revocation_link(
   target: &AnyLinkableHash,
 ) -> ExternResult<ValidateCallbackResult> {
   let Some(target_hash) = target.clone().into_action_hash() else {
-    return invalid("a revocation link points at a revocation record");
+    return invalid(GrantValidationError::RevocationLinkTarget);
   };
   // By entry type, not by shape: see `load_revocation`.
   let Some((revocation, revoker)) = load_revocation(&target_hash)? else {
-    return invalid("a revocation link points at a revocation record");
+    return invalid(GrantValidationError::RevocationLinkTarget);
   };
   if &revoker != link_author {
-    return invalid("a revocation link is written by the revoker");
+    return invalid(GrantValidationError::RevocationLinkNotByRevoker);
   }
   if base != &AnyLinkableHash::from(revocation.grant) {
-    return invalid("a revocation link starts at the grant it revokes");
+    return invalid(GrantValidationError::RevocationLinkBase);
   }
   Ok(ValidateCallbackResult::Valid)
 }

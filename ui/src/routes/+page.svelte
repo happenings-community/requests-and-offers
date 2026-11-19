@@ -3,6 +3,10 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { isHolochainConnected } from '$lib/utils/holochain-client.utils';
   import { formatUserName } from '$lib/schemas/users.schemas';
+  import { myMenuItems } from '$lib/navigation/my-menu';
+  import { isUserApproved } from '$lib/utils';
+  import messagingPresence from '$lib/services/messagingPresence.svelte';
+  import { paths } from '$lib/paths';
 
   let error: string | null = $state(null);
   let isLoading = $state(true);
@@ -27,49 +31,42 @@
       title: 'Discover Opportunities',
       description: 'Browse requests from the community and find ways to help',
       icon: '🔍',
-      href: '/requests',
+      href: paths.requests(),
       color: 'bg-secondary-500 hover:bg-secondary-600'
     },
     {
       title: 'Offer Your Skills',
       description: 'Share your expertise and help others in the community',
       icon: '✨',
-      href: '/offers',
+      href: paths.offers(),
       color: 'bg-warning-500 hover:bg-warning-600'
     },
     {
       title: 'Explore Community',
       description: 'Connect with other members and organizations',
       icon: '👥',
-      href: '/users',
+      href: paths.users(),
       color: 'bg-tertiary-500 hover:bg-tertiary-600'
     }
   ];
 
-  // User activity cards for existing users
-  const userActivityCards = [
-    {
-      title: 'My Requests',
-      description: 'Manage your requests for help',
-      icon: '📋',
-      href: '/requests?filter=my',
-      color: 'bg-primary-500 hover:bg-primary-600'
-    },
-    {
-      title: 'My Offers',
-      description: 'Track your offers to help others',
-      icon: '🎯',
-      href: '/offers?filter=my',
-      color: 'bg-secondary-500 hover:bg-secondary-600'
-    },
-    {
-      title: 'My Profile',
-      description: 'Update your profile and skills',
-      icon: '👤',
-      href: '/user',
-      color: 'bg-tertiary-500 hover:bg-tertiary-600'
-    }
+  // The member's own cards: the same list as the nav bar's menu.
+  const CARD_COLOURS = [
+    'bg-tertiary-500 hover:bg-tertiary-600',
+    'bg-primary-500 hover:bg-primary-600',
+    'bg-secondary-500 hover:bg-secondary-600'
   ];
+  const userActivityCards = $derived(
+    myMenuItems(!!currentUser, isUserApproved(currentUser), !messagingPresence.isAbsent).map(
+      (item, i) => ({
+        title: item.label,
+        description: item.description,
+        icon: item.icon,
+        href: item.href,
+        color: CARD_COLOURS[i % CARD_COLOURS.length]
+      })
+    )
+  );
 </script>
 
 <section class="mx-auto w-full max-w-6xl px-4 py-8">
@@ -113,7 +110,7 @@
               Create your profile to start connecting with other Holochain enthusiasts
             </p>
             <a
-              href="/user/create"
+              href={paths.myProfileCreate()}
               class="variant-filled-surface btn px-8 py-3 text-lg font-semibold text-primary-700 shadow-md transition-all hover:variant-filled-primary hover:text-white hover:shadow-lg"
             >
               👤 Create Profile
@@ -147,7 +144,9 @@
       <div class="mb-12">
         <div class="mb-8 rounded-xl border border-gray-200 bg-white p-8 shadow-lg">
           <div class="text-center">
-            <h2 class="h2 mb-4 text-primary-700">Welcome back, {formatUserName(currentUser?.name)}!</h2>
+            <h2 class="h2 mb-4 text-primary-700">
+              Welcome back, {formatUserName(currentUser?.name)}!
+            </h2>
             <p class="mb-6 text-lg text-gray-600">
               Ready to make a difference in the community today?
             </p>
@@ -155,7 +154,12 @@
         </div>
 
         <!-- User Activity Cards -->
-        <div class="mb-8 grid gap-6 md:grid-cols-3">
+        <!-- Four cards where there is messaging, three where there is not: no card alone on a row. -->
+        <div
+          class="mb-8 grid gap-6 {userActivityCards.length > 3
+            ? 'md:grid-cols-2 xl:grid-cols-4'
+            : 'md:grid-cols-3'}"
+        >
           {#each userActivityCards as card}
             <a
               href={card.href}
@@ -177,7 +181,7 @@
         <!-- Primary Actions -->
         <div class="grid gap-6 md:grid-cols-2">
           <a
-            href="/requests"
+            href={paths.requests()}
             class="group rounded-lg bg-gradient-to-r from-secondary-500 to-secondary-600 p-6 text-white shadow-lg transition-all hover:shadow-xl"
           >
             <div class="flex items-center gap-4">
@@ -190,7 +194,7 @@
           </a>
 
           <a
-            href="/offers"
+            href={paths.offers()}
             class="group rounded-lg bg-gradient-to-r from-warning-500 to-warning-600 p-6 text-white shadow-lg transition-all hover:shadow-xl"
           >
             <div class="flex items-center gap-4">

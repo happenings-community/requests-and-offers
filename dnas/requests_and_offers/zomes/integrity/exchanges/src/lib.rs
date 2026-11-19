@@ -1,5 +1,5 @@
 use hdi::prelude::*;
-use utils::errors::CommonError;
+use utils::errors::{invalid, CommonError, ExchangeValidationError};
 use utils::grants::{check_act, Ability};
 
 /// Which kind of listing an exchange settles. Carried on entries so the
@@ -29,10 +29,67 @@ pub enum ResourceKind {
   Tbd,
 }
 
+/// An amount of something, in a unit.
+///
+/// `value` is a decimal string, never a binary float, so "0.1" plus "0.2" is
+/// exactly "0.3" and a currency amount cannot drift. The accepted spelling is
+/// fixed by `decimal_problem`: ASCII digits and at most one dot, up to
+/// `MAX_INTEGER_DIGITS` before it and `MAX_FRACTION_DIGITS` after, no sign, no
+/// exponent, no leading zero except "0.x". Trailing zeros are kept as written
+/// ("12.50"), so two spellings of one amount exist and must be compared with
+/// `same_amount`, never with `==` on the string.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Quantity {
-  pub value: f64,
+  pub value: String,
   pub unit: String,
+}
+
+/// Nine integer digits and six fraction digits are fifteen significant digits
+/// at most, which an f64 holds exactly enough to survive the one conversion at
+/// the hREA boundary (hREA stores `has_numerical_value` as f64, h-REA/hREA#382).
+pub const MAX_INTEGER_DIGITS: usize = 9;
+pub const MAX_FRACTION_DIGITS: usize = 6;
+
+/// What is wrong with an amount's spelling, if anything.
+pub fn decimal_problem(value: &str) -> Option<&'static str> {
+  const MALFORMED: &str = "a quantity is a plain decimal like 12.50: digits and at most one dot, no sign, no exponent, no leading zeros, up to 9 digits before the dot and 6 after";
+  let (int, frac) = match value.split_once('.') {
+    Some((i, f)) => (i, Some(f)),
+    None => (value, None),
+  };
+  let digits = |s: &str| s.bytes().all(|b| b.is_ascii_digit());
+  if int.is_empty() || int.len() > MAX_INTEGER_DIGITS || !digits(int) {
+    return Some(MALFORMED);
+  }
+  if int.len() > 1 && int.starts_with('0') {
+    return Some(MALFORMED);
+  }
+  if let Some(f) = frac {
+    if f.is_empty() || f.len() > MAX_FRACTION_DIGITS || !digits(f) {
+      return Some(MALFORMED);
+    }
+  }
+  None
+}
+
+/// True when a well-formed amount is above zero.
+pub fn is_positive(value: &str) -> bool {
+  value.bytes().any(|b| b.is_ascii_digit() && b != b'0')
+}
+
+/// The amount with its trailing fraction zeros dropped: "1.50" and "1.5" both
+/// become "1.5", "10.0" becomes "10". Only meaningful for a well-formed value.
+fn amount_key(value: &str) -> &str {
+  if value.contains('.') {
+    value.trim_end_matches('0').trim_end_matches('.')
+  } else {
+    value
+  }
+}
+
+/// Two well-formed amounts are equal as numbers, whatever their trailing zeros.
+pub fn same_amount(a: &str, b: &str) -> bool {
+  amount_key(a) == amount_key(b)
 }
 
 /// One side of the pair. Mirrors an hREA intent: a transfer, in a direction,
@@ -181,18 +238,14 @@ pub fn genesis_self_check(_data: GenesisSelfCheckData) -> ExternResult<ValidateC
 // every rule below reads exactly the records the entry names and no links.
 // ---------------------------------------------------------------------------
 
-fn invalid(reason: &str) -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Invalid(reason.to_string()))
-}
-
 /// The record at a hash, which must be a Create: the chain-root rule at the
 /// validation layer. A revision handed in as an identity is refused here on
 /// every peer, which is what makes any coordinator fallback safe.
-fn create_record(hash: &ActionHash, what: &str) -> ExternResult<Result<Record, String>> {
+fn create_record(hash: &ActionHash, what: &str) -> ExternResult<Result<Record, ExchangeValidationError>> {
   let record = must_get_valid_record(hash.clone())?;
   match &record.action().data {
     ActionData::Create(_) => Ok(Ok(record)),
-    _ => Ok(Err(format!("{what} must be referenced by its Create"))),
+    _ => Ok(Err(ExchangeValidationError::NotACreate(what.to_string()))),
   }
 }
 
@@ -203,17 +256,17 @@ fn author_of(record: &Record) -> AgentPubKey {
 fn entry_of<T: TryFrom<SerializedBytes, Error = SerializedBytesError>>(
   record: &Record,
   what: &str,
-) -> ExternResult<Result<T, String>> {
+) -> ExternResult<Result<T, ExchangeValidationError>> {
   match record.entry().to_app_option::<T>() {
     Ok(Some(entry)) => Ok(Ok(entry)),
-    Ok(None) => Ok(Err(format!("{what} has no entry"))),
+    Ok(None) => Ok(Err(ExchangeValidationError::NoEntry(what.to_string()))),
     Err(e) => Err(CommonError::Serialize(e).into()),
   }
 }
 
 /// Reads an agreement by hash, checking it is a Create. Returns the record
 /// and the deserialized entry, or the reason it is unusable.
-fn agreement_at(hash: &ActionHash) -> ExternResult<Result<(Record, Agreement), String>> {
+fn agreement_at(hash: &ActionHash) -> ExternResult<Result<(Record, Agreement), ExchangeValidationError>> {
   let record = match create_record(hash, "agreement")? {
     Ok(r) => r,
     Err(reason) => return Ok(Err(reason)),
@@ -226,29 +279,35 @@ fn agreement_at(hash: &ActionHash) -> ExternResult<Result<(Record, Agreement), S
 }
 
 /// The agent behind a user hash: the author of the user's Create.
-fn agent_for_user(user: &ActionHash) -> ExternResult<Result<AgentPubKey, String>> {
+fn agent_for_user(user: &ActionHash) -> ExternResult<Result<AgentPubKey, ExchangeValidationError>> {
   Ok(create_record(user, "user")?.map(|r| author_of(&r)))
 }
 
-fn validate_term(term: &ExchangeTerm, side: &str) -> Option<String> {
+fn validate_term(term: &ExchangeTerm, side: &str) -> Option<ExchangeValidationError> {
   match term.resource_kind {
     ResourceKind::Gift | ResourceKind::Tbd => {
       if term.quantity.is_some() {
-        return Some(format!("{side} term of kind gift or tbd carries no quantity"));
+        return Some(ExchangeValidationError::TermGiftWithQuantity(side.to_string()));
       }
       if !term.resource_conforms_to.is_empty() {
-        return Some(format!("{side} term of kind gift or tbd conforms to nothing"));
+        return Some(ExchangeValidationError::TermGiftConforms(side.to_string()));
       }
     }
     ResourceKind::Service | ResourceKind::Currency => {
       if term.resource_conforms_to.is_empty() {
-        return Some(format!("{side} term names no resource specification"));
+        return Some(ExchangeValidationError::TermWithoutSpecification(side.to_string()));
       }
     }
   }
   if let Some(q) = &term.quantity {
-    if !(q.value.is_finite() && q.value > 0.0) || q.unit.is_empty() {
-      return Some(format!("{side} term quantity must be positive with a unit"));
+    if let Some(problem) = decimal_problem(&q.value) {
+      return Some(ExchangeValidationError::TermQuantityNotDecimal {
+        side: side.to_string(),
+        problem: problem.to_string(),
+      });
+    }
+    if !is_positive(&q.value) || q.unit.is_empty() {
+      return Some(ExchangeValidationError::TermQuantityInvalid(side.to_string()));
     }
   }
   None
@@ -258,19 +317,86 @@ fn validate_term(term: &ExchangeTerm, side: &str) -> Option<String> {
 // Entry rules
 // ---------------------------------------------------------------------------
 
-fn validate_interest(author: &AgentPubKey, interest: &Interest) -> ExternResult<ValidateCallbackResult> {
+/// An interest names its author's own user, on a listing that exists, carries
+/// its author's member grant (#378), and its author holds no other live
+/// interest on that listing (#354). A withdrawn interest does not count, so a
+/// member may show interest again after withdrawing.
+fn validate_interest(
+  action: &TypedAction<CreateData>,
+  interest: &Interest,
+) -> ExternResult<ValidateCallbackResult> {
+  let author = action.author();
   if let Err(reason) = create_record(&interest.listing, "listing")? {
-    return invalid(&reason);
+    return invalid(reason);
   }
   match agent_for_user(&interest.user)? {
     Ok(agent) if agent == *author => {}
-    Ok(_) => return invalid("an interest names its own author's user"),
-    Err(reason) => return invalid(&reason),
+    Ok(_) => return invalid(ExchangeValidationError::InterestForeignUser),
+    Err(reason) => return invalid(reason),
   }
   if let Err(reason) = check_act(&interest.grant, author, &Ability::Participate, &None)? {
-    return invalid(&format!("an interest is a role act: {}", reason));
+    return invalid(ExchangeValidationError::InterestIsRoleAct(reason.to_string()));
+  }
+  if live_interest_before(action, interest)? {
+    return invalid(ExchangeValidationError::InterestAlreadyLive);
   }
   Ok(ValidateCallbackResult::Valid)
+}
+
+/// Whether the author already holds an interest in the same listing that they
+/// have not withdrawn, earlier on their chain.
+///
+/// Reads from the action before this one back to the author's genesis. The
+/// read is never bounded by a hash the interest carries: validation only checks
+/// that `user` is a Create of the author's, so a bound taken from it could be
+/// moved past the first interest by naming any later Create. The bound is a
+/// position on the chain, not a time, so a backdated timestamp cannot slip under
+/// it, and starting from the previous action keeps the read to actions already
+/// on the chain. The chain comes newest first, so
+/// a withdrawal is seen before the interest it withdraws.
+fn live_interest_before(
+  action: &TypedAction<CreateData>,
+  interest: &Interest,
+) -> ExternResult<bool> {
+  let Some(prev_action) = action.header.prev_action.clone() else {
+    return Ok(false);
+  };
+  let interest_type = AppEntryDef::try_from(UnitEntryTypes::Interest)?;
+  let activity = must_get_agent_activity(
+    action.author().clone(),
+    ChainFilter::new(prev_action).include_cached_entries(),
+  )?;
+  let mut withdrawn: Vec<ActionHash> = Vec::new();
+  for item in activity {
+    let hash = item.action.as_hash().clone();
+    match &item.action.hashed.content.data {
+      ActionData::Delete(delete) => withdrawn.push(delete.deletes_address.clone()),
+      ActionData::Create(create) => {
+        let EntryType::App(def) = &create.entry_type else {
+          continue;
+        };
+        if def.zome_index != interest_type.zome_index || def.entry_index != interest_type.entry_index {
+          continue;
+        }
+        if withdrawn.contains(&hash) {
+          continue;
+        }
+        let entry = match item.cached_entry {
+          Some(entry) => entry,
+          None => must_get_entry(create.entry_hash.clone())?.content,
+        };
+        if let Some(EntryTypes::Interest(earlier)) =
+          EntryTypes::deserialize_from_type(def.zome_index, def.entry_index, &entry)?
+        {
+          if earlier.listing == interest.listing {
+            return Ok(true);
+          }
+        }
+      }
+      _ => {}
+    }
+  }
+  Ok(false)
 }
 
 /// An agreement points at an interest on the same listing. Its author is the
@@ -280,77 +406,77 @@ fn validate_agreement(action: &TypedAction<CreateData>, agreement: &Agreement) -
   let author = action.author();
   let listing = match create_record(&agreement.listing, "listing")? {
     Ok(r) => r,
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   };
   let interest_record = match create_record(&agreement.interest, "interest")? {
     Ok(r) => r,
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   };
   let interest = match entry_of::<Interest>(&interest_record, "interest")? {
     Ok(i) => i,
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   };
   if interest.listing != agreement.listing {
-    return invalid("agreement and its interest name different listings");
+    return invalid(ExchangeValidationError::AgreementListingMismatch);
   }
   if interest.listing_type != agreement.listing_type {
-    return invalid("agreement and its interest disagree on listing type");
+    return invalid(ExchangeValidationError::AgreementListingTypeMismatch);
   }
 
   let listing_author = author_of(&listing);
   let interest_author = author_of(&interest_record);
   if listing_author == interest_author {
-    return invalid("a member cannot exchange with themselves");
+    return invalid(ExchangeValidationError::SelfExchange);
   }
   let other = if *author == listing_author {
     interest_author.clone()
   } else if *author == interest_author {
     listing_author.clone()
   } else {
-    return invalid("agreement author is neither the listing author nor the interested member");
+    return invalid(ExchangeValidationError::AgreementAuthorNotParty);
   };
 
   match agent_for_user(&agreement.counterparty)? {
     Ok(agent) if agent == other => {}
-    Ok(_) => return invalid("counterparty is not the other party"),
-    Err(reason) => return invalid(&reason),
+    Ok(_) => return invalid(ExchangeValidationError::CounterpartyNotOtherParty),
+    Err(reason) => return invalid(reason),
   }
 
   let provider_agent = match agent_for_user(&agreement.provider)? {
     Ok(a) => a,
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   };
   let receiver_agent = match agent_for_user(&agreement.receiver)? {
     Ok(a) => a,
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   };
   let (expected_provider, expected_receiver) = match agreement.listing_type {
     ListingType::Offer => (listing_author.clone(), interest_author.clone()),
     ListingType::Request => (interest_author.clone(), listing_author.clone()),
   };
   if provider_agent != expected_provider || receiver_agent != expected_receiver {
-    return invalid("provider and receiver do not match the listing type and its parties");
+    return invalid(ExchangeValidationError::PartiesMismatch);
   }
 
   if agreement.primary.direction != Direction::Provide
     || agreement.primary.resource_kind != ResourceKind::Service
   {
-    return invalid("primary term is the service provided");
+    return invalid(ExchangeValidationError::PrimaryNotService);
   }
   if agreement.reciprocal.direction != Direction::Receive {
-    return invalid("reciprocal term is what the provider receives");
+    return invalid(ExchangeValidationError::ReciprocalNotReceived);
   }
   if let Some(reason) = validate_term(&agreement.primary, "primary") {
-    return invalid(&reason);
+    return invalid(reason);
   }
   if let Some(reason) = validate_term(&agreement.reciprocal, "reciprocal") {
-    return invalid(&reason);
+    return invalid(reason);
   }
   if agreement.medium.trim().is_empty() {
-    return invalid("agreement names no medium of exchange");
+    return invalid(ExchangeValidationError::NoMedium);
   }
   if let Err(reason) = check_act(&agreement.grant, author, &Ability::Participate, &None)? {
-    return invalid(&format!("an agreement is a role act: {}", reason));
+    return invalid(ExchangeValidationError::AgreementIsRoleAct(reason.to_string()));
   }
   match &agreement.counters {
     None => Ok(ValidateCallbackResult::Valid),
@@ -377,33 +503,33 @@ fn validate_counter(
   let author = action.author();
   let (_, countered) = match agreement_at(&countering.agreement)? {
     Ok(pair) => pair,
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   };
   match agent_for_user(&countered.counterparty)? {
     Ok(agent) if agent == *author => {}
-    Ok(_) => return invalid("only the member a proposal was sent to may counter it"),
-    Err(reason) => return invalid(&reason),
+    Ok(_) => return invalid(ExchangeValidationError::CounterByNonRecipient),
+    Err(reason) => return invalid(reason),
   }
   if action.prev_action() != Some(&countering.decline) {
-    return invalid("a counter is written immediately after its decline");
+    return invalid(ExchangeValidationError::CounterNotAfterDecline);
   }
 
   let decline_record = match create_record(&countering.decline, "decline")? {
     Ok(r) => r,
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   };
   let decline = match entry_of::<Response>(&decline_record, "decline")? {
     Ok(r) => r,
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   };
   if decline.agreement != countering.agreement {
-    return invalid("a counter's decline must be of the proposal it counters");
+    return invalid(ExchangeValidationError::CounterDeclineOfOtherProposal);
   }
   if decline.accepted {
-    return invalid("a counter's decline must decline the proposal");
+    return invalid(ExchangeValidationError::CounterDeclineAccepts);
   }
   if author_of(&decline_record) != *author {
-    return invalid("a counter's decline must be written by the counter's author");
+    return invalid(ExchangeValidationError::CounterDeclineByOther);
   }
 
   match counter_terms_problem(counter, &countered) {
@@ -414,35 +540,45 @@ fn validate_counter(
 
 /// What is wrong with a counter's terms against the proposal it answers, if
 /// anything. Pure, so it is unit-tested without a conductor.
-pub fn counter_terms_problem(counter: &Agreement, countered: &Agreement) -> Option<&'static str> {
+pub fn counter_terms_problem(counter: &Agreement, countered: &Agreement) -> Option<ExchangeValidationError> {
   if counter.listing != countered.listing
     || counter.listing_type != countered.listing_type
     || counter.interest != countered.interest
     || counter.provider != countered.provider
     || counter.receiver != countered.receiver
   {
-    return Some("a counter keeps the listing, the interest and the parties of the proposal it answers");
+    return Some(ExchangeValidationError::CounterChangesParties);
   }
   if counter.medium != countered.medium || counter.terms != countered.terms {
-    return Some("a counter keeps the medium of exchange and the terms text");
+    return Some(ExchangeValidationError::CounterChangesMediumOrTerms);
   }
   if !same_except_quantity(&counter.primary, &countered.primary)
     || !same_except_quantity(&counter.reciprocal, &countered.reciprocal)
   {
-    return Some("a counter keeps both services; only the quantities may change");
+    return Some(ExchangeValidationError::CounterChangesServices);
   }
   if !same_unit(&counter.primary, &countered.primary)
     || !same_unit(&counter.reciprocal, &countered.reciprocal)
   {
-    return Some("a counter keeps each quantity's unit; only the amount may change");
+    return Some(ExchangeValidationError::CounterChangesUnit);
   }
-  if counter.primary.quantity == countered.primary.quantity
-    && counter.reciprocal.quantity == countered.reciprocal.quantity
+  if same_quantity(&counter.primary.quantity, &countered.primary.quantity)
+    && same_quantity(&counter.reciprocal.quantity, &countered.reciprocal.quantity)
     && counter.delivery_timeframe.trim() == countered.delivery_timeframe.trim()
   {
-    return Some("a counter changes a quantity or the timeframe");
+    return Some(ExchangeValidationError::CounterChangesNothing);
   }
   None
+}
+
+/// Quantities are equal when both are absent, or both present with the same
+/// amount (compared as numbers) and the same unit.
+fn same_quantity(a: &Option<Quantity>, b: &Option<Quantity>) -> bool {
+  match (a, b) {
+    (None, None) => true,
+    (Some(x), Some(y)) => same_amount(&x.value, &y.value) && x.unit == y.unit,
+    _ => false,
+  }
 }
 
 /// A quantity on both sides must be in the same unit, so "2 hours" cannot
@@ -473,22 +609,22 @@ fn validate_response(action: &TypedAction<CreateData>, response: &Response) -> E
   let author = action.author();
   let (_, agreement) = match agreement_at(&response.agreement)? {
     Ok(pair) => pair,
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   };
   match agent_for_user(&agreement.counterparty)? {
     Ok(agent) if agent == *author => {}
-    Ok(_) => return invalid("only the counterparty responds to an agreement"),
-    Err(reason) => return invalid(&reason),
+    Ok(_) => return invalid(ExchangeValidationError::ResponseByNonCounterparty),
+    Err(reason) => return invalid(reason),
   }
   // The responder wrote either the listing or the interest; that record is on
   // their chain before any response to an agreement naming it can be.
   let own_record = match create_record(&agreement.listing, "listing")? {
     Ok(listing) if author_of(&listing) == *author => agreement.listing.clone(),
     Ok(_) => agreement.interest.clone(),
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   };
   if responded_before(action, &response.agreement, own_record)? {
-    return invalid("this member has already responded to this proposal");
+    return invalid(ExchangeValidationError::AlreadyResponded);
   }
   Ok(ValidateCallbackResult::Valid)
 }
@@ -551,26 +687,26 @@ fn validate_party_entry(
 ) -> ExternResult<ValidateCallbackResult> {
   let (_, agreement) = match agreement_at(agreement_hash)? {
     Ok(pair) => pair,
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   };
   let provider = match agent_for_user(&agreement.provider)? {
     Ok(a) => a,
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   };
   let receiver = match agent_for_user(&agreement.receiver)? {
     Ok(a) => a,
-    Err(reason) => return invalid(&reason),
+    Err(reason) => return invalid(reason),
   };
   if *author == provider || *author == receiver {
     Ok(ValidateCallbackResult::Valid)
   } else {
-    invalid(&format!("only a party to the agreement writes a {what}"))
+    invalid(ExchangeValidationError::PartyEntryByNonParty(what.to_string()))
   }
 }
 
 fn validate_review(author: &AgentPubKey, review: &Review) -> ExternResult<ValidateCallbackResult> {
   if review.rating > 5 {
-    return invalid("rating is 0 to 5");
+    return invalid(ExchangeValidationError::RatingOutOfRange);
   }
   validate_party_entry(author, &review.agreement, "review")
 }
@@ -580,10 +716,10 @@ fn validate_review(author: &AgentPubKey, review: &Review) -> ExternResult<Valida
 // entry of the right type. Deletes are refused: the record is append-only.
 // ---------------------------------------------------------------------------
 
-fn base_is_create(base: &AnyLinkableHash, what: &str) -> ExternResult<Result<(), String>> {
+fn base_is_create(base: &AnyLinkableHash, what: &str) -> ExternResult<Result<(), ExchangeValidationError>> {
   let hash = match base.clone().into_action_hash() {
     Some(h) => h,
-    None => return Ok(Err(format!("{what} link base is not an action hash"))),
+    None => return Ok(Err(ExchangeValidationError::LinkBaseNotActionHash(what.to_string()))),
   };
   Ok(create_record(&hash, what)?.map(|_| ()))
 }
@@ -591,10 +727,10 @@ fn base_is_create(base: &AnyLinkableHash, what: &str) -> ExternResult<Result<(),
 fn target_is<T: TryFrom<SerializedBytes, Error = SerializedBytesError>>(
   target: &AnyLinkableHash,
   what: &str,
-) -> ExternResult<Result<(), String>> {
+) -> ExternResult<Result<(), ExchangeValidationError>> {
   let hash = match target.clone().into_action_hash() {
     Some(h) => h,
-    None => return Ok(Err(format!("{what} link target is not an action hash"))),
+    None => return Ok(Err(ExchangeValidationError::LinkTargetNotActionHash(what.to_string()))),
   };
   let record = match create_record(&hash, what)? {
     Ok(r) => r,
@@ -609,20 +745,20 @@ fn counter_of(
   base: &AnyLinkableHash,
   target: &AnyLinkableHash,
   link_author: &AgentPubKey,
-) -> ExternResult<Result<(), String>> {
+) -> ExternResult<Result<(), ExchangeValidationError>> {
   let (Some(base), Some(target)) = (base.clone().into_action_hash(), target.clone().into_action_hash()) else {
-    return Ok(Err("counter link ends are not action hashes".to_string()));
+    return Ok(Err(ExchangeValidationError::CounterLinkEndsNotActionHashes));
   };
   let (counter_record, counter) = match agreement_at(&target)? {
     Ok(pair) => pair,
     Err(reason) => return Ok(Err(reason)),
   };
   if author_of(&counter_record) != *link_author {
-    return Ok(Err("only the counter's author links a proposal to its counter".to_string()));
+    return Ok(Err(ExchangeValidationError::CounterLinkByOther));
   }
   match counter.counters {
     Some(c) if c.agreement == base => Ok(Ok(())),
-    _ => Ok(Err("a counter link points at the counter-proposal that answers its base".to_string())),
+    _ => Ok(Err(ExchangeValidationError::CounterLinkWrongTarget)),
   }
 }
 
@@ -638,7 +774,7 @@ fn validate_link(
     _ => base_is_create(base, "agreement")?,
   };
   if let Err(reason) = base_check {
-    return invalid(&reason);
+    return invalid(reason);
   }
   let target_check = match link_type {
     LinkTypes::ListingInterests | LinkTypes::UserInterests => target_is::<Interest>(target, "interest")?,
@@ -650,7 +786,7 @@ fn validate_link(
     LinkTypes::AgreementCounters => counter_of(base, target, author)?,
   };
   if let Err(reason) = target_check {
-    return invalid(&reason);
+    return invalid(reason);
   }
   Ok(ValidateCallbackResult::Valid)
 }
@@ -664,7 +800,7 @@ fn validate_link(
 fn validate_create(action: &TypedAction<CreateData>, entry: EntryTypes) -> ExternResult<ValidateCallbackResult> {
   let author = action.author();
   match entry {
-    EntryTypes::Interest(i) => validate_interest(author, &i),
+    EntryTypes::Interest(i) => validate_interest(action, &i),
     EntryTypes::Agreement(a) => validate_agreement(action, &a),
     EntryTypes::Response(r) => validate_response(action, &r),
     EntryTypes::Completion(c) => validate_party_entry(author, &c.agreement, "completion"),
@@ -691,7 +827,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
   match op.flattened::<EntryTypes, LinkTypes>()? {
     FlatOp::CreateEntry(store_entry) => match store_entry {
       OpEntry::CreateEntry { app_entry, action } => validate_create(&action, app_entry),
-      OpEntry::UpdateEntry { .. } => invalid("exchange records are append-only; nothing is updated"),
+      OpEntry::UpdateEntry { .. } => invalid(ExchangeValidationError::UpdateRefused),
       _ => Ok(ValidateCallbackResult::Valid),
     },
     FlatOp::CreateRecord(store_record) => match store_record {
@@ -710,28 +846,26 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
             if author_of(&original) == *action.author() {
               Ok(ValidateCallbackResult::Valid)
             } else {
-              invalid("only the interested member withdraws their interest")
+              invalid(ExchangeValidationError::InterestWithdrawnByOther)
             }
           }
-          _ => invalid("exchange records are append-only; only an interest is withdrawn"),
+          _ => invalid(ExchangeValidationError::DeleteRefused),
         }
       }
-      OpRecord::UpdateEntry { .. } => invalid("exchange records are append-only; nothing is updated"),
+      OpRecord::UpdateEntry { .. } => invalid(ExchangeValidationError::UpdateRefused),
       _ => Ok(ValidateCallbackResult::Valid),
     },
     // The same refusal for the authorities of the *original*: an update is also
     // delivered, as its own op, to whoever holds the record it changes, and
     // that authority never sees the two ops above.
-    FlatOp::Update(OpUpdate::Entry { .. }) => {
-      invalid("exchange records are append-only; nothing is updated")
-    }
+    FlatOp::Update(OpUpdate::Entry { .. }) => invalid(ExchangeValidationError::UpdateRefused),
     FlatOp::Link(OpLink::CreateLink { link_type, action }) => validate_link(
       link_type,
       &action.base_address,
       &action.target_address,
       action.author(),
     ),
-    FlatOp::Link(OpLink::DeleteLink { .. }) => invalid("exchange links are never deleted"),
+    FlatOp::Link(OpLink::DeleteLink { .. }) => invalid(ExchangeValidationError::LinkDeleteRefused),
     _ => Ok(ValidateCallbackResult::Valid),
   }
 }
@@ -756,13 +890,13 @@ mod counter_tests {
         direction: Direction::Provide,
         resource_conforms_to: "Gardening".into(),
         resource_kind: ResourceKind::Service,
-        quantity: Some(Quantity { value: 3.0, unit: "hours".into() }),
+        quantity: Some(Quantity { value: "3".into(), unit: "hours".into() }),
       },
       reciprocal: ExchangeTerm {
         direction: Direction::Receive,
         resource_conforms_to: "Time bank hours".into(),
         resource_kind: ResourceKind::Currency,
-        quantity: Some(Quantity { value: 3.0, unit: "Time bank hours".into() }),
+        quantity: Some(Quantity { value: "3".into(), unit: "Time bank hours".into() }),
       },
       medium: "Time bank hours".into(),
       terms: "".into(),
@@ -775,7 +909,7 @@ mod counter_tests {
   #[test]
   fn a_changed_quantity_or_timeframe_is_a_counter() {
     let mut c = proposal();
-    c.primary.quantity = Some(Quantity { value: 5.0, unit: "hours".into() });
+    c.primary.quantity = Some(Quantity { value: "5".into(), unit: "hours".into() });
     assert_eq!(counter_terms_problem(&c, &proposal()), None);
     let mut c = proposal();
     c.reciprocal.quantity = None;
@@ -787,7 +921,7 @@ mod counter_tests {
 
   #[test]
   fn an_unchanged_copy_is_not_a_counter() {
-    assert!(counter_terms_problem(&proposal(), &proposal()).unwrap().contains("changes a quantity"));
+    assert!(counter_terms_problem(&proposal(), &proposal()).unwrap().to_string().contains("changes a quantity"));
   }
 
   #[test]
@@ -802,7 +936,7 @@ mod counter_tests {
       let mut c = proposal();
       c.delivery_timeframe = "Flexible".into();
       change(&mut c);
-      assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("listing, the interest"));
+      assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("listing, the interest"));
     }
   }
 
@@ -811,11 +945,11 @@ mod counter_tests {
     let mut c = proposal();
     c.delivery_timeframe = "Flexible".into();
     c.medium = "Pounds".into();
-    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("medium"));
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("medium"));
     let mut c = proposal();
     c.delivery_timeframe = "Flexible".into();
     c.terms = "New words".into();
-    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("medium"));
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("medium"));
   }
 
   #[test]
@@ -823,11 +957,11 @@ mod counter_tests {
     let mut c = proposal();
     c.delivery_timeframe = "Flexible".into();
     c.primary.direction = Direction::Receive;
-    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("both services"));
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("both services"));
     let mut c = proposal();
     c.delivery_timeframe = "Flexible".into();
     c.reciprocal.direction = Direction::Provide;
-    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("both services"));
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("both services"));
   }
 
   #[test]
@@ -835,7 +969,7 @@ mod counter_tests {
     let mut original = proposal();
     original.primary.quantity = None;
     let mut c = original.clone();
-    c.primary.quantity = Some(Quantity { value: 1.0, unit: "hours".into() });
+    c.primary.quantity = Some(Quantity { value: "1".into(), unit: "hours".into() });
     assert_eq!(counter_terms_problem(&c, &original), None);
   }
 
@@ -851,17 +985,17 @@ mod counter_tests {
   fn whitespace_in_the_timeframe_is_not_a_change() {
     let mut c = proposal();
     c.delivery_timeframe = "  Within 2 weeks ".into();
-    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("changes a quantity"));
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("changes a quantity"));
   }
 
   #[test]
   fn each_quantity_keeps_its_unit() {
     let mut c = proposal();
-    c.primary.quantity = Some(Quantity { value: 3.0, unit: "days".into() });
-    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("unit"));
+    c.primary.quantity = Some(Quantity { value: "3".into(), unit: "days".into() });
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("unit"));
     let mut c = proposal();
-    c.reciprocal.quantity = Some(Quantity { value: 5.0, unit: "Pounds".into() });
-    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("unit"));
+    c.reciprocal.quantity = Some(Quantity { value: "5".into(), unit: "Pounds".into() });
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("unit"));
   }
 
   #[test]
@@ -869,11 +1003,84 @@ mod counter_tests {
     let mut c = proposal();
     c.delivery_timeframe = "Flexible".into();
     c.primary.resource_conforms_to = "Plumbing".into();
-    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("both services"));
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("both services"));
     let mut c = proposal();
     c.delivery_timeframe = "Flexible".into();
     c.reciprocal.resource_kind = ResourceKind::Gift;
-    assert!(counter_terms_problem(&c, &proposal()).unwrap().contains("both services"));
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("both services"));
+  }
+
+  #[test]
+  fn the_same_amount_written_differently_is_not_a_change() {
+    let mut c = proposal();
+    c.delivery_timeframe = "  Within 2 weeks ".into();
+    c.primary.quantity = Some(Quantity { value: "3.00".into(), unit: "hours".into() });
+    assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("changes a quantity"));
+    let mut original = proposal();
+    original.primary.quantity = Some(Quantity { value: "1.5".into(), unit: "hours".into() });
+    let mut c = original.clone();
+    c.primary.quantity = Some(Quantity { value: "1.50".into(), unit: "hours".into() });
+    assert!(counter_terms_problem(&c, &original).unwrap().to_string().contains("changes a quantity"));
+    c.primary.quantity = Some(Quantity { value: "1.51".into(), unit: "hours".into() });
+    assert_eq!(counter_terms_problem(&c, &original), None);
+  }
+}
+
+#[cfg(test)]
+mod decimal_tests {
+  use super::*;
+
+  #[test]
+  fn canonical_decimals_are_accepted() {
+    for ok in ["1", "12", "0.5", "0.05", "1.5", "12.50", "999999999", "999999999.999999", "100", "10.0"] {
+      assert_eq!(decimal_problem(ok), None, "{ok} should be accepted");
+    }
+  }
+
+  #[test]
+  fn malformed_decimals_are_refused() {
+    for bad in [
+      "", " ", "1 ", " 1", "-1", "+1", "1e3", "1E3", "NaN", "inf", "Infinity", ".5", "5.", ".", "1.2.3",
+      "1,5", "01", "00", "00.5", "0x10", "1_000", "١٢", "1.5\n", "9999999999", "1.1234567",
+      "12345678901234567890",
+    ] {
+      assert!(decimal_problem(bad).is_some(), "{bad:?} should be refused");
+    }
+  }
+
+  #[test]
+  fn zero_is_well_formed_but_not_positive() {
+    for zero in ["0", "0.0", "0.000000"] {
+      assert_eq!(decimal_problem(zero), None);
+      assert!(!is_positive(zero), "{zero} is not positive");
+    }
+    for pos in ["0.000001", "1", "10.0"] {
+      assert!(is_positive(pos), "{pos} is positive");
+    }
+  }
+
+  #[test]
+  fn amounts_compare_by_value_not_spelling() {
+    assert!(same_amount("1.5", "1.50"));
+    assert!(same_amount("10", "10.000"));
+    assert!(same_amount("0", "0.0"));
+    assert!(!same_amount("1.5", "1.51"));
+    assert!(!same_amount("10", "1.0"));
+    assert!(!same_amount("100", "10"));
+  }
+
+  #[test]
+  fn a_term_quantity_must_be_positive_canonical_and_have_a_unit() {
+    let term = |value: &str, unit: &str| ExchangeTerm {
+      direction: Direction::Provide,
+      resource_conforms_to: "Gardening".into(),
+      resource_kind: ResourceKind::Service,
+      quantity: Some(Quantity { value: value.into(), unit: unit.into() }),
+    };
+    assert_eq!(validate_term(&term("2.50", "hours"), "primary"), None);
+    assert!(validate_term(&term("0", "hours"), "primary").unwrap().to_string().contains("positive"));
+    assert!(validate_term(&term("1e3", "hours"), "primary").unwrap().to_string().contains("decimal"));
+    assert!(validate_term(&term("2", ""), "primary").unwrap().to_string().contains("unit"));
   }
 }
 

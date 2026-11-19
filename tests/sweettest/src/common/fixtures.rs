@@ -127,7 +127,8 @@ pub struct UnsuspendEntityInput {
 pub struct StatusInput {
     pub status_type: String,
     pub reason: Option<String>,
-    pub suspended_until: Option<String>,
+    /// A Holochain timestamp, in microseconds.
+    pub suspended_until: Option<i64>,
 }
 
 /// Build an "accepted" status input.
@@ -341,4 +342,17 @@ pub fn sample_medium_of_exchange(
             resource_spec_hrea_id: None,
         },
     }
+}
+
+// ── Messaging fixtures ────────────────────────────────────────
+
+/// A send id no other send in this test process has used.
+///
+/// Every send needs one (the coordinator refuses an empty id), and most cases are not
+/// about it, so their inputs serialise with one of these. Unique within the process is
+/// enough: `find_sent` only looks at the caller's own chain.
+pub fn fresh_send_id() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    format!("test-send-{}", NEXT.fetch_add(1, Ordering::Relaxed))
 }

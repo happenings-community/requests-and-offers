@@ -39,12 +39,15 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     // initializes; it reads "Connected" or "Online, no peers" only once the
     // conductor has answered (the connect step sets 'connected', the peer
     // poll then refines it to 'alone' with no peers), and the home heading
-    // renders only inside the connected app shell. The indicator lives in
+    // renders only inside the connected app shell. The indicator is a button
+    // (it opens the network details) and lives in
     // the NavBar's desktop-only block (hidden below the lg breakpoint,
     // 1024px); every Playwright project runs at 1280x720, so a narrower
     // project would need a different probe here.
     await expect(
-      page.getByRole('img', { name: /^Connection status: (Connected|Online, no peers)$/ })
+      page.getByRole('button', {
+        name: /^Connection status: (Connected|Online, no peers)\. Show network details$/
+      })
     ).toBeVisible({ timeout: 15_000 });
     await expect(
       page.getByRole('heading', { name: 'Welcome to Requests & Offers', exact: true })
@@ -69,7 +72,10 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await expect(page.getByRole('heading', { name: 'Members only' })).toBeVisible({
       timeout: 15_000
     });
-    await expect(page.getByRole('link', { name: 'Create Profile', exact: true })).toBeVisible();
+    // The nav bar has its own Create Profile link, so look in the page body.
+    await expect(
+      page.getByRole('main').getByRole('link', { name: 'Create Profile', exact: true })
+    ).toBeVisible();
   });
 
   test('visitor creates a profile through the real form', async ({ page }) => {
@@ -100,11 +106,14 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await page.getByRole('button', { name: 'Open the members page' }).click();
     await expect(page).toHaveURL(/\/admin\/users/, { timeout: 15_000 });
 
-    // The Admin button carries the hint, by its accessible name, while the
-    // administrator's own membership is pending. It goes once they accept it
-    // (asserted below, after the approval).
+    // The Admin menu (#411) carries the hint, by its accessible name, while the
+    // administrator's own membership is pending, and counts them: they are the one
+    // member waiting. Both go once they accept it (asserted below, after the approval).
     await expect(
-      page.getByRole('link', { name: /Accept your membership to finish setup/ })
+      page.getByRole('button', {
+        name: 'Admin menu, 1 waiting to be accepted. Accept your membership to finish setup',
+        exact: true
+      })
     ).toBeVisible({ timeout: 10_000 });
 
     await gotoApp(page, '/user');
@@ -133,6 +142,10 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await gotoApp(page, '/user');
 
     await expect(page.locator('text=e2e_tester').first()).toBeVisible({ timeout: 15_000 });
+    // My Exchanges, My Listings and Messages are members only, so a pending member gets
+    // no link on the bar that leads to that wall (#349 review). The accepted test below
+    // checks the same link is there, so this one cannot pass for a wrong selector.
+    await expect(page.getByTestId('nav-exchanges')).toHaveCount(0);
   });
 
   test('first agent approves its own profile from the admin dashboard', async ({ page }) => {
@@ -167,11 +180,13 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     // Wait in the same session: a reload here would cut the write off.
     await agentWritten;
 
-    // The membership is accepted, so the Admin button no longer carries the hint.
+    // The membership is accepted, so the Admin menu no longer carries the hint.
     await expect(
-      page.getByRole('link', { name: /Accept your membership to finish setup/ })
+      page.getByRole('button', { name: /Accept your membership to finish setup/ })
     ).toHaveCount(0, { timeout: 10_000 });
-    await expect(page.getByRole('link', { name: 'Access administration panel' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Admin menu', exact: true })).toBeVisible({
+      timeout: 10_000
+    });
   });
 
   test('accepted profile can now create offers', async ({ page }) => {
@@ -180,6 +195,7 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await expect(page.getByRole('button', { name: 'Create Offer', exact: true })).toBeVisible({
       timeout: 15_000
     });
+    await expect(page.getByTestId('nav-exchanges')).toBeVisible();
   });
 
   test('user edits their profile through the form', async ({ page }) => {

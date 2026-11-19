@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { suspensionEndDate } from '$lib/utils/suspension';
   import { page } from '$app/state';
   import { Avatar, getModalStore } from '@skeletonlabs/skeleton';
   import { onMount } from 'svelte';
@@ -10,6 +11,7 @@
   import { Effect as E } from 'effect';
   import { storeEventBus } from '$lib/stores/storeEvents';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
+  import { paths } from '$lib/paths';
 
   type Props = {
     user: UIUser;
@@ -40,9 +42,8 @@
 
       console.log('Debug UserDetailsModal - User status:', userStatus);
 
-      if (userStatus?.suspended_until) {
-        suspensionDate = new Date(userStatus.suspended_until).toLocaleString();
-      }
+      const ends = suspensionEndDate(userStatus?.suspended_until);
+      if (ends) suspensionDate = ends.toLocaleString();
     } catch (error) {
       console.log('Debug UserDetailsModal - Error fetching status:', error);
     }
@@ -79,7 +80,7 @@
         <Avatar src={userPictureUrl} width="w-32" background="bg-surface-100-800-token" />
       </div>
       <div class="flex min-w-0 flex-col items-center">
-        <h2 class="h2 mb-1 truncate font-bold"><UserName user={user} /></h2>
+        <h2 class="h2 mb-1 truncate font-bold"><UserName {user} /></h2>
         <p class="text-surface-300">Nickname/Handle: {user.nickname}</p>
         {#if user.bio}
           <MarkdownRenderer content={user.bio || ''} class="mt-3 text-center leading-relaxed" />
@@ -88,7 +89,7 @@
     </div>
 
     <!-- Status Section (Admin Only) -->
-    {#if page.url.pathname.startsWith('/admin')}
+    {#if page.url.pathname.startsWith(paths.admin())}
       <div class=" mb-6 p-4">
         <h3 class="h4 mb-3 font-semibold">Status Information</h3>
         <div class="space-y-3">

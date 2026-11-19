@@ -3,6 +3,9 @@
   import usersStore from '$lib/stores/users.store.svelte';
   import { isHolochainConnected } from '$lib/utils/holochain-client.utils';
   import { formatUserName } from '$lib/schemas/users.schemas';
+  import { myMenuItems } from '$lib/navigation/my-menu';
+  import { isUserApproved } from '$lib/utils';
+  import messagingPresence from '$lib/services/messagingPresence.svelte';
   import { paths } from '$lib/paths';
 
   let error: string | null = $state(null);
@@ -47,30 +50,23 @@
     }
   ];
 
-  // User activity cards for existing users
-  const userActivityCards = [
-    {
-      title: 'My Requests',
-      description: 'Manage your requests for help',
-      icon: '📋',
-      href: paths.requests({ filter: 'my' }),
-      color: 'bg-primary-500 hover:bg-primary-600'
-    },
-    {
-      title: 'My Offers',
-      description: 'Track your offers to help others',
-      icon: '🎯',
-      href: paths.offers({ filter: 'my' }),
-      color: 'bg-secondary-500 hover:bg-secondary-600'
-    },
-    {
-      title: 'My Profile',
-      description: 'Update your profile and skills',
-      icon: '👤',
-      href: paths.myProfile(),
-      color: 'bg-tertiary-500 hover:bg-tertiary-600'
-    }
+  // The member's own cards: the same list as the nav bar's menu.
+  const CARD_COLOURS = [
+    'bg-tertiary-500 hover:bg-tertiary-600',
+    'bg-primary-500 hover:bg-primary-600',
+    'bg-secondary-500 hover:bg-secondary-600'
   ];
+  const userActivityCards = $derived(
+    myMenuItems(!!currentUser, isUserApproved(currentUser), !messagingPresence.isAbsent).map(
+      (item, i) => ({
+        title: item.label,
+        description: item.description,
+        icon: item.icon,
+        href: item.href,
+        color: CARD_COLOURS[i % CARD_COLOURS.length]
+      })
+    )
+  );
 </script>
 
 <section class="mx-auto w-full max-w-6xl px-4 py-8">
@@ -158,7 +154,12 @@
         </div>
 
         <!-- User Activity Cards -->
-        <div class="mb-8 grid gap-6 md:grid-cols-3">
+        <!-- Four cards where there is messaging, three where there is not: no card alone on a row. -->
+        <div
+          class="mb-8 grid gap-6 {userActivityCards.length > 3
+            ? 'md:grid-cols-2 xl:grid-cols-4'
+            : 'md:grid-cols-3'}"
+        >
           {#each userActivityCards as card}
             <a
               href={card.href}

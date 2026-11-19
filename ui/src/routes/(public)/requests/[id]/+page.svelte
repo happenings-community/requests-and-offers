@@ -1,6 +1,7 @@
 <script lang="ts">
   import { timeframeLabel } from '$lib/utils/timeframe';
   import { estimateLabel } from '$lib/utils/estimate';
+  import BackButton from '$lib/components/shared/BackButton.svelte';
   import { termsState, TERMS_LOADING, TERMS_FAILED } from '$lib/utils/listing-terms';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
@@ -270,10 +271,7 @@
 <section class="container mx-auto space-y-6 p-4">
   <!-- Navigation -->
   <div class="flex items-center justify-between">
-    <button class="variant-soft btn space-x-2" onclick={() => goto(paths.requests())}>
-      <span>🡰</span>
-      <span>Back to Requests</span>
-    </button>
+    <BackButton fallback={paths.requests()} />
 
     {#if request && (canEdit || canDelete)}
       <div class="flex gap-2">
@@ -404,7 +402,10 @@
             <ul class="list-inside list-disc space-y-1">
               {#each request.links as link}
                 <li>
-                  <ExternalLink text={link} class="text-primary-500 hover:underline dark:text-primary-400" />
+                  <ExternalLink
+                    text={link}
+                    class="text-primary-500 hover:underline dark:text-primary-400"
+                  />
                 </li>
               {/each}
             </ul>

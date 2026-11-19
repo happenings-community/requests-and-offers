@@ -47,6 +47,10 @@ The store-helpers provide a collection of reusable utilities organized into 5 mo
 - **Dependency management**: Fetchers with dependency resolution
 - **Fallback strategies**: Robust fetching with error recovery
 
+### Write Guard (`write-guard.ts`)
+
+- **`createWriteGuard`**: keeps a background re-read from undoing a local write. A poll that replaces a list notes the write count as it starts (`begin()`), and its answer is applied only if nothing was written meanwhile; every local write to the list calls `wrote()`. #340's rule for any list; the Admin menu's minute refresh of members and organisations uses it (#411), held by `ui/tests/unit/stores/administration.store.write-guard.test.ts`.
+
 ## API Reference
 
 ### Core Utilities

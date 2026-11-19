@@ -105,6 +105,11 @@ describe('a status write and a read from before it', () => {
     // The Admin menu's tick, while the network still has the member accepted.
     await E.runPromise(store.refreshLists());
     expect(store.allUsers[0]?.status?.status_type).toBe('suspended temporarily');
+    // In milliseconds, as a read gives created_at, so a time read from the list means the
+    // same whichever kind of status it came from (#411 review). **To make this go red:**
+    // keep the action's microseconds in `createUIStatusFromRecord`.
+    expect(store.allUsers[0]?.status?.created_at).toBe(2_000);
+    expect(store.allUsers[0]?.status?.updated_at).toBe(2_000);
 
     // The network catches up; then another administrator accepts the member again.
     network.member = { status_type: 'suspended temporarily', created_at: 2_000 };

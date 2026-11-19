@@ -6,7 +6,9 @@ import {
   mapAgreementToHrea,
   mapCompletionToEvent,
   rnoAgreementRef,
-  agreementRefsFromHrea
+  agreementRefsFromHrea,
+  commitmentProblem,
+  exchangesToMirror
 } from '$lib/services/mappers/agreement-commitment.mapper';
 import type { UIExchange } from '$lib/types/ui';
 
@@ -144,6 +146,39 @@ describe('mapAgreementToHrea', () => {
         expect(c.hasBeginning).toBeUndefined();
         expect(c.hasEnd).toBeUndefined();
       }
+    });
+
+    it('sets the due date and leaves out a start that is not a date, rather than throwing', () => {
+      // Validation bounds a window's end, not its start, so a hand-written agreement can
+      // carry a start no Date can hold.
+      const m = mapAgreementToHrea(
+        exchange({
+          delivery_timeframe: {
+            Dates: { start: -9_223_372_036_854_776_000, end: Date.UTC(2026, 8, 20) * 1000 }
+          }
+        }),
+        parties,
+        specs,
+        accepted
+      );
+      expect(m!.primary.due).toBe(new Date(Date.UTC(2026, 8, 20)).toISOString());
+      expect(m!.primary.hasBeginning).toBeUndefined();
+      expect(m!.primary.hasEnd).toBeUndefined();
+    });
+
+    it('leaves out a start hREA could not carry: before about 1685 its microseconds are not an exact integer', () => {
+      const m = mapAgreementToHrea(
+        exchange({
+          delivery_timeframe: {
+            Dates: { start: Date.UTC(1600, 0, 1) * 1000, end: Date.UTC(2026, 8, 20) * 1000 }
+          }
+        }),
+        parties,
+        specs,
+        accepted
+      );
+      expect(m!.primary.due).toBe(new Date(Date.UTC(2026, 8, 20)).toISOString());
+      expect(m!.primary.hasBeginning).toBeUndefined();
     });
 
     it('keeps the timeframe label in the note', () => {
@@ -290,5 +325,134 @@ describe('unitRegistryFrom (#441)', () => {
 
   it('is empty for no Units', () => {
     expect(unitRegistryFrom([])).toEqual({});
+  });
+});
+
+describe('commitmentProblem', () => {
+  const good = {
+    action: 'work',
+    provider: 'agent-p',
+    receiver: 'agent-r',
+    resourceQuantity: { hasNumericalValue: 2, hasUnit: 'unit-hours' },
+    due: '2026-09-20T00:00:00.000Z'
+  };
+
+  it('finds nothing wrong with what the mapper builds', () => {
+    setUnitRegistry({ hours: 'unit-hours-id' });
+    const at = Date.UTC(2026, 9, 1);
+    const built = [
+      mapAgreementToHrea(exchange(), parties, specs, at),
+      mapAgreementToHrea(
+        exchange({ delivery_timeframe: { Preset: 'WithinAMonth' } }),
+        parties,
+        specs,
+        at
+      ),
+      mapAgreementToHrea(
+        exchange({ delivery_timeframe: { Preset: 'Flexible' } }),
+        parties,
+        specs,
+        at
+      ),
+      mapAgreementToHrea(
+        exchange({
+          reciprocal: {
+            direction: 'Receive',
+            resource_conforms_to: '',
+            resource_kind: 'Gift',
+            quantity: null
+          }
+        } as Partial<UIExchange['agreement']>),
+        parties,
+        specs,
+        at
+      )
+    ];
+    for (const m of built) {
+      expect(commitmentProblem(m!.primary)).toBeNull();
+      if (m!.reciprocal) expect(commitmentProblem(m!.reciprocal)).toBeNull();
+    }
+    expect(commitmentProblem(good)).toBeNull();
+  });
+
+  it('names what is wrong, in words, before hREA answers with bytes', () => {
+    expect(commitmentProblem({ ...good, provider: '' })).toBe('the Commitment has no provider');
+    expect(
+      commitmentProblem({ ...good, resourceQuantity: { hasNumericalValue: NaN, hasUnit: 'u' } })
+    ).toBe("the Commitment's quantity NaN is not a number above zero");
+    expect(
+      commitmentProblem({ ...good, resourceQuantity: { hasNumericalValue: 0, hasUnit: 'u' } })
+    ).toBe("the Commitment's quantity 0 is not a number above zero");
+    expect(
+      commitmentProblem({ ...good, resourceQuantity: { hasNumericalValue: 2, hasUnit: '' } })
+    ).toBe("the Commitment's quantity has no unit");
+    expect(commitmentProblem({ ...good, due: 'Invalid Date' })).toBe(
+      'the Commitment\'s due "Invalid Date" is not a date'
+    );
+    expect(commitmentProblem({ ...good, hasBeginning: '1600-01-01T00:00:00.000Z' })).toBe(
+      'the Commitment\'s hasBeginning "1600-01-01T00:00:00.000Z" is out of range for hREA'
+    );
+  });
+});
+
+describe('exchangesToMirror', () => {
+  const me = hash(4).toString(); // the fixture's counterparty: who accepts
+  const acceptedEx = (overrides: Partial<UIExchange['agreement']> = {}) =>
+    ({
+      ...exchange(overrides),
+      response: { agreement: hash(1), accepted: true, note: '', created_at: 1 }
+    }) as unknown as UIExchange;
+
+  it('keeps an accepted exchange whose acceptance this member wrote', () => {
+    expect(exchangesToMirror([acceptedEx()], me, new Set())).toHaveLength(1);
+  });
+
+  it('leaves out one either side has marked done: its completion has no Agreement to fulfil', () => {
+    const done = { created_at: 2 };
+    expect(
+      exchangesToMirror(
+        [
+          { ...acceptedEx(), provider_done: done } as unknown as UIExchange,
+          { ...acceptedEx(), receiver_done: done } as unknown as UIExchange
+        ],
+        me,
+        new Set()
+      )
+    ).toEqual([]);
+  });
+
+  it('keeps one cancelled since it was accepted: the caller finishes its Commitments', () => {
+    const cancelled = {
+      ...acceptedEx(),
+      cancellation: { reason: 'moved away', created_at: 2 }
+    } as unknown as UIExchange;
+    expect(exchangesToMirror([cancelled], me, new Set())).toHaveLength(1);
+  });
+
+  it('leaves out one not yet accepted, or declined', () => {
+    const declined = {
+      ...exchange(),
+      response: { agreement: hash(1), accepted: false, note: '', created_at: 1 }
+    } as unknown as UIExchange;
+    expect(exchangesToMirror([exchange(), declined], me, new Set())).toEqual([]);
+  });
+
+  it("leaves out one the other party accepted: the repair is the acceptor's", () => {
+    expect(exchangesToMirror([acceptedEx()], hash(5).toString(), new Set())).toEqual([]);
+  });
+
+  it('leaves out one the mirror does not map, and one already known', () => {
+    const tbd = acceptedEx({
+      primary: {
+        direction: 'Provide',
+        resource_conforms_to: 'x',
+        resource_kind: 'Tbd',
+        quantity: null
+      }
+    } as Partial<UIExchange['agreement']>);
+    expect(exchangesToMirror([tbd], me, new Set())).toEqual([]);
+    expect(exchangesToMirror([acceptedEx()], me, new Set([rnoAgreementRef(acceptedEx())]))).toEqual(
+      []
+    );
   });
 });

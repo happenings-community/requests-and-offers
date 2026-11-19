@@ -40,6 +40,8 @@ export type StoreEvents = {
   'exchange:accepted': { exchange: UIExchange };
   'exchange:completed': { exchange: UIExchange };
   'exchange:cancelled': { exchange: UIExchange };
+  /** A fresh read of the member's own exchanges, from a load or the nav bar's polling. */
+  'exchanges:loaded': { exchanges: UIExchange[] };
 
   // Service Types
   'serviceType:created': { serviceType: UIServiceType };

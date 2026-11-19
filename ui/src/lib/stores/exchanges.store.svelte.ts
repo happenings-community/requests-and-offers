@@ -135,7 +135,9 @@ export const createExchangesStore = (): E.Effect<ExchangesStore, never, Exchange
         E.map((list) => {
           exchanges = list;
           return list;
-        })
+        }),
+        // The hREA store repairs any accepted exchange whose mirror never landed.
+        E.tap((list) => E.sync(() => storeEventBus.emit('exchanges:loaded', { exchanges: list })))
       );
 
     const loadMyExchanges = () => tracked(fetchMyExchanges());

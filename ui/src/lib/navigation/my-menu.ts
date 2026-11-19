@@ -1,12 +1,11 @@
 import { paths } from '$lib/paths';
 
 /**
- * The member's own items, in one place (#344). The nav bar has two menus for
- * them (Sam, 17 October): **My Activity** (listings, exchanges, and My Messages
- * where the network has messaging: what you do on the network) and **your
- * profile menu** under your picture (your profile: who you are; Sam, 16
- * November). The mobile drawer and the home page read the same lists, so they
- * cannot drift apart.
+ * The member's own items, in one place (#344). **My Activity** is what you do on
+ * the network: exchanges, listings, and My Messages where the network has
+ * messaging. On the nav bar they are links and an envelope (Sam, 16 November);
+ * the mobile drawer and the home page list them in this order. **Your profile**,
+ * under your picture, is who you are. One list, so they cannot drift apart.
  */
 export interface MyMenuItem {
   href: string;
@@ -54,16 +53,16 @@ export function myActivityItems(accepted: boolean, withMessages = false): MyMenu
   if (!accepted) return [];
   return [
     {
-      href: paths.myListings(),
-      label: 'My Listings',
-      icon: '📋',
-      description: 'Manage your requests and offers'
-    },
-    {
       href: paths.exchanges(),
       label: 'My Exchanges',
       icon: '🤝',
       description: 'Agreements you are part of'
+    },
+    {
+      href: paths.myListings(),
+      label: 'My Listings',
+      icon: '📋',
+      description: 'Manage your requests and offers'
     },
     ...(withMessages ? [MY_MESSAGES] : [])
   ];

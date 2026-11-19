@@ -2,11 +2,10 @@
   import { getDrawerStore } from '@skeletonlabs/skeleton';
   import usersStore from '$lib/stores/users.store.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
-  import { getUserPictureUrl } from '$lib/utils';
+  import { getUserPictureUrl, isUserApproved } from '$lib/utils';
   import { MY_MESSAGES, myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
-  import { isUserApproved } from '$lib/utils';
   import messagingPresence from '$lib/services/messagingPresence.svelte';
-  import { getUnreadCount, unreadCountLabel } from '$lib/extensions/unread-count';
+  import { useNavCounts } from '$lib/navigation/nav-counts.svelte';
   import { paths } from '$lib/paths';
   import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
 
@@ -20,13 +19,13 @@
     needsSelfAcceptance(agentIsAdministrator, currentUser?.status?.status_type)
   );
 
-  // My Messages: the same entry the nav bar's My Activity menu has, asked for the same
-  // way: whether this network has messaging comes from the one presence module, and the
-  // count from the extension point, so the drawer knows nothing of messaging itself. On a
-  // narrow screen this is the only menu, and without the entry the only way to Messages was
-  // a Go to chat link or the address bar.
-  const unread = getUnreadCount();
-  const unreadCount = $derived(unread());
+  // My Messages: the same entry as the nav bar's envelope, asked for the same way:
+  // whether this network has messaging comes from the one presence module, and the counts
+  // from the one place the nav bar reads them, so the drawer knows nothing of messaging
+  // itself. On a narrow screen this is the only menu, and without the entry the only way
+  // to Messages was a Go to chat link or the address bar. My Exchanges carries the
+  // exchanges waiting on the member where there is no messaging, as on the bar.
+  const counts = useNavCounts();
 
   function closeDrawer() {
     drawerStore.close();
@@ -107,7 +106,7 @@
       </a>
     </div>
 
-    <!-- My Activity, as in the nav bar: accepted members only -->
+    <!-- My Activity: the bar's My Exchanges, My Listings and envelope, as a list; accepted members only -->
     {#if activity.length}
       <div class="space-y-3">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">
@@ -116,6 +115,11 @@
         <div class="space-y-2">
           {#each activity as item (item.href)}
             {@const isMessages = item.href === MY_MESSAGES.href}
+            {@const badge = isMessages
+              ? counts.unreadCount
+              : item.href === paths.exchanges()
+                ? counts.exchangesBadge
+                : 0}
             <a
               href={item.href}
               onclick={closeDrawer}
@@ -124,11 +128,11 @@
             >
               <span class="text-lg">{item.icon}</span>
               <span>{item.label}</span>
-              {#if isMessages && unreadCount}
+              {#if badge}
                 <!-- Said in words: a bare number told a screen reader nothing. -->
                 <span class="variant-filled-secondary badge ml-auto"
-                  ><span aria-hidden="true">{unreadCount}</span><span class="sr-only"
-                    >{unreadCountLabel(unreadCount)}</span
+                  ><span aria-hidden="true">{badge}</span><span class="sr-only"
+                    >{isMessages ? counts.totalLabel : `${badge} waiting on you`}</span
                   ></span
                 >
               {/if}
@@ -158,13 +162,7 @@
           <span class="text-lg">🏢</span>
           <span>Organizations</span>
         </a>
-      </div>
-    </div>
-
-    <!-- Resources -->
-    <div class="space-y-3">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Resources</h3>
-      <div class="space-y-2">
+        <!-- Resources held only this, so it joined Community, as in the nav bar. -->
         <a
           href={paths.serviceTypes()}
           onclick={closeDrawer}

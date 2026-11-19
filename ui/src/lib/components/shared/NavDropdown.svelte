@@ -5,6 +5,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { menuKeyTarget } from '$lib/utils/menu-keys';
+  import NavIcon, { type NavIconName } from '$lib/components/shared/svg/NavIcon.svelte';
 
   /**
    * A nav menu that opens on hover, click, Enter, Space or ArrowDown (#204).
@@ -30,16 +31,18 @@
     alignRight?: boolean;
     /** A picture shown before the title: the member's own menu. */
     avatar?: string;
+    /** An icon shown before the title. */
+    icon?: NavIconName;
   };
 
-  let { title, items, alignRight = false, avatar }: Props = $props();
+  let { title, items, alignRight = false, avatar, icon }: Props = $props();
 
   const total = $derived(items.reduce((n, item) => n + (item.badge ?? 0), 0));
   /**
-   * The count on the trigger, in words. One counted item says what it counts (in My
-   * Activity: unopened conversations on My Messages, or exchanges waiting on you where
-   * there is no messaging), so the trigger says it the same way; "new" only when two
-   * different counts are added together.
+   * The count on the trigger, in words. One counted item says what it counts, so the
+   * trigger says it the same way; "new" only when two different counts are added together.
+   * (The bar's own counts are on My Exchanges and the envelope, which are links, not
+   * menus; this serves any menu that carries one.)
    */
   const counted = $derived(items.filter((item) => item.badge));
   const totalLabel = $derived(
@@ -144,8 +147,11 @@
     {#if avatar}
       <img src={avatar} alt="" class="mr-2 h-8 w-8 rounded-full bg-surface-200 object-cover" />
     {/if}
+    {#if icon}
+      <NavIcon name={icon} class="mr-1.5 h-5 w-5" />
+    {/if}
     <!-- With a picture, the name shows only where there is room for it. -->
-    <span class={avatar ? 'hidden max-w-[10rem] truncate xl:inline' : ''}>{title}</span>
+    <span class={avatar ? 'hidden max-w-[10rem] truncate 2xl:inline' : ''}>{title}</span>
     {#if total > 0}
       <span
         class="badge ml-1 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700"

@@ -70,7 +70,7 @@ describe('UserProfile header, mounted (#353 review)', () => {
       props: {
         user: member({
           status_type: 'suspended temporarily',
-          suspended_until: '2020-01-01T00:00:00Z',
+          suspended_until: Date.parse('2020-01-01T00:00:00Z') * 1000,
           reason: 'Repeated no-shows'
         })
       }

@@ -28,7 +28,7 @@ const agreement: AgreementInDHT = {
   counterparty: hash(3),
   provider: hash(4),
   receiver: hash(3),
-  primary: { direction: 'Provide', resource_conforms_to: 'Gardening', resource_kind: 'Service', quantity: { value: 2, unit: 'h' } },
+  primary: { direction: 'Provide', resource_conforms_to: 'Gardening', resource_kind: 'Service', quantity: { value: '2', unit: 'h' } },
   reciprocal: { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Gift', quantity: null },
   medium: 'Free/Pay it Forward',
   terms: 'Saturday, bring gloves',

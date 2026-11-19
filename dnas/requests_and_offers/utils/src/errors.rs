@@ -532,6 +532,9 @@ pub enum ExchangeValidationError {
   #[error("{0} term names no resource specification")]
   TermWithoutSpecification(String),
 
+  #[error("{side} term quantity is not a decimal: {problem}")]
+  TermQuantityNotDecimal { side: String, problem: String },
+
   #[error("{0} term quantity must be positive with a unit")]
   TermQuantityInvalid(String),
 
@@ -985,6 +988,13 @@ mod validation_reason_tests {
     reads(
       E::TermWithoutSpecification("primary".into()),
       "primary term names no resource specification",
+    );
+    reads(
+      E::TermQuantityNotDecimal {
+        side: "primary".into(),
+        problem: "a sign".into(),
+      },
+      "primary term quantity is not a decimal: a sign",
     );
     reads(
       E::TermQuantityInvalid("primary".into()),

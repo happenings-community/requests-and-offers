@@ -1,6 +1,18 @@
-<script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+<script module lang="ts">
+  let nextId = 0;
+</script>
 
+<script lang="ts">
+  import { tick } from 'svelte';
+  import { menuKeyTarget } from '$lib/utils/menu-keys';
+  import NavIcon, { type NavIconName } from '$lib/components/shared/svg/NavIcon.svelte';
+
+  /**
+   * A nav menu that opens on hover, click, Enter, Space or ArrowDown (#204).
+   * Arrow keys, Home and End move between items; Escape closes and returns
+   * focus to the trigger; Tab out of the menu closes it, and so does the
+   * pointer leaving, unless the keyboard opened it.
+   */
   type Props = {
     title: string;
     items: Array<{
@@ -16,85 +28,138 @@
        */
       badgeLabel?: (n: number) => string;
     }>;
-    isOpen?: boolean;
     alignRight?: boolean;
+    /** A picture shown before the title: the member's own menu. */
+    avatar?: string;
+    /** An icon shown before the title. */
+    icon?: NavIconName;
   };
 
-  let { title, items, isOpen = false, alignRight = false }: Props = $props();
+  let { title, items, alignRight = false, avatar, icon }: Props = $props();
 
   const total = $derived(items.reduce((n, item) => n + (item.badge ?? 0), 0));
+  /**
+   * The count on the trigger, in words. One counted item says what it counts, so the
+   * trigger says it the same way; "new" only when two different counts are added together.
+   * (The bar's own counts are on My Exchanges and the envelope, which are links, not
+   * menus; this serves any menu that carries one.)
+   */
+  const counted = $derived(items.filter((item) => item.badge));
+  const totalLabel = $derived(
+    counted.length === 1 && counted[0].badgeLabel ? counted[0].badgeLabel(total) : `${total} new`
+  );
   const shown = (n: number) => (n > 9 ? '9+' : String(n));
 
-  const dispatch = createEventDispatcher();
-  let dropdownRef: HTMLDivElement;
-  let isHovered = $state(false);
-  let focusedIndex = $state(-1);
+  const id = `nav-menu-${nextId++}`;
+  let open = $state(false);
+  // Opened by the keyboard (or a screen reader), so the pointer leaving does not
+  // close it: a nudged mouse would unmount the item the member is on.
+  let viaKeyboard = false;
+  let trigger: HTMLButtonElement;
+  let wrapper: HTMLDivElement;
+  const links: HTMLAnchorElement[] = $state([]);
 
-  function handleMouseEnter() {
-    isHovered = true;
-    focusedIndex = -1;
+  async function focusItem(index: number) {
+    open = true;
+    viaKeyboard = true;
+    await tick();
+    links[index]?.focus();
   }
 
-  function handleMouseLeave() {
-    isHovered = false;
-    focusedIndex = -1;
+  function close(returnFocus = false) {
+    open = false;
+    viaKeyboard = false;
+    if (returnFocus) trigger?.focus();
   }
 
-  function handleKeyDown(event: KeyboardEvent) {
-    if (!isHovered) return;
+  // A pointer click opens (hover may already have). Enter and Space are handled
+  // in onTriggerKey, which cancels the click they would send. A click with no
+  // key press and detail 0 is a screen reader in browse mode activating the
+  // button, so it opens on the first item, as Enter does.
+  function onTriggerClick(event: MouseEvent) {
+    if (event.detail > 0) {
+      // The member is on the pointer now, so the pointer leaving closes it again.
+      open = true;
+      viaKeyboard = false;
+    } else focusItem(0);
+  }
 
-    switch (event.key) {
-      case 'ArrowDown':
-        event.preventDefault();
-        focusedIndex = Math.min(focusedIndex + 1, items.length - 1);
-        break;
-      case 'ArrowUp':
-        event.preventDefault();
-        focusedIndex = Math.max(focusedIndex - 1, -1);
-        break;
-      case 'Enter':
-      case ' ':
-        if (focusedIndex >= 0) {
-          event.preventDefault();
-          const item = items[focusedIndex];
-          if (item) {
-            window.location.href = item.href;
-          }
-        }
-        break;
-      case 'Escape':
-        isHovered = false;
-        focusedIndex = -1;
-        break;
+  function onTriggerKey(event: KeyboardEvent) {
+    if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      focusItem(0);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      focusItem(items.length - 1);
+    } else if (event.key === 'Escape' && open) {
+      event.preventDefault();
+      close(true);
     }
   }
 
-  function handleItemClick(href: string) {
-    dispatch('navigate', { href });
+  function onItemKey(event: KeyboardEvent, index: number) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close(true);
+      return;
+    }
+    const target = menuKeyTarget(event.key, index, items.length);
+    if (target !== null) {
+      event.preventDefault();
+      links[target]?.focus();
+    }
+  }
+
+  // Focus moving outside the menu (Tab past the last item) closes it.
+  function onFocusOut(event: FocusEvent) {
+    if (!wrapper?.contains(event.relatedTarget as Node | null)) close();
+  }
+
+  // The pointer leaving closes a hovered menu, but not one the keyboard opened:
+  // a nudged mouse would unmount the item the member is on and drop focus to
+  // the body. Escape, Tab and a click still close it. Reading how the menu was
+  // opened, not where focus is, also closes a hovered menu whose item took
+  // focus from a middle click.
+  function onMouseLeave() {
+    if (!viaKeyboard) open = false;
   }
 </script>
-
-<svelte:window on:keydown={handleKeyDown} />
 
 <div
   class="group relative"
   role="presentation"
-  onmouseenter={handleMouseEnter}
-  onmouseleave={handleMouseLeave}
-  bind:this={dropdownRef}
+  onmouseenter={() => (open = true)}
+  onmouseleave={onMouseLeave}
+  onfocusout={onFocusOut}
+  bind:this={wrapper}
 >
   <button
-    class="rounded px-3 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 focus:ring-opacity-50"
-    aria-expanded={isHovered}
-    aria-haspopup="true"
-    aria-label={total > 0 ? `${title} menu, ${total} new` : `${title} menu`}
+    class="inline-flex items-center whitespace-nowrap rounded px-3 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 focus:ring-opacity-50"
+    id="{id}-trigger"
+    bind:this={trigger}
+    aria-expanded={open}
+    aria-haspopup="menu"
+    aria-controls={open ? id : undefined}
+    onclick={onTriggerClick}
+    onkeydown={onTriggerKey}
+    aria-label={total > 0 ? `${title} menu, ${totalLabel}` : `${title} menu`}
   >
-    {title}
+    {#if avatar}
+      <img src={avatar} alt="" class="mr-2 h-8 w-8 rounded-full bg-surface-200 object-cover" />
+    {/if}
+    {#if icon}
+      <NavIcon name={icon} class="mr-1.5 h-5 w-5" />
+    {/if}
+    <!-- With a picture, the name shows only where there is room for it. -->
+    <span class={avatar ? 'hidden max-w-[10rem] truncate 2xl:inline' : ''}>{title}</span>
     {#if total > 0}
-      <span class="badge ml-1 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700" aria-hidden="true">{shown(total)}</span>
+      <span
+        class="badge ml-1 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700"
+        aria-hidden="true">{shown(total)}</span
+      >
     {/if}
     <svg
-      class="ml-1 inline-block h-4 w-4 transition-transform duration-200 {isHovered
+      class="ml-1 h-4 w-4 shrink-0 transition-transform duration-200 {open
         ? 'rotate-180'
         : ''}"
       fill="none"
@@ -106,27 +171,25 @@
     </svg>
   </button>
 
+  {#if open}
+  <!-- pt-1 rather than a margin, so the pointer can cross to the menu without leaving it -->
+  <div class="absolute top-full z-50 w-64 pt-1 {alignRight ? 'right-0' : 'left-0'}">
   <div
-    class="absolute top-full z-50 mt-1 w-64 rounded-lg border border-gray-200 bg-white shadow-xl transition-all duration-200 {alignRight
-      ? 'right-0'
-      : 'left-0'} {isHovered
-      ? 'visible translate-y-0 opacity-100'
-      : 'invisible translate-y-2 opacity-0'}"
+    class="rounded-lg border border-gray-200 bg-white shadow-xl"
+    {id}
     role="menu"
-    aria-orientation="vertical"
-    aria-labelledby="menu-button"
+    aria-labelledby="{id}-trigger"
   >
     <div class="py-2">
       {#each items as item, index}
         <a
           href={item.href}
-          class="block px-4 py-3 text-gray-700 transition-colors hover:bg-gray-50 focus:bg-gray-50 focus:outline-none {focusedIndex ===
-          index
-            ? 'bg-gray-50'
-            : ''}"
+          class="block px-4 py-3 text-gray-700 transition-colors hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
           role="menuitem"
-          onclick={() => handleItemClick(item.href)}
-          onmouseenter={() => (focusedIndex = index)}
+          tabindex="-1"
+          bind:this={links[index]}
+          onkeydown={(e) => onItemKey(e, index)}
+          onclick={() => close()}
         >
           <div class="flex items-center gap-3">
             <span class="flex-shrink-0 text-lg">{item.icon}</span>
@@ -153,4 +216,6 @@
       {/each}
     </div>
   </div>
+  </div>
+  {/if}
 </div>

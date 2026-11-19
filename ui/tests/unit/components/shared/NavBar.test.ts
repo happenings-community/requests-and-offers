@@ -1,17 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
 import NavBar from '$lib/components/shared/NavBar.svelte';
+import { visit } from '../../../mocks/app-state';
 
 /**
- * The Profile menu's two counts.
+ * The nav bar's own screens (Sam, 16 November): My Exchanges and My Listings are links on
+ * the bar, and Messages is an envelope beside the status and the member's picture.
  *
- * With messaging, a proposal arriving is counted once, as an unopened conversation on My
- * Messages, and My Exchanges carries no number. **Without messaging nothing else counts
+ * With messaging, a proposal arriving is counted once, as an unopened conversation on the
+ * envelope, and My Exchanges carries no number. **Without messaging nothing else counts
  * it**, so My Exchanges keeps the number of exchanges waiting on the member: removing it
  * on every network left a network without messaging with no sign of a proposal at all.
  */
 
-const { presence, unread, exchanges } = vi.hoisted(() => ({
+const { presence, unread, exchanges, member } = vi.hoisted(() => ({
+  member: { status: 'accepted' },
   presence: { isAbsent: false },
   unread: { count: undefined as number | undefined },
   exchanges: { list: [] as unknown[] }
@@ -30,7 +33,14 @@ vi.mock('$lib/components/network/NetworkStatusPopup.svelte', async () => ({
   default: (await import('../../../mocks/Empty.svelte')).default
 }));
 vi.mock('$lib/stores/users.store.svelte', () => ({
-  default: { currentUser: { original_action_hash: new Uint8Array(Array(39).fill(1)) } }
+  default: {
+    get currentUser() {
+      return {
+        original_action_hash: new Uint8Array(Array(39).fill(1)),
+        status: { status_type: member.status }
+      };
+    }
+  }
 }));
 vi.mock('$lib/stores/administration.store.svelte', () => ({
   default: { agentIsAdministrator: false }
@@ -49,33 +59,144 @@ vi.mock('$lib/utils/exchange-ui', () => ({
   turnOf: (e: { waitsOnMe: boolean }) => (e.waitsOnMe ? 'you' : 'them')
 }));
 
-const openProfileMenu = async () => {
-  await fireEvent.click(screen.getByRole('button', { name: /profile/i }));
+// A pointer click: the menu ignores a click with detail 0, which is what a keyboard
+// activation synthesises and is handled on keydown instead (#204).
+const openCommunityMenu = async () => {
+  await fireEvent.click(screen.getByRole('button', { name: /^community menu/i }), { detail: 1 });
 };
+
+const envelope = () => screen.queryByRole('link', { name: /^Messages/ });
+const exchangesLink = () => screen.getByRole('link', { name: /^My Exchanges/ });
 
 beforeEach(() => {
   cleanup();
+  visit('/');
+  member.status = 'accepted';
   presence.isAbsent = false;
   unread.count = undefined;
   exchanges.list = [{ waitsOnMe: true }, { waitsOnMe: false }];
 });
 
-describe('the Profile menu', () => {
-  it('counts unopened conversations on My Messages, and nothing on My Exchanges', async () => {
+describe('the nav bar', () => {
+  it('counts unopened conversations on the envelope, in words, and nothing on My Exchanges', () => {
     unread.count = 2;
     render(NavBar);
-    await openProfileMenu();
 
-    expect(screen.getByText('2 unopened conversations')).toBeTruthy();
-    expect(screen.queryByLabelText(/waiting on you/)).toBeNull();
+    const link = envelope();
+    expect(link?.getAttribute('href')).toBe('/messages');
+    expect(link?.getAttribute('aria-label')).toBe('Messages, 2 unopened conversations');
+    // The app draws the tooltip: Electron on macOS does not show a title reliably.
+    expect(link?.querySelector('[data-testid="nav-tip"]')?.textContent).toBe(
+      'Messages, 2 unopened conversations'
+    );
+    expect(exchangesLink().textContent).not.toMatch(/waiting on you/);
   });
 
-  it('counts exchanges waiting on me on My Exchanges when there is no messaging', async () => {
+  it('names the envelope with no count when nothing is unopened', () => {
+    render(NavBar);
+
+    expect(envelope()?.getAttribute('aria-label')).toBe('Messages');
+  });
+
+  it('has no envelope without messaging, and counts exchanges waiting on me instead', () => {
     presence.isAbsent = true;
     render(NavBar);
-    await openProfileMenu();
 
-    expect(screen.getByText('1 waiting on you')).toBeTruthy();
-    expect(screen.queryByText('My Messages')).toBeNull();
+    expect(envelope()).toBeNull();
+    expect(exchangesLink().textContent).toContain('1 waiting on you');
+  });
+
+  it('gives a member who is not accepted none of the members-only screens (#349 review)', () => {
+    member.status = 'pending';
+    unread.count = 2;
+    render(NavBar);
+
+    expect(screen.queryByRole('link', { name: /My Exchanges/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /My Listings/ })).toBeNull();
+    expect(screen.queryByTestId('nav-messages')).toBeNull();
+    // Nor a count on the menu button that stands in for the bar on a narrow screen.
+    expect(screen.getByRole('button', { name: 'Open navigation menu' })).toBeTruthy();
+  });
+
+  it('puts My Exchanges and My Listings on the bar, with no My Activity or Resources menu', () => {
+    render(NavBar);
+
+    expect(exchangesLink().getAttribute('href')).toBe('/exchanges');
+    expect(screen.getByRole('link', { name: 'My Listings' }).getAttribute('href')).toBe(
+      '/my-listings'
+    );
+    // Below xl the bar shows the icons only: the words stay for a screen reader, and the
+    // app's own tooltip says them on hover and on keyboard focus.
+    for (const link of [exchangesLink(), screen.getByRole('link', { name: 'My Listings' })]) {
+      expect(link.querySelector('.sr-only.xl\\:not-sr-only')).toBeTruthy();
+      expect(link.querySelector('[data-testid="nav-tip"]')?.textContent).toMatch(
+        /^My (Exchanges|Listings)$/
+      );
+    }
+    expect(screen.queryByRole('button', { name: /my activity/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /resources/i })).toBeNull();
+  });
+
+  it('keeps Service Types under Community', async () => {
+    render(NavBar);
+    await openCommunityMenu();
+
+    expect(screen.getByRole('menuitem', { name: /Service Types/ })).toBeTruthy();
+  });
+
+  it('marks the link for the page that is open, and for the pages beneath it', () => {
+    visit('/messages/uhCAk');
+    render(NavBar);
+
+    expect(envelope()?.getAttribute('aria-current')).toBe('page');
+    expect(exchangesLink().getAttribute('aria-current')).toBeNull();
+  });
+
+  it('marks My Exchanges on its own page and not on a page that only starts the same', () => {
+    visit('/exchanges');
+    render(NavBar);
+    expect(exchangesLink().getAttribute('aria-current')).toBe('page');
+    cleanup();
+
+    visit('/exchangesx');
+    render(NavBar);
+    expect(exchangesLink().getAttribute('aria-current')).toBeNull();
+  });
+
+  it('draws the connection status as a dot rather than an emoji', () => {
+    render(NavBar);
+
+    const status = screen.getByRole('button', { name: /^Connection status/ });
+    expect(status.querySelector('[data-status]')).toBeTruthy();
+    expect(status.textContent?.trim()).toBe('');
+  });
+
+  it('puts the unopened count on the menu button, which is the whole bar on a narrow window', () => {
+    unread.count = 3;
+    render(NavBar);
+
+    const button = screen.getByTestId('menu-button');
+    expect(button.getAttribute('aria-label')).toBe(
+      'Open navigation menu, 3 unopened conversations'
+    );
+    expect(button.textContent).toContain('3');
+  });
+
+  it('puts the exchanges waiting on me on the menu button where there is no messaging', () => {
+    presence.isAbsent = true;
+    unread.count = 3;
+    render(NavBar);
+
+    expect(screen.getByTestId('menu-button').getAttribute('aria-label')).toBe(
+      'Open navigation menu, 1 waiting on you'
+    );
+  });
+
+  it('leaves the menu button plain when nothing is waiting', () => {
+    render(NavBar);
+
+    const button = screen.getByTestId('menu-button');
+    expect(button.getAttribute('aria-label')).toBe('Open navigation menu');
+    expect(button.textContent?.trim()).toBe('');
   });
 });

@@ -97,18 +97,20 @@
               <a class="anchor" href={paths.userProfile(item.user)}>
                 {person?.name ?? 'A member'}
               </a>
-              {#if FirstContact}
-                <FirstContact
-                  kind="proposal"
-                  href={interest.hrefFor(item)}
-                  label="Send a proposal"
-                  name={person?.name}
-                  classes="variant-filled-primary btn btn-sm"
-                />
-              {:else}
-                <a class="variant-filled-primary btn btn-sm" href={interest.hrefFor(item)}>
-                  Send a proposal
-                </a>
+              {#if canAct}
+                {#if FirstContact}
+                  <FirstContact
+                    kind="proposal"
+                    href={interest.hrefFor(item)}
+                    label="Send a proposal"
+                    name={person?.name}
+                    classes="variant-filled-primary btn btn-sm"
+                  />
+                {:else}
+                  <a class="variant-filled-primary btn btn-sm" href={interest.hrefFor(item)}>
+                    Send a proposal
+                  </a>
+                {/if}
               {/if}
             </li>
           {/each}

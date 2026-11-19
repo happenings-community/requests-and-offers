@@ -96,7 +96,7 @@ const term = (over: Partial<ExchangeTerm> = {}): ExchangeTerm => ({
   direction: 'Provide',
   resource_conforms_to: 'Web design',
   resource_kind: 'Service',
-  quantity: { value: 3, unit: 'hours' },
+  quantity: { value: '3', unit: 'hours' },
   ...over
 });
 

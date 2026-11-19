@@ -135,7 +135,8 @@ pub(crate) struct MessageBody {
   pub(crate) send_id: String,
   /// How far the sender has read in this conversation, riding along for free.
   ///
-  /// A read receipt is a remote signal and leaves no record anywhere. This is the
+  /// A read receipt is a remote signal and leaves nothing on any chain or DHT (the
+  /// transport and any relay still see that two agents exchanged something). This is the
   /// reliable half: the same high-water mark carried inside the next message to that
   /// person, so it arrives eventually without a second signal and without telling anyone
   /// watching that the reader was online.

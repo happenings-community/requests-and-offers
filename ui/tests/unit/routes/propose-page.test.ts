@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/svelte';
 import { paths, readOrigin, routeAfterPublish, readProposeParams, routeAfter } from '$lib/paths';
 import { visit } from '../../mocks/app-state';
 import ProposePage from '../../../src/routes/(public)/exchanges/propose/+page.svelte';
@@ -56,7 +56,10 @@ vi.mock('$lib/stores/offers.store.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/stores/requests.store.svelte', () => ({ default: { getRequest: vi.fn() } }));
+const getRequest = vi.fn();
+vi.mock('$lib/stores/requests.store.svelte', () => ({
+  default: { getRequest: (...a: unknown[]) => getRequest(...a) }
+}));
 
 vi.mock('$lib/stores/serviceTypes.store.svelte', () => ({
   default: { getServiceType: (...a: unknown[]) => getServiceType(...a) }
@@ -239,5 +242,59 @@ describe('the propose page’s labels', () => {
     await screen.findByText(/post an offer/i);
 
     expect(container.querySelectorAll('label a, label button, label p, label div').length).toBe(0);
+  });
+});
+
+/**
+ * **A request's hours reach the proposal as an exact decimal** (#475).
+ *
+ * The requests zome stores `time_estimate_hours` as an f32, and the client reads its
+ * exact value: 1.1 arrives as 1.100000023841858, which a quantity refuses (more than six
+ * places). The page spells it as the member wrote it before it goes on the term.
+ *
+ * **To make this go red:** spell `hoursDecimal` as `String(hours)` instead of
+ * `decimalFromNumber(hours)`. The page shows, and would send, "1.100000023841858".
+ */
+describe('a request’s hours on the proposal', () => {
+  const openRequest = (time_estimate_hours: number | undefined) => {
+    getRequest.mockResolvedValue({
+      original_action_hash: LISTING,
+      title: 'Help with a fence',
+      description: 'An afternoon',
+      creator: AUTHOR,
+      service_type_hash: hash(5),
+      medium_of_exchange_hashes: [hash(6)],
+      time_estimate_hours
+    });
+    createAgreement.mockResolvedValue({ agreement_hash: hash(10) });
+    visit(paths.exchangePropose({ listing: LISTING, type: 'Request', interest: INTEREST }));
+    render(ProposePage);
+  };
+
+  it('sends the f32 hours as the decimal the member wrote, and shows the same', async () => {
+    openRequest(Math.fround(1.1));
+    // The medium is named only once the records answered, so Send is live after this.
+    await screen.findAllByText('CAD');
+    expect(screen.getByText('1.1')).toBeTruthy();
+    const send = screen.getByTestId('send-proposal') as HTMLButtonElement;
+    // The interest is checked against the listing after the terms are read.
+    await waitFor(() => expect(send.disabled).toBe(false));
+    await fireEvent.click(send);
+    expect(createAgreement).toHaveBeenCalledTimes(1);
+    expect(createAgreement.mock.calls[0][0].primary.quantity).toEqual({
+      value: '1.1',
+      unit: 'hours'
+    });
+  });
+
+  it('sends no quantity, and says so, when the request states no hours', async () => {
+    openRequest(undefined);
+    await screen.findAllByText('CAD');
+    expect(screen.getByText(/not stated on the listing/)).toBeTruthy();
+    const send = screen.getByTestId('send-proposal') as HTMLButtonElement;
+    // The interest is checked against the listing after the terms are read.
+    await waitFor(() => expect(send.disabled).toBe(false));
+    await fireEvent.click(send);
+    expect(createAgreement.mock.calls[0][0].primary.quantity).toBeNull();
   });
 });

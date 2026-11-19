@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { suspensionEndDate } from '$lib/utils/suspension';
   import { untrack } from 'svelte';
   import { page } from '$app/state';
   import { getModalStore, getToastStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
@@ -339,10 +340,11 @@
             </h3>
             {#if organization?.status?.status_type && organization.status.status_type.startsWith('suspended')}
               <p class="text-wrap"><b>Reason :</b> {organization.status.reason}</p>
-              {#if organization.status.suspended_until}
+              {@const ends = suspensionEndDate(organization.status.suspended_until)}
+              {#if ends}
                 <p class="text-wrap">
                   <b>Suspended until :</b>
-                  {new Date(organization.status.suspended_until).toLocaleString()}
+                  {ends.toLocaleString()}
                 </p>
               {/if}
             {/if}

@@ -1,7 +1,9 @@
 use hdk::prelude::*;
 use utils::errors::MessagingError;
 
-use crate::external_calls::{check_if_agent_is_administrator, get_all_administrators_links};
+use crate::external_calls::{
+  check_if_agent_is_administrator, get_agent_user, get_live_administrator_agents,
+};
 
 /// Largest named permission this zome will accept inside a `RoleRef`.
 ///
@@ -80,6 +82,14 @@ pub fn require_enabled(role: &RoleRef) -> ExternResult<()> {
 
 /// Every holder of `role`, by `User` original action hash, minus `exclude`.
 ///
+/// **Who holds the role is read from the grants, as `holds_role` reads it.** For `Admin`
+/// that is the agents with a live admin grant, each resolved to its `User`. It used to be
+/// the `AllAdministrators` roster links, and after #377 the two disagree: `revoke_role`
+/// leaves a revoked administrator on the roster, so they kept receiving every case, and a
+/// tombstone on a roster link needs no grant, so any member could empty the roster and
+/// leave nobody to write to. A holder with no `User` yet has nothing to fan out to and is
+/// skipped. Every agent of a holder's `User` receives a copy, as for any recipient.
+///
 /// The exclusion list is the conflict-of-interest hook stewards need in alpha 3, and is
 /// empty for admins. It exists from the start so that the signature does
 /// not change when stewarding arrives.
@@ -91,16 +101,19 @@ pub fn require_enabled(role: &RoleRef) -> ExternResult<()> {
 pub fn role_holders(role: &RoleRef, exclude: &[ActionHash]) -> ExternResult<Vec<ActionHash>> {
   require_enabled(role)?;
 
-  let links = match role {
-    RoleRef::Admin => get_all_administrators_links("network".to_string())?,
+  let agents = match role {
+    RoleRef::Admin => get_live_administrator_agents()?,
     // `require_enabled` has already refused these; an error rather than a panic, so a
     // later change to it cannot crash the zome.
     other => return Err(not_enabled_yet(other)),
   };
 
   let mut holders = Vec::new();
-  for link in links {
-    let Some(user) = link.target.clone().into_action_hash() else {
+  for agent in agents {
+    let Some(user) = get_agent_user(agent)?
+      .first()
+      .and_then(|link| link.target.clone().into_action_hash())
+    else {
       continue;
     };
     if exclude.contains(&user) || holders.contains(&user) {

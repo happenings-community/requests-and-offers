@@ -236,21 +236,24 @@ The backend follows Holochain's **coordinator/integrity pattern**:
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct ServiceType {
-    pub name: String,
-    pub description: String,
-    pub tags: Vec<String>,
+  pub name: String,
+  pub description: String,
+  pub technical: bool, // true for technical services, false for non-technical
+  /// The grant this write rests on: an admin grant held by the
+  /// author, or for a suggestion, a member grant.
+  #[serde(default)]
+  pub grant: Option<ActionHash>,
 }
 
-pub fn validate_create_service_type(
-    _action: &SignedActionHashed,
-    service_type: &ServiceType,
-) -> ExternResult<ValidateCallbackResult> {
-    if service_type.name.is_empty() {
-        return Ok(ValidateCallbackResult::Invalid(
-            "ServiceType name cannot be empty".to_string(),
-        ));
-    }
-    Ok(ValidateCallbackResult::Valid)
+pub fn validate_service_type(service_type: ServiceType) -> ExternResult<ValidateCallbackResult> {
+  if service_type.name.is_empty() {
+    return invalid(ServiceTypeValidationError::NameEmpty);
+  }
+  if service_type.description.is_empty() {
+    return invalid(ServiceTypeValidationError::DescriptionEmpty);
+  }
+
+  Ok(ValidateCallbackResult::Valid)
 }
 ```
 

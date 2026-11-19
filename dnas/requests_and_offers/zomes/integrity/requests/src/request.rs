@@ -1,5 +1,6 @@
 use hdi::prelude::*;
 use utils::{
+  errors::{invalid, RequestValidationError},
   grants::{check_act, check_author_or_act, Ability},
   ContactPreference, DateRange, InteractionType, TimePreference, TimeZone,
 };
@@ -53,31 +54,23 @@ pub struct Request {
 pub fn validate_request(request: Request) -> ExternResult<ValidateCallbackResult> {
   // Validate title
   if request.title.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Request title cannot be empty".to_string(),
-    ));
+    return invalid(RequestValidationError::TitleEmpty);
   }
 
   // Validate description
   if request.description.is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Request description cannot be empty".to_string(),
-    ));
+    return invalid(RequestValidationError::DescriptionEmpty);
   }
 
   // Validate description length (1000 character limit)
   if request.description.len() > 1000 {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Request description cannot exceed 1000 characters".to_string(),
-    ));
+    return invalid(RequestValidationError::DescriptionTooLong);
   }
 
   // Validate time_estimate_hours if present
   if let Some(time_estimate) = request.time_estimate_hours {
     if time_estimate <= 0.0 {
-      return Ok(ValidateCallbackResult::Invalid(
-        "Time estimate must be greater than zero".to_string(),
-      ));
+      return invalid(RequestValidationError::TimeEstimateNotPositive);
     }
   }
 
@@ -92,18 +85,15 @@ pub fn validate_request_grant(
   author: &AgentPubKey,
   update: Option<&ActionHash>,
 ) -> ExternResult<ValidateCallbackResult> {
-  let (act, verdict) = match update {
-    None => (
-      "Posting a request",
-      check_act(grant, author, &Ability::Participate, &None)?.map(|_| ()),
-    ),
-    Some(original) => (
-      "Changing a request",
-      check_author_or_act(original, grant, author, &Ability::Administer, &None)?,
-    ),
+  let verdict = match update {
+    None => check_act(grant, author, &Ability::Participate, &None)?
+      .map(|_| ())
+      .map_err(|reason| RequestValidationError::PostIsRoleAct(reason.to_string())),
+    Some(original) => check_author_or_act(original, grant, author, &Ability::Administer, &None)?
+      .map_err(|reason| RequestValidationError::ChangeIsRoleAct(reason.to_string())),
   };
-  Ok(match verdict {
-    Ok(()) => ValidateCallbackResult::Valid,
-    Err(reason) => ValidateCallbackResult::Invalid(format!("{} is a role act: {}", act, reason)),
-  })
+  match verdict {
+    Ok(()) => Ok(ValidateCallbackResult::Valid),
+    Err(reason) => invalid(reason),
+  }
 }

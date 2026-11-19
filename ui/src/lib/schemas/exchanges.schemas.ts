@@ -1,5 +1,6 @@
 import { Schema } from 'effect';
 import { ActionHashSchema } from './holochain.schemas';
+import { decimalProblem, isZeroDecimal } from '../utils/decimal';
 
 /**
  * Exchange schemas.
@@ -39,11 +40,14 @@ export const ResourceKindSchema = Schema.Literal('Service', 'Currency', 'Gift', 
   description: 'What kind of thing a term names'
 });
 
-/** `validate_term`: a quantity is positive, finite, and carries a unit. */
+/**
+ * `validate_term`: a quantity is a positive decimal string (the spelling the zome
+ * accepts, see `$lib/utils/decimal`) and carries a unit.
+ */
 export class ExchangeQuantity extends Schema.Class<ExchangeQuantity>('ExchangeQuantity')({
-  value: Schema.Number.pipe(
-    Schema.finite({ message: () => 'Quantity must be a number' }),
-    Schema.positive({ message: () => 'Quantity must be greater than zero' })
+  value: Schema.String.pipe(
+    Schema.filter((v) => decimalProblem(v) === null || `Quantity ${decimalProblem(v)}`),
+    Schema.filter((v) => !isZeroDecimal(v) || 'Quantity must be greater than zero')
   ),
   unit: Schema.String.pipe(Schema.minLength(1, { message: () => 'Quantity needs a unit' }))
 }) {}

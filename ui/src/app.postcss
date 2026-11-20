@@ -7,6 +7,53 @@
 }
 
 @layer components {
+  /* Chips and badges as the design system's pill (#350, #387; scope agreed 18 November):
+     fully round, 4 by 10px, 12px semibold. A count's own padding utilities still win.
+     Skeleton drew chips with 4px corners beside round badges. */
+  .chip,
+  .badge {
+    border-radius: 9999px;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 600;
+  }
+
+  /* A label's seven pale tones: each colour's 100 shade behind its 800 text, or its 900
+     where the 800 falls under 4.5:1 (gold 4.0:1, green 4.45:1). Skeleton's soft variants
+     were a 20% wash with 700 text; gold on its wash read 2.7:1. Member pages only: admin's
+     dark mode keeps Skeleton's. The rule weighs two classes, so a hover: variant on a chip
+     (which comes later) still wins, but a plain text-* or bg-* colour on a soft chip does
+     not. Offer and Request labels are solid orange and gold, and counts stay solid. */
+  :where(html:not(.dark)) :is(.chip, .badge).variant-soft-primary {
+    background-color: rgb(var(--color-primary-100));
+    color: rgb(var(--color-primary-800));
+  }
+  :where(html:not(.dark)) :is(.chip, .badge).variant-soft-secondary {
+    background-color: rgb(var(--color-secondary-100));
+    color: rgb(var(--color-secondary-900));
+  }
+  :where(html:not(.dark)) :is(.chip, .badge).variant-soft-tertiary {
+    background-color: rgb(var(--color-tertiary-100));
+    color: rgb(var(--color-tertiary-800));
+  }
+  :where(html:not(.dark)) :is(.chip, .badge).variant-soft-success {
+    background-color: rgb(var(--color-success-100));
+    color: rgb(var(--color-success-900));
+  }
+  :where(html:not(.dark)) :is(.chip, .badge).variant-soft-warning {
+    background-color: rgb(var(--color-warning-100));
+    color: rgb(var(--color-warning-800));
+  }
+  :where(html:not(.dark)) :is(.chip, .badge).variant-soft-error {
+    background-color: rgb(var(--color-error-100));
+    color: rgb(var(--color-error-800));
+  }
+  :where(html:not(.dark)) :is(.chip, .badge).variant-soft-surface {
+    background-color: rgb(var(--color-surface-100));
+    color: rgb(var(--color-surface-800));
+  }
+
   /* Skeleton's chip never wraps. In a narrow column (a table cell, a small window) its
      text then ran past its background. Let it wrap between words instead, within its
      container; break-word keeps its narrowest at its longest word. In this layer it

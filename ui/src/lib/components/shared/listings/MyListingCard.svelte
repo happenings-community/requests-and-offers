@@ -115,7 +115,7 @@
 
 <div class="card flex flex-col gap-3 p-4" data-testid="my-listing-card">
   <div class="flex flex-wrap items-center gap-2 text-sm">
-    <span class="badge {isOffer ? 'variant-soft-warning' : 'variant-soft-secondary'}"
+    <span class="badge {isOffer ? 'variant-filled-warning' : 'variant-filled-secondary'}"
       >{isOffer ? '💡 Offer' : '📝 Request'}</span
     >
     {#if item.archived}

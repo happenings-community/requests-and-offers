@@ -43,9 +43,9 @@
       ...thread.exchanges.map((e) => e.agreement.listing_type)
     ]);
     if (types.has('Offer'))
-      out.push({ label: C.listingType.offer, variant: 'variant-soft-warning' });
+      out.push({ label: C.listingType.offer, variant: 'variant-filled-warning' });
     if (types.has('Request'))
-      out.push({ label: C.listingType.request, variant: 'variant-soft-secondary' });
+      out.push({ label: C.listingType.request, variant: 'variant-filled-secondary' });
     if (thread.exchanges.length > 0)
       out.push({ label: '\u{1F91D} Exchange', variant: 'variant-soft-primary' });
     return out;

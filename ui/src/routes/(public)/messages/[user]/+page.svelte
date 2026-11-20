@@ -420,8 +420,8 @@
           >
             <span
               class="badge {item.type === 'Offer'
-                ? 'variant-soft-warning'
-                : 'variant-soft-secondary'}"
+                ? 'variant-filled-warning'
+                : 'variant-filled-secondary'}"
               >{item.type === 'Offer' ? C.listingType.offer : C.listingType.request}</span
             >
             <span class="min-w-0 flex-1 truncate">{item.title}</span>

@@ -143,8 +143,8 @@
           <div class="flex flex-wrap items-center gap-2">
             <span
               class="badge {row.interest.listing_type === 'Offer'
-                ? 'variant-soft-warning'
-                : 'variant-soft-secondary'}"
+                ? 'variant-filled-warning'
+                : 'variant-filled-secondary'}"
             >
               {row.interest.listing_type === 'Offer' ? C.listingType.offer : C.listingType.request}
             </span>

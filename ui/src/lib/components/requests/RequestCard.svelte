@@ -290,14 +290,9 @@
       <div>
         <p class="text-surface-600-300-token mb-1 text-xs font-medium">Mediums of Exchange:</p>
         <div class="flex flex-wrap gap-1">
-          {#each request.medium_of_exchange_hashes.slice(0, 2) as mediumHash}
+          {#each request.medium_of_exchange_hashes as mediumHash}
             <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
           {/each}
-          {#if request.medium_of_exchange_hashes.length > 2}
-            <span class="variant-soft-surface badge text-xs"
-              >+{request.medium_of_exchange_hashes.length - 2} more</span
-            >
-          {/if}
         </div>
       </div>
     {/if}

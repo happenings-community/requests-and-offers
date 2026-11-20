@@ -169,12 +169,12 @@ A signal carries hashes, not entities. Routing therefore has to fetch before emi
 Frontend only for the first three steps, because the zomes already emit.
 
 1. Add `ZomeSignal` mirroring the Rust enum, and `SignalServiceLive`. Log decoded signals to the event log from [proposal 7](07-development-message-log.md) and ship nothing else. This alone proves the contract without changing behaviour.
-2. Route `service_types` signals into the store event vocabulary. Verify with two agents.
+2. Route `service_types` signals into the store event vocabulary. Verify with one agent: its own commit reaches its own stores through the bus. Cross-agent delivery is the nudge work for approval and exchange turn, not service types (decided 20 November).
 3. Extend to the remaining five domains. Coarse status routing via `EntryUpdated` plus entry type.
 4. Optional Rust change: add `StatusChanged` to the `administration` zome only if step 3 proves too coarse in use.
 
 ## Verification
 
-- A two-agent Sweettest plus e2e run: agent A approves a service type, agent B's UI reflects it with no manual refresh.
+- A two-agent Sweettest plus e2e run for the two flows the nudges cover: an administrator accepts a member and the accepted member's UI reflects it, and the counterparty's exchange move reaches the other party's UI, both with no manual refresh. Service types are verified on one agent, since their `post_commit` signals reach only the author's own client.
 - A test that drops the websocket mid-stream and asserts the scoped subscription is released and re-acquired without duplicate handlers.
 - An echo test: agent A creates an offer and its own store applies the change exactly once.

@@ -9,20 +9,20 @@ Counts in this plan are those of `f5c799ad` (20 November 2026); [README](README.
 Requests and Offers gets roughly ten hours a week, from one person. Estimates below are in **weeks of that allocation**, not in ideal engineering weeks, and they include review and rework. The whole programme is about **13 weeks**, which is close to three months. That number is the most important line in this document, because it means the programme must be valuable in pieces or it should not start.
 
 It is valuable in pieces.
-Phases 0 and 1 together are 4.7 weeks (2.2 + 2.5, the rows below) and deliver five of the eight invariants: 1, 2, 3, 4 and 7, the five the Phase 1 stopping point lists and the gates check.
-Earlier revisions said 4.5 weeks and six invariants, which disagreed with this document's own rows.
-Phase 0 is larger than its 2.2 weeks once `runEffect` is counted (D2): its sweep covers 73 `.svelte` files, not 14, and the estimate has not been re-cut.
+Phases 0 and 1 together are 4.7 weeks (2.1 for Phase 0 and 2.6 for Phase 1, the rows below) and deliver five of the eight invariants: 1, 2, 3, 4 and 7, the five the Phase 1 stopping point lists and the gates check.
+Earlier revisions said 4.5 weeks and six invariants, which disagreed with this document's own headings (4.7 weeks) and stopping point (five invariants).
+Phase 0 is larger than its 2.1 weeks once `runEffect` is counted (D2): its sweep covers 73 `.svelte` files, not 14, and the estimate has not been re-cut.
 Everything after that is optional in the sense that stopping there leaves a coherent codebase rather than a half-migration.
 
 ## Dependency graph
 
 ```mermaid
 graph LR
-  subgraph "Phase 0 · 2.2wk"
+  subgraph "Phase 0 · 2.1wk"
     A[7 event log]
     B[1 task runner]
   end
-  subgraph "Phase 1 · 2.5wk"
+  subgraph "Phase 1 · 2.6wk"
     C[2 coordination]
     D[3 import boundary]
   end
@@ -65,7 +65,7 @@ The event log (PR 0.1) imports `dev` from `$app/environment`, which SvelteKit 3 
 
 ## Phase 0. Instrumentation and safety net
 
-**2.2 weeks. No behaviour change. Ships independently.**
+**2.1 weeks. No behaviour change. Ships independently.**
 
 This phase inverts the original note's ordering, which put the event log last and opportunistic. It goes first because it costs half a week, is guarded by `dev` so it cannot reach production, and instruments every phase after it. Debugging Phase 3 without it means reading console output for ordering bugs across two agents.
 
@@ -98,7 +98,7 @@ PR 0.4's scope also covers #134's bug class: `UserDetailsModal.svelte:34` still 
 
 ## Phase 1. Coordination
 
-**2.5 weeks. Behaviour-preserving. The highest value-per-line in the programme.**
+**2.6 weeks. Behaviour-preserving. The highest value-per-line in the programme.**
 
 | PR | Title | Est | Notes |
 |---|---|---|---|
@@ -181,10 +181,10 @@ No integrity zome changes, so no DNA hash change.
 The messaging store's handler moves onto the bus in the same phase, so every remote change enters through one door.
 This is remote-signal work, so it lands in v0.6.0 final.
 
-**The gate below cannot pass on the signals the six zomes emit (D9).**
+**The gate as first written cannot pass on the signals the six zomes emit (D9), so it is rewritten to match the decision above.**
 `post_commit` signals reach only the client of the agent whose call committed; `useApprovalWatch.svelte.ts` says so in its header comment, and doc 05 quotes #181 saying the same.
 Cross-agent delivery needs `send_remote_signal`, as `messaging` does with a `Nudge` carrying one `ActionHash`.
-Until that work is decided and scheduled, the cross-agent gate is rewritten for one agent.
+The decision above covers two flows, approval (the accepted member) and exchange turn (the counterparty), and does not cover service types, so the gate below tests those two across agents and service types on one agent.
 Three polls stand in for it today and name a signal as their replacement (D16): `useApprovalWatch` (15 s, #329), the NavBar exchanges poll, and the messaging badge poll in the root layout.
 The `exchanges` store runs uncached for the same reason, and revisits that when signals replace the poll (`exchanges.store.svelte.ts:91-95`).
 They are Phase 3's first real consumers.
@@ -193,7 +193,9 @@ They are Phase 3's first real consumers.
 
 **Gate.**
 
-- Two-agent e2e: agent A approves a service type, agent B's UI reflects it with no manual refresh.
+- Two-agent e2e, approval: an administrator accepts a member, and the accepted member's UI reflects it with no manual refresh, through a `Nudge` from `administration`.
+- Two-agent e2e, exchange turn: the counterparty's move reaches the other party's UI with no manual refresh, through a `Nudge` from `exchanges`.
+- One-agent e2e, service types: an agent's own approval reaches its own stores through the bus from `post_commit`. Another agent's UI still picks it up on its next fetch (D9); no cross-agent push is promised for service types.
 - Dropping the websocket mid-stream releases and re-acquires the scoped subscription with no duplicate handlers.
 - Echo test: an agent's own write applies exactly once.
 - The event log from a two-agent session shows `origin: 'signal'` entries interleaved correctly.

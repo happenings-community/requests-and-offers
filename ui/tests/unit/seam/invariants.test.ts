@@ -55,16 +55,82 @@ const COMPONENT_ROOTS = ['src/lib/components', 'src/routes'];
 const TEST_PAGE = 'src/lib/components/hrea/test-page/';
 
 /**
- * Blanks line, block and HTML comments, keeping every newline so line counts hold.
- * A `//` counts as a comment only after whitespace or at a line start, so a URL's
- * `https://` survives.
+ * Blanks line, block and HTML comments, keeping every newline so line counts hold, and
+ * leaves string, template and attribute literals alone: a `/*` in `accept="image/*"` or a
+ * `//` in `'a // b'` is text, not a comment, and must not hide the code after it.
+ *
+ * A quoted literal ends at its closing quote or at the end of the line, whichever comes
+ * first, so an apostrophe in markup prose ("don't") masks one line at most. A template
+ * literal runs across lines, and the code inside its `${ }` is scanned as code. A `//`
+ * right after a colon is a URL, not a comment.
  */
 function stripComments(source: string): string {
-  const keepNewlines = (match: string) => match.replace(/[^\n]/g, '');
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, keepNewlines)
-    .replace(/<!--[\s\S]*?-->/g, keepNewlines)
-    .replace(/(^|[^:'"`\w])\/\/.*$/gm, '$1');
+  let out = '';
+  let i = 0;
+  const n = source.length;
+  /** Depth of `{` inside each open `${ }`, innermost last: a `}` at depth 0 returns to the template. */
+  const templateBraces: number[] = [];
+  const blank = (text: string) => text.replace(/[^\n]/g, '');
+
+  const copyQuoted = (quote: string) => {
+    out += source[i++];
+    while (i < n && source[i] !== quote && source[i] !== '\n') {
+      if (source[i] === '\\' && i + 1 < n && source[i + 1] !== '\n') out += source[i++];
+      out += source[i++];
+    }
+    if (i < n && source[i] === quote) out += source[i++];
+  };
+
+  /** Copies a template literal up to its closing backtick, or up to a `${` that opens code. */
+  const copyTemplate = () => {
+    while (i < n && source[i] !== '`') {
+      if (source[i] === '\\' && i + 1 < n) out += source[i++];
+      else if (source[i] === '$' && source[i + 1] === '{') {
+        out += source[i++] + source[i++];
+        templateBraces.push(0);
+        return;
+      }
+      out += source[i++];
+    }
+    if (i < n) out += source[i++];
+  };
+
+  while (i < n) {
+    const ch = source[i];
+    const next = source[i + 1];
+    if (ch === "'" || ch === '"') copyQuoted(ch);
+    else if (ch === '`') {
+      out += source[i++];
+      copyTemplate();
+    } else if (ch === '/' && next === '*') {
+      const end = source.indexOf('*/', i + 2);
+      const stop = end === -1 ? n : end + 2;
+      out += blank(source.slice(i, stop));
+      i = stop;
+    } else if (ch === '<' && source.startsWith('<!--', i)) {
+      const end = source.indexOf('-->', i + 4);
+      const stop = end === -1 ? n : end + 3;
+      out += blank(source.slice(i, stop));
+      i = stop;
+    } else if (ch === '/' && next === '/' && source[i - 1] !== ':') {
+      while (i < n && source[i] !== '\n') i++;
+    } else {
+      if (templateBraces.length > 0) {
+        if (ch === '{') templateBraces[templateBraces.length - 1]++;
+        else if (ch === '}') {
+          if (templateBraces[templateBraces.length - 1] === 0) {
+            templateBraces.pop();
+            out += source[i++];
+            copyTemplate();
+            continue;
+          }
+          templateBraces[templateBraces.length - 1]--;
+        }
+      }
+      out += source[i++];
+    }
+  }
+  return out;
 }
 
 /** Lines of `source` that match `pattern`, comments stripped, like `git grep -n ... | wc -l`. */
@@ -78,6 +144,11 @@ function countLines(source: string, pattern: RegExp): number {
  * A line that imports a store module, in any form: `from` with either quote, the
  * `.store.svelte` suffix with or without `.ts`, a dynamic `import()`, a side-effect `import`.
  */
+/** `runEffect(`, with a type argument or a space before the parenthesis. */
+const RUN_EFFECT = /\brunEffect\s*(?:<[^()]*>)?\s*\(/;
+/** `storeEventBus.on`, or the optional-chained `storeEventBus?.on`. */
+const BUS_ON = /\bstoreEventBus\s*\??\.\s*on\b/;
+
 const STORE_IMPORT = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"][^'"]*\.store\.svelte(?:\.ts)?['"]/;
 
 /** A store that exposes `loading`: the interface field, the getter, or the rune it reads. */
@@ -156,7 +227,7 @@ describe('architecture ratchet: each count is pinned, and may only go down', () 
     // git grep -nE 'runEffect\(' -- 'ui/src/**/*.svelte' | wc -l
     pinned(
       'runEffect calls in components',
-      total(svelteFiles, (source) => countLines(source, /runEffect\(/)),
+      total(svelteFiles, (source) => countLines(source, RUN_EFFECT)),
       CEILINGS.runEffectInComponents
     );
   });
@@ -174,7 +245,7 @@ describe('architecture ratchet: each count is pinned, and may only go down', () 
     // git grep -n 'storeEventBus\.on' -- ui/src/lib/components ui/src/routes ':!ui/src/lib/components/hrea/test-page' | wc -l
     pinned(
       'storeEventBus.on subscriptions in components and routes',
-      total(productionComponentFiles, (source) => countLines(source, /storeEventBus\.on/)),
+      total(productionComponentFiles, (source) => countLines(source, BUS_ON)),
       CEILINGS.componentSubscriptions
     );
   });
@@ -235,6 +306,63 @@ describe('the counters see every form', () => {
     ].join('\n');
     const stripped = stripComments(source);
     expect(stripped.split('\n')).toHaveLength(4);
-    expect(countLines(source, /runEffect\(/)).toBe(2);
+    expect(countLines(source, RUN_EFFECT)).toBe(2);
+  });
+
+  it('a /* inside an attribute does not open a comment, so the call after it still counts', () => {
+    const source = [
+      '<input accept="image/*" />',
+      '<button onclick={() => runEffect(save())}>Save</button>',
+      '/* a real comment */'
+    ].join('\n');
+    expect(countLines(source, RUN_EFFECT)).toBe(1);
+  });
+
+  it.each([
+    ['a single-quoted string', "const a = 'x // y'; runEffect(save());"],
+    ['a double-quoted string', 'const a = "x // y"; runEffect(save());'],
+    ['a string holding /*', "const a = '/*'; runEffect(save()); // */"],
+    ['a template literal', 'const a = `x // y`; runEffect(save());'],
+    ['code inside a template', 'const a = `${runEffect(save())} // y`;']
+  ])('a comment marker inside %s is text, not a comment', (_form, source) => {
+    expect(countLines(source, RUN_EFFECT)).toBe(1);
+  });
+
+  it('a real comment after a literal is still stripped', () => {
+    expect(countLines("const a = 'x'; // runEffect(gone)", RUN_EFFECT)).toBe(0);
+    expect(countLines('const a = `x`; /* runEffect(gone) */', RUN_EFFECT)).toBe(0);
+  });
+
+  it('an apostrophe in markup prose masks one line at most', () => {
+    const source = [
+      "<p>don't</p>",
+      'runEffect(a); // runEffect(gone)',
+      '/* runEffect(gone) */'
+    ].join('\n');
+    expect(countLines(source, RUN_EFFECT)).toBe(1);
+  });
+
+  it.each([
+    ['a type argument', 'runEffect<Foo>(x)'],
+    ['a nested type argument', 'runEffect<Array<Foo>>(x)'],
+    ['a space before the parenthesis', 'runEffect (x)']
+  ])('runEffect is counted with %s', (_form, source) => {
+    expect(countLines(source, RUN_EFFECT)).toBe(1);
+  });
+
+  it('runEffect is not counted when it is only imported', () => {
+    expect(countLines("import { runEffect } from '$lib/utils/effect';", RUN_EFFECT)).toBe(0);
+  });
+
+  it.each([
+    ['a plain call', 'storeEventBus.on("a", f)'],
+    ['an optional chain', 'storeEventBus?.on("a", f)'],
+    ['a space before the dot', 'storeEventBus .on("a", f)']
+  ])('storeEventBus.on is counted as %s', (_form, source) => {
+    expect(countLines(source, BUS_ON)).toBe(1);
+  });
+
+  it('emit is not a subscription', () => {
+    expect(countLines("storeEventBus.emit('a', {})", BUS_ON)).toBe(0);
   });
 });

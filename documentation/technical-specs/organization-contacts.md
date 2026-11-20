@@ -215,10 +215,6 @@ Adds an `isContact()` helper to check if a coordinator is the current contact pe
 
 Unchanged for contact management (contact is managed separately from the organization form).
 
-### UserOrganizationsTable
-
-Shows contact information when displaying organizations a user belongs to.
-
 ### Organization Detail Page (`/organizations/[id]`)
 
 Displays the contact person with name, profile link, and role in the "Contact" section alongside other organization details (legal name, email, location).

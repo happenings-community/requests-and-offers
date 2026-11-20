@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { timeframeLabel } from '$lib/utils/timeframe';
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
@@ -171,21 +172,20 @@
       </div>
     </div>
 
-    {#if a.terms || a.delivery_timeframe}
-      <!-- The members' own words: when, and the terms. A long word wraps in either. -->
-      <div class="card space-y-2 p-4 [overflow-wrap:anywhere]" data-testid="agreement-words">
-        {#if a.delivery_timeframe}<p>
-            <span class="font-semibold">When:</span>
-            {a.delivery_timeframe}
-          </p>{/if}
-        {#if a.terms}
-          <p class="text-xs uppercase tracking-wide text-surface-500">
-            {isProposal(state) ? 'Proposal' : 'Agreement'}
-          </p>
-          <p class="whitespace-pre-line">{a.terms}</p>
-        {/if}
-      </div>
-    {/if}
+    <!-- When (a timeframe, typed since #380, so always there), and the members' own
+         terms. A long word in the terms wraps. -->
+    <div class="card space-y-2 p-4 [overflow-wrap:anywhere]" data-testid="agreement-words">
+      <p>
+        <span class="font-semibold">When:</span>
+        {timeframeLabel(a.delivery_timeframe)}
+      </p>
+      {#if a.terms}
+        <p class="text-xs uppercase tracking-wide text-surface-500">
+          {isProposal(state) ? 'Proposal' : 'Agreement'}
+        </p>
+        <p class="whitespace-pre-line">{a.terms}</p>
+      {/if}
+    </div>
 
     {#if closure}
       <!-- A decline or cancellation can carry a member's note, so a long word wraps. -->

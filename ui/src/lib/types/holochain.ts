@@ -92,17 +92,36 @@ export enum ListingStatus {
   Deleted = 'Deleted'
 }
 
-export type DateRange = {
-  start: number | null;
-  end: number | null;
+/** How soon, as a preset (#380). A preset's due date is counted from acceptance. */
+export type TimeframePreset = 'WithinAFewDays' | 'WithinTwoWeeks' | 'WithinAMonth' | 'Flexible';
+
+/**
+ * When a listing is needed or offered, or an agreement delivered (#380): a preset, or a
+ * window of dates whose `end` is its due date. Dates are Holochain timestamps, in
+ * microseconds.
+ */
+export type Timeframe =
+  | { Preset: TimeframePreset }
+  | { Dates: { start: number | null; end: number } };
+
+/**
+ * A listing's figures (#380). `time_estimate_hours` is an **estimate** of the time the
+ * task takes, an exact decimal string, zero allowed: it describes the task and is never
+ * exchanged. The hours an agreement's service is measured in start from it. `amount` is
+ * what the listing asks or offers in **payment**, in a unit: the name of a medium of
+ * exchange, as on an agreement (a currency, or a time-bank medium). Hours as payment are
+ * an amount, never the estimate.
+ */
+type ListingFigures = {
+  timeframe?: Timeframe | null;
+  time_estimate_hours?: string | null;
+  amount?: ExchangeQuantity | null;
 };
 
-export type RequestInDHT = {
+export type RequestInDHT = ListingFigures & {
   title: string;
   description: string;
   contact_preference: ContactPreference;
-  date_range?: DateRange;
-  time_estimate_hours?: number;
   time_preference: TimePreference;
   time_zone?: string;
   interaction_type: InteractionType;
@@ -110,7 +129,7 @@ export type RequestInDHT = {
   status: ListingStatus;
 };
 
-export type OfferInDHT = {
+export type OfferInDHT = ListingFigures & {
   title: string;
   description: string;
   time_preference: TimePreference;
@@ -154,8 +173,8 @@ export type ResourceKind = 'Service' | 'Currency' | 'Gift' | 'Tbd';
 /**
  * An amount in a unit. `value` is a decimal string such as "12.50", never a
  * float: see `$lib/utils/decimal` for the accepted spelling and the exact
- * comparison, and `decimal_problem` in the exchanges integrity zome for the rule
- * that validates it.
+ * comparison, and `decimal_problem` in `utils::decimal` for the rule that
+ * validates it.
  */
 export type ExchangeQuantity = {
   value: string;
@@ -186,7 +205,7 @@ export type AgreementInDHT = {
   reciprocal: ExchangeTerm;
   medium: string;
   terms: string;
-  delivery_timeframe: string;
+  delivery_timeframe: Timeframe;
   /** Set on a counter-proposal: the proposal it answers and the decline that closed it (#333). */
   counters: Countering | null;
 };
@@ -266,7 +285,7 @@ export type CounterAgreementInput = {
   agreement: ActionHash;
   primary_quantity: ExchangeQuantity | null;
   reciprocal_quantity: ExchangeQuantity | null;
-  delivery_timeframe: string;
+  delivery_timeframe: Timeframe;
 };
 
 export type CreateAgreementInput = {
@@ -277,7 +296,7 @@ export type CreateAgreementInput = {
   reciprocal: ExchangeTerm;
   medium: string;
   terms: string;
-  delivery_timeframe: string;
+  delivery_timeframe: Timeframe;
 };
 
 export type ReviewInput = {

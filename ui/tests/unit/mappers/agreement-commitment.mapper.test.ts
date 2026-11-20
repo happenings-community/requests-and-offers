@@ -33,7 +33,7 @@ const exchange = (overrides: Partial<UIExchange['agreement']> = {}): UIExchange 
       reciprocal: { direction: 'Receive', resource_conforms_to: 'Time bank', resource_kind: 'Currency', quantity: { value: '2', unit: 'hours' } },
       medium: 'Time bank',
       terms: 'Bring the bike round on Saturday',
-      delivery_timeframe: '2026-09-20',
+      delivery_timeframe: { Dates: { start: null, end: Date.UTC(2026, 8, 20) * 1000 } },
       ...overrides
     }
   }) as unknown as UIExchange;
@@ -81,6 +81,80 @@ describe('mapAgreementToHrea', () => {
       specs
     );
     expect(m).toBeNull();
+  });
+
+  describe('dates', () => {
+    const accepted = Date.UTC(2026, 9, 1); // milliseconds
+    const daysAfter = (n: number) => new Date(accepted + n * 24 * 60 * 60 * 1000).toISOString();
+
+    it('counts a preset from the acceptance time, on both commitments', () => {
+      for (const [preset, days] of [
+        ['WithinAFewDays', 3],
+        ['WithinTwoWeeks', 14],
+        ['WithinAMonth', 30]
+      ] as const) {
+        const m = mapAgreementToHrea(
+          exchange({ delivery_timeframe: { Preset: preset } }),
+          parties,
+          specs,
+          accepted
+        );
+        expect(m!.primary.due).toBe(daysAfter(days));
+        expect(m!.reciprocal!.due).toBe(daysAfter(days));
+        expect(m!.primary.hasBeginning).toBeUndefined();
+        expect(m!.primary.hasEnd).toBeUndefined();
+      }
+    });
+
+    it("uses a window's end as due, converted from microseconds, with no beginning when the window has none", () => {
+      const m = mapAgreementToHrea(exchange(), parties, specs, accepted);
+      expect(m!.primary.due).toBe('2026-09-20T00:00:00.000Z');
+      expect(m!.reciprocal!.due).toBe('2026-09-20T00:00:00.000Z');
+      expect(m!.primary.hasBeginning).toBeUndefined();
+      expect(m!.primary.hasEnd).toBeUndefined();
+    });
+
+    it('a window with a start also sets hasBeginning and hasEnd, on both commitments', () => {
+      const m = mapAgreementToHrea(
+        exchange({
+          delivery_timeframe: {
+            Dates: { start: Date.UTC(2026, 8, 10) * 1000, end: Date.UTC(2026, 8, 20) * 1000 }
+          }
+        }),
+        parties,
+        specs,
+        accepted
+      );
+      for (const c of [m!.primary, m!.reciprocal!]) {
+        expect(c.due).toBe('2026-09-20T00:00:00.000Z');
+        expect(c.hasBeginning).toBe('2026-09-10T00:00:00.000Z');
+        expect(c.hasEnd).toBe('2026-09-20T00:00:00.000Z');
+      }
+    });
+
+    it('sets no dates for Flexible', () => {
+      const m = mapAgreementToHrea(
+        exchange({ delivery_timeframe: { Preset: 'Flexible' } }),
+        parties,
+        specs,
+        accepted
+      );
+      for (const c of [m!.primary, m!.reciprocal!]) {
+        expect(c.due).toBeUndefined();
+        expect(c.hasBeginning).toBeUndefined();
+        expect(c.hasEnd).toBeUndefined();
+      }
+    });
+
+    it('keeps the timeframe label in the note', () => {
+      const m = mapAgreementToHrea(
+        exchange({ delivery_timeframe: { Preset: 'WithinTwoWeeks' } }),
+        parties,
+        specs,
+        accepted
+      );
+      expect(m!.primary.note).toContain('Timeframe: Within 2 weeks of agreeing');
+    });
   });
 });
 

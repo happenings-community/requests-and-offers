@@ -821,7 +821,7 @@ describe('a blocked person is told nothing', () => {
       reciprocal: { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Gift' },
       medium: 'Gift',
       terms: '',
-      delivery_timeframe: ''
+      delivery_timeframe: { Preset: 'Flexible' }
     }
   });
   afterEach(() => {

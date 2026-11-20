@@ -5,7 +5,11 @@ import {
   AgentPubKeySchema,
   TimestampSchema
 } from './holochain.schemas';
-import { TimePreferenceSchema, InteractionTypeSchema } from './common.schemas';
+import {
+  TimePreferenceSchema,
+  InteractionTypeSchema,
+  ListingFiguresFields
+} from './common.schemas';
 
 /**
  * Offer schemas using Effect class-based approach
@@ -49,6 +53,7 @@ export class OfferInDHT extends Schema.Class<OfferInDHT>('OfferInDHT')({
       description: 'Type of interaction (Virtual or InPerson)'
     })
   ),
+  ...ListingFiguresFields,
   links: Schema.Array(Schema.String).pipe(
     Schema.annotations({
       title: 'Links',
@@ -66,6 +71,7 @@ export class OfferInput extends Schema.Class<OfferInput>('OfferInput')({
   time_zone: Schema.optional(Schema.String),
   interaction_type: InteractionTypeSchema,
   links: Schema.Array(Schema.String),
+  ...ListingFiguresFields,
 
   // Linking fields
   service_type_hash: ActionHashSchema.pipe(
@@ -99,6 +105,7 @@ export class UIOffer extends Schema.Class<UIOffer>('UIOffer')({
   time_zone: Schema.optional(Schema.String),
   interaction_type: InteractionTypeSchema,
   links: Schema.Array(Schema.String),
+  ...ListingFiguresFields,
 
   // UI-specific fields
   original_action_hash: Schema.optional(ActionHashSchema),

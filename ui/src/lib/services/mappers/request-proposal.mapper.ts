@@ -2,6 +2,9 @@ import { Effect as E, pipe } from 'effect';
 import { HreaError } from '$lib/errors';
 import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
 import type { UIRequest } from '$lib/types/ui';
+import { decimalProblem, isZeroDecimal } from '$lib/utils/decimal';
+import { estimateLabel } from '$lib/utils/estimate';
+import { timeframeLabel } from '$lib/utils/timeframe';
 import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/hrea';
 
 /**
@@ -16,6 +19,20 @@ import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/
  *
  * This creates the proper economic reciprocity that hREA requires for value flow modeling.
  */
+
+/**
+ * A request's estimate as an hREA intent quantity, or none.
+ *
+ * hREA's `hasNumericalValue` is a float, so the exact decimal becomes a number only
+ * here, in the mirror; the record of truth stays the string. A zero estimate, or one
+ * that is not a decimal, gives no quantity: an intent for no hours says nothing.
+ */
+function estimateForHrea(
+  hours: string | null | undefined
+): { hasNumericalValue: number; hasUnit: string } | undefined {
+  if (hours == null || decimalProblem(hours) !== null || isZeroDecimal(hours)) return undefined;
+  return { hasNumericalValue: Number(hours), hasUnit: 'hour' };
+}
 
 export interface RequestProposalMappingParams {
   request: UIRequest;
@@ -89,12 +106,7 @@ export const createProposalFromRequest = (
       action: 'work', // Service provision action
       receiver: requesterAgent.id, // Requester receives the service
       resourceSpecifiedBy: resourceSpec.id,
-      resourceQuantity: request.time_estimate_hours
-        ? {
-            hasNumericalValue: request.time_estimate_hours,
-            hasUnit: 'hour'
-          }
-        : undefined,
+      resourceQuantity: estimateForHrea(request.time_estimate_hours),
       isReciprocal: false
     }));
 
@@ -129,8 +141,9 @@ function createProposalNote(request: UIRequest, requesterAgent: Agent): string {
   lines.push(`Requested by: ${requesterAgent.name} (${requesterAgent.id})`);
 
   // Time and scheduling information
-  if (request.time_estimate_hours) {
-    lines.push(`Estimated time: ${request.time_estimate_hours} hours`);
+  // The listing's estimate, printed as written (#525): zero is an estimate too.
+  if (request.time_estimate_hours != null) {
+    lines.push(`Estimated time: ${estimateLabel(request.time_estimate_hours)}`);
   }
 
   if (request.time_preference) {
@@ -141,14 +154,8 @@ function createProposalNote(request: UIRequest, requesterAgent: Agent): string {
     lines.push(`Time zone: ${request.time_zone}`);
   }
 
-  if (request.date_range) {
-    const startDate = request.date_range.start
-      ? new Date(request.date_range.start).toLocaleDateString()
-      : 'Not specified';
-    const endDate = request.date_range.end
-      ? new Date(request.date_range.end).toLocaleDateString()
-      : 'Not specified';
-    lines.push(`Date range: ${startDate} - ${endDate}`);
+  if (request.timeframe) {
+    lines.push(`Timeframe: ${timeframeLabel(request.timeframe)}`);
   }
 
   // Contact and interaction preferences

@@ -58,7 +58,7 @@ const valid: CreateAgreementInput = {
   },
   medium: 'CAD',
   terms: 'Saturday morning',
-  delivery_timeframe: 'Within 2 weeks'
+  delivery_timeframe: { Preset: 'WithinTwoWeeks' }
 };
 
 describe('exchanges service validation', () => {

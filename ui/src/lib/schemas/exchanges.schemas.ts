@@ -1,5 +1,6 @@
 import { Schema } from 'effect';
 import { ActionHashSchema } from './holochain.schemas';
+import { TimeframeSchema } from './common.schemas';
 import { decimalProblem, isZeroDecimal } from '../utils/decimal';
 
 /**
@@ -134,7 +135,7 @@ export class CreateAgreementInputSchema extends Schema.Class<CreateAgreementInpu
     })
   ),
   terms: Schema.String,
-  delivery_timeframe: Schema.String
+  delivery_timeframe: TimeframeSchema
 }) {}
 
 /** The payload of `counter_agreement` (#333). */
@@ -144,7 +145,7 @@ export class CounterAgreementInputSchema extends Schema.Class<CounterAgreementIn
   agreement: ActionHashSchema,
   primary_quantity: Schema.NullOr(ExchangeQuantity),
   reciprocal_quantity: Schema.NullOr(ExchangeQuantity),
-  delivery_timeframe: Schema.String
+  delivery_timeframe: TimeframeSchema
 }) {}
 
 /** The payload of `respond_to_agreement`. */

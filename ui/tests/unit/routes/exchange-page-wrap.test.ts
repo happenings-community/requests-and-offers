@@ -23,7 +23,8 @@ vi.mock('$lib/composables/domain/exchanges/useExchangeDetails.svelte', () => ({
         reciprocal: {},
         medium: null,
         terms: long,
-        delivery_timeframe: long
+        // A timeframe is typed since #380, so only the terms can carry a long word.
+        delivery_timeframe: { Preset: 'WithinTwoWeeks' }
       },
       status: 'Completed',
       created_at: 0
@@ -66,7 +67,7 @@ vi.mock('$lib/components/exchanges/ReachPerson.svelte', async () => ({
 beforeEach(() => cleanup());
 
 describe("the members' words on the exchange page", () => {
-  it('wrap a long word in the when and terms card', async () => {
+  it('wrap a long word in the terms card', async () => {
     const { default: Page } = await import(
       '../../../src/routes/(public)/exchanges/[id]/+page.svelte'
     );

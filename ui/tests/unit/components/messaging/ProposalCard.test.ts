@@ -20,7 +20,12 @@ const proposal = (counterparty: Uint8Array): UIExchange =>
     agreement_hash: AGREEMENT,
     status: 'Proposed',
     created_at: Date.now(),
-    agreement: { counterparty, primary: term, reciprocal: term, delivery_timeframe: 'Soon' }
+    agreement: {
+      counterparty,
+      primary: term,
+      reciprocal: term,
+      delivery_timeframe: { Preset: 'WithinAFewDays' }
+    }
   }) as unknown as UIExchange;
 
 const onRespond = vi.fn().mockResolvedValue(undefined);
@@ -77,5 +82,13 @@ describe('a long word in a proposal', () => {
 
     expect(screen.getByTestId('proposal-card').className).toContain('[overflow-wrap:anywhere]');
     expect(screen.getByText('a'.repeat(3000))).toBeTruthy();
+  });
+});
+
+describe("a proposal's timeframe (#380)", () => {
+  it('reads as its label, never as the raw value', () => {
+    mount(proposal(THEM));
+    expect(screen.getByText('Within a few days of agreeing')).toBeTruthy();
+    expect(screen.queryByText('[object Object]')).toBeNull();
   });
 });

@@ -24,7 +24,7 @@ const exchange = (agreement: number, listing: number, created_at = 1): UIExchang
       reciprocal: { direction: 'Receive', resource_conforms_to: 'CAD', resource_kind: 'Currency', quantity: null },
       medium: 'CAD',
       terms: '',
-      delivery_timeframe: ''
+      delivery_timeframe: { Preset: 'Flexible' }
     }
   }) as UIExchange;
 

@@ -46,6 +46,9 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Users**: A profile, your own or another member's, in the design system's layout (`aff3b113`, #353, part of #350)
 - **Navigation**: The bar reads Requests, Offers, My Exchanges, My Listings, Community, an envelope for Messages with the unopened count, the connection status, Admin and your picture; Service Types joins Community, and the open page is marked (`964987f0`, #521)
 - **Administration**: The Admin button becomes a menu of the admin pages, with how many members and organisations are waiting to be accepted (`881b955c`, #411, closes #359)
+- **Requests and Offers**: A listing's timeframe is typed: a preset, which is a turnaround counted from agreeing, or a window of calendar dates that validation checks ends after it is written, within 365 days, and does not start after it ends. A request or an offer can also publish an estimate of the task in hours, an exact decimal with zero allowed, and an amount it asks or offers in payment. This changes the request and offer entry formats, so it needs a network reset (closes #307, part of #370)
+- **Exchanges**: An agreement's timeframe is typed and checked as a listing's is, and a counter compares timeframes as values. This changes the `Agreement` entry format, inside the same reset. A proposal starts from the listing's estimate as written, its amount when it is in the medium chosen, and its timeframe while that can still be met (closes #525)
+- **hREA**: A Commitment's due date comes from the agreement's timeframe, counted from acceptance for a preset, or a window's end, and is written with the Commitment in one write
 
 ### Security
 

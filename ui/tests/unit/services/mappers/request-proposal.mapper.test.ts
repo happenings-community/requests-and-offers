@@ -34,7 +34,7 @@ const createMockRequest = (overrides: Partial<UIRequest> = {}): UIRequest =>
     service_type_hash: new Uint8Array([1, 2, 3]),
     medium_of_exchange_hashes: [new Uint8Array([4, 5, 6])],
     original_action_hash: new Uint8Array([7, 8, 9]),
-    time_estimate_hours: 5,
+    time_estimate_hours: '5',
     time_preference: 'Morning',
     time_zone: 'UTC',
     ...overrides
@@ -116,7 +116,7 @@ describe('Request to Proposal Mapper', () => {
 
     it('should include time estimate in service intents when provided', async () => {
       const params: RequestProposalMappingParams = {
-        request: createMockRequest({ time_estimate_hours: 10 }),
+        request: createMockRequest({ time_estimate_hours: '10' }),
         requesterAgent: createMockAgent(),
         serviceTypeResourceSpecs: [createMockResourceSpec('rs-1', 'Web Dev')],
         mediumOfExchangeResourceSpec: createMockResourceSpec('rs-moe', 'USD')
@@ -128,6 +128,40 @@ describe('Request to Proposal Mapper', () => {
         hasNumericalValue: 10,
         hasUnit: 'hour'
       });
+    });
+
+    // #380, #525: the estimate is an exact decimal; zero is an estimate, but no quantity.
+    const mapped = (overrides: Partial<UIRequest>) =>
+      E.runPromise(
+        createProposalFromRequest({
+          request: createMockRequest(overrides),
+          requesterAgent: createMockAgent(),
+          serviceTypeResourceSpecs: [createMockResourceSpec('rs-1', 'Web Dev')],
+          mediumOfExchangeResourceSpec: createMockResourceSpec('rs-moe', 'USD')
+        })
+      );
+
+    it('prints the estimate in the note as written, and a decimal one exactly', async () => {
+      const result = await mapped({ time_estimate_hours: '1.1' });
+      expect(result.proposal.note).toContain('Estimated time: 1.1 hours');
+      expect(result.serviceIntents[0].resourceQuantity).toEqual({
+        hasNumericalValue: 1.1,
+        hasUnit: 'hour'
+      });
+      expect((await mapped({ time_estimate_hours: '1' })).proposal.note).toContain(
+        'Estimated time: 1 hour\n'
+      );
+    });
+
+    it('notes a zero estimate, and gives its intent no quantity', async () => {
+      const result = await mapped({ time_estimate_hours: '0' });
+      expect(result.proposal.note).toContain('Estimated time: 0 hours');
+      expect(result.serviceIntents[0].resourceQuantity).toBeUndefined();
+    });
+
+    it('notes the timeframe by its label', async () => {
+      const result = await mapped({ timeframe: { Preset: 'WithinAMonth' } });
+      expect(result.proposal.note).toContain('Timeframe: Within a month of agreeing');
     });
 
     it('should fail when title is empty', async () => {

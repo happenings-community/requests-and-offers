@@ -144,6 +144,47 @@ pub fn update_op_for_the_original(entry_index: u8, bytes: SerializedBytes) -> Op
   })
 }
 
+/// The three ops of an update of `original`, written at `at`: the two that carry the new
+/// entry, as in [`update_ops`], and the `Update` op `original`'s authorities receive, as
+/// `(CreateEntry, CreateRecord, Update)`. Unlike [`update_ops`] it names `original`'s own
+/// action hash, so a rule that reads the version it replaces finds it when `original` is
+/// on the stand-in DHT ([`set_zome_types_holding`]).
+pub fn update_ops_of(
+  entry_index: u8,
+  original: &Record,
+  bytes: SerializedBytes,
+  at: Timestamp,
+) -> (Op, Op, Op) {
+  let entry = app_entry(bytes);
+  let update = UpdateData {
+    original_action_address: original.action_address().clone(),
+    original_entry_address: original
+      .action()
+      .entry_hash()
+      .cloned()
+      .unwrap_or_else(|| EntryHash::from_raw_36(vec![4; 36])),
+    entry_type: entry_type(entry_index),
+    entry_hash: EntryHash::with_data_sync(&entry),
+  };
+  let header = ActionHeader {
+    timestamp: at,
+    ..header(8, 3)
+  };
+  let signed = signed(header, ActionData::Update(update));
+  let entry_op = Op::CreateEntry(CreateEntry {
+    action: signed.clone(),
+    entry: entry.clone(),
+  });
+  let record_op = Op::CreateRecord(CreateRecord {
+    record: Record::new(signed.clone(), RecordEntry::Present(entry.clone())),
+  });
+  let original_op = Op::Update(Update {
+    update: signed,
+    new_entry: Some(entry),
+  });
+  (entry_op, record_op, original_op)
+}
+
 /// A created record to put on the stand-in DHT, with an app entry of this zome's.
 pub fn created_record(entry_index: u8, bytes: SerializedBytes) -> Record {
   let entry = app_entry(bytes);

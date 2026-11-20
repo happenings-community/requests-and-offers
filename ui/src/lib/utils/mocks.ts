@@ -57,17 +57,19 @@ export async function createMockedOrganizations(count: number = 1): Promise<Orga
   return organizations;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export function createMockedRequests(): Promise<RequestInDHT[]> {
   const mockRequests: RequestInDHT[] = [
     {
       title: 'Web Development Assistance',
       description: 'Need help building a responsive website for my small business',
       contact_preference: 'Email',
-      date_range: {
-        start: Date.now() + 7 * 24 * 60 * 60 * 1000, // 1 week from now
-        end: Date.now() + 14 * 24 * 60 * 60 * 1000 // 2 weeks from now
+      // A window of dates, in microseconds: one to two weeks from now (#380).
+      timeframe: {
+        Dates: { start: (Date.now() + 7 * DAY_MS) * 1000, end: (Date.now() + 14 * DAY_MS) * 1000 }
       },
-      time_estimate_hours: 5,
+      time_estimate_hours: '5',
       time_preference: 'Evening',
       time_zone: 'America/New_York',
       interaction_type: InteractionType.Virtual,
@@ -78,7 +80,7 @@ export function createMockedRequests(): Promise<RequestInDHT[]> {
       title: 'Spanish Tutoring Sessions',
       description: 'Looking for conversational Spanish practice with a native speaker',
       contact_preference: ContactPreferenceHelpers.createOther('Discord: myuser#1234'),
-      time_estimate_hours: 8,
+      time_estimate_hours: '8',
       time_preference: TimePreferenceHelpers.createOther('Weekends only'),
       time_zone: 'Europe/London',
       interaction_type: InteractionType.Virtual,
@@ -89,11 +91,8 @@ export function createMockedRequests(): Promise<RequestInDHT[]> {
       title: 'Graphic Design for Logo',
       description: 'Need a professional logo design for my startup',
       contact_preference: 'Phone',
-      date_range: {
-        start: Date.now() + 3 * 24 * 60 * 60 * 1000, // 3 days from now
-        end: Date.now() + 10 * 24 * 60 * 60 * 1000 // 10 days from now
-      },
-      time_estimate_hours: 12,
+      timeframe: { Preset: 'WithinTwoWeeks' },
+      time_estimate_hours: '12',
       time_preference: 'Morning',
       time_zone: 'Australia/Sydney',
       interaction_type: InteractionType.Virtual,

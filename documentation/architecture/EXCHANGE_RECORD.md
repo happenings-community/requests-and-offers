@@ -42,7 +42,7 @@ Alpha.1 has no Let's Discuss medium, but it does have a way to ask to discuss: i
 
 Let's Discuss was removed after design review found it being used as a chat channel through the terms box, and because an agreement whose medium is Let's Discuss records only that the parties would settle it somewhere else, with the ledger holding a placeholder.
 
-**Every term comes from something already published** (Sam, 4 October; from alpha.2). What is provided is the listing's service type; how much is the listing's time estimate, which only a request publishes, so a proposal from an offer carries no quantity; what comes back is the medium, and for a Service Exchange one of the other side's active offers. The free-text terms box is gone and `terms` is written empty. To change a term, a member changes the listing or publishes a new one, so an agreement can always be checked against the listing it came from. What a listing cannot carry yet (an offer's hours, a currency amount) is tracked in #307.
+**Every term comes from something already published** (Sam, 4 October; from alpha.2). What is provided is the listing's service type; how much is the listing's time estimate, as written, which a request or an offer can publish (#380; an estimate of zero gives no quantity); what comes back is the medium, with the listing's amount when it is in that medium, and for a Service Exchange one of the other side's active offers. When starts from the listing's timeframe while it can still be met. The free-text terms box is gone and `terms` is written empty. To change a term, a member changes the listing or publishes a new one, so an agreement can always be checked against the listing it came from. A listing publishes its hours, its amount and its timeframe since #380, which closes #307; the form inputs for the amount and the timeframe follow.
 
 ## 4. Entry types
 
@@ -51,7 +51,7 @@ All six are append-only. Nothing is edited; state is read from what exists (sect
 | Entry | Author | Fields |
 |---|---|---|
 | Interest | B | listing (original action hash) |
-| Agreement | A or B | listing, listing type, interest (the Interest this settles), counterparty, provider, receiver, primary term, reciprocal term, medium, terms (text), delivery timeframe (text) |
+| Agreement | A or B | listing, listing type, interest (the Interest this settles), counterparty, provider, receiver, primary term, reciprocal term, medium, terms (text), delivery timeframe (a preset or a window of dates, #380) |
 | Response | the other party | agreement, accepted (bool), note (text) |
 | Completion | provider or receiver | agreement |
 | Review | provider or receiver | agreement, rating (0 to 5), on time (bool), as agreed (bool), comment (text) |
@@ -124,7 +124,7 @@ Routed in the integrity zome's `validate`, every op, from the first commit, per 
 - A Completion, Review or Cancellation's author is the Agreement's provider or receiver.
 - One Response per Agreement. One Completion and one Review per party per Agreement.
 - One live Interest per member per listing; a withdrawn one does not count.
-- A counter (an Agreement with `counters` set) is written by the countered proposal's counterparty, as the next action after their declining Response to it. It keeps the listing, the interest, the parties, the medium, the terms text and both services, and changes only a quantity or the timeframe. A quantity on both sides keeps its unit, so a counter can turn 2 hours into 3 hours but not into 2 days; adding a quantity where there was none, or removing one, is a change of quantity. Amounts are decimal strings compared as numbers, so `"1.5"` and `"1.50"` are the same amount and re-spelling one is not a change. An `AgreementCounters` link is written by the counter's author, from the proposal the counter names (#333).
+- A counter (an Agreement with `counters` set) is written by the countered proposal's counterparty, as the next action after their declining Response to it. It keeps the listing, the interest, the parties, the medium, the terms text and both services, and changes only a quantity or the timeframe, a timeframe compared as a value. A quantity on both sides keeps its unit, so a counter can turn 2 hours into 3 hours but not into 2 days; adding a quantity where there was none, or removing one, is a change of quantity. Amounts are decimal strings compared as numbers, so `"1.5"` and `"1.50"` are the same amount and re-spelling one is not a change. An `AgreementCounters` link is written by the counter's author, from the proposal the counter names (#333).
 - Every listing, interest and agreement hash an entry refers to is a Create, and every link base is a Create.
 
 A wrong write fails validation on every peer and never lands. The coordinator guards below are the same rules applied earlier, for a better error; the integrity rules are what make them true.

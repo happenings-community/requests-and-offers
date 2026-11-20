@@ -1,4 +1,5 @@
 import { Schema } from 'effect';
+import { ListingFiguresFields } from './common.schemas';
 
 // Form validation schemas
 export const EmailSchema = Schema.String.pipe(
@@ -119,27 +120,9 @@ export const CreateRequestFormSchema = Schema.Struct({
   ),
 
   // Optional fields with validation
-  date_range: Schema.optional(
-    Schema.Struct({
-      start: Schema.NullOr(Schema.Number),
-      end: Schema.NullOr(Schema.Number)
-    }).pipe(
-      Schema.annotations({
-        title: 'Date Range',
-        description: 'When you need this request fulfilled'
-      })
-    )
-  ),
-
-  time_estimate_hours: Schema.optional(
-    Schema.Number.pipe(
-      Schema.positive({ message: () => 'Time estimate must be positive' }),
-      Schema.annotations({
-        title: 'Time Estimate (Hours)',
-        description: 'Estimated hours needed to complete this request'
-      })
-    )
-  ),
+  // When, the listing's estimate and its amount (#380); the form inputs for the first
+  // and last come with part 2.
+  ...ListingFiguresFields,
 
   time_zone: Schema.optional(
     Schema.String.pipe(

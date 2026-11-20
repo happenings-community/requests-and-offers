@@ -31,7 +31,7 @@ const agreement = {
   reciprocal: currency,
   medium: 'CAD',
   terms: 'Two sessions, remote.',
-  delivery_timeframe: 'Within 2 weeks'
+  delivery_timeframe: { Preset: 'WithinTwoWeeks' }
 };
 
 /** The message a failed decode would put in front of the member. */
@@ -147,6 +147,26 @@ describe('create agreement input schema', () => {
   it('refuses an agreement that names no medium', () => {
     const result = decodeCreateAgreementInput({ ...agreement, medium: '   ' });
     expect(failure(result)).toContain('how this exchange is settled');
+  });
+
+  // #380: a timeframe is typed, as the zome's `Timeframe` deserialises it.
+  it('accepts a window of dates as the timeframe', () => {
+    const end = Date.UTC(2026, 11, 1) * 1000;
+    const dated = { ...agreement, delivery_timeframe: { Dates: { start: null, end } } };
+    expect(Either.isRight(decodeCreateAgreementInput(dated))).toBe(true);
+  });
+
+  it('refuses a free-text timeframe, which the zome cannot read', () => {
+    const result = decodeCreateAgreementInput({ ...agreement, delivery_timeframe: 'Next Tuesday' });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it('refuses a window that starts after it ends', () => {
+    const result = decodeCreateAgreementInput({
+      ...agreement,
+      delivery_timeframe: { Dates: { start: 2_000_000, end: 1_000_000 } }
+    });
+    expect(failure(result)).toContain('must not start after it ends');
   });
 });
 

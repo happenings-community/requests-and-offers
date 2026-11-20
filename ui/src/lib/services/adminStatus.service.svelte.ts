@@ -36,6 +36,9 @@ let errorMessage: string | null = $state(null);
 // Cache status for 30 seconds to avoid too frequent checks
 const CACHE_DURATION_MS = 30 * 1000;
 
+/** Whether a check has answered, as admin or not. */
+const hasAnswer = (): boolean => adminStatusState === 'admin' || adminStatusState === 'non-admin';
+
 /**
  * Creates the admin status service implementation using Effect patterns
  */
@@ -47,8 +50,12 @@ const makeAdminStatusService = E.sync(() => {
     E.gen(function* () {
       yield* E.logInfo('🔍 Verifying administrator status');
 
-      // Update state to checking
-      adminStatusState = 'checking';
+      // Only a first check shows as checking. A re-check (the background one every
+      // minute, or the one after a profile is created) keeps the last answer while it
+      // asks again: the admin area shows its pages only on an answer, so 'checking'
+      // swapped every admin page for a spinner and rebuilt it, losing what was typed
+      // and re-reading every list.
+      if (!hasAnswer()) adminStatusState = 'checking';
       errorMessage = null;
 
       try {
@@ -66,7 +73,7 @@ const makeAdminStatusService = E.sync(() => {
         yield* E.logInfo(`✅ Administrator status verified: ${isAdmin ? 'ADMIN' : 'NON-ADMIN'}`);
         return isAdmin;
       } catch (error) {
-        adminStatusState = 'error';
+        if (!hasAnswer()) adminStatusState = 'error';
         errorMessage = error instanceof Error ? error.message : String(error);
         yield* E.logError(`❌ Failed to verify admin status: ${errorMessage}`);
         throw error;
@@ -111,7 +118,8 @@ const makeAdminStatusService = E.sync(() => {
         ),
         E.asVoid,
         E.tapError((error) => {
-          adminStatusState = 'error';
+          // A failed re-check leaves the last answer in place; the next one tries again.
+          if (!hasAnswer()) adminStatusState = 'error';
           errorMessage = error.message;
           return E.logError(`❌ Failed admin status check: ${error.message}`);
         })

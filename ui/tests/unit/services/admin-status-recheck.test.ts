@@ -76,3 +76,75 @@ describe('the profile form re-checks after creating a profile', () => {
     expect(body).toContain('usersStore.refreshCurrentUser()');
   });
 });
+
+describe('a re-check keeps the last answer while it asks again', () => {
+  // The admin area shows its pages only on an answer. A re-check that showed as
+  // 'checking' swapped every admin page for a spinner once a minute and rebuilt it,
+  // losing what was typed and re-reading every list.
+  const fresh = async () => {
+    vi.resetModules();
+    return import('$lib/services/adminStatus.service.svelte');
+  };
+  const checkedBy = (service: Awaited<ReturnType<typeof fresh>>) =>
+    E.runPromise(
+      E.provide(
+        E.flatMap(service.AdminStatusServiceTag, (s) => s.ensureAdminStatusChecked()),
+        service.AdminStatusServiceLive
+      )
+    );
+  // Past the 30 seconds a fresh answer is reused for.
+  const aMinuteLater = () => vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 61_000);
+
+  beforeEach(() => {
+    check.mockReset();
+    vi.restoreAllMocks();
+  });
+
+  it('shows checking on the first check, before there is any answer', async () => {
+    const service = await fresh();
+    let answer: (isAdmin: boolean) => void = () => {};
+    check.mockReturnValue(E.promise(() => new Promise<boolean>((r) => (answer = r))));
+    const first = checkedBy(service);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(service.useAdminStatusCheck().adminStatusState).toBe('checking');
+    answer(true);
+    await first;
+    expect(service.useAdminStatusCheck().adminStatusState).toBe('admin');
+  });
+
+  it('keeps an administrator an administrator while the minute re-check asks again', async () => {
+    const service = await fresh();
+    check.mockReturnValue(E.succeed(true));
+    await checkedBy(service);
+
+    aMinuteLater();
+    let answer: (isAdmin: boolean) => void = () => {};
+    check.mockReturnValue(E.promise(() => new Promise<boolean>((r) => (answer = r))));
+    const recheck = checkedBy(service);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(service.useAdminStatusCheck().adminStatusState).toBe('admin');
+    answer(true);
+    await recheck;
+    expect(service.useAdminStatusCheck().adminStatusState).toBe('admin');
+  });
+
+  it('keeps the last answer when a re-check fails', async () => {
+    const service = await fresh();
+    check.mockReturnValue(E.succeed(true));
+    await checkedBy(service);
+
+    aMinuteLater();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    check.mockReturnValue(E.fail(new Error('conductor away')));
+    await checkedBy(service).catch(() => {});
+    expect(service.useAdminStatusCheck().adminStatusState).toBe('admin');
+  });
+
+  it('still records an error when the first check fails', async () => {
+    const service = await fresh();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    check.mockReturnValue(E.fail(new Error('conductor away')));
+    await checkedBy(service).catch(() => {});
+    expect(service.useAdminStatusCheck().adminStatusState).toBe('error');
+  });
+});

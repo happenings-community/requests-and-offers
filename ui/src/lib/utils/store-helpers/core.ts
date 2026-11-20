@@ -45,7 +45,10 @@ export const withLoadingState: OperationWrapper =
           setters.setLoading(false);
           setters.setError(error instanceof Error ? error.message : String(error));
         })
-      )
+      ),
+      // A fetch a component interrupts (its task goes away with it) ends here too, and the flag
+      // must come down with it: anything that waits for `loading` to be false would wait forever.
+      E.onInterrupt(() => E.sync(() => setters.setLoading(false)))
     );
 
 // ============================================================================

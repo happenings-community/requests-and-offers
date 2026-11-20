@@ -119,9 +119,10 @@
 </svelte:head>
 
 <!--
-  flex-1: the root layout centres a page shorter than the window, and Interested in is
-  shorter than Exchanges, so switching tabs moved the whole page up and down (the walk of
-  15 November). Filling the height keeps it at the top whichever tab is open.
+  flex-1: the root layout used to centre a page shorter than the window, and Interested in
+  is shorter than Exchanges, so switching tabs moved the whole page up and down (the walk of
+  15 November). Pages now start at the top (20 November); filling the height still keeps
+  this one there if that ever changes.
 -->
 <section class="container mx-auto flex-1 space-y-6 p-4">
   <header class="space-y-1">

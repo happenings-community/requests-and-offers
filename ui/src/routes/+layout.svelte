@@ -647,7 +647,10 @@
   <!-- Main app routes with navigation -->
   <div class="grid min-h-screen grid-rows-[auto_1fr]">
     <NavBar {connectionStatus} {lastPingTime} {pingError} {networkSeed} {networkInfo} />
-    <main class="flex flex-col items-center justify-center py-10">
+    <!-- Pages start at the top. Centring a page shorter than the window floated each one at
+         a different height, and moved it when its content changed (Sam's walk, 20 November:
+         My Listings' views, the Community pages). -->
+    <main class="flex flex-col items-center py-10">
       {@render children()}
     </main>
   </div>

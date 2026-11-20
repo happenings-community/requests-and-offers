@@ -103,7 +103,7 @@ This is Foldkit's Story pattern without Foldkit: given a state, apply a sequence
 
 **Gained.** The state machine becomes reachable without a reactive context, which makes property testing viable: generate arbitrary event sequences, assert invariants hold. That is the strongest available check on [proposal 4a](04a-entity-lifecycle-states.md), and it is impossible today.
 
-**Paid.** Two files per domain instead of one, and a discipline that every state change goes through `dispatch`. Ten of the eleven stores declare `loading: boolean` today. This is real work and is best done alongside the remaining domain standardization rather than as its own campaign.
+**Paid.** Two files per domain instead of one, and a discipline that every state change goes through `dispatch`. All eleven stores expose `loading` today. This is real work and is best done alongside the remaining domain standardization rather than as its own campaign.
 
 **Constraint.** Svelte's docs are explicit that module-level `$state` can only be exported if it is never reassigned; the compiler wraps reads and writes within one file only, so an importer sees an object, not a value. The store's public surface must therefore stay getter-based, which it already is.
 

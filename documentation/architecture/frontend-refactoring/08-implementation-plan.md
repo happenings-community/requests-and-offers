@@ -54,7 +54,7 @@ The platform move comes first, and any slice that writes Effect code lands after
 
 | Release | Carries |
 |---|---|
-| **v0.6.0-alpha.2** (tag due 23 November) | Only slices that run no code a member sees: the re-baselined docs, the ratchet test of PR 0.5, and the deletion of the unused Effect and Svelte glue module, the one that exported `useEffectOnMount`, `createStoreInitializer` and ten sibling exports (403 lines, no importer), and the deletion of 11 components that nothing imports (1,135 lines). Nothing else before the UI freeze |
+| **v0.6.0-alpha.2** (tag due 23 November) | Only slices that run no code a member sees: the re-baselined docs, the ratchet test of PR 0.5, and the deletion of the unused Effect and Svelte glue module, the one that exported `useEffectOnMount`, `createStoreInitializer` and ten sibling exports (403 lines, no importer), and the deletion of 11 components (1,135 lines), 4 composables and a guard (1,038 lines) that nothing imports. Nothing else before the UI freeze |
 | **v0.6.0-alpha.3** | The platform upgrade, Kit first: U1 Vite 8 on SvelteKit 2 (#303), U2 SvelteKit 3 (#303), U3 Effect 4 (#228). Then Phase 0 and Phase 1, and Phase 3's observation step, PR 3.2, which decodes zome signals into the event log and changes no store. Coordination (Phase 1) is plain TypeScript over the bus and can run alongside the upgrade. The Foldkit spike (service types rebuilt on Foldkit beside the current stores, measured against the same unit tests) runs after U3 and before Phase 2, and the decision is re-opened with its numbers |
 | **v0.6.0 final** | Phase 2, the rest of Phase 3, and any remote-signal work |
 | **After v0.6.0** | Phase 4 |

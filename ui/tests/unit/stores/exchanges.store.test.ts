@@ -143,6 +143,29 @@ describe('exchanges store', () => {
     expect(service.reviewAgreement).toHaveBeenCalledWith(hash(10), { rating: 4, on_time: true, as_agreed: false, comment: 'fine' });
   });
 
+  /**
+   * The hREA store repairs any accepted exchange whose mirror never landed from this
+   * event. **To make this go red:** drop the emit from `fetchMyExchanges`.
+   */
+  it('announces each read of my exchanges, on a load and on a background refresh', async () => {
+    const heard = vi.fn();
+    const off = storeEventBus.on('exchanges:loaded', heard);
+    await E.runPromise(store.loadMyExchanges());
+    await E.runPromise(store.refreshMyExchanges());
+    off();
+    expect(heard).toHaveBeenCalledTimes(2);
+    expect(heard.mock.calls[0][0].exchanges).toHaveLength(1);
+  });
+
+  it('announces nothing when the read fails', async () => {
+    const heard = vi.fn();
+    const off = storeEventBus.on('exchanges:loaded', heard);
+    nextList = () => E.fail(ExchangeError.create('conductor away'));
+    await expect(E.runPromise(store.loadMyExchanges())).rejects.toThrow();
+    off();
+    expect(heard).not.toHaveBeenCalled();
+  });
+
   it('announces a cancellation, so the hREA mirror can end its commitments', async () => {
     const heard = vi.fn();
     const off = storeEventBus.on('exchange:cancelled', heard);

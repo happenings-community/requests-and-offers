@@ -249,9 +249,9 @@
   </div>
 
   <!-- Desktop Navigation -->
-  <div class="hidden items-center gap-4 lg:flex xl:gap-8">
+  <div class="hidden items-center gap-4 lg:flex xl:gap-6">
     <!-- Primary Actions -->
-    <div class="flex items-center gap-3 xl:gap-6">
+    <div class="flex items-center gap-3 xl:gap-4">
       <a
         href={paths.requests()}
         class="variant-filled-secondary btn px-6 py-2 font-semibold shadow-md transition-colors hover:variant-filled-tertiary hover:shadow-lg"
@@ -385,21 +385,43 @@
     {/if}
   </div>
 
-  <!-- Mobile Menu Button -->
-  <button
-    class="variant-filled-secondary btn relative shadow-md transition-shadow hover:shadow-lg lg:hidden"
-    onclick={openDrawer}
-    aria-label={menuButtonLabel}
-    data-testid="menu-button"
-  >
-    <Bars svgClass="fill-white h-6 w-6" />
-    {#if menuButtonCount}
-      <span
-        class="badge absolute -right-1.5 -top-1.5 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700 ring-2 ring-primary-500"
-        aria-hidden="true">{shownCount(menuButtonCount)}</span
-      >
-    {/if}
-  </button>
+  <!-- Below the desktop bar: Requests and Offers stay in the bar in their own colours, beside
+       the menu button, so the app's identity does not vanish on a phone (#350, #387). Their
+       emoji show from 640px, so the three fit a 320px screen. Each is at least 44px tall. -->
+  <div class="flex items-center gap-2 lg:hidden">
+    <a
+      href={paths.requests()}
+      class="variant-filled-secondary btn min-h-11 px-3 text-sm font-semibold shadow-md transition-colors hover:variant-filled-tertiary"
+      aria-label="Browse requests - discover opportunities to help"
+      data-testid="bar-requests"
+    >
+      <span class="mr-1.5 hidden sm:inline" aria-hidden="true">📝</span>Requests
+    </a>
+    <a
+      href={paths.offers()}
+      class="variant-filled-warning btn min-h-11 px-3 text-sm font-semibold shadow-md transition-colors hover:variant-filled-error"
+      aria-label="Browse offers - see how others can help you"
+      data-testid="bar-offers"
+    >
+      <span class="mr-1.5 hidden sm:inline" aria-hidden="true">💡</span>Offers
+    </a>
+
+    <!-- The menu button in the design system's on-violet style: gold means Requests. -->
+    <button
+      class="btn relative min-h-11 min-w-11 border border-white/20 bg-white/10 px-3 transition-colors hover:bg-white/20"
+      onclick={openDrawer}
+      aria-label={menuButtonLabel}
+      data-testid="menu-button"
+    >
+      <Bars svgClass="fill-white h-6 w-6" />
+      {#if menuButtonCount}
+        <span
+          class="badge absolute -right-1.5 -top-1.5 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700 ring-2 ring-primary-500"
+          aria-hidden="true">{shownCount(menuButtonCount)}</span
+        >
+      {/if}
+    </button>
+  </div>
 </nav>
 
 <!-- Popup Status -->

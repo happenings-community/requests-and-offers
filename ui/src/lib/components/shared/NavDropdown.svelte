@@ -178,7 +178,7 @@
       <NavIcon name={icon} class="mr-1.5 h-5 w-5" />
     {/if}
     <!-- With a picture, the name shows only where there is room for it. -->
-    <span class={avatar ? 'hidden max-w-[10rem] truncate 2xl:inline' : ''}>{title}</span>
+    <span class={avatar ? 'hidden max-w-[8rem] truncate min-[1440px]:inline' : ''}>{title}</span>
     {#if total > 0}
       <span
         class="badge ml-1 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700"

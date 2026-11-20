@@ -62,7 +62,28 @@
 
   <!-- Navigation Content -->
   <div class="flex-1 space-y-6 overflow-y-auto p-4">
-    <!-- The member's own section first, as in the nav bar's top right -->
+    <!-- Requests and Offers first, in the colours they have in the bar -->
+    <div class="space-y-3">
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Main Actions</h3>
+      <a
+        href={paths.requests()}
+        onclick={closeDrawer}
+        class="variant-filled-secondary flex items-center gap-3 rounded-lg p-3 font-semibold transition-colors hover:variant-filled-tertiary"
+      >
+        <span class="text-xl">📝</span>
+        <span>Requests</span>
+      </a>
+      <a
+        href={paths.offers()}
+        onclick={closeDrawer}
+        class="variant-filled-warning flex items-center gap-3 rounded-lg p-3 font-semibold transition-colors hover:variant-filled-error"
+      >
+        <span class="text-xl">💡</span>
+        <span>Offers</span>
+      </a>
+    </div>
+
+    <!-- The member's own section, as in the nav bar's top right -->
     <div class="space-y-3">
       {#if currentUser}
         <div class="flex items-center gap-3">
@@ -90,27 +111,6 @@
       </div>
     </div>
 
-    <!-- Primary Actions -->
-    <div class="space-y-3">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">Main Actions</h3>
-      <a
-        href={paths.requests()}
-        onclick={closeDrawer}
-        class="flex items-center gap-3 rounded-lg bg-secondary-600 p-3 transition-colors hover:bg-secondary-700"
-      >
-        <span class="text-xl">📝</span>
-        <span class="font-medium">Requests</span>
-      </a>
-      <a
-        href={paths.offers()}
-        onclick={closeDrawer}
-        class="flex items-center gap-3 rounded-lg bg-warning-600 p-3 transition-colors hover:bg-warning-700"
-      >
-        <span class="text-xl">💡</span>
-        <span class="font-medium">Offers</span>
-      </a>
-    </div>
-
     <!-- My Activity: the bar's My Exchanges, My Listings and envelope, as a list; accepted members only -->
     {#if activity.length}
       <div class="space-y-3">
@@ -136,7 +136,8 @@
               {#if badge}
                 <!-- Said in words: a bare number told a screen reader nothing. The number
                      shown is capped as the bar caps it; the words carry the full one. -->
-                <span class="variant-filled-secondary badge ml-auto"
+                <span
+                  class="badge ml-auto bg-white px-1.5 py-0 text-xs font-semibold text-primary-700"
                   ><span aria-hidden="true">{shownCount(badge)}</span><span class="sr-only"
                     >{isMessages ? counts.totalLabel : `${badge} waiting on you`}</span
                   ></span

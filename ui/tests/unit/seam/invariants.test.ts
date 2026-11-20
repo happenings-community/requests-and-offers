@@ -38,7 +38,7 @@ const CEILINGS = {
   /** INV2, direct: `runPromise`, `runSync` and `runFork` in `.svelte` files. */
   directRunsInComponents: 23,
   /** INV2, widened: `runEffect(` in `.svelte` files. `runEffect` is `E.runPromise` under another name. */
-  runEffectInComponents: 225,
+  runEffectInComponents: 222,
   /** INV3, imports: production component and route files that mention `storeEvents`. */
   componentsImportingStoreEvents: 7,
   /** INV3, subscriptions: `storeEventBus.on` sites in production components and routes. */

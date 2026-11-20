@@ -62,8 +62,8 @@
           >
             <span
               class="badge {item.listing_type === 'Offer'
-                ? 'variant-soft-warning'
-                : 'variant-soft-secondary'}"
+                ? 'variant-filled-warning'
+                : 'variant-filled-secondary'}"
             >
               {item.listing_type === 'Offer' ? C.listingType.offer : C.listingType.request}
             </span>

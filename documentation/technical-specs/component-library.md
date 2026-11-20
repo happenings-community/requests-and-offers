@@ -145,6 +145,18 @@ Theme values should be accessed through Skeleton's theme system rather than hard
 <button class="bg-blue-500 hover:bg-blue-600">Submit</button>
 ```
 
+### Chips and badges
+
+`ui/src/app.postcss` draws every Skeleton `chip` and `badge` as the design system's pill: fully round, 4 by 10px, 12px semibold. A count keeps its own padding utilities (`px-1.5 py-0`).
+
+- **Labels** use a soft variant, which on member pages is one of seven pale tones: each colour's 100 shade behind its 800 text, or its 900 for gold (`secondary`) and green (`success`), so every one reads at 4.5:1 or more. Admin's dark mode keeps Skeleton's soft variants.
+- **Offer and Request labels** are solid: `variant-filled-warning` for an Offer, `variant-filled-secondary` for a Request, as in the nav bar. Gold and orange mean Requests and Offers.
+- **Counts** stay solid (`variant-filled-*`, or white on the violet bar).
+- The tone rule weighs two classes: a `hover:variant-*` on a chip still wins, but a plain `text-*` or `bg-*` colour on a soft chip does not; use another variant instead.
+- The grey tone (`variant-soft-surface`) is surface-100, so it reads on a white card and not on a grey surface.
+
+`ui/tests/unit/theme/contrast.test.ts` reads the stylesheet for each tone and holds its text to 4.5:1.
+
 ### Custom Utility Classes
 
 In addition to Tailwind's utility classes, the application defines several custom utilities for consistent styling:

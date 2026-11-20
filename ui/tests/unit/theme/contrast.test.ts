@@ -77,6 +77,31 @@ describe('text contrast in the theme', () => {
   });
 });
 
+/**
+ * Labels (the design system pass, part 2, in `app.postcss`'s components layer): seven pale
+ * tones, each colour's 100 shade behind its 800 or 900 text. The test reads the stylesheet,
+ * so the pairs it checks are the ones drawn, and holds each to 4.5:1.
+ */
+describe('label tones', () => {
+  const css = readFileSync('src/app.postcss', 'utf8');
+  const TONES = ['primary', 'secondary', 'tertiary', 'success', 'warning', 'error', 'surface'];
+
+  it.each(TONES)('draws a %s label with readable text on its pale tone', (tone) => {
+    const head = `:where(html:not(.dark)) :is(.chip, .badge).variant-soft-${tone} {`;
+    const at = css.indexOf(head);
+    expect(at).toBeGreaterThan(-1);
+    const rule = css.slice(at, css.indexOf('}', at));
+    const shade = (prop: string) =>
+      new RegExp(`(?<![\\w-])${prop}: rgb\\(var\\(--color-${tone}-(\\d+)\\)\\)`).exec(rule)?.[1];
+    const background = shade('background-color');
+    const text = shade('color');
+    expect(background).toBe('100');
+    expect(contrast(rgb(`${tone}-${text}`), rgb(`${tone}-${background}`))).toBeGreaterThanOrEqual(
+      AA
+    );
+  });
+});
+
 describe('the admin shell (forced dark mode, #205)', () => {
   // The admin layout adds `dark` to <html>, so grey text there needs a dark
   // shade. These are the files rendered inside that shell.

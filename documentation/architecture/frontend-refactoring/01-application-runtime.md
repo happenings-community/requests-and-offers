@@ -2,7 +2,8 @@
 
 ## Problem
 
-148 `runPromise` / `runSync` / `runFork` call sites across `ui/src`, 21 of them inside `.svelte` files, counted at `bc0c0ac5`. No `ManagedRuntime` anywhere.
+161 `runPromise` / `runSync` / `runFork` call sites across `ui/src`, 23 of them inside 14 `.svelte` files, counted at `f5c799ad` (148 and 21 at `bc0c0ac5`). No `ManagedRuntime` anywhere.
+Beside them, `runEffect` (`ui/src/lib/utils/effect.ts:8`) is `E.runPromise` under another name, and components call it 225 times in 66 files, so 73 `.svelte` files run Effects as uncancellable Promises.
 
 The obvious rationale for a single runtime does not apply here, and the design has to say so or it will be built for the wrong reason. Every store already provides its layers exactly once, at module scope:
 
@@ -19,7 +20,7 @@ const requestsStore: RequestsStore = pipe(
 
 No component contains an `E.provide` at all. Store methods return `E.Effect<A, E>` with `R = never`, and components run them directly. So services are constructed once per store module, the Apollo client memoized inside `HreaServiceLive` is safe, and "build the layers once instead of per call" is already satisfied by a different mechanism. Effect's own docs confirm why this works: layer memoization is by reference equality, and locally-provided layers do not memoize by default.
 
-What the 21 component call sites actually cost is **cancellation**. `E.runPromise` returns a Promise and no fiber. A modal that unmounts mid-fetch cannot interrupt its own work; the request completes, resolves into a destroyed component, and its error path has nowhere to go.
+What the 23 direct component call sites, and the 225 `runEffect` calls beside them, actually cost is **cancellation**. `E.runPromise` returns a Promise and no fiber. A modal that unmounts mid-fetch cannot interrupt its own work; the request completes, resolves into a destroyed component, and its error path has nowhere to go.
 
 ```ts
 // ui/src/lib/components/users/UserDetailsModal.svelte:32
@@ -110,6 +111,8 @@ export const AppRuntime = ManagedRuntime.make(AppLayer);
 
 Stores then stop self-providing, and `useEffectTask` forks through `AppRuntime.runFork` instead of `E.runFork`. That is the only point at which the runtime earns its place: one memo map, one disposal, one seam for policy.
 
+**Decided on 20 November: the runtime stays deferred, and is re-decided at PR 3.1** ([08](08-implementation-plan.md) § Phase 3), when the signal subscription is built and a concrete need is in hand. Since #308, `HolochainClientService.onZomeSignal` already owns the one signal listener and re-attaches handlers on every reconnect with no runtime, which is condition 3's likeliest need met by a narrow owner.
+
 ## Prior art in this repository, and why Phase 1 is speculative
 
 **This was built here once and removed on purpose.** Commit `58906914 refactor(runtime): centralize dependency injection with unified AppServicesTag` introduced `ui/src/lib/runtime/app-runtime.ts` with a `createAppRuntime()` that did `Layer.mergeAll` over all nine services, plus `documentation/architecture/app-runtime.md` describing it. Commit `e31c0324 refactor(architecture): remove application runtime abstraction and simplify service layer` (2025-09-29) deleted all of it: 32 files, 3,176 deletions against 646 insertions, roughly 2,530 net lines removed, including an 898-line `ui/tests/unit/runtime/app-runtime.test.ts`. Its stated reason was that the abstraction was complex and the simplification kept full functionality.
@@ -184,7 +187,7 @@ Applied here: `HolochainClientServiceLive` and `HreaServiceLive` are clearly app
 
 ## Migration
 
-1. Add `useEffectTask`, no other change. Convert the two riskiest component sites (`UserDetailsModal`, `OrganizationDetailsModal`).
+1. Add `useEffectTask`, no other change. Convert the two riskiest component sites (`UserDetailsModal`, `OrganizationDetailsModal`). `UserDetailsModal.svelte:34` still awaits `E.runPromise`, although #134 is closed.
 2. Sweep the remaining 19 `.svelte` call sites.
 3. Stop. Steps 1 and 2 are the scheduled work.
 4. Phase 1, only if revisited: add `AppLayer` and `AppRuntime`, then per store delete the trailing `E.provide` chain and construct through the runtime, one store per pull request, Service Types first. Read `e31c0324` before starting.

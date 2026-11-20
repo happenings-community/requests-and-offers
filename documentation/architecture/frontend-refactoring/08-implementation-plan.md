@@ -60,7 +60,7 @@ The platform move comes first, and any slice that writes Effect code lands after
 | **After v0.6.0** | Phase 4 |
 
 #303 and #228 are never in flight together.
-The event log (PR 0.1) imports `dev` from `$app/environment`, which SvelteKit 3 renames `$app/env`, so it lands after U2.
+The event log (PR 0.1) reads `import.meta.env.DEV`, which Vite replaces with a literal and SvelteKit 3 leaves alone, so it does not wait for U2 (an earlier draft imported `dev` from `$app/environment`, which Kit 3 renames `$app/env`).
 `$lib` becomes `#lib` in SvelteKit 3 and rewrites every import line a later slice touches, which is the second reason the slices wait for U2.
 
 ## Phase 0. Instrumentation and safety net

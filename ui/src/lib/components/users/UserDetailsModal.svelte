@@ -9,6 +9,7 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { AdministrationEntity } from '$lib/types/holochain';
   import { Effect as E } from 'effect';
+  import { useEffectTask } from '$lib/composables/ui/useEffectTask.svelte';
   import { storeEventBus } from '$lib/stores/storeEvents';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { paths } from '$lib/paths';
@@ -29,24 +30,31 @@
       : '/default_avatar.webp'
   );
 
-  async function fetchUserStatus() {
-    try {
-      const status = await E.runPromise(
-        administrationStore.getLatestStatusForEntity(
-          user.original_action_hash!,
-          AdministrationEntity.Users
+  // The fetch is a fiber this modal owns: closing the modal interrupts it, so a late status can
+  // never be written into a modal that is gone (#134), and a refresh replaces one in flight.
+  const statusTask = useEffectTask<void, never>();
+
+  function fetchUserStatus() {
+    statusTask.run(
+      administrationStore
+        .getLatestStatusForEntity(user.original_action_hash!, AdministrationEntity.Users)
+        .pipe(
+          E.tap((status) =>
+            E.sync(() => {
+              userStatus = status;
+
+              console.log('Debug UserDetailsModal - User status:', userStatus);
+
+              const ends = suspensionEndDate(userStatus?.suspended_until);
+              if (ends) suspensionDate = ends.toLocaleString();
+            })
+          ),
+          E.asVoid,
+          E.catchAll((error) =>
+            E.sync(() => console.log('Debug UserDetailsModal - Error fetching status:', error))
+          )
         )
-      );
-
-      userStatus = status;
-
-      console.log('Debug UserDetailsModal - User status:', userStatus);
-
-      const ends = suspensionEndDate(userStatus?.suspended_until);
-      if (ends) suspensionDate = ends.toLocaleString();
-    } catch (error) {
-      console.log('Debug UserDetailsModal - Error fetching status:', error);
-    }
+    );
   }
 
   onMount(() => {

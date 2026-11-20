@@ -8,6 +8,7 @@
   import { AdministrationEntity } from '$lib/types/holochain';
   import { goto } from '$app/navigation';
   import { Effect as E } from 'effect';
+  import { useEffectTask } from '$lib/composables/ui/useEffectTask.svelte';
   import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { formatUserName } from '$lib/schemas/users.schemas';
@@ -28,16 +29,30 @@
       : '/default_avatar.webp'
   );
 
+  // The fetch is a fiber this modal owns: closing the modal interrupts it, so a late status can
+  // never be written into a modal that is gone (#134).
+  const statusTask = useEffectTask<void, unknown>();
+
   $effect(() => {
     if (organization) {
-      E.runPromise(
-        administrationStore.getLatestStatusForEntity(
-          organization.original_action_hash!,
-          AdministrationEntity.Organizations
-        )
-      ).then((status: UIStatus | null) => {
-        organizationStatus = status;
-      });
+      statusTask.run(
+        administrationStore
+          .getLatestStatusForEntity(
+            organization.original_action_hash!,
+            AdministrationEntity.Organizations
+          )
+          .pipe(
+            E.tap((status: UIStatus | null) =>
+              E.sync(() => {
+                organizationStatus = status;
+              })
+            ),
+            E.asVoid,
+            E.tapError((error) =>
+              E.sync(() => console.error('Error loading the organization status:', error))
+            )
+          )
+      );
     }
   });
 

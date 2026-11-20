@@ -75,6 +75,7 @@ Each is recorded where the plan carries it; this section is the index.
 | **Invariant 2 counts `runEffect`, enforced as a ratchet test.** | `runEffect` is `E.runPromise` under another name. The check widens to it and lands now as a ceiling that may only fall, as a unit test, not as the bash script | [00](00-unified-refactoring-design.md) § Invariants, [08](08-implementation-plan.md) Phase 0 |
 | **The application runtime stays deferred**, and is re-decided at PR 3.1 | `HolochainClientService.onZomeSignal` already owns the one signal listener, so the likeliest reason for a runtime is met by a narrow owner | [01](01-application-runtime.md), [08](08-implementation-plan.md) § Deferred |
 | **4b is gated on a Sweettest experiment.** | Whether `get_details` can return a record still pending validation, and what it reports, is answered before any design work on 4b | [04b](04b-dht-validation-status.md), [08](08-implementation-plan.md) § Deferred |
+| **A change on one agent reaches another agent's UI local first, then through nudges for the two flows that poll today, approval and exchange turn.** | Phase 3 first wires the zomes' own `post_commit` signals into the bus for the agent's own UI. Then a coordinator change in `administration` and in `exchanges` sends a `Nudge` carrying one `ActionHash` to the agent concerned (the accepted member, the counterparty), as `messaging` already does, and signal routing turns the hash into a fetch and a `StoreEvents` event. The two polls (`useApprovalWatch`, the exchanges poll) drop to a fallback for an offline receiver. No integrity zome changes, so the DNA hash does not change. The messaging store's handler moves onto the bus in the same phase | [05](05-conductor-signals.md), [08](08-implementation-plan.md) Phase 3 |
 | **A Foldkit spike and a decision in alpha 3.** | Service types, the reference template, rebuilt on Foldkit beside the current stores after U3 and before Phase 2, measured against the same unit tests. The decision is re-opened with the spike's numbers before Phase 2 starts | [00](00-unified-refactoring-design.md) § What deliberately does not change, [08](08-implementation-plan.md) § Phase map |
 
 ## Verified baseline (2026-11-20, at `f5c799ad`)
@@ -102,7 +103,7 @@ The first column keeps the 22 August baseline, taken at `bc0c0ac5`, so the drift
 | Store files that declare `loading: boolean` | 8 | 10 | `git grep -l 'loading: boolean' -- ui/src/lib/stores \| wc -l` |
 | Zome coordinators that emit a `Signal` from `post_commit` | 6 | 6 (plus `messaging`, which emits from `recv_remote_signal`) | `git grep -l 'fn post_commit' -- 'dnas/requests_and_offers/zomes/coordinator/*/src/lib.rs' \| wc -l` |
 | Zome-signal handling in `ui/src` | none | one registry, `onZomeSignal`, used by `messaging` only | `git grep -n 'onZomeSignal' -- ui/src` |
-| Unit test files | not counted | 132 | `git ls-files ui/tests/unit \| grep -c '\.test\.ts$'` |
+| Unit test files | not counted | 132, with 1,720 tests | `git ls-files ui/tests/unit \| grep -c '\.test\.ts$'`; the test count comes from a full `cd ui && bun run test:unit` |
 | `effect` | `^3.14.18` | `^3.14.18` declared, 3.17.11 resolved | `grep -n '"effect": \["effect@' bun.lock` |
 | `@holochain/client` | `0.20.5` | `^0.21.0` | `grep -n '"@holochain/client"' ui/package.json` |
 | SvelteKit, Svelte, Vite, TypeScript | not recorded | 2.37.0, 5.38.6, 5.4.19, 5.9.2 resolved | `grep -nE '^    "(@sveltejs/kit\|svelte\|vite\|typescript)": \["' bun.lock` |
@@ -136,14 +137,14 @@ Each names where the docs now say it.
 | D14 | "v0.5.2 in alpha testing, v0.6.0 in flight" | `0.6.0-alpha.1`; alpha 2 is due to be tagged on 23 November | [08](08-implementation-plan.md) § Fit with the release train |
 | D15 | Phases 0 and 1 are "4.5 weeks" and deliver "six of the eight" | the plan's own rows sum to 4.7 weeks, and its stopping point lists five invariants | this file, [08](08-implementation-plan.md) |
 | D16 | polling stays, signals replace nothing | three polls that name a signal as their replacement, and one store that waits for it: `useApprovalWatch` (15 s, #329), the NavBar exchanges poll, the messaging badge poll in the root layout, and the uncached `exchanges` store | [08](08-implementation-plan.md) Phase 3 |
-| D17 | 268 passing tests | 132 unit test files today; the project `CLAUDE.md` records 646 passing tests on 2026-09-14 | [08](08-implementation-plan.md) Phase 4 |
+| D17 | 268 passing tests | 132 unit test files and 1,720 tests on 20 November (a full `bun run test:unit` at `f5c799ad`); the project `CLAUDE.md` recorded 646 on 2026-09-14 | [08](08-implementation-plan.md) Phase 4 |
 | D18 | README: 07 depends on 02 | [00](00-unified-refactoring-design.md) and [08](08-implementation-plan.md) put 07 first, before 02 | this file |
 | D19 | `ui/src` has no signal handling | since #308, `HolochainClientService.onZomeSignal` keeps one listener and per-zome handlers across reconnects; only `messaging.store.svelte.ts` registers one, outside the bus | [08](08-implementation-plan.md) Phase 3 |
 | D20 | Foldkit pins `effect: 4.0.0-rc.109`, so adoption is impossible | `effect@latest` is 4.1.4 and `foldkit` 0.171.0 peers `effect: ~4.1.0` | this file § Framing, [00](00-unified-refactoring-design.md) |
 | D21 | `effect: ^3.14.18` | declared `^3.14.18`, resolved 3.17.11; Kit 2.37.0, Vite 5.4.19, TypeScript 5.9.2 | this file; the upgrade starts from these |
 
-Docs 01 to 07 and 09 are not edited here.
-Where one of them restates a number above (02 and 03 on the bus and imports, 05 on signals, 06 on the test count, 09 on the issues), the table is the current value and the document gets its own correction when its phase starts.
+Docs 01 to 07 and 09 carry the same corrections where they restated a number above: 01 and 09 on the call sites, 02 on the bus, 03 on the imports, 04a on `loading: boolean`, 05 and 09 on signals, 06 on the test count, and 09 on the weeks and the closed issues.
+Each edit corrects a figure or a claim and leaves the design alone.
 
 ## Evidence sources
 

@@ -2,16 +2,16 @@
 
 ## Problem
 
-42 `storeEventBus.on` sites. The distribution matters more than the total:
+47 `storeEventBus.on` sites at `f5c799ad` (42 at `bc0c0ac5`). The distribution matters more than the total:
 
 | Location | Count | Character |
 |---|---|---|
-| `stores/hrea.store.svelte.ts` | 15 | Cross-domain reactions buried in a store factory |
+| `stores/hrea.store.svelte.ts` | 18 | Cross-domain reactions buried in a store factory |
 | `utils/store-helpers/event-helpers.ts` | 7 | Generic factory, one per lifecycle event kind |
 | `components/hrea/test-page/*` | 12 | Dev-only surface |
-| Production components and routes | 8 | `ActionBar` 2, `UserDetailsModal` 1, `admin/+page` 2, `admin/users/+page` 1, `admin/users/status-history/+page` 2 |
+| Production components and routes | 10, in 7 files | `ActionBar` 2, `NavBar` 1, `UserDetailsModal` 1, `admin/+page` 2, `admin/users/+page` 1, `admin/users/status-history/+page` 2, `admin/organizations/status-history/+page` 1 |
 
-The production problem is 15 plus 8, not 15 plus 15. Every component subscriber unsubscribes correctly, so this is not a leak. It is a traceability problem: the `StoreEvents` map declares 30 typed events, the emit sites are clean, and the handler graph is readable nowhere.
+The production problem is 18 plus 10: the `hrea.store` factory and the production components, not the 47 total. Every component subscriber unsubscribes correctly, so this is not a leak. It is a traceability problem: the `StoreEvents` map declares 34 typed events (the three exchange events are new), the emit sites are clean, and the handler graph is readable nowhere.
 
 The chain that motivates the work: `users.store` emits `user:accepted`, `hrea.store` reacts inside its own factory by conditionally creating an hREA agent. Nothing in either file tells you the other exists.
 
@@ -122,8 +122,8 @@ Its 12 subscriptions are a dev surface exercising hREA directly. They are exempt
 ## Migration
 
 1. Create `store-coordination.ts` with the module docstring and an empty list. Wire it in `+layout.svelte`.
-2. Move the 15 `hrea.store` subscriptions across, one commit per source domain. Extract each handler body into a named `hreaStore.handle*` method as it moves.
-3. Move the 8 production component and route subscriptions.
+2. Move the 18 `hrea.store` subscriptions across, one commit per source domain. The 18 `hreaStore.handle*` methods already exist (`hrea.store.svelte.ts:366`) and are wired through `createEventSubscriptions` (`:593`), so this is a pure move.
+3. Move the 10 production component and route subscriptions, in 7 files.
 4. Add an ESLint `no-restricted-imports` rule forbidding `storeEvents` in `components/` and `routes/`, with an override for `components/hrea/test-page/`.
 
 ## Verification

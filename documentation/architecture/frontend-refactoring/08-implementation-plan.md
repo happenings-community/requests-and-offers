@@ -173,6 +173,14 @@ PR 3.2 is deliberately observation-only: decode and log, change nothing. It prov
 
 **Version risk.** Issue #193's upgrade to `@holochain/client` `0.21.0` kept the decoded signal field as `payload`; 0.22.0 adds an `AppDirect` signal variant. Decoding in one place makes the next upgrade a one-file change. If the chat work wires signals ad hoc first, it becomes a sweep.
 
+**Decided on 20 November: a change on one agent reaches another agent's UI local first, then through nudges for the two flows that poll today, approval and exchange turn.**
+PRs 3.3 to 3.5 wire the zomes' own signals for the agent's own UI.
+Then a coordinator change in `administration` and in `exchanges` sends a `Nudge` carrying one `ActionHash` to the agent concerned (the accepted member, the counterparty), and signal routing turns the hash into a fetch and a `StoreEvents` event.
+The two polls drop to a fallback for an offline receiver, as `useApprovalWatch` already intends.
+No integrity zome changes, so no DNA hash change.
+The messaging store's handler moves onto the bus in the same phase, so every remote change enters through one door.
+This is remote-signal work, so it lands in v0.6.0 final.
+
 **The gate below cannot pass on the signals the six zomes emit (D9).**
 `post_commit` signals reach only the client of the agent whose call committed; `useApprovalWatch.svelte.ts` says so in its header comment, and doc 05 quotes #181 saying the same.
 Cross-agent delivery needs `send_remote_signal`, as `messaging` does with a `Nudge` carrying one `ActionHash`.
@@ -203,7 +211,7 @@ They are Phase 3's first real consumers.
 | 4.12 | Not scheduled. See Deferred | 0 |
 
 Phase 4 comes after v0.6.0.
-The measurement in 4.3 starts from a larger suite than the first revision assumed: 132 unit test files today, and the project `CLAUDE.md` records 646 passing tests on 2026-09-14, where the first revision read 268 (D17).
+The measurement in 4.3 starts from a larger suite than the first revision assumed: 132 unit test files and 1,720 tests today, where the first revision read 268 (D17).
 
 **The decision point is the plan's main safeguard.** After 4.1 and 4.2, measure two numbers: how many existing Service Types tests became redundant, and how many real defects the property tests found that the example tests missed. Continue on those numbers. Continuing on principle is how a nine-domain migration stalls at four.
 

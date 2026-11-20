@@ -2,17 +2,19 @@
 
 ## Problem
 
-Eight direct store-to-store imports, verified:
+Thirteen direct store-to-store imports at `f5c799ad` (eight at `bc0c0ac5`), verified:
 
 ```
 users.store.svelte.ts:19          -> administration.store.svelte
-requests.store.svelte.ts:11,12    -> users.store.svelte, serviceTypes.store.svelte
-offers.store.svelte.ts:10,11      -> users.store.svelte, serviceTypes.store.svelte
+requests.store.svelte.ts:12,13    -> users.store.svelte, serviceTypes.store.svelte
+offers.store.svelte.ts:12,13      -> users.store.svelte, serviceTypes.store.svelte
 organizations.store.svelte.ts:22  -> administration.store.svelte
 administration.store.svelte.ts:32,33 -> users.store.svelte, organizations.store.svelte
+hrea.store.svelte.ts:9            -> users.store.svelte
+messaging.store.svelte.ts:53,55,56,57 -> users, exchanges, requests, offers (.store.svelte)
 ```
 
-That is **two** cycles, not one:
+That is **two** cycles, not one, and the new `hrea` and `messaging` edges add none: nothing imports `messaging`, and `hrea` only reads `users`:
 
 ```mermaid
 graph LR
@@ -22,6 +24,11 @@ graph LR
   requests --> serviceTypes
   offers --> users
   offers --> serviceTypes
+  hrea --> users
+  messaging --> users
+  messaging --> exchanges
+  messaging --> requests
+  messaging --> offers
 ```
 
 A cycle between two modules that each construct a singleton at module scope (`pipe(createXStore(), E.provide(...), E.runSync)`) means one of the two observes the other as `undefined` during evaluation, and which one depends on bundler entry order. It works today. Nothing in the code makes it keep working.
@@ -68,7 +75,7 @@ const rows = $derived(
 );
 ```
 
-This is where most of the eight belong. `requests` and `offers` import `users` and `serviceTypes` to decorate rows for display, which is view concern, not store concern.
+This is where nine of the thirteen belong: `requests` and `offers` import `users` and `serviceTypes` to decorate rows for display, `hrea` reads `users`, and `messaging` reads four stores. That is view concern, not store concern. The other four are the two cycles, which coordination breaks.
 
 ### C. Cross-domain write, resolved by coordination
 

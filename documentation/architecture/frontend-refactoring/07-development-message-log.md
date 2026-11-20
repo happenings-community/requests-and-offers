@@ -12,7 +12,7 @@ emitStatusUpdate(event, payload, source = 'unknown'): void {
 }
 ```
 
-That method exists for exactly two events and logs to a console that nobody can export. It is evidence the need is real and the current answer is inadequate.
+That method (`storeEvents.ts:149`, called from `administration.store.svelte.ts:470` and `:490`) exists for exactly two events and logs to a console that nobody can export. It is evidence the need is real and the current answer is inadequate.
 
 The typed `StoreEvents` map already makes a faithful log possible in a few dozen lines. This is the cheapest item on the list and the one most likely to pay for itself during proposal 5.
 
@@ -22,7 +22,7 @@ Not time travel. Just the log.
 
 ```ts
 // ui/src/lib/stores/event-log.ts
-import { dev } from '$app/environment';
+import { dev } from '$app/environment'; // SvelteKit 3 renames this module `$app/env`, so the log lands after that upgrade
 import type { StoreEvents } from './storeEvents';
 
 export type LogEntry = {

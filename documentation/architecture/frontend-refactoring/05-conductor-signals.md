@@ -2,9 +2,13 @@
 
 ## Problem
 
-**The backend already emits signals and the frontend discards every one of them.**
+**The backend already emits signals and the frontend discards the domain zomes' signals.**
 
-All six domain coordinator zomes (`requests`, `offers`, `users_organizations`, `administration`, `service_types`, `mediums_of_exchange`) implement `post_commit` and call `emit_signal` with a five-variant `Signal` enum. Only `misc`, which owns no entries, does not. Meanwhile `ui/src` contains no signal handling at all: `AppSignal`, `onSignal` and `client.on('signal'` return zero matches.
+All six domain coordinator zomes (`requests`, `offers`, `users_organizations`, `administration`, `service_types`, `mediums_of_exchange`) implement `post_commit` and call `emit_signal` with a five-variant `Signal` enum. Only `misc`, which owns no entries, does not, and the newer `exchanges` coordinator emits nothing. The `messaging` zome emits a different union, `Signal::Nudge` and `Signal::Receipt`, from `recv_remote_signal` (#213 and #364).
+
+Since #308 (merged 17 November) `ui/src` has one signal listener: `HolochainClientService.onZomeSignal` keeps per-zome handlers and re-attaches them on every reconnect, and `messaging.store.svelte.ts:835` is its only consumer. No handler is registered for the six domain zomes, and messaging's handler reacts inside its store, outside the `StoreEvents` bus and so outside invariant 8.
+
+**These signals reach only the agent whose call committed.** `post_commit` emits to the local client, so agent B's UI never hears of agent A's approval (`useApprovalWatch.svelte.ts` says so in its header comment). The cross-agent half is decided: a change on one agent reaches another agent's UI local first, then through nudges for the two flows that poll today, approval and exchange turn. A coordinator change in `administration` and in `exchanges` sends a `Nudge` carrying one `ActionHash` to the agent concerned, as `messaging` already does, and the signal routing turns the hash into a fetch and a `StoreEvents` event. No integrity zome changes, so no DNA hash change.
 
 PR #181 states the same thing from the other side: before it, "every coordinator zome only did local `post_commit` to `emit_signal`, a cache-invalidation bus for the agent's own UI". That bus was built and never connected.
 
@@ -121,7 +125,7 @@ This is where Schema earns its place rather than decorating: the Rust enum is th
 
 **One gap to close on the Rust side, and only one.** These five variants carry entry lifecycle, not status transitions. The administration flow is where remote change matters most, since an admin accepting a user on another machine should reach that user's UI without a refresh, and `EntryUpdated` on a status entry is a weak signal for it. Either add a `StatusChanged` variant to the `administration` zome, or route on `EntryUpdated` plus the entry type and accept a coarser trigger. Start with the coarser version, which needs no Rust change at all.
 
-**PR #181 adds a seventh emitter with a different shape.** Its `messaging` zome defines `Signal::Message { stream_id, content, from }`, ephemeral and not entry-derived. That is a second union, not a variant of this one, and the routing layer should keep them separate: entry lifecycle invalidates caches, messages append to a conversation.
+**The `messaging` zome is a seventh emitter with a different shape.** PR #181 proposed `Signal::Message { stream_id, content, from }` and was closed without merging; what shipped (#213, then #364) is `Signal::Nudge { hash, from }` and `Signal::Receipt { read_up_to, from }`, sent with `send_remote_signal` and re-emitted from `recv_remote_signal`, ephemeral and not entry-derived. That is a second union, not a variant of this one, and the routing layer should keep them separate: entry lifecycle invalidates caches, messages append to a conversation.
 
 ### Routing into the existing vocabulary
 

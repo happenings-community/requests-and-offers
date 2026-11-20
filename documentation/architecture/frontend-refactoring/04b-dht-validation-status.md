@@ -1,6 +1,6 @@
 # 4b. DHT validation status
 
-**Status: speculative.** This document exists to record why the idea is harder than it first appears, and what it would actually cost. Do not schedule it until [proposal 5](05-conductor-signals.md) has landed and the optimistic-write problem has been observed in real use.
+**Status: speculative, gated on a Sweettest experiment (decided 20 November).** Whether `get_details` can return a record that is still pending validation, and what it reports, is answered first; no design work on this starts before that answer. This document exists to record why the idea is harder than it first appears, and what it would actually cost. Do not schedule it until [proposal 5](05-conductor-signals.md) has landed and the optimistic-write problem has been observed in real use.
 
 ## The original claim, and what is wrong with it
 

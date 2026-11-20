@@ -2,17 +2,19 @@
 
 ## Problem
 
-Every store exposes the same shape: a data array, `loading: boolean`, and a nullable error.
+Ten of the eleven stores expose the same shape at `f5c799ad` (the eleventh, `weave`, does not): a data array, `loading: boolean`, and a nullable error. The two newest, `exchanges` and `messaging`, copied it.
 
 ```
-offers.store.svelte.ts:57            readonly loading: boolean;
+offers.store.svelte.ts:59            readonly loading: boolean;
 serviceTypes.store.svelte.ts:54      readonly loading: boolean;
 organizations.store.svelte.ts:85     readonly loading: boolean;
 users.store.svelte.ts:72             readonly loading: boolean;
 mediums_of_exchange.store.svelte.ts:156
-requests.store.svelte.ts:82
-administration.store.svelte.ts:87
-hrea.store.svelte.ts:80
+requests.store.svelte.ts:83
+administration.store.svelte.ts:89
+hrea.store.svelte.ts:101
+exchanges.store.svelte.ts:35
+messaging.store.svelte.ts:111
 ```
 
 Three independent fields express eight combinations, of which roughly four are meaningful. `loading: true` with a populated array and a non-null error is representable and means nothing. Nothing forces a component to handle any particular case, so components handle the two they thought of.
@@ -116,7 +118,7 @@ Per domain, starting with Service Types as the reference implementation, matchin
 1. Add `entity-state.schemas.ts` and the transition helpers.
 2. Convert `serviceTypes.store` to hold `EntityState` internally, keeping `loading` and the error field as derived getters so nothing downstream breaks.
 3. Convert Service Types components to match on `_tag`. Delete the compatibility getters for that domain.
-4. Repeat per domain. Eight more.
+4. Repeat per domain. Nine more, `exchanges` and `messaging` included.
 
 ## Verification
 

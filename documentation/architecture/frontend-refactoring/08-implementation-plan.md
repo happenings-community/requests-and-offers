@@ -79,7 +79,7 @@ This phase inverts the original note's ordering, which put the event log last an
 
 PR 0.5 is a ratchet test, not the bash script earlier revisions planned.
 CI's lint step is non-blocking by design, and the unit step blocks merges, so a unit test is the only check that can fail a pull request.
-The test counts invariants 1, 2, 3 and 6 against ceilings equal to today's counts, so it is green on the day it lands and red the moment a count rises.
+The test counts invariants 1, 2, 3 and 6 against ceilings equal to today's counts, so it is green on the day it lands and red the moment a count moves: a rise names what to remove, and a fall names the ceiling to lower, so slack left by a conversion cannot be spent on a violation elsewhere.
 Invariant 2 counts `runEffect` as well as `runPromise`, `runSync` and `runFork`, because `runEffect` (`ui/src/lib/utils/effect.ts:8`) is `E.runPromise` under another name.
 Each conversion pull request lowers its ceiling in the same commit, and an invariant that reaches zero becomes an equality.
 This replaces the earlier rule that a check enters only in the pull request that makes its invariant true, whose stated reason was a red build; a ratchet is never red.
@@ -129,7 +129,7 @@ PR 0.4's scope also covers #134's bug class: `UserDetailsModal.svelte:34` still 
 **4 weeks. Incremental by construction. Lands in v0.6.0 final, after the platform upgrade, so `EntityState` is written once, in Effect 4's Schema syntax.**
 
 The table below lists the eight domains of the first revision.
-There are now 11 store files (D3): `exchanges.store.svelte.ts` and `messaging.store.svelte.ts` are new, and both declare `loading: boolean`, so Phase 2 has two domains the estimate does not cover.
+There are now 11 store files (D3): `exchanges.store.svelte.ts` and `messaging.store.svelte.ts` are new, and both declare `loading: boolean` (every store exposes `loading`, `weave` through a getter), so Phase 2 has two domains the estimate does not cover.
 
 | PR | Title | Est |
 |---|---|---|

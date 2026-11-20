@@ -5,7 +5,7 @@
   import { getUserPictureUrl, isUserApproved } from '$lib/utils';
   import { MY_MESSAGES, myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
   import messagingPresence from '$lib/services/messagingPresence.svelte';
-  import { useNavCounts } from '$lib/navigation/nav-counts.svelte';
+  import { useNavCounts, shownCount } from '$lib/navigation/nav-counts.svelte';
   import { paths } from '$lib/paths';
   import { adminMenuItems, adminWaiting } from '$lib/navigation/admin-menu';
   import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
@@ -134,9 +134,10 @@
               <span class="text-lg">{item.icon}</span>
               <span>{item.label}</span>
               {#if badge}
-                <!-- Said in words: a bare number told a screen reader nothing. -->
+                <!-- Said in words: a bare number told a screen reader nothing. The number
+                     shown is capped as the bar caps it; the words carry the full one. -->
                 <span class="variant-filled-secondary badge ml-auto"
-                  ><span aria-hidden="true">{badge}</span><span class="sr-only"
+                  ><span aria-hidden="true">{shownCount(badge)}</span><span class="sr-only"
                     >{isMessages ? counts.totalLabel : `${badge} waiting on you`}</span
                   ></span
                 >
@@ -198,7 +199,7 @@
                 <!-- Said in words: a bare number told a screen reader nothing. -->
                 <span
                   class="badge ml-auto bg-white px-1.5 py-0 text-xs font-semibold text-primary-700"
-                  ><span aria-hidden="true">{item.badge}</span><span class="sr-only"
+                  ><span aria-hidden="true">{shownCount(item.badge)}</span><span class="sr-only"
                     >{item.badge} waiting to be accepted</span
                   ></span
                 >

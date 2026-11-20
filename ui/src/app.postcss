@@ -7,6 +7,15 @@
 }
 
 @layer components {
+  /* Skeleton's chip never wraps. In a narrow column (a table cell, a small window) its
+     text then ran past its background. Let it wrap between words instead, within its
+     container; break-word keeps its narrowest at its longest word. In this layer it
+     comes after Skeleton's chip and before the utilities, so a utility on a chip
+     (whitespace-nowrap, max-w-xs) has the last word. */
+  .chip {
+    @apply max-w-full whitespace-normal;
+    overflow-wrap: break-word;
+  }
 }
 
 @layer utilities {
@@ -14,14 +23,6 @@
 
 td {
   @apply !align-middle;
-}
-
-/* Skeleton's chip never wraps. In a narrow column (a table cell, a small window) its
-   text then ran past its background. Let it wrap between words instead, within its
-   container; break-word keeps its narrowest at its longest word. */
-.chip {
-  @apply max-w-full whitespace-normal;
-  overflow-wrap: break-word;
 }
 
 .center {

@@ -5,6 +5,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { menuKeyTarget } from '$lib/utils/menu-keys';
+  import { shownCount } from '$lib/utils/badge-count';
   import NavIcon, { type NavIconName } from '$lib/components/shared/svg/NavIcon.svelte';
 
   /**
@@ -72,7 +73,6 @@
   const totalLabel = $derived(
     counted.length === 1 && counted[0].badgeLabel ? counted[0].badgeLabel(total) : `${total} new`
   );
-  const shown = (n: number) => (n > 9 ? '9+' : String(n));
 
   const id = `nav-menu-${nextId++}`;
   let open = $state(false);
@@ -182,7 +182,7 @@
     {#if total > 0}
       <span
         class="badge ml-1 bg-white px-1.5 py-0 text-xs font-semibold text-primary-700"
-        aria-hidden="true">{shown(total)}</span
+        aria-hidden="true">{shownCount(total)}</span
       >
     {/if}
     <svg
@@ -224,7 +224,8 @@
                     {#if item.badge}
                       <!-- The number is for the eye; the words, for a screen reader. -->
                       <span class="variant-filled-primary badge px-1.5 py-0 text-xs"
-                        ><span aria-hidden="true">{shown(item.badge)}</span><span class="sr-only"
+                        ><span aria-hidden="true">{shownCount(item.badge)}</span><span
+                          class="sr-only"
                           >{item.badgeLabel
                             ? item.badgeLabel(item.badge)
                             : `${item.badge} ${badgeLabel ?? 'waiting on you'}`}</span

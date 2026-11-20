@@ -138,6 +138,25 @@ describe('the mobile menu', () => {
     expect(members.textContent).toContain('1 waiting to be accepted');
   });
 
+  /**
+   * The bar and the menu button cap a count at "9+"; the drawer did not (#521, #411
+   * reviews). The words keep the full number. **To make this go red:** print the badge
+   * without `shownCount`.
+   */
+  it('caps its counts at 9+ as the bar does, and says the full number in words', async () => {
+    unread.count = 12;
+    admin.agentIsAdministrator = true;
+    admin.allUsers = Array.from({ length: 11 }, () => ({ status: { status_type: 'pending' } }));
+    render(MenuDrawer);
+
+    const messages = await screen.findByTestId('drawer-messages');
+    expect(messages.querySelector('.badge [aria-hidden="true"]')?.textContent).toBe('9+');
+    const members = screen.getByRole('link', { name: /Members/ });
+    expect(members.querySelector('.badge [aria-hidden="true"]')?.textContent).toBe('9+');
+    expect(members.textContent).toContain('11 waiting to be accepted');
+    expect(messages.textContent).toContain('12 unopened');
+  });
+
   it('keeps Administration for an administrator still waiting to be accepted, with no My Activity', () => {
     member.status = 'pending';
     admin.agentIsAdministrator = true;

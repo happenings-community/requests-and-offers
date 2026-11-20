@@ -72,7 +72,7 @@ Each invariant below is written so that a machine, not a memory, decides whether
 
 1. No file under `src/lib/stores/` imports another `*.store.svelte`.
 2. No `.svelte` file calls `runPromise`, `runSync`, or `runFork`, or calls `runEffect`, which is `E.runPromise` under another name (`ui/src/lib/utils/effect.ts:8`).
-3. No `.svelte` file imports `storeEvents`, except under `components/hrea/test-page/`.
+3. No file under `components/` or `routes/`, `.svelte` or `.ts`, imports `storeEvents`, except under `components/hrea/test-page/`.
 4. Every cross-domain reaction appears in `store-coordination.ts` and nowhere else.
 5. `state.ts` modules import nothing from `svelte`, `effect`, or any service.
 6. No store exposes `loading: boolean`.

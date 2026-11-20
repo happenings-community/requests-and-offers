@@ -117,18 +117,31 @@ export function unitRegistryFrom(
   return registry;
 }
 
+/**
+ * A quantity as an hREA measure: the Unit id the label resolves to, or none while
+ * the label has no seeded Unit. Exchanges and request estimates both come through
+ * here, so they name the same Unit; a label is never sent as `hasUnit`, hREA
+ * rejects it and the whole write with it.
+ */
+export function measureFor(
+  value: string,
+  unitLabel: string
+): { hasNumericalValue: number; hasUnit: string } | undefined {
+  const unitId = unitRegistry[unitLabel];
+  // The one place a quantity becomes a float. hREA stores
+  // `has_numerical_value` as f64 and R&O's hREA schema is `Schema.Number`, so the
+  // exact decimal string is converted here and nowhere else, until hREA stores
+  // decimals itself: https://github.com/h-REA/hREA/issues/382. The zome caps a
+  // quantity at 15 significant digits, which an f64 round-trips.
+  return unitId ? { hasNumericalValue: Number(value), hasUnit: unitId } : undefined;
+}
+
 /** Structured measure when the label maps to a seeded hREA Unit id. */
 export function measureOf(
   term: ExchangeTerm
 ): { hasNumericalValue: number; hasUnit: string } | undefined {
   if (!term.quantity) return undefined;
-  const unitId = unitRegistry[term.quantity.unit];
-  // The one place an exchange quantity becomes a float. hREA stores
-  // `has_numerical_value` as f64 and R&O's hREA schema is `Schema.Number`, so the
-  // exact decimal string is converted here and nowhere else, until hREA stores
-  // decimals itself: https://github.com/h-REA/hREA/issues/382. The zome caps a
-  // quantity at 15 significant digits, which an f64 round-trips.
-  return unitId ? { hasNumericalValue: Number(term.quantity.value), hasUnit: unitId } : undefined;
+  return measureFor(term.quantity.value, term.quantity.unit);
 }
 
 /** Prose fallback, only for labels with no seeded Unit. */

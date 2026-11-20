@@ -375,7 +375,13 @@ export const createOrganizationsStore = (): E.Effect<
               E.tap((organization) => {
                 if (organization) {
                   E.runSync(cache.set(trueOriginalHash.toString(), organization));
-                  syncCacheToState(organization, 'add');
+                  // acceptedOrganizations holds accepted organizations only: a read of any
+                  // other (the Admin menu's minute read reads every one) must not add it,
+                  // and takes out one that has stopped being accepted since (#411 review).
+                  syncCacheToState(
+                    organization,
+                    organization.status?.status_type === 'accepted' ? 'add' : 'remove'
+                  );
                   eventEmitters.emitCreated(organization);
                 }
               })

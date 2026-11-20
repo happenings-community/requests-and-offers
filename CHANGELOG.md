@@ -50,14 +50,16 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Messaging**: A message to the administrator role reaches every administrator, who work it together as a case (claim, release, hand over, note, complete, reopen). There is no interface for cases yet (`5ee9f1bd`, #304)
 - **Messaging**: Read state and blocks live in the member's own app, not on the chain, and read receipts travel as signals, never stored (`b3084fe4`, #364)
 - **Messaging**: Messages in the app: one conversation per person, with shared listings, interests and proposals as cards in it; Go to chat and an Interested in tab on My Exchanges; blocking; read receipts with an overall and a per-chat setting; and an unopened count in the menu (`dd5656bc`, #308)
-- **Requests and Offers**: My Listings shows who is interested in each of your listings and folds My Requests and My Offers into it, with your own menus and a Back that goes back (`6f1573fb`, #349, closes #344)
-- **Users**: A member's profile follows the design system: a status chip, the details line and the exchanges you have had with them (`aff3b113`, #353, part of #350)
-- **Navigation**: My Exchanges and My Listings sit on the nav bar, and Messages is an envelope carrying the unopened count (`964987f0`, #521)
+- **Requests and Offers**: My Listings chooses its view with three count cards (active requests, active offers, archived) and lists compact cards, whose "N interested" chip opens to show who is interested and where each exchange stands; a menu of your own under your picture, and a Back that goes back (`6f1573fb`, #349, closes #344)
+- **Users**: A profile, your own or another member's, in the design system's layout (`aff3b113`, #353, part of #350)
+- **Navigation**: The bar reads Requests, Offers, My Exchanges, My Listings, Community, an envelope for Messages with the unopened count, the connection status, Admin and your picture; Service Types joins Community, and the open page is marked (`964987f0`, #521)
+- **Administration**: The Admin button becomes a menu of the admin pages, with how many members and organisations are waiting to be accepted (`881b955c`, #411, closes #359)
 
 ### Security
 
 - **Validation**: Creates and updates are validated on the record op in six integrity zomes (`ce8a3e8a`, #348, closes #347)
 - **UI**: HTML in pop-up messages is sanitised (`e7bfd653`, #355, closes #211), and every toast is escaped before Skeleton renders it as HTML (`81875c28`, #418)
+- **UI**: DOMPurify moves to 3.4.18, past the bypasses published against 3.3.1 (`93444f3e`, #530)
 - **UI**: A typed link opens only when it is a web address (`9ce13eac`, #382), inside rendered markdown too (`551f157f`, #312)
 - **Build**: Faker and the mock data stay out of the production build (`cae758a7`, #365, part of #363)
 - **Users**: Validation decides who may write `UserAgents` and `MyUser` links: only a User's author links agents to it, only to their own key, and `MyUser` runs from the author's key to the author's User (`11bcf7a4`, #473)
@@ -65,7 +67,6 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Messaging**: A message carries its author's member grant, and validation refuses one that does not. On a network with no progenitor key, as alpha 2 is (#466), a modified client can write itself a root grant and so a member grant (`a677c286`, #412); validation refuses a ciphertext over 3,840 bytes, inside the 3,959 a recipient's keystore can open (`20c05eee`, #488)
 - **Messaging**: A message to a role goes to the agents its live grants name, so a revoked administrator, an emptied roster or a roster link written by a modified client no longer changes who receives it (`c1784a45`, #520, closes #518)
 - **Administration**: A temporary suspension's end is a timestamp that validation checks is after its writing; it was text nothing checked, and a malformed one made every later read of that status fail. This changes the Status entry format, so it needs a network reset (`e8b51aac`, #528)
-- **UI**: DOMPurify, which cleans members' markdown, moves to 3.4.18, past the bypasses published against 3.3.1 (`93444f3e`, #530)
 
 ### Bug Fixes
 
@@ -89,14 +90,16 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Mediums of Exchange**: The wording says a base is a kind of exchange and a currency a unit people pay in, with no payment methods (`a5a9f15d`, #467); the listing forms always call the section Medium of Exchange (`8e950b8d`, #471)
 - **Users**: A blocked member is told about their status, not about a missing profile (`a47b8d8d`, #392)
 - **UI**: The loading screen gives an honest first-start wait (`9b2f5946`, #469)
-- **Exchanges**: A withdrawn proposal can no longer be accepted or declined (`fc50275f`, #485)
 - **Zomes**: Given a revision's hash, the seven latest-record reads return the latest version, and deleting an edited listing removes the whole listing, from the active and archived lists too (`dbd42041`, #487, closes #229)
 - **Exchanges**: A member holds one live interest per listing, enforced by validation; a withdrawn interest does not count (`ed628e2e`, #362 with #492, closes #354)
 - **Messaging**: A message is limited to 3 KiB, what the keystore can encrypt, and under Holochain 0.7 a refusal from the zome is shown as a refusal again, rather than waiting in the outbox (`20c05eee`, #488)
-- **UI**: A chip's text wraps inside its background instead of running past it (`415dd056`, #515)
+- **UI**: A chip's text wraps inside its background instead of running past it (`415dd056`, #515), the rule kept in the components layer (`40bef2d1`, #534)
 - **UI**: Each nav bar's status dot opens its own network details, on the admin pages too (`7db2b546`, #522)
 - **Administration**: The admin Users page moves a member between its lists as soon as a status is written, without a reload, and Retry Loading loads again after a failed load (`960e289e`, #524)
-- **UI**: The navigation dropdowns open and move by keyboard and are announced to screen readers (`8ad643f9`, #352, closes #204)
+- **Exchanges**: A proposal its author has withdrawn can no longer be accepted or declined (`fc50275f`, #485, closes #484)
+- **UI**: The nav bar's menus work from the keyboard (Enter, Space and the arrows open them; arrows, Home and End move; Escape closes) and announce themselves to a screen reader, and their items are links the router follows (`8ad643f9`, #352, closes #204)
+- **Administration**: The admin lists hold accepted members and organisations only, and a status an administrator writes stands until a read at least as new returns, so the minute re-read no longer moves a member back (`881b955c`, #411)
+- **UI**: The drawer's counts read "9+" past nine, as the bar's do, with the full number in words (`9c8c3327`, #533)
 
 ### Performance
 
@@ -106,7 +109,7 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 ### Refactoring
 
 - **Exchanges**: The domain lands on the seven-layer architecture (`3950bf84`, #264, closes #251)
-- **Validation**: Every `Invalid` reason comes from a per-domain enum, and `invalid()` and `verdict()` take only a `ValidationReason`, a sealed trait those enums implement, so a reason can no longer be a free string; the wording of every reason is unchanged, and the DNA hash changes inside the alpha 2 reset (`b250479e`, #476)
+- **Validation**: Every reason a validation callback gives is a variant of its domain's enum, so a string reason no longer compiles through `invalid` or `verdict`; the wording of every reason is unchanged, and every integrity zome's wasm and the DNA hash change, inside the alpha 2 network reset (`b250479e`, #476)
 
 ### Documentation
 
@@ -118,11 +121,11 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Installation**: The Kangaroo desktop app does not set the progenitor key, so a new desktop network runs in development mode and its first profile becomes admin (`8ad45332`, #445)
 - **Development**: The inspector's adapter contract, packaging options and a Nondominium trial (`15d069e8`, #446); the guides follow what `bun start` and `bun start:web` now launch, and the ports they take (`ff26c178`, #449)
 - **Installation**: A desktop release runs in development mode: what that protects, what it does not, and the first-admin practice (`ca31467f`, #466)
-- **Sync**: The documentation matches the alpha 2 code, with the pages that stay out of date until alpha 3 flagged (`72098ffe`, #477, part of #415)
 - **Status**: The status page matches the alpha 2 tree (`725fe638`, #489, part of #415)
 - **README**: The roadmap names what shipped, what is in progress and what comes later (`e65039c4`, #501)
 - **Messaging**: The notes from the stack reviews, and that a block holds on this device only (`bd2b0d60`, #519)
-- **Validation**: The validation guide says what the sealed trait holds, and three examples written before #476 are updated (`8e187dd1`, #531)
+- **Alpha 2 sync**: The documentation matches the alpha 2 code: 61 broken links fixed, renamed commands and scripts, the names in the front-end specs and the structs in the requirements (`72098ffe`, #477, part of #415)
+- **Validation**: What the sealed reason trait guards, and three examples from before #476 brought up to date (`8e187dd1`, #531)
 
 ### CI and Testing
 
@@ -133,7 +136,7 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Exchanges**: The derived state and the exchange UI predicates are pinned by tests (`8ce42848`, #258)
 - **Lint**: ESLint errors cleared in the files no open pull request touches (`922aeb07`, #450); the contrast test also reads Skeleton token pairs (`ab1a9419`, #448)
 - **E2E**: The test conductor runs on its own network (`9b2d8b24`, #372); the onboarding connection probes can go red (`5ad458df`, #314, closes #252); the organisation is re-read after the update toast (`5fcdc272`, #275, closes #274); the offer form test accepts either Medium of Exchange heading (`5fed7656`, #470)
-- **Release**: Every release is published as a full release marked Latest, alphas included (`b60bf26d`, #502); the desktop installers wait in a draft release until the network's first admin holds the seat taken from the dry run (`36fcff39`, #504)
+- **Release**: Every release is published as Latest, alphas included, so the alpha 2 tag shows as the repository's latest (`b60bf26d`, #502); the first-admin seat on a new desktop network is taken in the dry run, before the tag, and the desktop installers wait in a draft until it is held (`36fcff39`, #504)
 
 ## [0.6.0-alpha.1] - 2026-09-14
 

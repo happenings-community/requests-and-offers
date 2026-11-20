@@ -58,5 +58,4 @@ export function useNavCounts() {
   };
 }
 
-/** A badge's number, capped so it stays one small pill. */
-export const shownCount = (n: number) => (n > 9 ? '9+' : String(n));
+export { shownCount } from '$lib/utils/badge-count';

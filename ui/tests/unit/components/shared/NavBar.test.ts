@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/svelte';
 import NavBar from '$lib/components/shared/NavBar.svelte';
 import { visit } from '../../../mocks/app-state';
 
@@ -13,8 +13,14 @@ import { visit } from '../../../mocks/app-state';
  * on every network left a network without messaging with no sign of a proposal at all.
  */
 
-const { presence, unread, exchanges, member } = vi.hoisted(() => ({
+const { presence, unread, exchanges, member, admin } = vi.hoisted(() => ({
   member: { status: 'accepted' },
+  admin: {
+    agentIsAdministrator: false,
+    allUsers: [] as unknown[],
+    allOrganizations: [] as unknown[],
+    refreshLists: () => ({})
+  },
   presence: { isAbsent: false },
   unread: { count: undefined as number | undefined },
   exchanges: { list: [] as unknown[] }
@@ -36,15 +42,14 @@ vi.mock('$lib/stores/users.store.svelte', () => ({
   default: {
     get currentUser() {
       return {
+        name: 'Sam',
         original_action_hash: new Uint8Array(Array(39).fill(1)),
         status: { status_type: member.status }
       };
     }
   }
 }));
-vi.mock('$lib/stores/administration.store.svelte', () => ({
-  default: { agentIsAdministrator: false }
-}));
+vi.mock('$lib/stores/administration.store.svelte', () => ({ default: admin }));
 vi.mock('$lib/stores/exchanges.store.svelte', () => ({
   default: {
     get exchanges() {
@@ -72,6 +77,8 @@ beforeEach(() => {
   cleanup();
   visit('/');
   member.status = 'accepted';
+  admin.agentIsAdministrator = false;
+  admin.allUsers = [];
   presence.isAbsent = false;
   unread.count = undefined;
   exchanges.list = [{ waitsOnMe: true }, { waitsOnMe: false }];
@@ -137,6 +144,24 @@ describe('the nav bar', () => {
     expect(screen.queryByRole('button', { name: /resources/i })).toBeNull();
   });
 
+  /**
+   * My Exchanges, My Listings and Messages left this menu for the bar (#521); this keeps
+   * them from drifting back. **To make this go red:** add any item to `myProfileItems`.
+   */
+  it('keeps the menu under your picture to your profile', async () => {
+    unread.count = 2;
+    render(NavBar);
+    await fireEvent.click(screen.getByRole('button', { name: /^Sam menu/ }), { detail: 1 });
+
+    // Named by its button since #352, so found by that name.
+    const menu = screen.getByRole('menu', { name: /^Sam menu/ });
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((i) => i.textContent?.trim())
+    ).toEqual([expect.stringContaining('My Profile')]);
+  });
+
   it('keeps Service Types under Community', async () => {
     render(NavBar);
     await openCommunityMenu();
@@ -198,5 +223,56 @@ describe('the nav bar', () => {
     const button = screen.getByTestId('menu-button');
     expect(button.getAttribute('aria-label')).toBe('Open navigation menu');
     expect(button.textContent?.trim()).toBe('');
+  });
+
+  describe('as an administrator with one member waiting', () => {
+    beforeEach(() => {
+      admin.agentIsAdministrator = true;
+      admin.allUsers = [
+        { status: { status_type: 'pending' } },
+        { status: { status_type: 'accepted' } }
+      ];
+    });
+
+    it('counts who is waiting on the Admin menu, with no aria-keyshortcuts and the Alt+A hint as its description', () => {
+      render(NavBar);
+
+      const button = screen.getByRole('button', { name: 'Admin menu, 1 waiting to be accepted' });
+      // Alt+A moves between a page and its admin view; it does not open this menu.
+      expect(button.hasAttribute('aria-keyshortcuts')).toBe(false);
+      expect(document.getElementById(button.getAttribute('aria-describedby')!)?.textContent).toBe(
+        'Alt+A switches between a page and its admin view'
+      );
+    });
+
+    it("adds who is waiting to the menu button, after the member's own count", () => {
+      unread.count = 2;
+      render(NavBar);
+
+      const menuButton = screen.getByTestId('menu-button');
+      expect(menuButton.getAttribute('aria-label')).toBe(
+        'Open navigation menu, 2 unopened conversations, 1 waiting to be accepted'
+      );
+      expect(menuButton.textContent).toContain('3');
+    });
+
+    it('keeps the Admin menu, its count and the hint for an administrator still waiting to be accepted, and nothing members only', () => {
+      // The progenitor before accepting their own membership: an administrator, pending.
+      member.status = 'pending';
+      unread.count = 2;
+      render(NavBar);
+
+      expect(
+        screen.getByRole('button', {
+          name: 'Admin menu, 1 waiting to be accepted. Accept your membership to finish setup'
+        })
+      ).toBeTruthy();
+      expect(screen.queryByTestId('nav-exchanges')).toBeNull();
+      expect(screen.queryByTestId('nav-messages')).toBeNull();
+      // The member's own counts are for accepted members; who is waiting is the admin's.
+      expect(screen.getByTestId('menu-button').getAttribute('aria-label')).toBe(
+        'Open navigation menu, 1 waiting to be accepted'
+      );
+    });
   });
 });

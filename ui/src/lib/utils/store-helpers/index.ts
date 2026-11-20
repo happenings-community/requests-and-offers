@@ -76,6 +76,9 @@ export {
   createDependencyAwareFetcher
 } from './fetching-helpers.js';
 
+// Export the write guard: a background re-read never undoes a local write (#340, #411)
+export { createWriteGuard, type WriteGuard } from './write-guard.js';
+
 // ============================================================================
 // RE-EXPORTS FOR CONVENIENCE
 // ============================================================================

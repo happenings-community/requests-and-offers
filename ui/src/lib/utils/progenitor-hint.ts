@@ -16,5 +16,5 @@ export function needsSelfAcceptance(isAdministrator: boolean, statusType?: Statu
   return isAdministrator && statusType === 'pending';
 }
 
-/** The label the Admin button carries while the hint shows. */
+/** The label the Admin menu carries while the hint shows. */
 export const SELF_ACCEPTANCE_LABEL = 'Accept your membership to finish setup';

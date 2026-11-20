@@ -5,8 +5,9 @@
   import { getUserPictureUrl, isUserApproved } from '$lib/utils';
   import { MY_MESSAGES, myActivityItems, myProfileItems } from '$lib/navigation/my-menu';
   import messagingPresence from '$lib/services/messagingPresence.svelte';
-  import { useNavCounts } from '$lib/navigation/nav-counts.svelte';
+  import { useNavCounts, shownCount } from '$lib/navigation/nav-counts.svelte';
   import { paths } from '$lib/paths';
+  import { adminMenuItems, adminWaiting } from '$lib/navigation/admin-menu';
   import { needsSelfAcceptance, SELF_ACCEPTANCE_LABEL } from '$lib/utils/progenitor-hint';
 
   const drawerStore = getDrawerStore();
@@ -15,6 +16,10 @@
     myActivityItems(isUserApproved(currentUser), !messagingPresence.isAbsent)
   );
   const { agentIsAdministrator } = $derived(administrationStore);
+  // The same items as the nav bar's Admin menu (#359), counts included.
+  const adminItems = $derived(
+    adminMenuItems(adminWaiting(administrationStore.allUsers, administrationStore.allOrganizations))
+  );
   const showSetupHint = $derived(
     needsSelfAcceptance(agentIsAdministrator, currentUser?.status?.status_type)
   );
@@ -129,9 +134,10 @@
               <span class="text-lg">{item.icon}</span>
               <span>{item.label}</span>
               {#if badge}
-                <!-- Said in words: a bare number told a screen reader nothing. -->
+                <!-- Said in words: a bare number told a screen reader nothing. The number
+                     shown is capped as the bar caps it; the words carry the full one. -->
                 <span class="variant-filled-secondary badge ml-auto"
-                  ><span aria-hidden="true">{badge}</span><span class="sr-only"
+                  ><span aria-hidden="true">{shownCount(badge)}</span><span class="sr-only"
                     >{isMessages ? counts.totalLabel : `${badge} waiting on you`}</span
                   ></span
                 >
@@ -180,18 +186,33 @@
         <h3 class="text-sm font-semibold uppercase tracking-wide text-secondary-300">
           Administration
         </h3>
-        <a
-          href={paths.admin()}
-          onclick={closeDrawer}
-          class="flex items-center gap-3 rounded-lg border border-secondary-400 p-3 transition-colors hover:bg-secondary-600"
-        >
-          <span class="text-lg">⚙️</span>
-          <span>Admin Panel</span>
-          {#if showSetupHint}
-            <span class="ml-auto h-3 w-3 rounded-full bg-error-500" aria-hidden="true"></span>
-            <span class="sr-only">{SELF_ACCEPTANCE_LABEL}</span>
-          {/if}
-        </a>
+        <div class="space-y-2">
+          {#each adminItems as item (item.href)}
+            <a
+              href={item.href}
+              onclick={closeDrawer}
+              class="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-primary-400"
+            >
+              <span class="text-lg" aria-hidden="true">{item.icon}</span>
+              <span>{item.label}</span>
+              {#if item.badge}
+                <!-- Said in words: a bare number told a screen reader nothing. -->
+                <span
+                  class="badge ml-auto bg-white px-1.5 py-0 text-xs font-semibold text-primary-700"
+                  ><span aria-hidden="true">{shownCount(item.badge)}</span><span class="sr-only"
+                    >{item.badge} waiting to be accepted</span
+                  ></span
+                >
+              {/if}
+            </a>
+          {/each}
+        </div>
+        {#if showSetupHint}
+          <p class="flex items-center gap-2 px-3 text-sm">
+            <span class="h-3 w-3 rounded-full bg-error-500" aria-hidden="true"></span>
+            {SELF_ACCEPTANCE_LABEL}
+          </p>
+        {/if}
       </div>
     {/if}
   </div>

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { Effect as E } from 'effect';
 import type { OrganizationInDHT } from '$lib/types/holochain';
 import type { OrganizationsService } from '$lib/services/zomes/organizations.service';
@@ -20,6 +20,7 @@ vi.mock('$lib/stores/administration.store.svelte', () => ({
 }));
 
 // Import after mock setup
+import administrationStore from '$lib/stores/administration.store.svelte';
 import { createOrganizationsStore } from '$lib/stores/organizations.store.svelte';
 import type { OrganizationsStore } from '$lib/stores/organizations.store.svelte';
 import { OrganizationsServiceTag } from '$lib/services/zomes/organizations.service';
@@ -216,11 +217,10 @@ describe('OrganizationsStore', () => {
       );
 
       // Members are anchored to originalHash — only return them when called with originalHash
-      vi.mocked(mockOrganizationService.getOrganizationMembersLinks).mockImplementation(
-        (hash) =>
-          new Uint8Array(hash).every((b, i) => b === originalHash[i])
-            ? E.succeed([{ target: memberHash }] as never)
-            : E.succeed([])
+      vi.mocked(mockOrganizationService.getOrganizationMembersLinks).mockImplementation((hash) =>
+        new Uint8Array(hash).every((b, i) => b === originalHash[i])
+          ? E.succeed([{ target: memberHash }] as never)
+          : E.succeed([])
       );
 
       vi.mocked(mockOrganizationService.getOrganizationCoordinatorsLinks).mockReturnValue(
@@ -248,9 +248,7 @@ describe('OrganizationsStore', () => {
       vi.mocked(mockOrganizationService.getLatestOrganizationRecord).mockReturnValue(
         E.succeed(mockRecord)
       );
-      vi.mocked(mockOrganizationService.getOrganizationMembersLinks).mockReturnValue(
-        E.succeed([])
-      );
+      vi.mocked(mockOrganizationService.getOrganizationMembersLinks).mockReturnValue(E.succeed([]));
       vi.mocked(mockOrganizationService.getOrganizationCoordinatorsLinks).mockReturnValue(
         E.succeed([])
       );
@@ -263,6 +261,53 @@ describe('OrganizationsStore', () => {
       expect(result).not.toBeNull();
       // For Create actions, original_action_hash is the record hash itself
       expect(result!.original_action_hash).toBe(creationHash);
+    });
+  });
+
+  describe('getLatestOrganization keeps acceptedOrganizations to accepted ones (#411 review)', () => {
+    const hash = testOrganizations.main.original_action_hash!;
+    const readAs = (status_type: string) => {
+      vi.mocked(mockOrganizationService.getLatestOrganizationRecord).mockReturnValue(
+        E.succeed(createMockRecord(testOrganizations.main, hash))
+      );
+      vi.mocked(mockOrganizationService.getOrganizationMembersLinks).mockReturnValue(E.succeed([]));
+      vi.mocked(mockOrganizationService.getOrganizationCoordinatorsLinks).mockReturnValue(
+        E.succeed([])
+      );
+      vi.mocked(mockOrganizationService.getOrganizationContactsLinks).mockReturnValue(
+        E.succeed([])
+      );
+      vi.mocked(administrationStore.getLatestStatusForEntity).mockReturnValue(
+        E.succeed({ status_type } as never)
+      );
+      return E.runPromise(store.getLatestOrganization(hash));
+    };
+    const listed = () =>
+      store.acceptedOrganizations.some(
+        (o) => o.original_action_hash?.toString() === hash.toString()
+      );
+
+    it('does not add an organization that is not accepted', async () => {
+      // The Admin menu reads every organization once a minute; the directory lists this.
+      await readAs('pending');
+      expect(listed()).toBe(false);
+    });
+
+    it('adds an accepted organization', async () => {
+      await readAs('accepted');
+      expect(listed()).toBe(true);
+    });
+
+    it('takes out an organization that has stopped being accepted', async () => {
+      await readAs('accepted');
+      await readAs('suspended indefinitely');
+      expect(listed()).toBe(false);
+    });
+
+    afterAll(() => {
+      vi.mocked(administrationStore.getLatestStatusForEntity).mockReturnValue(
+        E.succeed({ status_type: 'accepted' } as never)
+      );
     });
   });
 

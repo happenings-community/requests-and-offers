@@ -59,7 +59,7 @@ Counting `runEffect` in invariant 2 makes Phase 0 larger than its 2.2 weeks, by 
 
 The step up is not in abstraction level.
 It is that eight architectural rules become checkable by lint, grep or a test, so the architecture stops depending on whoever remembers it.
-The checks arrive as a test, `ui/tests/unit/seam/invariants.test.ts`, which is a ratchet: each count may only go down, and the ceiling falls with each converted file.
+The checks arrive as a test, `ui/tests/unit/seam/invariants.test.ts`, which is a ratchet: each count is pinned to its ceiling and may only go down, and the ceiling falls with each converted file, in the same pull request.
 It replaces the `ui/scripts/check-invariants.sh` that earlier revisions planned, because CI's lint step is non-blocking and its unit step blocks merges.
 How many of the eight a machine enforces is the honest progress metric for the programme.
 
@@ -100,7 +100,7 @@ The first column keeps the 22 August baseline, taken at `bc0c0ac5`, so the drift
 | Typed events in `StoreEvents` | 30 | 34 | `sed -n '/^export type StoreEvents/,/^};/p' ui/src/lib/stores/storeEvents.ts \| grep -c "^  '"` |
 | Store-to-store imports, forming two cycles | 8 | 13 | `git grep -nE "from '[^']*\.store\.svelte'" -- ui/src/lib/stores \| wc -l` |
 | Store files | 9 | 11 (`exchanges` and `messaging` are new) | `git ls-files 'ui/src/lib/stores/*.store.svelte.ts' \| wc -l` |
-| Store files that declare `loading: boolean` | 8 | 10 | `git grep -l 'loading: boolean' -- ui/src/lib/stores \| wc -l` |
+| Store files that expose `loading` in any form (the interface field, a getter or the rune) | 8 | 11, 10 of them as the literal `loading: boolean` | `git grep -lE 'loading: boolean|get loading\(|let loading\b' -- ui/src/lib/stores \| wc -l`; the literal alone is `git grep -l 'loading: boolean' -- ui/src/lib/stores \| wc -l` |
 | Zome coordinators that emit a `Signal` from `post_commit` | 6 | 6 (plus `messaging`, which emits from `recv_remote_signal`) | `git grep -l 'fn post_commit' -- 'dnas/requests_and_offers/zomes/coordinator/*/src/lib.rs' \| wc -l` |
 | Zome-signal handling in `ui/src` | none | one registry, `onZomeSignal`, used by `messaging` only | `git grep -n 'onZomeSignal' -- ui/src` |
 | Unit test files | not counted | 132, with 1,720 tests | `git ls-files ui/tests/unit \| grep -c '\.test\.ts$'`; the test count comes from a full `cd ui && bun run test:unit` |
@@ -123,7 +123,7 @@ Each names where the docs now say it.
 |---|---|---|---|
 | D1 | 148 `run*` sites, 21 in `.svelte` | 161 sites, 23 in 14 `.svelte` files (163 at `7d746ad4`; #380 removed two) | this file, [00](00-unified-refactoring-design.md), [08](08-implementation-plan.md) PR 0.4 |
 | D2 | no doc counts `runEffect` | `runEffect` (`ui/src/lib/utils/effect.ts:8`) is `E.runPromise`; 225 calls in 66 `.svelte` files; 73 files run Effects uncancellably, not 14 | [00](00-unified-refactoring-design.md) invariant 2, [08](08-implementation-plan.md) Phase 0 |
-| D3 | 9 stores, 8 with `loading: boolean` | 11 stores, 10 with it; `exchanges` and `messaging` are new | [08](08-implementation-plan.md) Phase 2 |
+| D3 | 9 stores, 8 with `loading: boolean` | 11 stores, all 11 expose `loading` (10 as the literal `loading: boolean`, `weave` through a `let loading` rune and a `get loading()` getter at `weave.store.svelte.ts:23` and `:277`); `exchanges` and `messaging` are new | [08](08-implementation-plan.md) Phase 2 |
 | D4 | 42 `storeEventBus.on` sites | 47: 18 in `hrea.store`, 7, 12, and 10 in 7 production files | this file, [08](08-implementation-plan.md) PR 1.4 |
 | D5 | 30 typed events | 34, three of them exchange events | this file |
 | D6 | 8 store-to-store imports | 13, still two cycles | [00](00-unified-refactoring-design.md), [08](08-implementation-plan.md) PR 1.8 |

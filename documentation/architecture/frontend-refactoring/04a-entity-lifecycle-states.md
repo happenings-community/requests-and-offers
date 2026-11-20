@@ -2,7 +2,7 @@
 
 ## Problem
 
-Ten of the eleven stores expose the same shape at `f5c799ad` (the eleventh, `weave`, does not): a data array, `loading: boolean`, and a nullable error. The two newest, `exchanges` and `messaging`, copied it.
+All eleven stores expose the same shape at `f5c799ad`: a data array, `loading`, and a nullable error. Ten declare it as the literal `loading: boolean`; `weave` reads a `let loading` rune through `get loading()` (`weave.store.svelte.ts:23`, `:277`). The two newest, `exchanges` and `messaging`, copied it.
 
 ```
 offers.store.svelte.ts:59            readonly loading: boolean;

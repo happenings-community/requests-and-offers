@@ -153,6 +153,16 @@ In addition to Tailwind's utility classes, the application defines several custo
 - `.form-input-wrapper`: Consistent styling for form inputs
 - `.tag-pill`: Styling for tag elements
 
+### Cards and fields
+
+`ui/src/app.postcss` restyles Skeleton's cards and fields to the design system, inside `@layer components`:
+
+- **Cards**: a `.card` is white with 12px corners, a surface-200 hairline and a faint shadow; in admin's dark mode it keeps Skeleton's surface-800 fill with a surface-700 edge. A card with a `variant-*` class keeps its variant. The rule weighs one class, so a utility on the card (`bg-*`, `border-*`, `shadow-*`, `ring-*`) wins in light mode: write `bg-warning-50` for a notice. In dark mode Skeleton's `.dark .card` still wins over a plain `bg-*` or `ring-*`, so a tinted card needs its `dark:bg-*` too.
+- **Cards that open something**: an `a.card` or `button.card` without a variant (and not disabled) lifts 3px on hover with a violet edge (primary-400; primary-300 in admin) and a larger shadow; `card-hover` on it no longer scales. Every `a.card` and `button.card`, variant or not, shows a violet focus ring when tabbed to. The hover rule weighs as much as a `hover:` utility, which still wins; the transition (transform, shadow, border, background, text colour, 150ms) outweighs `transition-*` and `duration-*` utilities on these cards. Nothing moves with reduced motion.
+- **Fields**: `.input`, `.select`, `.textarea` and `.input-group` have 8px corners, a white fill and a surface-500 edge (surface-400 in dark mode, on Skeleton's surface-700 fill). Focus adds a primary-500 edge and halo. On an `.input`, `.select` or `.textarea`, `input-error` or `aria-invalid="true"` adds a red edge and halo; the field keeps its white fill (dark fill in dark mode) and its own text colour, where Skeleton filled it pink. An `.input-group` has no error state of its own. On phones (below 640px) a field's text is 16px, so the browser does not zoom in, unless the field itself carries a `text-*` size.
+
+`ui/tests/unit/theme/contrast.test.ts` checks these edges at 3:1 and reads the stylesheet, so changing a colour there means changing the test.
+
 ## Best Practices
 
 1. **Component Composition**: Prefer composition over complex, monolithic components

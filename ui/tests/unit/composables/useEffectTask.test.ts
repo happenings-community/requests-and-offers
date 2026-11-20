@@ -3,7 +3,7 @@ import { flushSync } from 'svelte';
 import { render, cleanup } from '@testing-library/svelte';
 import { Deferred, Effect as E, Exit, Fiber, Option } from 'effect';
 import EffectTaskHost from '../../mocks/EffectTaskHost.svelte';
-import type { useEffectTask } from '$lib/composables/ui/useEffectTask.svelte';
+import { taskValue, type useEffectTask } from '$lib/composables/ui/useEffectTask.svelte';
 
 /**
  * A task is a fiber owned by the component that started it. The invariant: mount a component,
@@ -126,5 +126,29 @@ describe('a task owned by a component', () => {
     E.runSync(Deferred.succeed(gate, 'ok'));
     await E.runPromise(Fiber.await(second));
     expect(task.running).toBe(false);
+  });
+});
+
+describe('taskValue', () => {
+  it('is undefined before the task has run', () => {
+    const { task } = mountTask();
+    expect(taskValue(task)).toBeUndefined();
+  });
+
+  it('is the value of a successful run', async () => {
+    const { task } = mountTask();
+    await E.runPromise(Fiber.await(task.run(E.succeed('done'))));
+    expect(taskValue(task)).toBe('done');
+  });
+
+  it('is undefined after a failure and after an interruption', async () => {
+    const { task } = mountTask();
+    await E.runPromise(Fiber.await(task.run(E.fail('refused'))));
+    expect(taskValue(task)).toBeUndefined();
+
+    const fiber = task.run(E.never as E.Effect<string, string>);
+    task.cancel();
+    await E.runPromise(Fiber.await(fiber));
+    expect(taskValue(task)).toBeUndefined();
   });
 });

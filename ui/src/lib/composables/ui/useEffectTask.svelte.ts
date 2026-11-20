@@ -74,3 +74,15 @@ export function useEffectTask<A, Err>() {
     cancel
   };
 }
+
+/**
+ * The value of a task's last run, or `undefined` while there is none: before it has run,
+ * while it runs for the first time, and after a failure or an interruption.
+ * It reads `task.exit`, so inside `$derived` or a template it stays reactive.
+ */
+export function taskValue<A, Err>(task: { readonly exit: TaskExit<A, Err> }): A | undefined {
+  return Option.match(task.exit, {
+    onNone: () => undefined,
+    onSome: (result) => (Exit.isSuccess(result) ? result.value : undefined)
+  });
+}

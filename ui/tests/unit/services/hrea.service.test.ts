@@ -762,6 +762,31 @@ describe('HreaService', () => {
       );
       expect(mockHolochainClient.callZome).toHaveBeenCalledTimes(3);
     });
+
+    describe("for the audit page (unread: 'unknown')", () => {
+      it('leaves finished unknown for a commitment whose record has not arrived', async () => {
+        mockHolochainClient.callZome.mockResolvedValue(null);
+        const [got] = await call((s) => s.getLatestCommitments([listed], { unread: 'unknown' }));
+        expect(got.id).toBe(listed.id);
+        expect(got.finished).toBeUndefined();
+      });
+
+      it('keeps the others when one read fails, leaving only that one unknown', async () => {
+        mockHolochainClient.callZome
+          .mockResolvedValueOnce(record)
+          .mockRejectedValueOnce(new Error('timed out'))
+          .mockResolvedValueOnce(record);
+        const got = await call((s) =>
+          s.getLatestCommitments([listed, { ...listed }, { ...listed }], { unread: 'unknown' })
+        );
+        expect(got.map((c) => c.finished)).toEqual([true, undefined, true]);
+      });
+
+      it('fails as a whole without the option, as an update needs', async () => {
+        mockHolochainClient.callZome.mockRejectedValue(new Error('timed out'));
+        await expect(call((s) => s.getLatestCommitments([listed]))).rejects.toThrow();
+      });
+    });
   });
 
   describe('getIntent', () => {

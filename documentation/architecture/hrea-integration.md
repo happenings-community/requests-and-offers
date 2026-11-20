@@ -388,6 +388,14 @@ What is implemented:
   Commitments failed leaves them open: closing them again from the next
   pass would cost reads every session, and either party may be closing
   them too, so two closes could race and fork a revision.
+- **The audit page reads each Commitment's latest revision.** hREA's list
+  returns every Commitment's first revision, so read as listed a finished
+  one looks open. The audit snapshot reads the latest revisions, and the
+  graph marks each Commitment finished, open, or "open, behind R&O" when
+  R&O says that side is over (done, or the exchange cancelled). A
+  Commitment whose latest revision cannot be read (not arrived yet, or the
+  read failed) says "state unread", never open. It costs one zome call per
+  Commitment each time the page loads or is refreshed.
 - Cross-DHT identity uses chain roots as the join key: refs carry true
   Create-action hashes, resolved by the R&O DHT (`resolve_to_original`),
   never chosen client-side. Link anchors are canonicalised at receipt in

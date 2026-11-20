@@ -62,6 +62,13 @@
     }
   ];
 
+  /** A Commitment's tag: finished, open, or open while R&O says it is over. */
+  function progressLabel(n: FlowNode): string {
+    if (n.progress === 'unknown') return 'state unread';
+    if (n.progress === 'open' && n.behind) return 'open, behind R&O';
+    return n.progress ?? '';
+  }
+
   const STATE_LABEL: Record<FlowState, string> = {
     present: 'in hREA',
     missing: 'missing',
@@ -306,6 +313,11 @@
               <span class="hrea-node-title">{n.title}</span>
               <span class="hrea-node-sub">{n.sub}</span>
               {#if n.state !== 'present'}<span class="hrea-node-state">{STATE_LABEL[n.state]}</span
+                >{:else if n.progress}<span
+                  class="hrea-node-state hrea-progress--{n.progress}"
+                  class:hrea-progress--behind={n.behind}
+                  aria-hidden="true"
+                  data-testid="commitment-progress">{progressLabel(n)}</span
                 >{/if}
               <!-- What the inspector shows on hover, read in the list by screen readers. -->
               <span class="sr-only"
@@ -624,6 +636,14 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     opacity: 0.7;
+  }
+  .hrea-progress--finished {
+    color: rgb(var(--color-success-900));
+    opacity: 1;
+  }
+  .hrea-progress--behind {
+    color: rgb(var(--color-warning-800));
+    opacity: 1;
   }
   .hrea-node--missing .hrea-node-state {
     color: rgb(var(--color-error-500));

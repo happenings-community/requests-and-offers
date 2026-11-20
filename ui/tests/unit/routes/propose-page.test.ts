@@ -246,17 +246,21 @@ describe('the propose page’s labels', () => {
 });
 
 /**
- * **A request's hours reach the proposal as an exact decimal** (#475).
+ * **A listing's figures start the proposal** (#380, #525).
  *
- * The requests zome stores `time_estimate_hours` as an f32, and the client reads its
- * exact value: 1.1 arrives as 1.100000023841858, which a quantity refuses (more than six
- * places). The page spells it as the member wrote it before it goes on the term.
+ * The estimate is an exact decimal string, so it reaches the term as written: 1.1 stays
+ * 1.1. An estimate of none is allowed on a listing, but a quantity is above zero, so the
+ * proposal carries no hours. The listing's amount becomes the return's when it is in the
+ * medium chosen, and the listing's timeframe is the starting one while it can be met.
  *
- * **To make this go red:** spell `hoursDecimal` as `String(hours)` instead of
- * `decimalFromNumber(hours)`. The page shows, and would send, "1.100000023841858".
+ * **To make these go red:** route the hours through `Math.fround(Number(h))` (the page
+ * then shows and sends "1.100000023841858"); drop the `hasEnded` guard (a window that
+ * ended yesterday is sent, and validation refuses it); or drop the unit check in
+ * `amountIn` (a figure in another unit is carried).
  */
-describe('a request’s hours on the proposal', () => {
-  const openRequest = (time_estimate_hours: number | undefined) => {
+describe('a listing’s figures on the proposal', () => {
+  const DAY_MICROS = 24 * 60 * 60 * 1_000_000;
+  const openRequest = (figures: Record<string, unknown>) => {
     getRequest.mockResolvedValue({
       original_action_hash: LISTING,
       title: 'Help with a fence',
@@ -264,37 +268,77 @@ describe('a request’s hours on the proposal', () => {
       creator: AUTHOR,
       service_type_hash: hash(5),
       medium_of_exchange_hashes: [hash(6)],
-      time_estimate_hours
+      ...figures
     });
     createAgreement.mockResolvedValue({ agreement_hash: hash(10) });
     visit(paths.exchangePropose({ listing: LISTING, type: 'Request', interest: INTEREST }));
     render(ProposePage);
   };
-
-  it('sends the f32 hours as the decimal the member wrote, and shows the same', async () => {
-    openRequest(Math.fround(1.1));
+  const sent = async () => {
     // The medium is named only once the records answered, so Send is live after this.
     await screen.findAllByText('CAD');
-    expect(screen.getByText('1.1')).toBeTruthy();
     const send = screen.getByTestId('send-proposal') as HTMLButtonElement;
     // The interest is checked against the listing after the terms are read.
     await waitFor(() => expect(send.disabled).toBe(false));
     await fireEvent.click(send);
     expect(createAgreement).toHaveBeenCalledTimes(1);
-    expect(createAgreement.mock.calls[0][0].primary.quantity).toEqual({
-      value: '1.1',
-      unit: 'hours'
-    });
+    return createAgreement.mock.calls[0][0];
+  };
+
+  it('sends the estimate as written, and shows the same', async () => {
+    openRequest({ time_estimate_hours: '1.1' });
+    await screen.findAllByText('CAD');
+    expect(screen.getByText('1.1')).toBeTruthy();
+    expect((await sent()).primary.quantity).toEqual({ value: '1.1', unit: 'hours' });
   });
 
-  it('sends no quantity, and says so, when the request states no hours', async () => {
-    openRequest(undefined);
+  it('sends no hours, and says so, when the request states none', async () => {
+    openRequest({});
     await screen.findAllByText('CAD');
     expect(screen.getByText(/not stated on the listing/)).toBeTruthy();
-    const send = screen.getByTestId('send-proposal') as HTMLButtonElement;
-    // The interest is checked against the listing after the terms are read.
-    await waitFor(() => expect(send.disabled).toBe(false));
-    await fireEvent.click(send);
-    expect(createAgreement.mock.calls[0][0].primary.quantity).toBeNull();
+    expect((await sent()).primary.quantity).toBeNull();
+  });
+
+  it('sends no hours, and says why, when the estimate is none', async () => {
+    openRequest({ time_estimate_hours: '0' });
+    await screen.findAllByText('CAD');
+    expect(screen.getByText(/estimated at none/)).toBeTruthy();
+    expect((await sent()).primary.quantity).toBeNull();
+  });
+
+  it('carries the listing’s amount when it is in the medium chosen, and not otherwise', async () => {
+    openRequest({ amount: { value: '40.50', unit: 'CAD' } });
+    expect((await sent()).reciprocal.quantity).toEqual({ value: '40.50', unit: 'CAD' });
+    cleanup();
+    createAgreement.mockClear();
+    openRequest({ amount: { value: '40', unit: 'EUR' } });
+    expect((await sent()).reciprocal.quantity).toBeNull();
+  });
+
+  it('starts from the listing’s timeframe while it can be met', async () => {
+    openRequest({ timeframe: { Preset: 'WithinAMonth' } });
+    await screen.findAllByText('CAD');
+    const select = screen.getByTestId('propose-timeframe') as HTMLSelectElement;
+    expect(select.options[select.selectedIndex].text).toBe('Within a month of agreeing');
+    expect((await sent()).delivery_timeframe).toEqual({ Preset: 'WithinAMonth' });
+  });
+
+  it('starts from the default, never from a window that has ended', async () => {
+    const yesterday = Date.now() * 1000 - DAY_MICROS;
+    openRequest({ timeframe: { Dates: { start: null, end: yesterday } } });
+    expect((await sent()).delivery_timeframe).toEqual({ Preset: 'WithinTwoWeeks' });
+  });
+
+  it('keeps a window still to come as a choice of its own, and sends the one chosen', async () => {
+    const end = Date.now() * 1000 + 10 * DAY_MICROS;
+    const window = { Dates: { start: null, end } };
+    openRequest({ timeframe: window });
+    await screen.findAllByText('CAD');
+    const select = screen.getByTestId('propose-timeframe') as HTMLSelectElement;
+    expect(select.options).toHaveLength(5);
+    expect(select.selectedIndex).toBe(0);
+    select.selectedIndex = [...select.options].findIndex((o) => o.text === 'Flexible');
+    await fireEvent.change(select);
+    expect((await sent()).delivery_timeframe).toEqual({ Preset: 'Flexible' });
   });
 });

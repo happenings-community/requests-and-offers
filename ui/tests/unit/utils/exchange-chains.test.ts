@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { chainsOf, groupChains, roundChanges, roundOutcome } from '$lib/utils/exchange-chains';
 import type { UIExchange } from '$lib/types/ui';
+import type { Timeframe } from '$lib/types/holochain';
 
 const hash = (n: number) => new Uint8Array([n, n, n, n]);
 const me = hash(3);
@@ -20,7 +21,7 @@ const round = (
     other?: Uint8Array;
     to?: Uint8Array;
     hours?: string | null;
-    timeframe?: string;
+    timeframe?: Timeframe;
   } = {}
 ): UIExchange => {
   const other = opts.other ?? bob;
@@ -49,7 +50,7 @@ const round = (
       },
       medium: 'Free/Pay it Forward',
       terms: '',
-      delivery_timeframe: opts.timeframe ?? 'Within 2 weeks',
+      delivery_timeframe: opts.timeframe ?? { Preset: 'WithinTwoWeeks' },
       counters: opts.counters ? { agreement: hash(opts.counters), decline: hash(99) } : null
     }
   } as UIExchange;
@@ -177,10 +178,10 @@ const counterOf = (g: { sample: { latest: UIExchange } }) => g.sample.latest.agr
 describe('roundChanges', () => {
   it('names what changed from the round before', () => {
     const a = round(10, 100, { hours: '3' });
-    const b = round(11, 200, { counters: 10, hours: '5', timeframe: 'Flexible' });
+    const b = round(11, 200, { counters: 10, hours: '5', timeframe: { Preset: 'Flexible' } });
     expect(roundChanges(a, b)).toEqual([
       { field: 'primary', from: '3 hours', to: '5 hours' },
-      { field: 'timeframe', from: 'Within 2 weeks', to: 'Flexible' }
+      { field: 'timeframe', from: 'Within 2 weeks of agreeing', to: 'Flexible' }
     ]);
   });
 
@@ -191,6 +192,18 @@ describe('roundChanges', () => {
     const one = round(12, 300, { counters: 11, hours: '1.0' });
     expect(roundChanges(b, one)).toEqual([{ field: 'primary', from: 'none', to: '1.0 hour' }]);
     expect(roundChanges(undefined, a)).toEqual([]);
+  });
+
+  // #380: a timeframe is an object, so two equal ones are compared by value, as the
+  // zome compares them, never by reference.
+  it('sees no timeframe change between two rounds with the same timeframe', () => {
+    const a = round(10, 100, { timeframe: { Preset: 'WithinAMonth' } });
+    const b = round(11, 200, { counters: 10, timeframe: { Preset: 'WithinAMonth' } });
+    expect(roundChanges(a, b)).toEqual([]);
+    const end = Date.UTC(2026, 11, 1) * 1000;
+    const c = round(12, 300, { counters: 11, timeframe: { Dates: { start: null, end } } });
+    const d = round(13, 400, { counters: 12, timeframe: { Dates: { start: null, end } } });
+    expect(roundChanges(c, d)).toEqual([]);
   });
 });
 

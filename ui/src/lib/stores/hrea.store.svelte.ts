@@ -1,4 +1,4 @@
-import { HreaServiceTag, HreaServiceLive } from '$lib/services/hrea.service';
+import { HreaServiceTag, HreaServiceLive, type CommitmentInput } from '$lib/services/hrea.service';
 import {
   MediumsOfExchangeServiceTag,
   MediumsOfExchangeServiceLive
@@ -2090,7 +2090,14 @@ export const createHreaStore = (): E.Effect<
         console.warn('hREA Store: exchange parties have no hREA agents yet, not mirroring', ref);
         return E.succeed(null);
       }
-      const mapped = mapAgreementToHrea(exchange, parties, resolveSpecs(exchange));
+      // The acceptance time anchors a preset's due date; a missing response
+      // falls back to now.
+      const mapped = mapAgreementToHrea(
+        exchange,
+        parties,
+        resolveSpecs(exchange),
+        exchange.response?.created_at
+      );
       if (!mapped) return E.succeed(null);
 
       return pipe(
@@ -2098,6 +2105,15 @@ export const createHreaStore = (): E.Effect<
         E.flatMap((found) => (found ? E.succeed(found) : createMirror(ref, mapped)))
       );
     };
+
+    // A Commitment is written once, dates included. hREA's adapter turns each
+    // ISO date into microseconds before the zome sees it, and datesFor makes
+    // well-formed dates or throws before anything is written, so there is no
+    // date refusal to work around. A failure fails the mirror as any hREA write
+    // does, and is never retried: after a timeout the first write may have
+    // landed. An Agreement left without its primary Commitment is skipped on
+    // the next attempt (agreementRefsFromHrea).
+    const createCommitment = (input: CommitmentInput) => hreaService.createCommitment(input);
 
     const createMirror = (
       ref: string,
@@ -2107,7 +2123,7 @@ export const createHreaStore = (): E.Effect<
         hreaService.createAgreement(mapped.agreement),
         E.flatMap((agreement) =>
           pipe(
-            hreaService.createCommitment({ ...mapped.primary, clauseOf: agreement.id }),
+            createCommitment({ ...mapped.primary, clauseOf: agreement.id }),
             E.flatMap(
               (
                 primary
@@ -2117,7 +2133,7 @@ export const createHreaStore = (): E.Effect<
               > =>
               mapped.reciprocal
                 ? pipe(
-                    hreaService.createCommitment({ ...mapped.reciprocal, clauseOf: agreement.id }),
+                    createCommitment({ ...mapped.reciprocal, clauseOf: agreement.id }),
                     E.map((reciprocal) => ({ agreement, primary, reciprocal }))
                   )
                 : E.succeed({ agreement, primary, reciprocal: undefined })

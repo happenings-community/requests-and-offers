@@ -7,8 +7,7 @@ import {
   isOne,
   isZeroDecimal,
   parseTypedDecimal,
-  typedDecimalProblem,
-  decimalFromNumber
+  typedDecimalProblem
 } from '$lib/utils/decimal';
 
 describe('decimalProblem', () => {
@@ -148,41 +147,5 @@ describe('typedDecimalProblem', () => {
     expect(typedDecimalProblem('12.50')).toBeNull();
     expect(typedDecimalProblem('abc')).toBe(decimalProblem('abc'));
     expect(typedDecimalProblem('1.000.50')).toBe(decimalProblem('1.000.50'));
-  });
-});
-
-describe('decimalFromNumber', () => {
-  // A listing's hours are a number; a quantity is an exact decimal string the
-  // zome accepts. String(n) is not safe: 0.1 + 0.2 gives "0.30000000000000004"
-  // and 1e21 gives "1e+21", both refused.
-  it('spells a listing number as a canonical decimal', () => {
-    expect(decimalFromNumber(3)).toBe('3');
-    expect(decimalFromNumber(1.5)).toBe('1.5');
-    expect(decimalFromNumber(0.1 + 0.2)).toBe('0.3');
-    expect(decimalFromNumber(2.25)).toBe('2.25');
-    expect(decimalProblem(decimalFromNumber(0.1 + 0.2)!)).toBeNull();
-  });
-
-  it("reads a listing's f32 hours as the number that was typed, not its float noise", () => {
-    // The zome stores time_estimate_hours as an f32; the client sees its exact value.
-    expect(decimalFromNumber(Math.fround(33.3))).toBe('33.3');
-    expect(decimalFromNumber(Math.fround(100.1))).toBe('100.1');
-    expect(decimalFromNumber(Math.fround(20.2))).toBe('20.2');
-    expect(decimalFromNumber(Math.fround(1.5))).toBe('1.5');
-  });
-
-  it('keeps every digit of an f32 value that needs more than seven', () => {
-    // Each of these is an f32 exactly; rounding to seven digits would change it.
-    expect(decimalFromNumber(999999.75)).toBe('999999.75');
-    expect(decimalFromNumber(1234567.5)).toBe('1234567.5');
-    expect(decimalFromNumber(12345678)).toBe('12345678');
-    expect(decimalFromNumber(16777216)).toBe('16777216');
-  });
-
-  it('gives nothing for a number no quantity can carry', () => {
-    for (const n of [0, -1, Number.NaN, Infinity, 1e21, 1e9, 0.0000001]) {
-      expect(decimalFromNumber(n)).toBeNull();
-    }
-    expect(decimalFromNumber(undefined)).toBeNull();
   });
 });

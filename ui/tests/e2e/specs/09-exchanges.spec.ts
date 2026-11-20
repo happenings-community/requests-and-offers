@@ -1,15 +1,43 @@
 import { test, expect } from '@playwright/test';
 import { encodeHashToBase64, type AppWebsocket, type Record as HcRecord } from '@holochain/client';
-import { gotoApp, createTestClient, closeTestClient, ensureAcceptedUser, callZome } from '../utils/e2e-helpers.js';
+import {
+  gotoApp,
+  createTestClient,
+  closeTestClient,
+  ensureAcceptedUser,
+  ensureServiceType,
+  callZome
+} from '../utils/e2e-helpers.js';
 
 // ============================================================================
 // 09 — EXCHANGES
 //
 // One agent per run, so this covers what one member sees: their empty
-// dashboard, and the author's side of the interest block on a listing they
-// own. The two-party handshake, proposal, acceptance, completion and review
-// is exercised by the exchanges sweettest and walked by hand on two agents.
+// dashboard, the author's side of the interest block on a listing they own,
+// and a typed timeframe (#380) going from the client through the real zome
+// and back to the page. The two-party handshake, proposal, counter,
+// acceptance, completion and review is exercised by the exchanges and
+// timeframes sweettests and walked by hand on two agents; what the propose
+// and counter pages send is pinned by their unit tests.
 // ============================================================================
+
+const DAY_MICROS = 24 * 60 * 60 * 1_000_000;
+
+/** A request as the requests zome takes it, with the #380 fields given. */
+function requestWith(title: string, figures: { timeframe: unknown; time_estimate_hours?: string }) {
+  return {
+    title,
+    description: 'A request written by the exchanges e2e spec with a typed timeframe.',
+    contact_preference: 'Email',
+    timeframe: figures.timeframe,
+    time_estimate_hours: figures.time_estimate_hours ?? null,
+    amount: null,
+    time_preference: 'NoPreference',
+    time_zone: 'Europe/London',
+    interaction_type: 'Virtual',
+    links: []
+  };
+}
 
 test.describe.serial('09 — exchanges', () => {
   let client: AppWebsocket;
@@ -91,5 +119,56 @@ test.describe.serial('09 — exchanges', () => {
     // its test id rather than its words, so a copy review cannot quietly disable this
     // check by rewording the button.
     await expect(page.getByTestId('show-interest')).toHaveCount(0);
+  });
+
+  test('a typed timeframe and estimate go through the zome and read back as written', async ({
+    page
+  }) => {
+    const serviceTypeHash = await ensureServiceType(client, 'E2E Timeframes');
+    const end = Date.now() * 1000 + 7 * DAY_MICROS;
+    const windowed = (await callZome(client, 'requests', 'create_request', {
+      request: requestWith('E2E Windowed Request', {
+        timeframe: { Dates: { start: null, end } },
+        time_estimate_hours: '2.5'
+      }),
+      organization: null,
+      service_type_hash: serviceTypeHash,
+      medium_of_exchange_hashes: []
+    })) as HcRecord;
+    await gotoApp(page, `/requests/${encodeHashToBase64(windowed.signed_action.hashed.hash)}`);
+
+    await expect(page.getByRole('heading', { name: 'Timeframe' })).toBeVisible({ timeout: 15_000 });
+    // The page prints the end in the browser's own locale and time zone, so ask the
+    // browser what that is rather than assuming one.
+    const byEnd = await page.evaluate(
+      (micros) => `by ${new Date(micros / 1000).toLocaleDateString()}`,
+      end
+    );
+    await expect(page.getByText(byEnd, { exact: true })).toBeVisible();
+    await expect(page.getByText('2.5 hours', { exact: true })).toBeVisible();
+
+    const preset = (await callZome(client, 'requests', 'create_request', {
+      request: requestWith('E2E Preset Request', { timeframe: { Preset: 'WithinAFewDays' } }),
+      organization: null,
+      service_type_hash: serviceTypeHash,
+      medium_of_exchange_hashes: []
+    })) as HcRecord;
+    await gotoApp(page, `/requests/${encodeHashToBase64(preset.signed_action.hashed.hash)}`);
+    await expect(page.getByText('Within a few days of agreeing', { exact: true })).toBeVisible({
+      timeout: 15_000
+    });
+  });
+
+  test('a window that has already ended is refused by the zome, by name', async () => {
+    const serviceTypeHash = await ensureServiceType(client, 'E2E Timeframes');
+    const write = callZome(client, 'requests', 'create_request', {
+      request: requestWith('E2E Ended Request', {
+        timeframe: { Dates: { start: null, end: Date.now() * 1000 - DAY_MICROS } }
+      }),
+      organization: null,
+      service_type_hash: serviceTypeHash,
+      medium_of_exchange_hashes: []
+    });
+    await expect(write).rejects.toThrow(/a timeframe must end after the moment it is written/);
   });
 });

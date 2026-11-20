@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { sameTimeframe, timeframeLabel } from '$lib/utils/timeframe';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
@@ -132,10 +133,21 @@
 
       <label class="label">
         <span>Delivery timeframe</span>
-        <select class="select" bind:value={counter.timeframe} data-testid="counter-timeframe">
-          {#each counter.timeframes as t (t)}<option value={t}>{t}</option>{/each}
+        <!-- Bound by index: a timeframe is an object, and two equal ones are not the
+             same object, so the select compares them with sameTimeframe. -->
+        <select
+          class="select"
+          bind:value={
+            () => counter.timeframes.findIndex((t) => sameTimeframe(t.value, counter.timeframe)),
+            (i) => (counter.timeframe = counter.timeframes[i].value)
+          }
+          data-testid="counter-timeframe"
+        >
+          {#each counter.timeframes as t, i (i)}<option value={i}>{t.label}</option>{/each}
         </select>
-        <span class="text-xs text-surface-500">Proposed: {a.delivery_timeframe || '—'}</span>
+        <span class="text-xs text-surface-500"
+          >Proposed: {timeframeLabel(a.delivery_timeframe)}</span
+        >
       </label>
 
       <p class="text-xs text-surface-500">

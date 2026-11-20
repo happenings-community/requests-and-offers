@@ -1,5 +1,11 @@
 import type { ActionHash } from '@holochain/client';
-import type { AgreementInDHT, CounterAgreementInput, ExchangeTerm } from '$lib/types/holochain';
+import type {
+  AgreementInDHT,
+  CounterAgreementInput,
+  ExchangeTerm,
+  Timeframe
+} from '$lib/types/holochain';
+import { hasEnded, sameTimeframe } from '$lib/utils/timeframe';
 import {
   decimalProblem,
   decimalsEqual,
@@ -20,14 +26,6 @@ import {
  * across unchanged. Changing those means a new listing (#332).
  */
 
-/** The timeframes the propose page offers, in its order. */
-export const COUNTER_TIMEFRAMES = [
-  'Within a few days',
-  'Within 2 weeks',
-  'Within a month',
-  'Flexible'
-] as const;
-
 /**
  * What a member has typed, as text. Amounts are exact decimals, so they stay
  * strings from the input to the zome call and never pass through a float.
@@ -36,7 +34,7 @@ export const COUNTER_TIMEFRAMES = [
 export interface CounterEdits {
   primary: string | null | undefined;
   reciprocal: string | null | undefined;
-  timeframe: string;
+  timeframe: Timeframe;
 }
 
 export type CounterField = 'primary' | 'reciprocal' | 'timeframe';
@@ -81,12 +79,6 @@ export function startingEdits(agreement: AgreementInDHT): CounterEdits {
   };
 }
 
-/** The timeframe list, keeping the proposal's own wording if it is not one of ours. */
-export function timeframeOptions(current: string): string[] {
-  const list: string[] = [...COUNTER_TIMEFRAMES];
-  return current && !list.includes(current) ? [current, ...list] : list;
-}
-
 function unitFor(term: ExchangeTerm, figure: 'hours' | 'amount'): string {
   if (term.quantity?.unit) return term.quantity.unit;
   return figure === 'amount' ? term.resource_conforms_to : 'hours';
@@ -122,7 +114,7 @@ export function changedFields(agreement: AgreementInDHT, edits: CounterEdits): C
   ) {
     changed.push('reciprocal');
   }
-  if (edits.timeframe !== agreement.delivery_timeframe) changed.push('timeframe');
+  if (!sameTimeframe(edits.timeframe, agreement.delivery_timeframe)) changed.push('timeframe');
   return changed;
 }
 
@@ -141,14 +133,27 @@ function amountProblem(value: string | null | undefined, what: string): string |
 export const NOTHING_CHANGED =
   'Change the hours, the amount or the timeframe to send a counter-proposal.';
 
+/**
+ * A counter is a new agreement, so validation checks its window against the counter's own
+ * moment (#380): a window that has ended is refused, even one kept from the proposal.
+ * DRAFT copy for Anita.
+ */
+export const TIMEFRAME_PASSED =
+  'The proposed timeframe has passed. Choose another to send a counter-proposal.';
+
 /** The first thing stopping this counter from being sent, in the member's words. */
-export function counterProblem(agreement: AgreementInDHT, edits: CounterEdits): string | null {
+export function counterProblem(
+  agreement: AgreementInDHT,
+  edits: CounterEdits,
+  nowMicros: number = Date.now() * 1000
+): string | null {
   const figure = reciprocalFigure(agreement.reciprocal);
   return (
     amountProblem(edits.primary, 'Hours') ??
     (figure
       ? amountProblem(edits.reciprocal, figure === 'amount' ? 'The amount' : 'Return hours')
       : null) ??
+    (hasEnded(edits.timeframe, nowMicros) ? TIMEFRAME_PASSED : null) ??
     (changedFields(agreement, edits).length === 0 ? NOTHING_CHANGED : null)
   );
 }
@@ -181,7 +186,8 @@ export function describeQuantity(
   unit = ''
 ): string {
   const v = normaliseQuantity(value);
-  if (v === null) return figure === 'amount' ? 'No amount' : 'No time estimate';
+  // The hours on an agreement are the service agreed, not the listing's estimate.
+  if (v === null) return figure === 'amount' ? 'No amount' : 'No hours';
   if (figure === 'amount') return `${v} ${unit}`.trim();
   return `${v} ${isOne(v) ? 'hour' : 'hours'}`;
 }

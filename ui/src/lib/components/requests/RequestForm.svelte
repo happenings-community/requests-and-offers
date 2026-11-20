@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { parseTypedDecimal, typedDecimalProblem } from '$lib/utils/decimal';
   import { getToastStore, getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
@@ -82,7 +83,9 @@
   let selectedOrganizationHash = $state<ActionHash | undefined>(
     preselectedOrganization || request?.organization
   );
-  let timeEstimateHours = $state<number | undefined>(request?.time_estimate_hours ?? undefined);
+  // The estimate is an exact decimal, so it stays text from the input to the zome (#380, #525).
+  let timeEstimateHours = $state<string>(request?.time_estimate_hours ?? '');
+  let timeEstimateError = $state('');
   let submitting = $state(false);
   let serviceTypesError = $state('');
   let linksError = $state('');
@@ -281,6 +284,7 @@
     submitting = true;
     linksError = '';
     linksWarning = '';
+    timeEstimateError = '';
 
     try {
       // A listing must name its service type
@@ -307,6 +311,15 @@
         return;
       }
 
+      // The estimate: blank for none, zero allowed, a decimal comma read as a dot.
+      const estimate = parseTypedDecimal(timeEstimateHours);
+      const estimateProblem = estimate === null ? null : typedDecimalProblem(estimate);
+      if (estimateProblem) {
+        timeEstimateError = `The estimated time ${estimateProblem}.`;
+        submitting = false;
+        return;
+      }
+
       // Prepare time preference
       const finalTimePreference: TimePreference =
         timePreferenceType === 'Other'
@@ -326,8 +339,11 @@
         time_preference: finalTimePreference,
         time_zone: timeZone,
         interaction_type: interactionType,
-        time_estimate_hours: timeEstimateHours,
+        time_estimate_hours: estimate,
         links: [...links],
+        // #380: no inputs for these yet (part 2), so an edit keeps the request's own.
+        timeframe: request?.timeframe ?? null,
+        amount: request?.amount ?? null,
         service_type_hash: serviceTypeHashes[0],
         medium_of_exchange_hashes: [...selectedMediumOfExchange],
         status: ListingStatus.Active
@@ -353,7 +369,7 @@
         selectedMediumOfExchange = [];
         interactionType = InteractionType.Virtual;
         links = [];
-        timeEstimateHours = undefined;
+        timeEstimateHours = '';
         selectedOrganizationHash = undefined;
       }
     } catch (error) {
@@ -500,18 +516,21 @@
     </div>
   </div>
 
-  <!-- Time Estimate -->
+  <!-- Estimated time: the listing's estimate of the task, never exchanged (#380) -->
   <label class="label">
-    <span>Time Estimate in Hours (optional)</span>
-    <span>0.5 hour steps</span>
+    <span>Estimated time in hours (optional)</span>
     <input
-      type="number"
+      type="text"
+      inputmode="decimal"
       class="input"
-      placeholder="Estimated hours needed"
+      placeholder="For example 2 or 1.5"
       bind:value={timeEstimateHours}
-      min="0"
-      step="0.5"
+      aria-invalid={timeEstimateError ? 'true' : undefined}
+      data-testid="request-time-estimate"
     />
+    {#if timeEstimateError}
+      <p class="mt-1 text-sm text-error-500">{timeEstimateError}</p>
+    {/if}
   </label>
 
   <!-- Time and Contact Preferences -->

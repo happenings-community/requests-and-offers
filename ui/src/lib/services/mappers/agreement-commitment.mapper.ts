@@ -1,10 +1,11 @@
 import type { UIExchange } from '$lib/types/ui';
-import type { ExchangeTerm, ResourceKind } from '$lib/types/holochain';
+import type { ExchangeTerm, ResourceKind, Timeframe, TimeframePreset } from '$lib/types/holochain';
 import type {
   AgreementInput,
   CommitmentInput,
   EconomicEventInput
 } from '$lib/services/hrea.service';
+import { timeframeLabel } from '$lib/utils/timeframe';
 
 /**
  * Pure mapping from an accepted R&O exchange to hREA inputs. Everything here
@@ -142,6 +143,35 @@ function iso(micros: number): string {
   return new Date(micros / 1000).toISOString();
 }
 
+/** Days a preset allows, counted from acceptance; Flexible sets no due date. */
+const PRESET_DAYS: Record<TimeframePreset, number | null> = {
+  WithinAFewDays: 3,
+  WithinTwoWeeks: 14,
+  WithinAMonth: 30,
+  Flexible: null
+};
+
+/** The hREA Commitment dates a timeframe sets; all ISO strings, which the adapter turns into microseconds. */
+export type CommitmentDates = { due?: string; hasBeginning?: string; hasEnd?: string };
+
+/**
+ * ValueFlows dates for a timeframe: due is a preset counted from the acceptance
+ * time (milliseconds) or a window's end; a window with a start also sets
+ * hasBeginning and hasEnd. Flexible sets none.
+ */
+export function datesFor(timeframe: Timeframe, acceptedAtMs: number): CommitmentDates {
+  if ('Dates' in timeframe) {
+    const { start, end } = timeframe.Dates;
+    const due = iso(end);
+    return start === null || start === undefined
+      ? { due }
+      : { due, hasBeginning: iso(start), hasEnd: due };
+  }
+  const days = PRESET_DAYS[timeframe.Preset];
+  if (days === null) return {};
+  return { due: new Date(acceptedAtMs + days * 24 * 60 * 60 * 1000).toISOString() };
+}
+
 /** The R&O agreement hash as a string, used as agreedIn and as the map key. */
 export function rnoAgreementRef(exchange: UIExchange): string {
   return exchange.agreement_hash.toString();
@@ -150,9 +180,11 @@ export function rnoAgreementRef(exchange: UIExchange): string {
 export function mapAgreementToHrea(
   exchange: UIExchange,
   parties: ResolvedParties,
-  specs: ResolvedSpecs
+  specs: ResolvedSpecs,
+  acceptedAtMs: number = Date.now()
 ): MappedAgreement | null {
   const a = exchange.agreement;
+  const dates = datesFor(a.delivery_timeframe, acceptedAtMs);
   const primaryAction = actionForKind(a.primary.resource_kind);
   if (!primaryAction) return null;
 
@@ -171,16 +203,13 @@ export function mapAgreementToHrea(
     receiver: parties.receiverAgentId,
     resourceConformsTo: specs.primarySpecId,
     resourceQuantity: measureOf(a.primary),
-    // due is a DateTime in hREA; R&O's delivery_timeframe is free text
-    // ("Within 2 weeks"), so it travels in the note instead. due is only
-    // ever sent once R&O captures actual dates.
+    // ValueFlows dates from the timeframe (#380): due from a preset counted
+    // from acceptance or a window's end, hasBeginning/hasEnd for a window with
+    // a start. The timeframe's label still travels in the note.
+    ...dates,
     finished: false,
     note:
-      [
-        a.terms,
-        a.delivery_timeframe && `Timeframe: ${a.delivery_timeframe}`,
-        quantityText(a.primary)
-      ]
+      [a.terms, `Timeframe: ${timeframeLabel(a.delivery_timeframe)}`, quantityText(a.primary)]
         .filter(Boolean)
         .join(' | ') || undefined,
     agreedIn: ref
@@ -195,6 +224,7 @@ export function mapAgreementToHrea(
           receiver: parties.providerAgentId,
           resourceConformsTo: specs.reciprocalSpecId,
           resourceQuantity: measureOf(a.reciprocal),
+          ...dates,
           finished: false,
           note: [a.medium, quantityText(a.reciprocal)].filter(Boolean).join(' | ') || undefined,
           agreedIn: ref

@@ -1,4 +1,11 @@
 <script lang="ts">
+  import {
+    DEFAULT_TIMEFRAME,
+    hasEnded,
+    sameTimeframe,
+    timeframeOptions
+  } from '$lib/utils/timeframe';
+  import type { Timeframe } from '$lib/types/holochain';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import {
@@ -28,13 +35,11 @@
     termLabel,
     type ExchangeRole
   } from '$lib/utils/exchange-ui';
-  import { decimalFromNumber } from '$lib/utils/decimal';
+  import { decimalProblem, isZeroDecimal } from '$lib/utils/decimal';
   import type { ExchangeTerm, ListingType } from '$lib/types/holochain';
   import type { UIOffer, UIRequest, UIUser } from '$lib/types/ui';
 
   const toastStore = getToastStore();
-
-  const TIMEFRAMES = ['Within a few days', 'Within 2 weeks', 'Within a month', 'Flexible'];
 
   type Medium = { name: string; currency: boolean };
 
@@ -94,7 +99,6 @@
 
   let medium = $state('');
   let returnService = $state('');
-  let timeframe = $state('Within 2 weeks');
 
   /** From the strings module, so Anita's review reaches this page too. */
   const FORM_TERMS_LOCKED = EXCHANGE_STRINGS.form.termsLocked;
@@ -138,18 +142,31 @@
   const service = $derived(services.join(', '));
 
   /**
-   * **Only a request publishes a time estimate.** `RequestInDHT` has
-   * `time_estimate_hours`; `OfferInDHT` has no such field, so a proposal from an offer
-   * carries no quantity at all now that nothing is typed in. That is a real loss against
-   * the old page and it is tracked in #307 rather than papered over: to put hours on an
-   * offer-based agreement, the offer has to publish them.
+   * **The proposal starts from the listing's figures** (#380). Both a request and an
+   * offer can publish them.
+   *
+   * - The hours: the listing's estimate of the task, an exact decimal string, becomes the
+   *   service's hours as written, so 1.1 stays 1.1. A quantity is above zero, so an
+   *   estimate of none gives the proposal no hours. A counter can change them.
+   * - The amount: see `reciprocalTermFor`, which carries the listing's own amount when it
+   *   is in the medium chosen.
+   * - The timeframe: the listing's own, while it can still be met; otherwise the
+   *   default preset. Validation refuses a window that has ended.
    */
-  const hours = $derived(
-    listing && 'time_estimate_hours' in listing
-      ? (listing as { time_estimate_hours?: number }).time_estimate_hours
-      : undefined
+  const estimate = $derived(listing?.time_estimate_hours ?? null);
+  const hoursDecimal = $derived(
+    estimate !== null && decimalProblem(estimate) === null && !isZeroDecimal(estimate)
+      ? estimate
+      : null
   );
-  const hoursDecimal = $derived(decimalFromNumber(hours));
+  const listingTimeframe = $derived.by(() => {
+    const own = listing?.timeframe ?? null;
+    return own && !hasEnded(own, Date.now() * 1000) ? own : null;
+  });
+  /** What the member picked, once they pick; until then, the listing's own. */
+  let chosenTimeframe = $state<Timeframe | null>(null);
+  const timeframe = $derived<Timeframe>(chosenTimeframe ?? listingTimeframe ?? DEFAULT_TIMEFRAME);
+  const timeframes = $derived(timeframeOptions(listingTimeframe));
 
   const me = $derived(usersStore.currentUser?.original_action_hash);
   const iAmAuthor = $derived(
@@ -170,10 +187,11 @@
     direction: 'Provide',
     resource_conforms_to: service,
     resource_kind: 'Service',
-    // The listing's hours are a number; a quantity is an exact decimal string (#475).
     quantity: hoursDecimal ? { value: hoursDecimal, unit: 'hours' } : null
   });
-  const reciprocal = $derived(reciprocalTermFor({ medium, isCurrency, returnService }));
+  const reciprocal = $derived(
+    reciprocalTermFor({ medium, isCurrency, returnService, amount: listing?.amount })
+  );
 
   /** True while the proposer has said none of the offers suit. Nothing can be
    * sent in that state, so the sentinel never becomes a term. */
@@ -408,7 +426,12 @@
           <span class="text-surface-500"
             >{myRole === 'provider' ? 'Hours offered' : 'Hours requested'}</span
           >
-          {hoursDecimal ?? (hours == null ? S.form.hoursNotStated : S.form.hoursUnusable)}
+          {hoursDecimal ??
+            (estimate === null
+              ? S.form.hoursNotStated
+              : decimalProblem(estimate) === null
+                ? S.form.hoursNone
+                : S.form.hoursUnusable)}
         </p>
         <p class="text-xs text-surface-500">{FORM_TERMS_LOCKED}</p>
       </div>
@@ -512,8 +535,16 @@
 
       <label class="label">
         <span>Delivery timeframe</span>
-        <select class="select" bind:value={timeframe}>
-          {#each TIMEFRAMES as t (t)}<option value={t}>{t}</option>{/each}
+        <!-- Bound by index: a timeframe is an object, compared with sameTimeframe. -->
+        <select
+          class="select"
+          bind:value={
+            () => timeframes.findIndex((t) => sameTimeframe(t.value, timeframe)),
+            (i) => (chosenTimeframe = timeframes[i].value)
+          }
+          data-testid="propose-timeframe"
+        >
+          {#each timeframes as t, i (i)}<option value={i}>{t.label}</option>{/each}
         </select>
       </label>
     </div>

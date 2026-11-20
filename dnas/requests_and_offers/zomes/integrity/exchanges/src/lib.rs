@@ -1,6 +1,8 @@
 use hdi::prelude::*;
 use utils::errors::{invalid, CommonError, ExchangeValidationError};
 use utils::grants::{check_act, Ability};
+use utils::listing_rules::timeframe_problem;
+pub use utils::{Timeframe, TimeframePreset};
 
 /// Which kind of listing an exchange settles. Carried on entries so the
 /// coordinator looks the listing up in the right zome and a cross-zome error
@@ -29,68 +31,11 @@ pub enum ResourceKind {
   Tbd,
 }
 
-/// An amount of something, in a unit.
-///
-/// `value` is a decimal string, never a binary float, so "0.1" plus "0.2" is
-/// exactly "0.3" and a currency amount cannot drift. The accepted spelling is
-/// fixed by `decimal_problem`: ASCII digits and at most one dot, up to
-/// `MAX_INTEGER_DIGITS` before it and `MAX_FRACTION_DIGITS` after, no sign, no
-/// exponent, no leading zero except "0.x". Trailing zeros are kept as written
-/// ("12.50"), so two spellings of one amount exist and must be compared with
-/// `same_amount`, never with `==` on the string.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct Quantity {
-  pub value: String,
-  pub unit: String,
-}
-
-/// Nine integer digits and six fraction digits are fifteen significant digits
-/// at most, which an f64 holds exactly enough to survive the one conversion at
-/// the hREA boundary (hREA stores `has_numerical_value` as f64, h-REA/hREA#382).
-pub const MAX_INTEGER_DIGITS: usize = 9;
-pub const MAX_FRACTION_DIGITS: usize = 6;
-
-/// What is wrong with an amount's spelling, if anything.
-pub fn decimal_problem(value: &str) -> Option<&'static str> {
-  const MALFORMED: &str = "a quantity is a plain decimal like 12.50: digits and at most one dot, no sign, no exponent, no leading zeros, up to 9 digits before the dot and 6 after";
-  let (int, frac) = match value.split_once('.') {
-    Some((i, f)) => (i, Some(f)),
-    None => (value, None),
-  };
-  let digits = |s: &str| s.bytes().all(|b| b.is_ascii_digit());
-  if int.is_empty() || int.len() > MAX_INTEGER_DIGITS || !digits(int) {
-    return Some(MALFORMED);
-  }
-  if int.len() > 1 && int.starts_with('0') {
-    return Some(MALFORMED);
-  }
-  if let Some(f) = frac {
-    if f.is_empty() || f.len() > MAX_FRACTION_DIGITS || !digits(f) {
-      return Some(MALFORMED);
-    }
-  }
-  None
-}
-
-/// True when a well-formed amount is above zero.
-pub fn is_positive(value: &str) -> bool {
-  value.bytes().any(|b| b.is_ascii_digit() && b != b'0')
-}
-
-/// The amount with its trailing fraction zeros dropped: "1.50" and "1.5" both
-/// become "1.5", "10.0" becomes "10". Only meaningful for a well-formed value.
-fn amount_key(value: &str) -> &str {
-  if value.contains('.') {
-    value.trim_end_matches('0').trim_end_matches('.')
-  } else {
-    value
-  }
-}
-
-/// Two well-formed amounts are equal as numbers, whatever their trailing zeros.
-pub fn same_amount(a: &str, b: &str) -> bool {
-  amount_key(a) == amount_key(b)
-}
+// Exact decimals live in `utils::decimal`, shared with listings since #380; they are
+// re-exported here so `exchanges_integrity::Quantity` and the rest keep working.
+pub use utils::decimal::{
+  decimal_problem, is_positive, same_amount, Quantity, MAX_FRACTION_DIGITS, MAX_INTEGER_DIGITS,
+};
 
 /// One side of the pair. Mirrors an hREA intent: a transfer, in a direction,
 /// of a resource conforming to a specification, optionally quantified.
@@ -146,7 +91,9 @@ pub struct Agreement {
   pub reciprocal: ExchangeTerm,
   pub medium: String,
   pub terms: String,
-  pub delivery_timeframe: String,
+  /// When the exchange is due: a preset or a window of dates (#380), typed so the
+  /// counter rule compares values and the hREA mirror can set a due date.
+  pub delivery_timeframe: Timeframe,
   /// Set on a counter-proposal: the proposal it answers and the decline that
   /// closed it. `None` on a first proposal. Rounds of one negotiation form a
   /// chain through this field (#333).
@@ -475,6 +422,12 @@ fn validate_agreement(action: &TypedAction<CreateData>, agreement: &Agreement) -
   if agreement.medium.trim().is_empty() {
     return invalid(ExchangeValidationError::NoMedium);
   }
+  // Against this action's own timestamp: a counter is a new agreement, so its
+  // window is checked when the counter is written, even when it copies the
+  // proposal's.
+  if let Some(problem) = timeframe_problem(&agreement.delivery_timeframe, action.timestamp()) {
+    return invalid(problem);
+  }
   if let Err(reason) = check_act(&agreement.grant, author, &Ability::Participate, &None)? {
     return invalid(ExchangeValidationError::AgreementIsRoleAct(reason.to_string()));
   }
@@ -564,7 +517,7 @@ pub fn counter_terms_problem(counter: &Agreement, countered: &Agreement) -> Opti
   }
   if same_quantity(&counter.primary.quantity, &countered.primary.quantity)
     && same_quantity(&counter.reciprocal.quantity, &countered.reciprocal.quantity)
-    && counter.delivery_timeframe.trim() == countered.delivery_timeframe.trim()
+    && counter.delivery_timeframe == countered.delivery_timeframe
   {
     return Some(ExchangeValidationError::CounterChangesNothing);
   }
@@ -900,7 +853,7 @@ mod counter_tests {
       },
       medium: "Time bank hours".into(),
       terms: "".into(),
-      delivery_timeframe: "Within 2 weeks".into(),
+      delivery_timeframe: Timeframe::Preset(TimeframePreset::WithinTwoWeeks),
       counters: None,
       grant: Some(hash(9)),
     }
@@ -915,7 +868,7 @@ mod counter_tests {
     c.reciprocal.quantity = None;
     assert_eq!(counter_terms_problem(&c, &proposal()), None);
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     assert_eq!(counter_terms_problem(&c, &proposal()), None);
   }
 
@@ -934,7 +887,7 @@ mod counter_tests {
       |a: &mut Agreement| a.listing_type = ListingType::Offer,
     ] {
       let mut c = proposal();
-      c.delivery_timeframe = "Flexible".into();
+      c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
       change(&mut c);
       assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("listing, the interest"));
     }
@@ -943,11 +896,11 @@ mod counter_tests {
   #[test]
   fn the_medium_and_terms_text_are_kept() {
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     c.medium = "Pounds".into();
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("medium"));
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     c.terms = "New words".into();
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("medium"));
   }
@@ -955,11 +908,11 @@ mod counter_tests {
   #[test]
   fn both_directions_are_kept() {
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     c.primary.direction = Direction::Receive;
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("both services"));
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     c.reciprocal.direction = Direction::Provide;
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("both services"));
   }
@@ -976,16 +929,28 @@ mod counter_tests {
   #[test]
   fn the_counterparty_may_differ_since_the_roles_swap() {
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     c.counterparty = hash(4);
     assert_eq!(counter_terms_problem(&c, &proposal()), None);
   }
 
   #[test]
-  fn whitespace_in_the_timeframe_is_not_a_change() {
-    let mut c = proposal();
-    c.delivery_timeframe = "  Within 2 weeks ".into();
+  fn the_timeframe_is_compared_as_a_value() {
+    // The same preset, written again, is not a change.
+    let c = proposal();
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("changes a quantity"));
+    // Another preset is.
+    let mut c = proposal();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::WithinAMonth);
+    assert_eq!(counter_terms_problem(&c, &proposal()), None);
+    // So is a window, and the same window again is not.
+    let window = Timeframe::Dates { start: None, end: Timestamp::from_micros(1_900_000_000_000_000) };
+    let mut original = proposal();
+    original.delivery_timeframe = window.clone();
+    let mut c = proposal();
+    c.delivery_timeframe = window.clone();
+    assert_eq!(counter_terms_problem(&c, &proposal()), None);
+    assert!(counter_terms_problem(&c, &original).unwrap().to_string().contains("changes a quantity"));
   }
 
   #[test]
@@ -1001,11 +966,11 @@ mod counter_tests {
   #[test]
   fn both_services_are_kept() {
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     c.primary.resource_conforms_to = "Plumbing".into();
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("both services"));
     let mut c = proposal();
-    c.delivery_timeframe = "Flexible".into();
+    c.delivery_timeframe = Timeframe::Preset(TimeframePreset::Flexible);
     c.reciprocal.resource_kind = ResourceKind::Gift;
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("both services"));
   }
@@ -1013,7 +978,6 @@ mod counter_tests {
   #[test]
   fn the_same_amount_written_differently_is_not_a_change() {
     let mut c = proposal();
-    c.delivery_timeframe = "  Within 2 weeks ".into();
     c.primary.quantity = Some(Quantity { value: "3.00".into(), unit: "hours".into() });
     assert!(counter_terms_problem(&c, &proposal()).unwrap().to_string().contains("changes a quantity"));
     let mut original = proposal();
@@ -1029,45 +993,6 @@ mod counter_tests {
 #[cfg(test)]
 mod decimal_tests {
   use super::*;
-
-  #[test]
-  fn canonical_decimals_are_accepted() {
-    for ok in ["1", "12", "0.5", "0.05", "1.5", "12.50", "999999999", "999999999.999999", "100", "10.0"] {
-      assert_eq!(decimal_problem(ok), None, "{ok} should be accepted");
-    }
-  }
-
-  #[test]
-  fn malformed_decimals_are_refused() {
-    for bad in [
-      "", " ", "1 ", " 1", "-1", "+1", "1e3", "1E3", "NaN", "inf", "Infinity", ".5", "5.", ".", "1.2.3",
-      "1,5", "01", "00", "00.5", "0x10", "1_000", "١٢", "1.5\n", "9999999999", "1.1234567",
-      "12345678901234567890",
-    ] {
-      assert!(decimal_problem(bad).is_some(), "{bad:?} should be refused");
-    }
-  }
-
-  #[test]
-  fn zero_is_well_formed_but_not_positive() {
-    for zero in ["0", "0.0", "0.000000"] {
-      assert_eq!(decimal_problem(zero), None);
-      assert!(!is_positive(zero), "{zero} is not positive");
-    }
-    for pos in ["0.000001", "1", "10.0"] {
-      assert!(is_positive(pos), "{pos} is positive");
-    }
-  }
-
-  #[test]
-  fn amounts_compare_by_value_not_spelling() {
-    assert!(same_amount("1.5", "1.50"));
-    assert!(same_amount("10", "10.000"));
-    assert!(same_amount("0", "0.0"));
-    assert!(!same_amount("1.5", "1.51"));
-    assert!(!same_amount("10", "1.0"));
-    assert!(!same_amount("100", "10"));
-  }
 
   #[test]
   fn a_term_quantity_must_be_positive_canonical_and_have_a_unit() {

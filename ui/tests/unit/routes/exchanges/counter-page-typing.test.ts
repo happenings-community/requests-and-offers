@@ -69,7 +69,7 @@ vi.mock('$lib/utils/effect', () => ({
             },
             medium: 'CAD',
             terms: '',
-            delivery_timeframe: 'Within 2 weeks'
+            delivery_timeframe: { Preset: 'WithinTwoWeeks' }
           }
         };
       case 'listing':
@@ -133,6 +133,22 @@ describe('the counter page, typed into', () => {
     expect(sent.primary_quantity).toEqual({ value: '1.5', unit: 'hours' });
     expect(sent.reciprocal_quantity).toEqual({ value: '42.50', unit: 'CAD' });
     expect(typeof sent.primary_quantity?.value).toBe('string');
+  });
+
+  // #380: the select is bound by index, because a timeframe is an object.
+  it('opens on the proposed timeframe and sends the one chosen, as a typed value', async () => {
+    const { send } = await mounted();
+    const select = screen.getByTestId('counter-timeframe') as HTMLSelectElement;
+    expect(select.options[select.selectedIndex].text).toBe('Within 2 weeks of agreeing');
+    const flexible = [...select.options].findIndex((o) => o.text === 'Flexible');
+    select.selectedIndex = flexible;
+    await fireEvent.change(select);
+    expect(send.disabled).toBe(false);
+    await fireEvent.click(send);
+    await vi.waitFor(() => expect(state.calls).toBe(1));
+    expect((state.sent as { delivery_timeframe: unknown }).delivery_timeframe).toEqual({
+      Preset: 'Flexible'
+    });
   });
 
   it('refuses a thousands comma, says how to write it, and sends nothing', async () => {

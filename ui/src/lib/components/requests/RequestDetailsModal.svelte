@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { timeframeLabel } from '$lib/utils/timeframe';
+  import { estimateLabel } from '$lib/utils/estimate';
   import { termsState, TERMS_LOADING, TERMS_FAILED } from '$lib/utils/listing-terms';
   import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import { encodeHashToBase64 } from '@holochain/client';
@@ -305,31 +307,20 @@
 
       <!-- New Fields: Date Range, Time, and Preferences -->
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <!-- Date Range -->
-        {#if request?.date_range}
+        <!-- Timeframe (#380) -->
+        {#if request?.timeframe}
           <div>
-            <h3 class="h4 font-semibold">Date Range</h3>
-            <p>
-              {#if request.date_range.start && request.date_range.end}
-                {formatDate(new Date(request.date_range.start))} to {formatDate(
-                  new Date(request.date_range.end)
-                )}
-              {:else if request.date_range.start}
-                Starting {formatDate(new Date(request.date_range.start))}
-              {:else if request.date_range.end}
-                Until {formatDate(new Date(request.date_range.end))}
-              {:else}
-                No date range specified
-              {/if}
-            </p>
+            <h3 class="h4 font-semibold">Timeframe</h3>
+            <p>{timeframeLabel(request.timeframe)}</p>
           </div>
         {/if}
 
         <!-- Time Estimate -->
-        {#if request?.time_estimate_hours !== undefined}
+        {#if request?.time_estimate_hours != null}
           <div>
-            <h3 class="h4 font-semibold">Time Estimate</h3>
-            <p>{request.time_estimate_hours} hours</p>
+            <h3 class="h4 font-semibold">Estimated time</h3>
+            <!-- The listing's estimate, a decimal printed as written (#525). -->
+            <p>{estimateLabel(request.time_estimate_hours)}</p>
           </div>
         {/if}
 

@@ -300,6 +300,8 @@ validation_reasons!(
   ExchangeValidationError,
   GrantValidationError,
   MessagingValidationError,
+  TimeframeValidationError,
+  ListingValidationError,
 );
 
 /// Refuses an op with `reason` as the verdict's text.
@@ -486,8 +488,8 @@ pub enum RequestValidationError {
   #[error("Request description cannot exceed 1000 characters")]
   DescriptionTooLong,
 
-  #[error("Time estimate must be greater than zero")]
-  TimeEstimateNotPositive,
+  #[error("an update of a request replaces a request")]
+  UpdateOfNonRequest,
 
   #[error("Posting a request is a role act: {0}")]
   PostIsRoleAct(String),
@@ -506,6 +508,9 @@ pub enum OfferValidationError {
 
   #[error("Offer description cannot exceed 1000 characters")]
   DescriptionTooLong,
+
+  #[error("an update of an offer replaces an offer")]
+  UpdateOfNonOffer,
 
   #[error("Posting an offer is a role act: {0}")]
   PostIsRoleAct(String),
@@ -785,6 +790,38 @@ pub enum MessagingValidationError {
   InboxLinkTargetNotMessage,
 }
 
+/// A timeframe on a listing or an agreement (#380). Shared by the requests,
+/// offers and exchanges zomes, so the three say the same thing.
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum TimeframeValidationError {
+  #[error("a timeframe must end after the moment it is written")]
+  EndsBeforeWritten,
+
+  #[error("a timeframe must end within {0} days of being written")]
+  EndsTooLate(u64),
+
+  #[error("a timeframe must not start after it ends")]
+  StartsAfterEnd,
+}
+
+/// A listing's figures (#380): its time estimate and its amount. The estimate
+/// describes the task and is never exchanged; the amount is what the listing
+/// asks or offers in payment, in a unit.
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum ListingValidationError {
+  #[error("a time estimate is not a decimal: {0}")]
+  TimeEstimateNotDecimal(String),
+
+  #[error("an amount is not a decimal: {0}")]
+  AmountNotDecimal(String),
+
+  #[error("an amount must be above zero")]
+  AmountNotPositive,
+
+  #[error("an amount must name its unit")]
+  AmountWithoutUnit,
+}
+
 /// Every validation reason keeps the exact text it had when each zome built
 /// it by hand: peers on an older build compare these strings, and so do the
 /// tests and the UI.
@@ -949,8 +986,8 @@ mod validation_reason_tests {
       "Request description cannot exceed 1000 characters",
     );
     reads(
-      RequestValidationError::TimeEstimateNotPositive,
-      "Time estimate must be greater than zero",
+      RequestValidationError::UpdateOfNonRequest,
+      "an update of a request replaces a request",
     );
   }
 
@@ -967,6 +1004,10 @@ mod validation_reason_tests {
     reads(
       OfferValidationError::DescriptionTooLong,
       "Offer description cannot exceed 1000 characters",
+    );
+    reads(
+      OfferValidationError::UpdateOfNonOffer,
+      "an update of an offer replaces an offer",
     );
   }
 
@@ -1418,6 +1459,42 @@ mod validation_reason_tests {
     reads(
       M::InboxLinkTargetNotMessage,
       "An Inbox link's target must be an EncryptedMessage",
+    );
+  }
+
+  #[test]
+  fn timeframe_reasons_keep_their_text() {
+    reads(
+      TimeframeValidationError::EndsBeforeWritten,
+      "a timeframe must end after the moment it is written",
+    );
+    reads(
+      TimeframeValidationError::EndsTooLate(365),
+      "a timeframe must end within 365 days of being written",
+    );
+    reads(
+      TimeframeValidationError::StartsAfterEnd,
+      "a timeframe must not start after it ends",
+    );
+  }
+
+  #[test]
+  fn listing_reasons_keep_their_text() {
+    reads(
+      ListingValidationError::TimeEstimateNotDecimal("a sign".into()),
+      "a time estimate is not a decimal: a sign",
+    );
+    reads(
+      ListingValidationError::AmountNotDecimal("a sign".into()),
+      "an amount is not a decimal: a sign",
+    );
+    reads(
+      ListingValidationError::AmountNotPositive,
+      "an amount must be above zero",
+    );
+    reads(
+      ListingValidationError::AmountWithoutUnit,
+      "an amount must name its unit",
     );
   }
 }

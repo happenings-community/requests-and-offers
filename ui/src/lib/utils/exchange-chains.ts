@@ -3,6 +3,7 @@ import type { ExchangeTerm } from '$lib/types/holochain';
 import type { UIExchange } from '$lib/types/ui';
 import { isOne } from '$lib/utils/decimal';
 import { awaitingMe, counterpartyOf, termLabel } from '$lib/utils/exchange-ui';
+import { sameTimeframe, timeframeLabel } from '$lib/utils/timeframe';
 
 /**
  * Negotiations as chains of rounds, grouped by the other person (#333).
@@ -159,8 +160,13 @@ export function roundChanges(previous: UIExchange | undefined, round: UIExchange
       to: quantityText(b.reciprocal)
     });
   }
-  if (a.delivery_timeframe !== b.delivery_timeframe) {
-    changes.push({ field: 'timeframe', from: a.delivery_timeframe, to: b.delivery_timeframe });
+  // Compared as values, as the zome compares them (#380): two equal presets are two objects.
+  if (!sameTimeframe(a.delivery_timeframe, b.delivery_timeframe)) {
+    changes.push({
+      field: 'timeframe',
+      from: timeframeLabel(a.delivery_timeframe),
+      to: timeframeLabel(b.delivery_timeframe)
+    });
   }
   return changes;
 }
@@ -202,5 +208,5 @@ export function roundOutcome(round: UIExchange, answered: boolean): RoundOutcome
 /** The latest round's terms in brief, for a collapsed chain card. */
 export function termsInBrief(round: UIExchange): string {
   const a = round.agreement;
-  return `${termLabel(a.primary)} ⇆ ${termLabel(a.reciprocal)}, ${a.delivery_timeframe}`;
+  return `${termLabel(a.primary)} ⇆ ${termLabel(a.reciprocal)}, ${timeframeLabel(a.delivery_timeframe)}`;
 }

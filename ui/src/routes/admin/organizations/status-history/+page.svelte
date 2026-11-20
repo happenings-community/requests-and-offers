@@ -3,12 +3,16 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { storeEventBus } from '$lib/stores/storeEvents';
   import { ConicGradient, type ConicStop } from '@skeletonlabs/skeleton';
-  import { Effect as E } from 'effect';
+  import { useEffectTask } from '$lib/composables/ui/useEffectTask.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { paths } from '$lib/paths';
 
   const { allOrganizationsStatusesHistory } = $derived(administrationStore);
   let isLoading = $state(true);
+
+  // The fetch is a fiber this page owns: leaving the page interrupts it, and a refetch
+  // replaces one still in flight.
+  const historyTask = useEffectTask<unknown, unknown>();
 
   let unsubscribeOrgStatus: (() => void) | null = null;
 
@@ -18,7 +22,7 @@
   ];
 
   function loadStatusHistory() {
-    E.runFork(administrationStore.fetchAllOrganizationsStatusHistory());
+    historyTask.run(administrationStore.fetchAllOrganizationsStatusHistory());
   }
 
   onMount(() => {

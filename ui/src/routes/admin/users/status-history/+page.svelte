@@ -2,10 +2,15 @@
   import StatusTable from '$lib/components/shared/status/StatusTable.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { storeEventBus } from '$lib/stores/storeEvents';
-  import { Effect as E } from 'effect';
+  import { useEffectTask } from '$lib/composables/ui/useEffectTask.svelte';
   import { onMount, onDestroy } from 'svelte';
 
   const { allUsersStatusesHistory } = $derived(administrationStore);
+
+  // Each fetch is a fiber this page owns: leaving the page interrupts it, and a refetch of the
+  // same history replaces one still in flight.
+  const usersHistoryTask = useEffectTask<unknown, unknown>();
+  const organizationsHistoryTask = useEffectTask<unknown, unknown>();
 
   let unsubscribeUserStatus: (() => void) | null = null;
   let unsubscribeOrgStatus: (() => void) | null = null;
@@ -17,16 +22,16 @@
     // Listen for user status updates
     unsubscribeUserStatus = storeEventBus.on('user:status:updated', () => {
       console.log('🔄 TDD: User status updated - refreshing status history');
-      E.runFork(administrationStore.fetchAllUsersStatusHistory());
+      usersHistoryTask.run(administrationStore.fetchAllUsersStatusHistory());
     });
 
     // Listen for organization status updates
     unsubscribeOrgStatus = storeEventBus.on('organization:status:updated', () => {
       console.log('🔄 TDD: Organization status updated - refreshing status history');
-      E.runFork(administrationStore.fetchAllOrganizationsStatusHistory());
+      organizationsHistoryTask.run(administrationStore.fetchAllOrganizationsStatusHistory());
     });
 
-    E.runFork(administrationStore.fetchAllUsersStatusHistory());
+    usersHistoryTask.run(administrationStore.fetchAllUsersStatusHistory());
   });
 
   // Cleanup subscriptions

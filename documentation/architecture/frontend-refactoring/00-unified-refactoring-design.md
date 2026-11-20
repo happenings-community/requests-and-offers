@@ -88,7 +88,7 @@ Each invariant below is written so that a machine, not a memory, decides whether
 | 3 | ESLint `no-restricted-imports`, scoped to `components/**` and `routes/**`, with a `hrea/test-page` override; until it holds, a ratchet test (7 importing files and 10 subscriptions today) | write time; the ratchet in `bun run test:unit` |
 | 4 | Follows from 1 and 3; no separate check needed | CI, transitively |
 | 5 | ESLint `no-restricted-imports`, scoped to `**/state.ts` | write time |
-| 6 | Ratchet test over `grep -rl "loading: boolean" ui/src/lib/stores/`: 10 store files today | `bun run test:unit`, in CI |
+| 6 | Ratchet test over stores that expose `loading` in any form (`git grep -lE 'loading: boolean\|get loading\(\|let loading\b' -- ui/src/lib/stores`): 11 store files today, 10 of them as the literal `loading: boolean` | `bun run test:unit`, in CI |
 | 7 | A test that mounts, starts a task, unmounts, and asserts the fiber exit is `Interrupted` | `bun test:unit` |
 | 8 | A two-agent e2e assertion that a remote change reaches the UI through the bus | `bun test:e2e` |
 
@@ -102,7 +102,9 @@ CI's lint step is non-blocking by design (`.github/workflows/ci.yml`, "errors no
 The unit step does block merges, and the repository already enforces architecture as tests: `ui/tests/unit/seam/` walks the import graph to keep exchanges from importing messaging.
 
 The check is therefore `ui/tests/unit/seam/invariants.test.ts`, a ratchet.
-It counts invariants 1, 2, 3 and 6 as defined above, against a ceiling equal to today's count, so it is green from the day it lands and fails the moment any count rises.
+It counts invariants 1, 2, 3 and 6 as defined above, against a ceiling equal to today's count, so it is green from the day it lands and fails the moment any count moves.
+A rise names what to remove.
+A fall fails too and names the ceiling to lower, so the slack a conversion leaves cannot be spent on a new violation elsewhere.
 Each conversion pull request lowers its ceiling in the same commit, and an invariant that reaches zero becomes an equality.
 Invariant 2 counts `runEffect` as well as `run*`: leaving it out would make the invariant pass on a technicality while 225 Promise-returning calls remain in components, which is the gap #134 came from.
 This departs from the "never before" rule this section used to state, whose reason was a red build; a ratchet is never red.

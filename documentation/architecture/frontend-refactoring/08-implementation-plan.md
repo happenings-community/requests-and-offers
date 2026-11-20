@@ -54,7 +54,7 @@ The platform move comes first, and any slice that writes Effect code lands after
 
 | Release | Carries |
 |---|---|
-| **v0.6.0-alpha.2** (tag due 23 November) | Only slices that run no code a member sees: the re-baselined docs, the ratchet test of PR 0.5, and the deletion of an unused Effect and Svelte glue module (403 lines, no importer). Nothing else before the UI freeze |
+| **v0.6.0-alpha.2** (tag due 23 November) | Only slices that run no code a member sees: the re-baselined docs, the ratchet test of PR 0.5, and the deletion of the unused Effect and Svelte glue module, the one that exported `useEffectOnMount`, `createStoreInitializer` and ten sibling exports (403 lines, no importer), and the deletion of 11 components that nothing imports (1,135 lines). Nothing else before the UI freeze |
 | **v0.6.0-alpha.3** | The platform upgrade, Kit first: U1 Vite 8 on SvelteKit 2 (#303), U2 SvelteKit 3 (#303), U3 Effect 4 (#228). Then Phase 0 and Phase 1, and Phase 3's observation step, PR 3.2, which decodes zome signals into the event log and changes no store. Coordination (Phase 1) is plain TypeScript over the bus and can run alongside the upgrade. The Foldkit spike (service types rebuilt on Foldkit beside the current stores, measured against the same unit tests) runs after U3 and before Phase 2, and the decision is re-opened with its numbers |
 | **v0.6.0 final** | Phase 2, the rest of Phase 3, and any remote-signal work |
 | **After v0.6.0** | Phase 4 |
@@ -79,7 +79,7 @@ This phase inverts the original note's ordering, which put the event log last an
 
 PR 0.5 is a ratchet test, not the bash script earlier revisions planned.
 CI's lint step is non-blocking by design, and the unit step blocks merges, so a unit test is the only check that can fail a pull request.
-The test counts invariants 1, 2, 3 and 6 against ceilings equal to today's counts, so it is green on the day it lands and red the moment a count rises.
+The test counts invariants 1, 2, 3 and 6 against ceilings equal to today's counts, so it is green on the day it lands and red the moment a count moves: a rise names what to remove, and a fall names the ceiling to lower, so slack left by a conversion cannot be spent on a violation elsewhere.
 Invariant 2 counts `runEffect` as well as `runPromise`, `runSync` and `runFork`, because `runEffect` (`ui/src/lib/utils/effect.ts:8`) is `E.runPromise` under another name.
 Each conversion pull request lowers its ceiling in the same commit, and an invariant that reaches zero becomes an equality.
 This replaces the earlier rule that a check enters only in the pull request that makes its invariant true, whose stated reason was a red build; a ratchet is never red.
@@ -129,7 +129,7 @@ PR 0.4's scope also covers #134's bug class: `UserDetailsModal.svelte:34` still 
 **4 weeks. Incremental by construction. Lands in v0.6.0 final, after the platform upgrade, so `EntityState` is written once, in Effect 4's Schema syntax.**
 
 The table below lists the eight domains of the first revision.
-There are now 11 store files (D3): `exchanges.store.svelte.ts` and `messaging.store.svelte.ts` are new, and both declare `loading: boolean`, so Phase 2 has two domains the estimate does not cover.
+There are now 11 store files (D3): `exchanges.store.svelte.ts` and `messaging.store.svelte.ts` are new, and both declare `loading: boolean` (every store exposes `loading`, `weave` through a getter), so Phase 2 has two domains the estimate does not cover.
 
 | PR | Title | Est |
 |---|---|---|

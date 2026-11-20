@@ -359,13 +359,16 @@ What is implemented:
   one-at-a-time lock before it is written. An exchange whose mirror is
   still writing is left to that mirror. Each
   exchange is tried once a session, so the polling does not ask hREA again
-  on every reload.
+  on every reload. A pass whose own read of hREA failed has tried nothing:
+  its exchanges are asked again on the next reload.
 - **One mirror per exchange at a time.** Accepting from Messages fires the
   live mirror and then reloads the member's exchanges, which starts the
   repair a moment later. hREA keeps every record it is given, so a second
   Agreement would be permanent: `createAgreementFromExchange` lets the
   second caller wait for the first's answer, and a cancellation waits for
-  a mirror under way before it closes the Commitments. Two tabs of the
+  a mirror under way before it closes the Commitments. The close itself runs
+  one at a time per exchange, so a cancel and the repair of a cancelled
+  exchange never both update from the same revision. Two tabs of the
   same member each keep their own record, so they can still race at boot.
 - Both Commitments are checked before the Agreement is written
   (`commitmentProblem`: ids present, a quantity that is a finite number

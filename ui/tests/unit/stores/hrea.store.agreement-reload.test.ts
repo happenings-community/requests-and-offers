@@ -842,4 +842,147 @@ describe('repairing an accepted exchange whose mirror never landed', () => {
     // Answered by its own attempt (the same throw), not left waiting until the timeout.
     expect(Exit.isFailure(second) && Cause.isDie(second.cause)).toBe(true);
   });
+
+  /**
+   * The repair's own read of hREA can fail (the conductor away, the case it exists for).
+   * The exchange must not be written off for the session: the next reload tries it again.
+   * **To make this go red:** leave `repairTried` marked when the read fails.
+   */
+  it('tries again on the next reload when its own read of hREA failed', async () => {
+    mocks.currentUser = { original_action_hash: COUNTERPARTY };
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    errorLog.mockClear();
+    const svc = service();
+    svc.getAgreements
+      .mockReturnValueOnce(E.fail(new HreaError({ message: 'conductor away' })))
+      .mockReturnValue(E.succeed([]));
+    svc.getCommitments.mockReturnValue(E.succeed([]));
+    await freshStore(svc);
+
+    loaded([accepted()]);
+    await vi.waitFor(() =>
+      expect(errorLog).toHaveBeenCalledWith(
+        'hREA Store: could not read hREA to repair unmirrored exchanges:',
+        'conductor away',
+        expect.anything()
+      )
+    );
+    expect(svc.createAgreement).not.toHaveBeenCalled();
+
+    loaded([accepted()]);
+    await vi.waitFor(() => expect(svc.createAgreement).toHaveBeenCalledTimes(1));
+  });
+
+  /**
+   * What reaches the log is hREA's own sentence, not the conductor's wrapping of it.
+   * **To make this go red:** log `err` or `err.message` where the repair logs `reasonOf(err)`.
+   */
+  it('logs the zome sentence of a failed repair, not its wrapper', async () => {
+    mocks.currentUser = { original_action_hash: COUNTERPARTY };
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    errorLog.mockClear();
+    const svc = service();
+    svc.getAgreements.mockReturnValue(E.succeed([]));
+    svc.getCommitments.mockReturnValue(E.succeed([]));
+    svc.createAgreement.mockReturnValue(
+      E.fail(
+        new HreaError({
+          message: 'wasm error: RibosomeError(Guest("The offer is closed")) at zome'
+        })
+      )
+    );
+    await freshStore(svc);
+
+    loaded([accepted()]);
+    await vi.waitFor(() =>
+      expect(errorLog).toHaveBeenCalledWith(
+        'hREA Store: repair of an unmirrored exchange failed:',
+        'The offer is closed',
+        expect.anything()
+      )
+    );
+  });
+
+  /**
+   * A mirror cut short after its Agreement leaves that Agreement empty. The repair writes
+   * a new one and puts its Commitments on the new one, never on the empty one.
+   * (Pins today's behaviour: the audit page lists the empty Agreement.)
+   */
+  it('mirrors an exchange whose only trace in hREA is an empty Agreement', async () => {
+    mocks.currentUser = { original_action_hash: COUNTERPARTY };
+    const svc = service();
+    svc.getAgreements.mockReturnValue(
+      E.succeed([{ id: 'agr-empty', revisionId: 'e1', note: ref }])
+    );
+    svc.getCommitments.mockReturnValue(E.succeed([]));
+    await freshStore(svc);
+
+    loaded([accepted()]);
+    await vi.waitFor(() => expect(svc.createCommitment).toHaveBeenCalledTimes(2));
+    expect(svc.createAgreement).toHaveBeenCalledTimes(1);
+    for (const [input] of svc.createCommitment.mock.calls) {
+      expect(input.clauseOf).toBe('agr-NEW');
+    }
+  });
+
+  /**
+   * Accepted, mirrored live, then cancelled, with the member's exchanges reloaded in the
+   * same moment: the cancel handler and the repair both close the same Commitments once
+   * the mirror ends. Each reads the revisions and updates from them, so two closes from
+   * one revision would fork it. hREA here answers as it does: a Commitment's latest
+   * revision is the one after its last update. **To make this go red:** drop the
+   * per-exchange lock in `closeCommitments`.
+   */
+  it('a cancel and a repair closing the same exchange at once update each Commitment once', async () => {
+    mocks.currentUser = { original_action_hash: COUNTERPARTY };
+    const svc = service();
+    svc.getAgreements.mockReturnValue(E.succeed([]));
+    svc.getCommitments.mockReturnValueOnce(E.succeed([])).mockReturnValue(
+      E.succeed([
+        { id: 'c-NEW', revisionId: 'c-NEW-rev1', clauseOf: 'agr-NEW', finished: false },
+        { id: 'c-NEW2', revisionId: 'c-NEW2-rev1', clauseOf: 'agr-NEW', finished: false }
+      ])
+    );
+    svc.createAgreement.mockReturnValue(
+      E.delay(E.succeed({ id: 'agr-NEW', revisionId: 'x' }), '60 millis')
+    );
+    const closed = new Set<string>();
+    // A zome call takes time: the second closer's read comes before the first one's writes land.
+    svc.getLatestCommitments.mockImplementation((cs: Array<{ id: string }>) =>
+      E.delay(
+        E.sync(() =>
+          cs.map((c) => ({
+            ...c,
+            revisionId: `${c.id}-rev${closed.has(c.id) ? 2 : 1}`,
+            finished: closed.has(c.id)
+          }))
+        ),
+        '20 millis'
+      )
+    );
+    svc.updateCommitment.mockImplementation(({ revisionId }: { revisionId: string }) =>
+      E.delay(
+        E.sync(() => {
+          closed.add(revisionId.replace(/-rev\d+$/, ''));
+          return { id: revisionId };
+        }),
+        '10 millis'
+      )
+    );
+    await freshStore(svc);
+    const cancelled = accepted({
+      cancellation: { reason: 'moved away', created_at: 1 }
+    } as unknown as Partial<UIExchange>);
+
+    storeEventBus.emit('exchange:accepted', { exchange: accepted() });
+    await settle();
+    // The live mirror is writing: the cancel handler waits for it, and so does the repair.
+    storeEventBus.emit('exchange:cancelled', { exchange: cancelled });
+    loaded([cancelled]);
+    await vi.waitFor(() => expect(closed.size).toBe(2));
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    const revisions = svc.updateCommitment.mock.calls.map(([u]) => u.revisionId);
+    expect(revisions.sort()).toEqual(['c-NEW-rev1', 'c-NEW2-rev1']);
+  });
 });

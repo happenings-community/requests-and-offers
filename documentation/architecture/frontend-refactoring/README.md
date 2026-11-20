@@ -52,8 +52,8 @@ Phase 0 (7, then 1's task runner), Phase 1 (2, then 3), Phase 2 (4a per domain, 
 
 This inverts the original note's ordering in one place: the development message log moves from last and opportunistic to first, because it costs half a week, carries no production risk, and instruments every phase after it.
 Roughly 13 weeks in total at ten hours a week, of which the first 4.7 deliver five of the eight invariants (1, 2, 3, 4 and 7, the five that [08](08-implementation-plan.md)'s Phase 1 stopping point lists and its gates check).
-Earlier revisions said "six of the eight" and "4.5 weeks"; both disagreed with the plan's own rows.
-Counting `runEffect` in invariant 2 makes Phase 0 larger than its 2.2 weeks, by an estimate not yet re-cut (see [08](08-implementation-plan.md) § Calibration).
+Earlier revisions said "six of the eight" and "4.5 weeks"; both disagreed with the plan's own headings (4.7 weeks) and its stopping point (five invariants).
+Counting `runEffect` in invariant 2 makes Phase 0 larger than its 2.1 weeks, by an estimate not yet re-cut (see [08](08-implementation-plan.md) § Calibration).
 
 ## The claim, in one line
 
@@ -129,13 +129,13 @@ Each names where the docs now say it.
 | D6 | 8 store-to-store imports | 13, still two cycles | [00](00-unified-refactoring-design.md), [08](08-implementation-plan.md) PR 1.8 |
 | D7 | PR 1.2 extracts `hreaStore.handle*` methods | They exist, 18 of them, all wired through `createEventSubscriptions` | [08](08-implementation-plan.md) PRs 1.2 and 1.3 |
 | D8 | six zomes emit `Signal`, others do not | six emit from `post_commit`; `exchanges` emits nothing; `messaging` emits `Nudge` and `Receipt` from `recv_remote_signal` | [08](08-implementation-plan.md) Phase 3 |
-| D9 | Phase 3's gate: agent A approves, agent B's UI reflects it | `post_commit` signals reach only the agent's own client; the gate cannot pass on them | [08](08-implementation-plan.md) Phase 3 |
+| D9 | Phase 3's gate: agent A approves a service type, agent B's UI reflects it | `post_commit` signals reach only the agent's own client; the gate cannot pass on them. The decision of 20 November covers approval and exchange turn through nudges, not service types, and the gates are rewritten to match | [08](08-implementation-plan.md) Phase 3 gate, [05](05-conductor-signals.md) § Verification |
 | D10 | Phase 3 touches the DNA, so it wants its own minor version | its steps are frontend only, except optional 3.6, a coordinator edit, which does not change the DNA hash | [08](08-implementation-plan.md) § Fit with the release train |
 | D11 | #134, #138 and #133 are unbuilt designs | all three are closed; #134's bug class is still in the code (`UserDetailsModal.svelte:34`) | [08](08-implementation-plan.md) Phase 0 |
 | D12 | `@holochain/client` 0.20.5 | `^0.21.0`, #193 closed on 2026-10-22 | this file |
 | D13 | `DOCUMENTATION_INDEX.md` links the deleted `app-runtime.md` | fixed; it points at [01](01-application-runtime.md) | nothing to do |
 | D14 | "v0.5.2 in alpha testing, v0.6.0 in flight" | `0.6.0-alpha.1`; alpha 2 is due to be tagged on 23 November | [08](08-implementation-plan.md) § Fit with the release train |
-| D15 | Phases 0 and 1 are "4.5 weeks" and deliver "six of the eight" | the plan's own rows sum to 4.7 weeks, and its stopping point lists five invariants | this file, [08](08-implementation-plan.md) |
+| D15 | Phases 0 and 1 are "4.5 weeks" and deliver "six of the eight" | the plan's headings said 2.2 + 2.5 = 4.7 weeks, the rows now sum to 2.1 + 2.6 = 4.7, and its stopping point lists five invariants | this file, [08](08-implementation-plan.md) |
 | D16 | polling stays, signals replace nothing | three polls that name a signal as their replacement, and one store that waits for it: `useApprovalWatch` (15 s, #329), the NavBar exchanges poll, the messaging badge poll in the root layout, and the uncached `exchanges` store | [08](08-implementation-plan.md) Phase 3 |
 | D17 | 268 passing tests | 132 unit test files and 1,720 tests on 20 November (a full `bun run test:unit` at `f5c799ad`); the project `CLAUDE.md` recorded 646 on 2026-09-14 | [08](08-implementation-plan.md) Phase 4 |
 | D18 | README: 07 depends on 02 | [00](00-unified-refactoring-design.md) and [08](08-implementation-plan.md) put 07 first, before 02 | this file |

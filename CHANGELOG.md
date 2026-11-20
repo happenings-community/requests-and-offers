@@ -100,6 +100,7 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **UI**: The nav bar's menus work from the keyboard (Enter, Space and the arrows open them; arrows, Home and End move; Escape closes) and announce themselves to a screen reader, and their items are links the router follows (`8ad643f9`, #352, closes #204)
 - **Administration**: The admin lists hold accepted members and organisations only, and a status an administrator writes stands until a read at least as new returns, so the minute re-read no longer moves a member back (`881b955c`, #411)
 - **UI**: The drawer's counts read "9+" past nine, as the bar's do, with the full number in words (`9c8c3327`, #533)
+- **Administration**: Admin pages stay put while the background check re-verifies admin status, instead of being rebuilt once a minute and losing what was typed (`7d746ad4`, #510, closes #508)
 
 ### Performance
 

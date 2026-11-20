@@ -16,6 +16,7 @@
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import { TimePreferenceHelpers } from '$lib/types/holochain';
   import { Effect as E } from 'effect';
+  import { useEffectTask, taskValue } from '$lib/composables/ui/useEffectTask.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { queueAndReverseModal } from '$lib/utils';
   import { paths } from '$lib/paths';
@@ -54,29 +55,22 @@
   );
 
   // Organization details
-  let organization = $state<UIOrganization | null>(null);
-  let loadingOrganization = $state(false);
+  // The organization is read by a fiber this card owns: unmounting the card interrupts it, and
+  // a new organization replaces a read still in flight. A failed read leaves no organization.
+  const organizationTask = useEffectTask<UIOrganization | null, never>();
+  const organization = $derived<UIOrganization | null>(taskValue(organizationTask) ?? null);
+  const loadingOrganization = $derived(organizationTask.running);
 
   $effect(() => {
     if (request.organization) {
-      loadOrganization();
+      organizationTask.run(
+        organizationsStore.getOrganizationByActionHash(request.organization).pipe(
+          E.tapError((error) => E.sync(() => console.error('Error loading organization:', error))),
+          E.catchAll(() => E.succeed<UIOrganization | null>(null))
+        )
+      );
     }
   });
-
-  async function loadOrganization() {
-    if (!request.organization) return;
-    try {
-      loadingOrganization = true;
-      organization = await E.runPromise(
-        organizationsStore.getOrganizationByActionHash(request.organization)
-      );
-    } catch (error) {
-      console.error('Error loading organization:', error);
-      organization = null;
-    } finally {
-      loadingOrganization = false;
-    }
-  }
 
   // Navigate to user profile
   function navigateToUserProfile() {

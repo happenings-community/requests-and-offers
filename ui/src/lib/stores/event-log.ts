@@ -22,6 +22,8 @@ export type LogEntry = {
   readonly event: keyof StoreEvents;
   readonly payload: unknown;
   readonly origin: EventOrigin;
+  /** Who emitted it, when the emitter says so: the status events name the store call behind them. */
+  readonly source?: string;
 };
 
 const CAPACITY = 500;
@@ -37,9 +39,14 @@ class EventLog {
   private buffer: LogEntry[] = [];
   private seq = 0;
 
-  record(event: keyof StoreEvents, payload: unknown, origin: EventOrigin = 'local'): void {
+  record(
+    event: keyof StoreEvents,
+    payload: unknown,
+    origin: EventOrigin = 'local',
+    source?: string
+  ): void {
     if (!import.meta.env.DEV) return;
-    this.buffer.push({ seq: this.seq++, at: Date.now(), event, payload, origin });
+    this.buffer.push({ seq: this.seq++, at: Date.now(), event, payload, origin, source });
     if (this.buffer.length > CAPACITY) this.buffer.shift();
   }
 

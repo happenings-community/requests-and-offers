@@ -4,14 +4,15 @@ The seven proposals are not seven refactors. They are one refactor with seven la
 
 ## Thesis
 
-The Requests and Offers frontend coordinates itself implicitly. Nine stores reach into each other by import, react to each other through subscriptions registered inside store factories, run effects at 148 scattered call sites, and describe every domain's state with the same three loosely-related fields. Each of those is defensible on its own. Together they mean that no single file answers the question "what happens when a user is accepted", and no type prevents a state that cannot exist.
+The Requests and Offers frontend coordinates itself implicitly. Eleven stores reach into each other by import, react to each other through subscriptions registered inside store factories, run effects at 161 scattered `run*` call sites and 225 more `runEffect` calls in components, and describe every domain's state with the same three loosely-related fields.
+The counts are those of `f5c799ad` on 20 November 2026; [README](README.md) § Verified baseline gives the `git grep` behind each. Each of those is defensible on its own. Together they mean that no single file answers the question "what happens when a user is accepted", and no type prevents a state that cannot exist.
 
 The refactor makes coordination explicit along three axes, and nothing else.
 
 | Axis | Question it answers | Today | After | Proposals |
 |---|---|---|---|---|
-| **Execution** | Where does an Effect run, and who can stop it? | 148 call sites, 21 in components, no cancellation | One task-runner, fibers owned by their component and interrupted on teardown | 1 (Phase 0 only) |
-| **Coordination** | Where do cross-domain reactions live? | 15 in a store factory, 8 in components, 8 imports, two cycles | One routing table, one import direction, one entry door for local and remote change | 2, 3, 5, 7 |
+| **Execution** | Where does an Effect run, and who can stop it? | 161 `run*` call sites, 23 in components, plus 225 `runEffect` calls in components, no cancellation | One task-runner, fibers owned by their component and interrupted on teardown | 1 (Phase 0 only; the runtime half stays deferred) |
+| **Coordination** | Where do cross-domain reactions live? | 18 in a store factory, 10 in components, 13 imports, two cycles | One routing table, one import direction, one entry door for local and remote change | 2, 3, 5, 7 |
 | **Representation** | What can a domain's state legally be? | `loading: boolean` plus nullable error, three fields, eight combinations | One tagged union of six states, transitions in a pure function | 4a, 6 |
 
 Two pieces sit outside all three and are filed as speculative rather than scheduled. Proposal 4b proposes a state the network does not report. Proposal 1's second phase, a `ManagedRuntime` over a merged layer, is close enough to the `createAppRuntime()` that commit `e31c0324` deliberately removed from this repository in September 2025 that it needs a fresh reason before it is scheduled, and the research did not supply one.
@@ -70,7 +71,7 @@ An architecture expressed as checks is different in kind. The rule fires at the 
 Each invariant below is written so that a machine, not a memory, decides whether it holds. Each is enforceable by lint, grep, or a test. None requires judgment to evaluate.
 
 1. No file under `src/lib/stores/` imports another `*.store.svelte`.
-2. No `.svelte` file calls `runPromise`, `runSync`, or `runFork`.
+2. No `.svelte` file calls `runPromise`, `runSync`, or `runFork`, or calls `runEffect`, which is `E.runPromise` under another name (`ui/src/lib/utils/effect.ts:8`).
 3. No `.svelte` file imports `storeEvents`, except under `components/hrea/test-page/`.
 4. Every cross-domain reaction appears in `store-coordination.ts` and nowhere else.
 5. `state.ts` modules import nothing from `svelte`, `effect`, or any service.
@@ -82,42 +83,40 @@ Each invariant below is written so that a machine, not a memory, decides whether
 
 | # | Mechanism | Fails at |
 |---|---|---|
-| 1 | ESLint `no-restricted-imports`, scoped to `src/lib/stores/**` | write time, in the editor |
-| 2 | `grep -rE "run(Promise\|Sync\|Fork)" ui/src --include=*.svelte` | CI |
-| 3 | ESLint `no-restricted-imports`, scoped to `components/**` and `routes/**`, with a `hrea/test-page` override | write time |
+| 1 | ESLint `no-restricted-imports`, scoped to `src/lib/stores/**`; until it holds, a ratchet test over store-to-store imports (13 today) | write time, in the editor; the ratchet in `bun run test:unit` |
+| 2 | Ratchet test over `grep -rE "run(Promise\|Sync\|Fork)\|runEffect\(" ui/src --include=*.svelte`: 23 direct calls and 225 `runEffect` calls today, and the ceiling may only fall | `bun run test:unit`, in CI |
+| 3 | ESLint `no-restricted-imports`, scoped to `components/**` and `routes/**`, with a `hrea/test-page` override; until it holds, a ratchet test (7 importing files and 10 subscriptions today) | write time; the ratchet in `bun run test:unit` |
 | 4 | Follows from 1 and 3; no separate check needed | CI, transitively |
 | 5 | ESLint `no-restricted-imports`, scoped to `**/state.ts` | write time |
-| 6 | `grep -rn "loading: boolean" ui/src/lib/stores/` | CI |
+| 6 | Ratchet test over `grep -rl "loading: boolean" ui/src/lib/stores/`: 10 store files today | `bun run test:unit`, in CI |
 | 7 | A test that mounts, starts a task, unmounts, and asserts the fiber exit is `Interrupted` | `bun test:unit` |
 | 8 | A two-agent e2e assertion that a remote change reaches the UI through the bus | `bun test:e2e` |
 
-Five of the eight are lint or grep, which means they cost close to nothing to run and can go into CI on the first day. They are written to fail loudly and early rather than to be comprehensive: an invariant that needs interpretation is not an invariant.
+Five of the eight are lint or grep, which means they cost close to nothing to run, and they go into CI on the first day as ratchets. They are written to fail loudly and early rather than to be comprehensive: an invariant that needs interpretation is not an invariant.
 
-### The check job
+### The check job: a ratchet test, not a script
 
-One script, added in Phase 0, red until the codebase earns each line and then permanently green:
+Earlier revisions planned `ui/scripts/check-invariants.sh`, red until the codebase earned each line.
+That design does not survive contact with the pipeline.
+CI's lint step is non-blocking by design (`.github/workflows/ci.yml`, "errors non-blocking"), so a lint rule cannot fail a pull request, and a script that is red until the sweep ends would block every merge for months.
+The unit step does block merges, and the repository already enforces architecture as tests: `ui/tests/unit/seam/` walks the import graph to keep exchanges from importing messaging.
 
-```bash
-# ui/scripts/check-invariants.sh: exits non-zero on the first violation
-set -e
-fail() { echo "INVARIANT $1 VIOLATED: $2"; exit 1; }
-
-grep -rqE "run(Promise|Sync|Fork)" src --include=*.svelte \
-  && fail 2 "components must not run Effects; use useEffectTask"
-grep -rq "from '\$lib/stores/.*\.store\.svelte'" src/lib/stores/ \
-  && fail 1 "stores must not import stores"
-grep -rq "loading: boolean" src/lib/stores/ \
-  && fail 6 "stores must expose EntityState, not a loading boolean"
-echo "all grep-checkable invariants hold"
-```
-
-Each invariant is introduced as a check in the same pull request that makes it true, never before and never after. A check added early is a broken build; a check added late is a rule that already drifted.
+The check is therefore `ui/tests/unit/seam/invariants.test.ts`, a ratchet.
+It counts invariants 1, 2, 3 and 6 as defined above, against a ceiling equal to today's count, so it is green from the day it lands and fails the moment any count rises.
+Each conversion pull request lowers its ceiling in the same commit, and an invariant that reaches zero becomes an equality.
+Invariant 2 counts `runEffect` as well as `run*`: leaving it out would make the invariant pass on a technicality while 225 Promise-returning calls remain in components, which is the gap #134 came from.
+This departs from the "never before" rule this section used to state, whose reason was a red build; a ratchet is never red.
 
 ## What deliberately does not change
 
 The service layer's `Context.Tag` and `Layer` design. Schema decoding at the zome boundary. The `Data.TaggedError` hierarchy with contexts. Fine-grained Svelte reactivity. SvelteKit routing. The Skeleton design system. The store-helper library under `utils/store-helpers/`, whose cache, record and fetching helpers survive intact; only `event-helpers.ts` narrows to same-domain use.
 
-Foldkit itself is not adopted, and cannot be: its `peerDependencies` pin `effect: 4.0.0-rc.109` exactly, while this project is on `^3.14.18`. Every borrowing here is an idea, never a dependency.
+Foldkit itself is not adopted, and the reason has changed.
+Its `peerDependencies` once pinned `effect: 4.0.0-rc.109` exactly, while this project is on `^3.14.18`; `foldkit` 0.171.0 now peers `effect: ~4.1.0`, and the Effect blog post "Devin Jameson Joins Effect" (updated 19 November) says Foldkit is coming under the Effect organisation.
+After the Effect 4 migration (U3 in [08](08-implementation-plan.md) § Phase map) the dependency no longer blocks adoption.
+The two architectural refusals below do not depend on the Effect version and still stand.
+Soushi decided that alpha 3 carries a spike, service types rebuilt on Foldkit beside the current stores and measured against the same unit tests, and a decision on its numbers before Phase 2 starts.
+Until then every borrowing here is an idea, never a dependency.
 
 ## Three things the comparison settled that shape this design
 
@@ -144,7 +143,7 @@ Foldkit itself is not adopted, and cannot be: its `peerDependencies` pin `effect
 
 The case is not that the current code is bad. It works, and it shipped an alpha. The case is that the next two drops of committed work each add a domain, and every architectural cost gets paid again per domain rather than once.
 
-See [09-pipeline-alignment.md](09-pipeline-alignment.md) for the mapping from each proposal to the open issues and pull requests it serves. The short version: the messaging work needs live signals and per-conversation resource lifecycles, the stewarding drop adds a tenth domain that will read users and administration, the `@holochain/client` 0.22.0 release adds a signal variant, and three open alpha-test bugs are these designs unbuilt.
+See [09-pipeline-alignment.md](09-pipeline-alignment.md) for the mapping from each proposal to the open issues and pull requests it serves. The short version: the messaging work needs live signals and per-conversation resource lifecycles, the stewarding drop adds a tenth domain that will read users and administration, the `@holochain/client` 0.22.0 release adds a signal variant, and three alpha-test bugs (#133, #134, #138) were these designs unbuilt: all three are now closed, but #134's bug class, a detail modal that writes after it unmounts, is still in the code (`UserDetailsModal.svelte:34` awaits `E.runPromise`).
 
 ## Sequencing
 

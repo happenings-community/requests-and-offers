@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/svelte';
 
 /**
@@ -64,29 +64,33 @@ vi.mock('$lib/components/exchanges/ReachPerson.svelte', async () => ({
   default: (await import('../../mocks/Empty.svelte')).default
 }));
 
+/**
+ * The page is imported once, before the tests, with a hook timeout of its own. The first
+ * import compiles the whole exchange route (the page and every component it draws), which
+ * takes 1.3 to 3.7 seconds alone and more while other test files run beside it. Inside a
+ * test it counted against the five-second default and timed out under load; a hook has
+ * the time to finish, and the three tests then measure the cards, not the compile.
+ */
+let Page: typeof import('../../../src/routes/(public)/exchanges/[id]/+page.svelte').default;
+
+beforeAll(async () => {
+  ({ default: Page } = await import('../../../src/routes/(public)/exchanges/[id]/+page.svelte'));
+}, 60_000);
+
 beforeEach(() => cleanup());
 
 describe("the members' words on the exchange page", () => {
-  it('wrap a long word in the terms card', async () => {
-    const { default: Page } = await import(
-      '../../../src/routes/(public)/exchanges/[id]/+page.svelte'
-    );
+  it('wrap a long word in the terms card', () => {
     render(Page);
     expect(screen.getByTestId('agreement-words').className).toContain('[overflow-wrap:anywhere]');
   });
 
-  it('wrap a long word in a closing note', async () => {
-    const { default: Page } = await import(
-      '../../../src/routes/(public)/exchanges/[id]/+page.svelte'
-    );
+  it('wrap a long word in a closing note', () => {
     render(Page);
     expect(screen.getByTestId('closure').className).toContain('[overflow-wrap:anywhere]');
   });
 
-  it("wrap a long word in a review's comment", async () => {
-    const { default: Page } = await import(
-      '../../../src/routes/(public)/exchanges/[id]/+page.svelte'
-    );
+  it("wrap a long word in a review's comment", () => {
     render(Page);
     const cards = screen.getAllByTestId('review-card');
     expect(cards).toHaveLength(2);

@@ -43,17 +43,16 @@ type SmokeRoute = {
 // in a sandbox auto-registers as admin, see ensureAcceptedUser), so the admin
 // surfaces below are reachable with the same identity.
 //
-// Every landmark below is the literal heading in that route's +page.svelte, not a
-// guess: '/users' renders its title as an <h2> styled .h1, and the offers and
-// requests tabs carry an emoji prefix ('📋 Active Offers'), which is why those two
-// match on text rather than on an accessible name.
+// Every landmark below is the literal title in that route's +page.svelte, not a
+// guess. The list pages draw theirs through PageHeader, as an <h1>, and the
+// Community pages are titled as the menu names them ('All Users').
 const SMOKE_ROUTES: SmokeRoute[] = [
   { path: '/', heading: 'Welcome to Requests & Offers' },
-  { path: '/service-types', heading: 'Available Service Types' },
-  { path: '/offers', landmark: 'Active Offers' },
-  { path: '/requests', landmark: 'Active Requests' },
+  { path: '/service-types', heading: 'Service Types' },
+  { path: '/offers', heading: 'Offers' },
+  { path: '/requests', heading: 'Requests' },
   { path: '/organizations', heading: 'Organizations' },
-  { path: '/users', heading: 'Users' },
+  { path: '/users', heading: 'All Users' },
   { path: '/admin', heading: 'Admin Dashboard' },
   { path: '/admin/hrea', heading: 'hREA · ValueFlows' },
   // The old address redirects to the test managers tab of the same page.
@@ -110,7 +109,7 @@ test.describe.serial('smoke — every core route mounts against the live conduct
     test(`@smoke ${route.path} mounts`, async ({ page }) => {
       await gotoApp(page, route.path);
 
-      // exact: true so 'Users' cannot be satisfied by 'Users Management', and
+      // exact: true so 'Service Types' cannot be satisfied by 'Service Types (3)', and
       // .first() because some pages repeat a heading name in cards below the
       // title, which a bare strict locator would reject.
       const landmark = route.heading

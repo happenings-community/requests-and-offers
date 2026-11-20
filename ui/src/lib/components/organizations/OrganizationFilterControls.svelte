@@ -33,7 +33,7 @@
 
 <div class="space-y-4">
   <!-- Basic Search -->
-  <div class="flex flex-col items-center gap-4">
+  <div class="flex flex-wrap items-center gap-4">
     <input
       type="search"
       bind:value={search.searchState.searchTerm}
@@ -56,24 +56,10 @@
 
   <!-- Search Statistics -->
   {#if showStatistics && (organizations.length > 0 || filteredOrganizations.length > 0)}
-    <div class="card p-4">
-      <div class="flex items-center justify-between">
-        <h3 class="h4">Search Results</h3>
-        <div class="text-surface-600-300-token space-x-4 text-sm">
-          <span>Total: {organizations.length}</span>
-          <span>Filtered: {filteredOrganizations.length}</span>
-        </div>
-      </div>
-      {#if filteredOrganizations.length !== organizations.length}
-        <div class="mt-2">
-          <div class="bg-surface-200-700-token h-2 rounded-container-token">
-            <div
-              class="h-2 bg-primary-500 transition-all duration-300 rounded-container-token"
-              style="width: {(filteredOrganizations.length / organizations.length) * 100}%"
-            ></div>
-          </div>
-        </div>
-      {/if}
-    </div>
+    <p class="text-sm text-surface-500 dark:text-surface-300" aria-live="polite">
+      {filteredOrganizations.length === organizations.length
+        ? `${organizations.length} in all`
+        : `Showing ${filteredOrganizations.length} of ${organizations.length}`}
+    </p>
   {/if}
 </div>

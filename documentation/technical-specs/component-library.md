@@ -88,6 +88,20 @@ Components are organized by domain with a feature-based approach, located in `ui
 
 ### Shared Components
 
+#### PageHeader.svelte
+
+**Purpose**: The top of a list page, drawn one way on every one: a bold title at the left (the design system's h1, black), an optional line under it, and the page's own buttons at the right, which wrap under the title on a narrow screen.
+
+**Props**:
+
+- `title`: string - The page's title, its only `<h1>`. A Community page is titled as the menu names it ("All Users", "Organizations", "Service Types").
+- `subtitle`: string - Optional line under the title
+- `actions`: Snippet - Optional buttons at the right, small (`btn-sm`). A create button on Requests, Offers or My Listings is "+ Request" in gold or "+ Offer" in orange.
+
+**Used on**: My Exchanges, My Listings, Messages, Blocked members, Requests, Offers, All Users, Organizations, Service Types. A page added to that list takes its title from `PageHeader` too: `tests/unit/components/shared/PageHeader.test.ts` checks each.
+
+**Around it**: a list's search sits in one row at the left, with the count under it ("Showing 3 of 10", or "10 in all"); buttons that choose a view are drawn as My Exchanges' tabs, violet when chosen (`variant-filled-primary`), plain otherwise (`variant-ghost`), with `aria-pressed`. On Requests, Offers and My Listings an empty list is a card, with a create button where one can be made, and a search that matches none of a list says so instead.
+
 #### TagAutocomplete.svelte
 
 **Purpose**: Tag input with autocomplete suggestions.

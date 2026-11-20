@@ -4,6 +4,7 @@
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
   import { Effect as E } from 'effect';
+  import { useEffectTask } from '$lib/composables/ui/useEffectTask.svelte';
   import type { UIOrganization, UIRequest } from '$lib/types/ui';
   import type { RequestInput } from '$lib/types/holochain';
   import {
@@ -121,15 +122,31 @@
   );
   const serviceExchangeGated = $derived(serviceExchangeSelected && myOffersCount === 0);
 
-  async function loadMyOffers() {
-    try {
-      const me = usersStore.currentUser?.original_action_hash;
-      if (!me) return;
-      const offers = await E.runPromise(offersStore.getUserOffers(me));
-      myOffersCount = offers.length;
-    } catch (error) {
-      console.error('Error loading own offers for the Service Exchange gate:', error);
-    }
+  // Each background read is a fiber this form owns: leaving the form interrupts it, and a read
+  // started again replaces one still in flight.
+  const myOffersTask = useEffectTask<void, never>();
+  const publishedOrganizationTask = useEffectTask<void, never>();
+  const coordinatedOrganizationsTask = useEffectTask<void, never>();
+  const mediumsOfExchangeTask = useEffectTask<void, never>();
+
+  function loadMyOffers() {
+    const me = usersStore.currentUser?.original_action_hash;
+    if (!me) return;
+    myOffersTask.run(
+      offersStore.getUserOffers(me).pipe(
+        E.tap((offers) =>
+          E.sync(() => {
+            myOffersCount = offers.length;
+          })
+        ),
+        E.asVoid,
+        E.catchAll((error) =>
+          E.sync(() =>
+            console.error('Error loading own offers for the Service Exchange gate:', error)
+          )
+        )
+      )
+    );
   }
 
   // Handle medium of exchange selection change
@@ -160,49 +177,82 @@
 
   // In edit mode the listing may belong to an organization the viewer does
   // not coordinate, so resolve it by hash rather than from the coordinated list.
-  async function loadPublishedOrganization() {
-    try {
-      if (mode !== 'edit' || !selectedOrganizationHash) return;
-      publishedOrganization = await E.runPromise(
-        organizationsStore.getOrganizationByActionHash(selectedOrganizationHash)
-      );
-    } catch (error) {
-      console.error('Error loading published organization:', error);
-    } finally {
+  function loadPublishedOrganization() {
+    if (mode !== 'edit' || !selectedOrganizationHash) {
       isLoadingPublishedOrganization = false;
+      return;
     }
+    publishedOrganizationTask.run(
+      organizationsStore.getOrganizationByActionHash(selectedOrganizationHash).pipe(
+        E.tap((organization) =>
+          E.sync(() => {
+            publishedOrganization = organization;
+          })
+        ),
+        E.asVoid,
+        E.catchAll((error) =>
+          E.sync(() => console.error('Error loading published organization:', error))
+        ),
+        E.ensuring(
+          E.sync(() => {
+            isLoadingPublishedOrganization = false;
+          })
+        )
+      )
+    );
   }
 
-  async function loadCoordinatedOrganizations() {
-    try {
-      if (!usersStore.currentUser?.original_action_hash) return;
-
-      isLoadingOrganizations = true;
-      userCoordinatedOrganizations = await E.runPromise(
-        organizationsStore.getUserOrganizations(usersStore.currentUser.original_action_hash)
-      );
-      // Filter to only keep accepted organizations
-      userCoordinatedOrganizations = userCoordinatedOrganizations.filter(
-        (org) => org.status?.status_type === 'accepted'
-      );
-    } catch (error) {
-      console.error('Error loading coordinated organizations:', error);
-    } finally {
+  function loadCoordinatedOrganizations() {
+    const me = usersStore.currentUser?.original_action_hash;
+    if (!me) {
       isLoadingOrganizations = false;
+      return;
     }
+
+    isLoadingOrganizations = true;
+    coordinatedOrganizationsTask.run(
+      organizationsStore.getUserOrganizations(me).pipe(
+        E.tap((organizations) =>
+          E.sync(() => {
+            // Filter to only keep accepted organizations
+            userCoordinatedOrganizations = organizations.filter(
+              (org) => org.status?.status_type === 'accepted'
+            );
+          })
+        ),
+        E.asVoid,
+        E.catchAll((error) =>
+          E.sync(() => console.error('Error loading coordinated organizations:', error))
+        ),
+        E.ensuring(
+          E.sync(() => {
+            isLoadingOrganizations = false;
+          })
+        )
+      )
+    );
   }
 
-  async function loadMediumsOfExchange() {
+  function loadMediumsOfExchange() {
     if (moesInitialized) return;
 
-    try {
-      await E.runPromise(mediumsOfExchangeStore.getApprovedMediumsOfExchange());
-      moesInitialized = true;
-    } catch (error) {
-      console.error('Error loading mediums of exchange:', error);
-      // Don't prevent form usage if MoEs fail to load
-      moesInitialized = true;
-    }
+    mediumsOfExchangeTask.run(
+      mediumsOfExchangeStore.getApprovedMediumsOfExchange().pipe(
+        E.tap(() =>
+          E.sync(() => {
+            moesInitialized = true;
+          })
+        ),
+        E.asVoid,
+        E.catchAll((error) =>
+          E.sync(() => {
+            console.error('Error loading mediums of exchange:', error);
+            // Don't prevent form usage if MoEs fail to load
+            moesInitialized = true;
+          })
+        )
+      )
+    );
   }
 
   // Form validation

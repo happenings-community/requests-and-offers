@@ -14,7 +14,7 @@
 </script>
 
 {#if messagingPresence.isAbsent}
-  <section class="container mx-auto max-w-3xl p-6">
+  <section class="container mx-auto max-w-reading p-6">
     <aside class="card variant-soft-surface p-4" data-testid="messaging-absent">
       {S.general.notOnThisNetwork}
     </aside>

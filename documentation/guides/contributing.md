@@ -77,6 +77,8 @@ Opening the pull request runs the fast checks automatically: type check, the fro
 
 The heavy suites do not run automatically. If your change touches the zomes or a user journey, add the `run:sweettest`, `run:e2e` or `run:heavy` label to your pull request and the suite runs against it. The label comes off by itself, so re-applying it runs the suite again.
 
+If your change touches `dnas/*/zomes/integrity/`, it alters the DNA hash: label the pull request `breaking-change` and `zome:integrity`. A change to a coordinator zome does not move the hash and takes `zome:coordinator`. A check warns when the integrity labels are missing; it never blocks the merge. See [Continuous Integration](continuous-integration.md#the-zome-label-check).
+
 #### Draft or in review
 
 A pull request is either a draft or in review, never both at once. Open it as a draft while you are still working on it, and mark it ready for review only when you would be content to see it merged as it stands. If review turns up work you need to do, put it back to draft until that work is done. A pull request in review is one the reviewer may merge at any moment, so nothing still in progress belongs there.

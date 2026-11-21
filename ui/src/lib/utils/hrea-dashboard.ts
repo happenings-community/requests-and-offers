@@ -330,7 +330,7 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       state: found(proposal, true),
       fields: [
         ...idField(proposal),
-        ['matched by', `name "${proposalName}" (proposals carry no ref note)`]
+        ['matched by', `name "${proposalName}" (its note carries the listing hash)`]
       ]
     },
     {

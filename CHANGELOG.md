@@ -17,7 +17,7 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 
 ### The network's first admin
 
-The creator acting first sets the first admin. The desktop app does not set a progenitor key, so the first profile created on the new network becomes its administrator, and the network creator takes that seat before the desktop installers are published, then appoints two or three further administrators on separate devices. Creating a network with the creator's key bound at install arrives with alpha 3 (#95).
+The network creator holds the first admin seat. The desktop build sets the creator's key as the network's progenitor, so only that key can write the first admin grant. The creator then appoints the team as further administrators on separate devices. The join service and onboarding arrive with alpha 3 (#95).
 
 ### Platform
 
@@ -65,6 +65,8 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **UI**: DOMPurify moves to 3.4.18, past the bypasses published against 3.3.1 (`93444f3e`, #530)
 - **UI**: A typed link opens only when it is a web address (`9ce13eac`, #382), inside rendered markdown too (`551f157f`, #312)
 - **Build**: Faker and the mock data stay out of the production build (`cae758a7`, #365, part of #363)
+- **Build**: `Cargo.lock` moves the crates behind the Holochain 0.7 advisories to patched releases, and holds `quinn-proto` back until Holochain itself moves (`710f5560`, #557, part of #363)
+- **Build**: `rustls-webpki` moves to 0.103.13 in `Cargo.lock` (`6a4f9c49`, #537)
 - **Users**: Validation decides who may write `UserAgents` and `MyUser` links: only a User's author links agents to it, only to their own key, and `MyUser` runs from the author's key to the author's User (`11bcf7a4`, #473)
 - **Validation**: Every role-gated write outside the administration zome carries the grant it rests on, and the network refuses an act by anyone never given the role. Requests, offers, interests and agreements need the author's member grant, and an organisation is updated by its creator, a coordinator of it, or an administrator. On a network with no progenitor key, as alpha 2 is (#466), validation accepts a root grant from any author, so a modified client can still grant itself a role (`c3db8659`, #378)
 - **Messaging**: A message carries its author's member grant, and validation refuses one that does not. On a network with no progenitor key, as alpha 2 is (#466), a modified client can write itself a root grant and so a member grant (`a677c286`, #412); validation refuses a ciphertext over 3,840 bytes, inside the 3,959 a recipient's keystore can open (`20c05eee`, #488)
@@ -73,13 +75,13 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 
 ### Bug Fixes
 
-- **hREA**: An accepted exchange whose mirror never landed is mirrored again the next time the member who accepted it reads their exchanges, once a session, and never twice at once; a cancel that comes while its mirror is being written waits for it, then closes its Commitments. Both Commitments are checked before the Agreement is written, so a malformed one fails with a reason in words instead of hREA's bytes, and a failed mirror is logged with hREA's own reason (#532)
+- **hREA**: An accepted exchange whose mirror never landed is mirrored again the next time the member who accepted it reads their exchanges, once a session, and never twice at once; a cancel that comes while its mirror is being written waits for it, then closes its Commitments. Both Commitments are checked before the Agreement is written, so a malformed one fails with a reason in words instead of hREA's bytes, and a failed mirror is logged with hREA's own reason (`3ad995ef`, #556, takes over #532)
 - **Exchanges**: Every write that carries a payload is decoded (`499927c0`, #273)
 - **Exchanges**: Interest actions are hidden from members who are not accepted (`4474f97e`, #336, closes #330)
 - **Exchanges**: A counter keeps each quantity's unit; only the amount may change, enforced by validation (`279f9a64`, #422)
 - **hREA**: A mirrored proposal publishes its intents; the link step had silently failed since the adapter has no `proposeIntent` (`42848be5`, #431)
 - **hREA**: Every member picks the same seed Unit, so the Commitments two members write name one hours Unit (`e3c95711`, #443, closes #441)
-- **hREA**: A request's estimated hours reach hREA in the hours Unit, not a label hREA rejected, so a request with hours is mirrored again (#558)
+- **hREA**: A request's estimated hours reach hREA in the hours Unit, not a label hREA rejected, so a request with hours is mirrored again (`b3a5fc8f`, #558)
 - **hREA**: After a reload, a completion finds its agreement's mirror again and an acceptance is not mirrored twice (`f40f1b4d`, #437)
 - **Exchanges**: The propose page names the other member, not the listing's author, when the author proposes to an interested member (`260887fa`, #436, closes #435)
 - **Users**: Pending members are gated like rejected members (`4d836957`, #338, closes #335), and see their approval without a reload (`8f73606f`, #337, closes #329), also when their profile was created without its status in the same page load, a defensive case (`4eb7adb8`, #429)
@@ -106,6 +108,10 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Administration**: The admin lists hold accepted members and organisations only, and a status an administrator writes stands until a read at least as new returns, so the minute re-read no longer moves a member back (`881b955c`, #411)
 - **UI**: The drawer's counts read "9+" past nine, as the bar's do, with the full number in words (`9c8c3327`, #533)
 - **Administration**: Admin pages stay put while the background check re-verifies admin status, instead of being rebuilt once a minute and losing what was typed (`7d746ad4`, #510, closes #508)
+- **UI**: Cards and fields are drawn as the design system draws them (`08720168`, #551)
+- **Navigation**: Requests and Offers stay in the bar on phones, and the bar fits (`85a8ea93`, #552)
+- **UI**: Labels are drawn as the design system's pills (`19ba0c07`, #553)
+- **UI**: Every page starts at the top of the window (`071f64e6`, #554)
 
 ### Performance
 
@@ -116,6 +122,9 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 
 - **Exchanges**: The domain lands on the seven-layer architecture (`3950bf84`, #264, closes #251)
 - **Validation**: Every reason a validation callback gives is a variant of its domain's enum, so a string reason no longer compiles through `invalid` or `verdict`; the wording of every reason is unchanged, and every integrity zome's wasm and the DNA hash change, inside the alpha 2 network reset (`b250479e`, #476)
+- **UI**: The unused `effect-svelte-integration` module is deleted (`9b8108c1`, #540)
+- **UI**: Eleven components nothing references are deleted (`484dae4b`, #542)
+- **UI**: Four composables and a guard nothing references are deleted (`18ffc8fb`, #543)
 
 ### Documentation
 
@@ -132,6 +141,8 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Messaging**: The notes from the stack reviews, and that a block holds on this device only (`bd2b0d60`, #519)
 - **Alpha 2 sync**: The documentation matches the alpha 2 code: 61 broken links fixed, renamed commands and scripts, the names in the front-end specs and the structs in the requirements (`72098ffe`, #477, part of #415)
 - **Validation**: What the sealed reason trait guards, and three examples from before #476 brought up to date (`8e187dd1`, #531)
+- **Architecture**: The refactoring counts are re-baselined at `f5c799ad` (`c8f3d915`, #538)
+- **README**: Status, release, docs, license, stack and DeepWiki badges (`e9de91e0`, #536)
 
 ### CI and Testing
 
@@ -142,6 +153,8 @@ The creator acting first sets the first admin. The desktop app does not set a pr
 - **Exchanges**: The derived state and the exchange UI predicates are pinned by tests (`8ce42848`, #258)
 - **Lint**: ESLint errors cleared in the files no open pull request touches (`922aeb07`, #450); the contrast test also reads Skeleton token pairs (`ab1a9419`, #448)
 - **E2E**: The test conductor runs on its own network (`9b2d8b24`, #372); the onboarding connection probes can go red (`5ad458df`, #314, closes #252); the organisation is re-read after the update toast (`5fcdc272`, #275, closes #274); the offer form test accepts either Medium of Exchange heading (`5fed7656`, #470)
+- **Architecture**: A ratchet test, so the refactoring counts may only go down (`33633f27`, #539)
+- **Unit tests**: The exchange page is imported once, in a hook with its own timeout (`2d7c880b`, #544)
 - **Release**: Every release is published as Latest, alphas included, so the alpha 2 tag shows as the repository's latest (`b60bf26d`, #502); the first-admin seat on a new desktop network is taken in the dry run, before the tag, and the desktop installers wait in a draft until it is held (`36fcff39`, #504)
 
 ## [0.6.0-alpha.1] - 2026-09-14

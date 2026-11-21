@@ -26,7 +26,7 @@ test.describe.serial('07 — users directory', () => {
   test('users page lists the community member', async ({ page }) => {
     await gotoApp(page, '/users');
 
-    await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'All Users', exact: true })).toBeVisible({
       timeout: 15_000
     });
     await expect(page.getByRole('button', { name: 'View Profile' }).first()).toBeVisible({

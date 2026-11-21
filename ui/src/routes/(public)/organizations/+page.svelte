@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import OrganizationsTable from '$lib/components/organizations/OrganizationsTable.svelte';
@@ -43,7 +44,15 @@
 </script>
 
 <section class="container mx-auto flex flex-col gap-8 p-4">
-  <h1 class="h1 text-center">Organizations</h1>
+  <PageHeader title="Organizations" subtitle="Groups and projects in the community">
+    {#snippet actions()}
+      {#if currentUser}
+        <button onclick={handleCreateOrganization} class="variant-filled-primary btn btn-sm">
+          Create Organization
+        </button>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
   {#if management.error}
     <div class="alert variant-filled-error">
@@ -52,12 +61,6 @@
         Try Again
       </button>
     </div>
-  {/if}
-
-  {#if currentUser}
-    <button onclick={handleCreateOrganization} class="variant-filled-primary btn w-fit self-center">
-      Create Organization
-    </button>
   {/if}
 
   {#if management.isLoading}
@@ -72,9 +75,9 @@
     {#if searchFilteredOrganizations.length > 0}
       <OrganizationsTable organizations={searchFilteredOrganizations} />
     {:else if management.organizations.length === 0}
-      <p class="text-center text-surface-500">No organizations found.</p>
+      <p class="text-surface-500">No organizations found.</p>
     {:else}
-      <p class="text-center text-surface-500">No organizations match your search.</p>
+      <p class="text-surface-500">No organizations match your search.</p>
     {/if}
   {/if}
 </section>

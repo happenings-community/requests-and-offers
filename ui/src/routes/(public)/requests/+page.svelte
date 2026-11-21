@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
+  import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { useRequestsManagement } from '$lib/composables';
   import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
   import RequestFilterControls from '$lib/components/requests/RequestFilterControls.svelte';
@@ -16,7 +16,7 @@
   const emptyStateMessage = $derived.by(() => {
     const messages = {
       active: {
-        all: 'No active requests found. Create your first request!',
+        all: 'No active requests yet.',
         my: "You haven't created any active requests yet.",
         organization: 'No active organization requests found.'
       },
@@ -28,11 +28,6 @@
     };
     return messages[management.listingTab][management.filterType];
   });
-
-  // Handle create request action
-  function handleCreateRequest() {
-    goto(paths.requestCreate());
-  }
 
   // Handle filtered results change from search component
   function handleFilteredResultsChange(filtered: typeof management.filteredRequests) {
@@ -57,70 +52,50 @@
   description="Create a profile to make requests to the community."
   blockedAction="view or create requests"
 >
-  <div class="container mx-auto p-4">
-    <!-- Tab Switcher -->
-    <div class="mb-4 flex items-center justify-between">
-      <div class="flex gap-2">
-        <button
-          class="btn btn-sm"
-          class:variant-filled-primary={management.listingTab === 'active'}
-          class:variant-ghost-primary={management.listingTab !== 'active'}
-          onclick={() => management.setListingTab('active')}
-        >
-          📋 Active Requests
-        </button>
-        <button
-          class="btn btn-sm"
-          class:variant-filled-warning={management.listingTab === 'archived'}
-          class:variant-ghost-warning={management.listingTab !== 'archived'}
-          onclick={() => management.setListingTab('archived')}
-        >
-          📦 Archived Requests
-        </button>
-      </div>
-      <div>
+  <div class="container mx-auto space-y-6 p-4">
+    <PageHeader title="Requests" subtitle="What members are asking for">
+      {#snippet actions()}
         {#if usersStore.currentUser?.status?.status_type === 'accepted'}
-          <button class="variant-filled-primary btn btn-sm" onclick={handleCreateRequest}>
-            Create Request
-          </button>
+          <a href={paths.requestCreate()} class="variant-filled-secondary btn btn-sm">+ Request</a>
         {:else if usersStore.currentUser}
-          <button class="variant-soft btn btn-sm" disabled>
-            Create Request (Profile Approval Required)
-          </button>
+          <button class="variant-filled-secondary btn btn-sm" disabled>+ Request</button>
+          <span class="text-sm text-surface-500">Once your profile is approved</span>
         {:else}
           <a href={paths.myProfileCreate()} class="variant-filled-primary btn btn-sm">
-            Create Profile to Make Requests
+            Create a profile to post requests
           </a>
         {/if}
-      </div>
-    </div>
+      {/snippet}
+    </PageHeader>
 
-    <!-- Filter Buttons -->
-    <div class="mb-4 flex items-center gap-2">
-      <button
-        class="btn btn-sm"
-        class:variant-filled-primary={management.filterType === 'all'}
-        class:variant-ghost-primary={management.filterType !== 'all'}
-        onclick={() => management.setFilterType('all')}
-      >
-        All
-      </button>
-      <button
-        class="btn btn-sm"
-        class:variant-filled-secondary={management.filterType === 'my'}
-        class:variant-ghost-secondary={management.filterType !== 'my'}
-        onclick={() => management.setFilterType('my')}
-      >
-        My
-      </button>
-      <button
-        class="btn btn-sm"
-        class:variant-filled-tertiary={management.filterType === 'organization'}
-        class:variant-ghost-tertiary={management.filterType !== 'organization'}
-        onclick={() => management.setFilterType('organization')}
-      >
-        Organization
-      </button>
+    <!-- Which requests, and whose: toggle buttons in My Exchanges' style, violet when chosen -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div class="flex flex-wrap gap-2" role="group" aria-label="Active or archived requests">
+        {#each [['active', 'Active Requests'], ['archived', 'Archived Requests']] as const as [tab, label] (tab)}
+          <button
+            class="btn btn-sm {management.listingTab === tab
+              ? 'variant-filled-primary'
+              : 'variant-ghost'}"
+            aria-pressed={management.listingTab === tab}
+            onclick={() => management.setListingTab(tab)}
+          >
+            {label}
+          </button>
+        {/each}
+      </div>
+      <div class="flex flex-wrap gap-2" role="group" aria-label="Whose requests">
+        {#each [['all', 'All'], ['my', 'My'], ['organization', 'Organization']] as const as [filter, label] (filter)}
+          <button
+            class="btn btn-sm {management.filterType === filter
+              ? 'variant-filled-primary'
+              : 'variant-ghost'}"
+            aria-pressed={management.filterType === filter}
+            onclick={() => management.setFilterType(filter)}
+          >
+            {label}
+          </button>
+        {/each}
+      </div>
     </div>
 
     <!-- Search Controls -->
@@ -142,8 +117,17 @@
       </div>
     {:else if searchFilteredRequests.length === 0}
       {#key `${management.listingTab}-${management.filterType}`}
-        <div class="text-center text-xl text-surface-500">
-          <p>{emptyStateMessage}</p>
+        <div class="card space-y-3 p-6 text-center">
+          <!-- A search that matches none of a list that has some: say so, with nothing to create. -->
+          {#if management.filteredRequests.length > 0}
+            <p class="text-surface-500">No requests match your search.</p>
+          {:else}
+            <p class="text-surface-500">{emptyStateMessage}</p>
+          {/if}
+          {#if management.filteredRequests.length === 0 && management.listingTab === 'active' && management.filterType !== 'organization' && usersStore.currentUser?.status?.status_type === 'accepted'}
+            <a href={paths.requestCreate()} class="variant-filled-secondary btn">Create a request</a
+            >
+          {/if}
         </div>
       {/key}
     {:else}

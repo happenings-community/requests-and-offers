@@ -2245,6 +2245,28 @@ export const createHreaStore = (): E.Effect<
       );
     };
 
+    /**
+     * Commitments for the audit, each with its latest revision's `finished`: hREA's
+     * list returns original revisions, so read as listed every Commitment would look
+     * open. A Commitment whose latest revision cannot be read (not arrived yet, or the
+     * read failed) has `finished` left unknown rather than shown as open, one by one;
+     * the fallback below is a guard should the read as a whole fail. One zome call per
+     * Commitment on each load of the page and each Refresh.
+     */
+    const latestForAudit = (): E.Effect<Commitment[], HreaError> =>
+      pipe(
+        hreaService.getCommitments(),
+        E.flatMap((listed) =>
+          pipe(
+            hreaService.getLatestCommitments(listed, { unread: 'unknown' }),
+            E.catchAll((error) => {
+              console.error('hREA Store: latest Commitment revisions unread for the audit:', error);
+              return E.succeed(listed.map((c) => ({ ...c, finished: undefined })));
+            })
+          )
+        )
+      );
+
     const loadAuditSnapshot = (): E.Effect<HreaSnapshot, HreaError> =>
       withInitialization(
         () =>
@@ -2255,7 +2277,7 @@ export const createHreaStore = (): E.Effect<
               proposals: hreaService.getProposalsWithIntents(),
               intents: hreaService.getIntents(),
               agreements: hreaService.getAgreements(),
-              commitments: hreaService.getCommitments(),
+              commitments: latestForAudit(),
               events: hreaService.getEconomicEvents()
             },
             { concurrency: 'unbounded' }

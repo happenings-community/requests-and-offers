@@ -601,5 +601,31 @@ describe('HreaStore', () => {
       expect(service.getProposalsWithIntents).toHaveBeenCalledTimes(1);
       expect(store.agents).toEqual([]);
     });
+
+    it("gives each Commitment its latest revision's finished, since the list holds the first", async () => {
+      const listed = { id: 'c-1', action: 'work', provider: 'a', receiver: 'b', finished: false };
+      const service = createMockService({
+        getCommitments: vi.fn().mockReturnValue(E.succeed([listed])),
+        getLatestCommitments: vi.fn((cs: readonly Commitment[]) =>
+          E.succeed(cs.map((c) => ({ ...c, finished: true })))
+        )
+      });
+      const store = await createStoreWithService(service);
+      const snapshot = await runEffect(store.loadAuditSnapshot());
+      expect(service.getLatestCommitments).toHaveBeenCalledWith([listed], { unread: 'unknown' });
+      expect(snapshot.commitments[0].finished).toBe(true);
+    });
+
+    it('leaves finished unknown, not open, when the latest revisions cannot be read', async () => {
+      const listed = { id: 'c-1', action: 'work', provider: 'a', receiver: 'b', finished: false };
+      const service = createMockService({
+        getCommitments: vi.fn().mockReturnValue(E.succeed([listed])),
+        getLatestCommitments: vi.fn(() => E.fail(new HreaError({ message: 'offline' })) as never)
+      });
+      const store = await createStoreWithService(service);
+      const snapshot = await runEffect(store.loadAuditSnapshot());
+      expect(snapshot.commitments).toHaveLength(1);
+      expect(snapshot.commitments[0].finished).toBeUndefined();
+    });
   });
 });

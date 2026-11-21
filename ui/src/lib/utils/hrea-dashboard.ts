@@ -209,6 +209,13 @@ export type FlowNode = {
   title: string;
   sub: string;
   state: FlowState;
+  /**
+   * A Commitment's progress as hREA holds it: finished, open, or unknown when its
+   * latest revision could not be read. Undefined for every other kind of node.
+   */
+  progress?: 'finished' | 'open' | 'unknown';
+  /** Open in hREA though R&O says this side is over: hREA is behind R&O. */
+  behind?: boolean;
   fields: [string, string][];
 };
 
@@ -250,6 +257,33 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
   const stage = (x: unknown, mapped: boolean, expected: boolean): FlowState =>
     !mapped ? 'not-mapped' : found(x, expected);
   const idField = (x?: { id: string }): [string, string][] => (x ? [['hREA id', x.id]] : []);
+  const cancelled = !!ex.cancellation;
+  // A Commitment's progress, and whether it trails R&O: over in R&O (that side done,
+  // or the exchange cancelled) but still open in hREA.
+  const progressOf = (c: Commitment): NonNullable<FlowNode['progress']> =>
+    c.finished === undefined ? 'unknown' : c.finished ? 'finished' : 'open';
+  const commitmentProgress = (c: Commitment | undefined, over: boolean) => {
+    if (!c) return {};
+    const progress = progressOf(c);
+    return { progress, behind: progress === 'open' && over };
+  };
+  const progressFields = (
+    c: Commitment | undefined,
+    isCancelled: boolean,
+    sideDone: boolean
+  ): [string, string][] => {
+    if (!c) return [];
+    const progress = progressOf(c);
+    const over = isCancelled || sideDone;
+    const ro = isCancelled ? 'cancelled' : sideDone ? 'this side done' : 'under way';
+    return [
+      ['hREA state', progress === 'unknown' ? 'state unread' : progress],
+      ['R&O state', ro],
+      ...(progress === 'open' && over
+        ? ([['behind R&O', 'over in R&O, still open in hREA']] as [string, string][])
+        : [])
+    ];
+  };
 
   return [
     {
@@ -335,7 +369,12 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       title: 'Commitment',
       sub: `provide ${a.primary.resource_conforms_to}`,
       state: stage(commitP, primaryMapped, accepted),
-      fields: [...idField(commitP), ['matched by', 'agreedIn R&O hash, provider']]
+      ...commitmentProgress(commitP, cancelled || !!ex.provider_done),
+      fields: [
+        ...idField(commitP),
+        ...progressFields(commitP, cancelled, !!ex.provider_done),
+        ['matched by', 'agreedIn R&O hash, provider']
+      ]
     },
     {
       id: 'commitR',
@@ -343,7 +382,12 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       title: 'Commitment',
       sub: `reciprocal in ${a.medium || '—'}`,
       state: stage(commitR, recipMapped, accepted),
-      fields: [...idField(commitR), ['matched by', 'agreedIn R&O hash, provider']]
+      ...commitmentProgress(commitR, cancelled || !!ex.receiver_done),
+      fields: [
+        ...idField(commitR),
+        ...progressFields(commitR, cancelled, !!ex.receiver_done),
+        ['matched by', 'agreedIn R&O hash, provider']
+      ]
     },
     {
       id: 'eventP',

@@ -7,20 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0-alpha.2] - 2026-11-23
+
+### 🚀 Exchange on hREA and Platform 0.7
+
 ### ⚠️ Network reset
 
 Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty network: profiles, organisations, requests, offers and exchanges from alpha 1 do not carry over. Alpha data stays disposable until the breaking-version migration lands (#144). Notice to testers: `documentation/releases/v0.6.0-alpha.2-network-reset.md` (#195).
 
+### The network's first admin
+
+The network creator holds the first admin seat. The desktop build sets the creator's key as the network's progenitor, so only that key can write the first admin grant. The creator then appoints the team as further administrators on separate devices. The join service and onboarding arrive with alpha 3 (#95).
+
 ### Platform
 
 - **Holochain**: The hApp moves to Holochain 0.7 and hREA `happ-0.5.0-beta.1` (`a2c5fd40`, #295, closes #192)
-- **hREA**: The GraphQL adapter `0.700.0-rc.0` is vendored as a release tarball until npm serves it (`3282e649`, #317, closes #316), and `hrea.dna` is pinned by sha256 so a pin bump reaches existing clones (`e15b0e2a`, #290, closes #223)
-- **hREA**: The GraphQL adapter is installed from npm and the vendored tarball is gone (`04aeee0d`, #455)
+- **hREA**: The GraphQL adapter `0.700.0-rc.0` was vendored as a release tarball (`3282e649`, #317, closes #316) and is now installed from npm, the tarball gone (`04aeee0d`, #455); `hrea.dna` is pinned by sha256 so a pin bump reaches existing clones (`e15b0e2a`, #290, closes #223)
 - **Zomes**: chrono moves from 0.3 to 0.4 before the network reset, which changes the DNA hash (`bac79cf4`, #366, closes #305)
 
 ### Features
 
-- **hREA**: Listings, exchanges and their completion are mirrored into hREA end to end (`30a7b7b6`, #255); the exchange record stays as it is for alpha 2, with no migration (`a83fda1b`, #402, closes #250)
+- **hREA**: Listings, exchanges and their completion are mirrored into hREA end to end (`30a7b7b6`, #255); the `exchanges` zome stays as the validated record under that mirror, and no alpha 1 exchange is migrated, because alpha 2 starts on a new network (`a83fda1b`, #402, closes #250)
 - **Requests and Offers**: A listing names exactly one service type, and needs an approved service type before it can be published. Several services in one exchange belong on the agreement, as separate commitments. Not yet enforced in validation; tracked in #257 (`4992fb30`, #256)
 - **Exchanges**: Either party may mark their part done first (`de9f2410`, #259)
 - **Exchanges**: A quantity is an exact decimal string (`"12.50"`), not a float, in the zome and in the UI; validation refuses malformed values and a counter compares amounts as numbers. This changes the `Agreement` entry format, inside the alpha 2 network reset; hREA still receives a number, converted at one place until h-REA/hREA#382 lands (`093e56d7`, #475)
@@ -46,9 +53,9 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Users**: A profile, your own or another member's, in the design system's layout (`aff3b113`, #353, part of #350)
 - **Navigation**: The bar reads Requests, Offers, My Exchanges, My Listings, Community, an envelope for Messages with the unopened count, the connection status, Admin and your picture; Service Types joins Community, and the open page is marked (`964987f0`, #521)
 - **Administration**: The Admin button becomes a menu of the admin pages, with how many members and organisations are waiting to be accepted (`881b955c`, #411, closes #359)
-- **Requests and Offers**: A listing's timeframe is typed: a preset, which is a turnaround counted from agreeing, or a window of calendar dates that validation checks ends after it is written, within 365 days, and does not start after it ends. A request or an offer can also publish an estimate of the task in hours, an exact decimal with zero allowed, and an amount it asks or offers in payment. This changes the request and offer entry formats, so it needs a network reset (closes #307, part of #370)
-- **Exchanges**: An agreement's timeframe is typed and checked as a listing's is, and a counter compares timeframes as values. This changes the `Agreement` entry format, inside the same reset. A proposal starts from the listing's estimate as written, its amount when it is in the medium chosen, and its timeframe while that can still be met (closes #525)
-- **hREA**: A Commitment's due date comes from the agreement's timeframe, counted from acceptance for a preset, or a window's end, and is written with the Commitment in one write
+- **Requests and Offers**: A listing's timeframe is typed: a preset, which is a turnaround counted from agreeing, or a window of calendar dates that validation checks ends after it is written, within 365 days, and does not start after it ends. A request or an offer can also publish an estimate of the task in hours, an exact decimal with zero allowed, and an amount it asks or offers in payment. This changes the request and offer entry formats, so it needs a network reset (`f5c799ad`, #380, closes #307, part of #370)
+- **Exchanges**: An agreement's timeframe is typed and checked as a listing's is, and a counter compares timeframes as values. This changes the `Agreement` entry format, inside the same reset. A proposal starts from the listing's estimate as written, its amount when it is in the medium chosen, and its timeframe while that can still be met (`f5c799ad`, #380, closes #525)
+- **hREA**: A Commitment's due date comes from the agreement's timeframe, counted from acceptance for a preset, or a window's end, and is written with the Commitment in one write (`f5c799ad`, #380)
 
 ### Security
 
@@ -57,29 +64,31 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **UI**: DOMPurify moves to 3.4.18, past the bypasses published against 3.3.1 (`93444f3e`, #530)
 - **UI**: A typed link opens only when it is a web address (`9ce13eac`, #382), inside rendered markdown too (`551f157f`, #312)
 - **Build**: Faker and the mock data stay out of the production build (`cae758a7`, #365, part of #363)
+- **Build**: `Cargo.lock` moves the crates behind the Holochain 0.7 advisories to patched releases, and holds `quinn-proto` back until Holochain itself moves (`710f5560`, #557, part of #363)
+- **Build**: `rustls-webpki` moves to 0.103.13 in `Cargo.lock` (`6a4f9c49`, #537)
 - **Users**: Validation decides who may write `UserAgents` and `MyUser` links: only a User's author links agents to it, only to their own key, and `MyUser` runs from the author's key to the author's User (`11bcf7a4`, #473)
-- **Validation**: Every role-gated write outside the administration zome carries the grant it rests on, and the network refuses an act by anyone never given the role. Requests, offers, interests and agreements need the author's member grant, and an organisation is updated by its creator, a coordinator of it, or an administrator. On a network with no progenitor key, as alpha 2 is (#466), validation accepts a root grant from any author, so a modified client can still grant itself a role (`c3db8659`, #378)
-- **Messaging**: A message carries its author's member grant, and validation refuses one that does not. On a network with no progenitor key, as alpha 2 is (#466), a modified client can write itself a root grant and so a member grant (`a677c286`, #412); validation refuses a ciphertext over 3,840 bytes, inside the 3,959 a recipient's keystore can open (`20c05eee`, #488)
+- **Validation**: Every role-gated write outside the administration zome carries the grant it rests on, and the network refuses an act by anyone never given the role. Requests, offers, interests and agreements need the author's member grant, and an organisation is updated by its creator, a coordinator of it, or an administrator. The release build sets the network creator's key as the progenitor, so only that key can write the root grant; on a network built without a progenitor key, such as a development network (#466), validation accepts a root grant from any author, so a modified client can still grant itself a role (`c3db8659`, #378)
+- **Messaging**: A message carries its author's member grant, and validation refuses one that does not. On a network built without a progenitor key, such as a development network (#466), a modified client can write itself a root grant and so a member grant (`a677c286`, #412); validation refuses a ciphertext over 3,840 bytes, inside the 3,959 a recipient's keystore can open (`20c05eee`, #488)
 - **Messaging**: A message to a role goes to the agents its live grants name, so a revoked administrator, an emptied roster or a roster link written by a modified client no longer changes who receives it (`c1784a45`, #520, closes #518)
 - **Administration**: A temporary suspension's end is a timestamp that validation checks is after its writing; it was text nothing checked, and a malformed one made every later read of that status fail. This changes the Status entry format, so it needs a network reset (`e8b51aac`, #528)
 
 ### Bug Fixes
 
-- **hREA**: An accepted exchange whose mirror never landed is mirrored again the next time the member who accepted it reads their exchanges, once a session, and never twice at once; a cancel that comes while its mirror is being written waits for it, then closes its Commitments. Both Commitments are checked before the Agreement is written, so a malformed one fails with a reason in words instead of hREA's bytes, and a failed mirror is logged with hREA's own reason (#532)
-- **hREA**: The admin audit page marks each Commitment finished or open, read from its latest revision; hREA's list returns the first, so a finished one showed as open
-- **hREA**: The admin's economic-flow graph fits its panel and zooms and pans like a whiteboard (buttons, Ctrl or Cmd with the wheel, a drag, the arrow keys), instead of a sideways scroll that cut off its left column; each node opens in the inspector on focus or a tap, not only on hover
-- **hREA**: The admin's Test managers find a medium of exchange (every medium read "not found": they looked up a field mediums lack, and an approved medium is listed at a later revision than its specification's note names, so they now compare root hashes), show note hashes as short labels instead of a list of bytes, let their chips wrap, and give every coloured text a dark-mode shade that reads at 4.5:1
-- **hREA**: The admin's economic-flow graph names an edited listing's exchange instead of "(unknown listing)", which had also left its proposal and intents unmatched
-- **hREA**: The admin's Proposals test manager finds an edited listing's source (it read "Source Missing"): it reads the listing's latest revision by the original hash the proposal is mapped under
+- **hREA**: An accepted exchange whose mirror never landed is mirrored again the next time the member who accepted it reads their exchanges, once a session, and never twice at once; a cancel that comes while its mirror is being written waits for it, then closes its Commitments. Both Commitments are checked before the Agreement is written, so a malformed one fails with a reason in words instead of hREA's bytes, and a failed mirror is logged with hREA's own reason (`3ad995ef`, #556, takes over #532)
+- **hREA**: The admin audit page marks each Commitment finished or open, read from its latest revision; hREA's list returns the first, so a finished one showed as open (`a96af548`, #562)
+- **hREA**: The admin's economic-flow graph fits its panel and zooms and pans like a whiteboard (buttons, Ctrl or Cmd with the wheel, a drag, the arrow keys), instead of a sideways scroll that cut off its left column; each node opens in the inspector on focus or a tap, not only on hover (`f6dba8b6`, #566)
+- **hREA**: The admin's Test managers find a medium of exchange (every medium read "not found": they looked up a field mediums lack, and an approved medium is listed at a later revision than its specification's note names, so they now compare root hashes), show note hashes as short labels instead of a list of bytes, let their chips wrap, and give every coloured text a dark-mode shade that reads at 4.5:1 (`f6dba8b6`, #566)
+- **hREA**: The admin's economic-flow graph names an edited listing's exchange instead of "(unknown listing)", which had also left its proposal and intents unmatched (`f6dba8b6`, #566)
+- **hREA**: The admin's Proposals test manager finds an edited listing's source (it read "Source Missing"): it reads the listing's latest revision by the original hash the proposal is mapped under (`f6dba8b6`, #566)
 - **Exchanges**: Every write that carries a payload is decoded (`499927c0`, #273)
 - **Exchanges**: Interest actions are hidden from members who are not accepted (`4474f97e`, #336, closes #330)
-- **Listings**: Offers, requests and their tables name every medium of exchange a listing accepts, instead of the first one or two and "+N more"
-- **Exchanges**: On My Exchanges, an exchange and its Go to chat share one hover, and the four group counts start at the top of their cards
-- **UI**: The navigation bar stays pinned to the top of the window while a page scrolls under it, as in the admin area and the design system; a focused element scrolls into view below it, not under it, and a long menu opened from the bar scrolls within the window
+- **Listings**: Offers, requests and their tables name every medium of exchange a listing accepts, instead of the first one or two and "+N more" (`28e8e2f1`, #563)
+- **Exchanges**: On My Exchanges, an exchange and its Go to chat share one hover, and the four group counts start at the top of their cards (`28e8e2f1`, #563)
+- **UI**: The navigation bar stays pinned to the top of the window while a page scrolls under it, as in the admin area and the design system; a focused element scrolls into view below it, not under it, and a long menu opened from the bar scrolls within the window (`ab7255d2`, #572)
 - **Exchanges**: A counter keeps each quantity's unit; only the amount may change, enforced by validation (`279f9a64`, #422)
 - **hREA**: A mirrored proposal publishes its intents; the link step had silently failed since the adapter has no `proposeIntent` (`42848be5`, #431)
 - **hREA**: Every member picks the same seed Unit, so the Commitments two members write name one hours Unit (`e3c95711`, #443, closes #441)
-- **hREA**: A request's estimated hours reach hREA in the hours Unit, not a label hREA rejected, so a request with hours is mirrored again (#558)
+- **hREA**: A request's estimated hours reach hREA in the hours Unit, not a label hREA rejected, so a request with hours is mirrored again (`b3a5fc8f`, #558)
 - **hREA**: After a reload, a completion finds its agreement's mirror again and an acceptance is not mirrored twice (`f40f1b4d`, #437)
 - **Exchanges**: The propose page names the other member, not the listing's author, when the author proposes to an interested member (`260887fa`, #436, closes #435)
 - **Users**: Pending members are gated like rejected members (`4d836957`, #338, closes #335), and see their approval without a reload (`8f73606f`, #337, closes #329), also when their profile was created without its status in the same page load, a defensive case (`4eb7adb8`, #429)
@@ -96,15 +105,21 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Users**: A blocked member is told about their status, not about a missing profile (`a47b8d8d`, #392)
 - **UI**: The loading screen gives an honest first-start wait (`9b2f5946`, #469)
 - **Zomes**: Given a revision's hash, the seven latest-record reads return the latest version, and deleting an edited listing removes the whole listing, from the active and archived lists too (`dbd42041`, #487, closes #229)
-- **Exchanges**: A member holds one live interest per listing, enforced by validation; a withdrawn interest does not count (`ed628e2e`, #362, closes #354)
+- **Exchanges**: A member holds one live interest per listing, enforced by validation; a withdrawn interest does not count (`ed628e2e`, #362 with #492, closes #354)
 - **Messaging**: A message is limited to 3 KiB, what the keystore can encrypt, and under Holochain 0.7 a refusal from the zome is shown as a refusal again, rather than waiting in the outbox (`20c05eee`, #488)
-- **UI**: A chip's text wraps inside its background instead of running past it (`415dd056`, #515)
+- **UI**: A chip's text wraps inside its background instead of running past it (`415dd056`, #515), the rule kept in the components layer (`40bef2d1`, #534)
 - **UI**: Each nav bar's status dot opens its own network details, on the admin pages too (`7db2b546`, #522)
 - **Administration**: The admin Users page moves a member between its lists as soon as a status is written, without a reload, and Retry Loading loads again after a failed load (`960e289e`, #524)
 - **Exchanges**: A proposal its author has withdrawn can no longer be accepted or declined (`fc50275f`, #485, closes #484)
 - **UI**: The nav bar's menus work from the keyboard (Enter, Space and the arrows open them; arrows, Home and End move; Escape closes) and announce themselves to a screen reader, and their items are links the router follows (`8ad643f9`, #352, closes #204)
 - **Administration**: The admin lists hold accepted members and organisations only, and a status an administrator writes stands until a read at least as new returns, so the minute re-read no longer moves a member back (`881b955c`, #411)
 - **UI**: The drawer's counts read "9+" past nine, as the bar's do, with the full number in words (`9c8c3327`, #533)
+- **Administration**: Admin pages stay put while the background check re-verifies admin status, instead of being rebuilt once a minute and losing what was typed (`7d746ad4`, #510, closes #508)
+- **UI**: Cards and fields are drawn as the design system draws them (`08720168`, #551)
+- **Navigation**: Requests and Offers stay in the bar on phones, and the bar fits (`85a8ea93`, #552)
+- **UI**: Labels are drawn as the design system's pills (`19ba0c07`, #553)
+- **UI**: Every page starts at the top of the window (`071f64e6`, #554)
+- **UI**: Every list page has one header, and Requests and Offers follow the same layout as the other lists (`1043621e`, #555, part of #350)
 
 ### Performance
 
@@ -115,6 +130,9 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 
 - **Exchanges**: The domain lands on the seven-layer architecture (`3950bf84`, #264, closes #251)
 - **Validation**: Every reason a validation callback gives is a variant of its domain's enum, so a string reason no longer compiles through `invalid` or `verdict`; the wording of every reason is unchanged, and every integrity zome's wasm and the DNA hash change, inside the alpha 2 network reset (`b250479e`, #476)
+- **UI**: The unused `effect-svelte-integration` module is deleted (`9b8108c1`, #540)
+- **UI**: Eleven components nothing references are deleted (`484dae4b`, #542)
+- **UI**: Four composables and a guard nothing references are deleted (`18ffc8fb`, #543)
 
 ### Documentation
 
@@ -123,7 +141,7 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Contributing**: The review rules are written down (`d852be25`, #293, closes #225)
 - **Release**: The announcement is gated on a launched packaged build (`162ca5e4`, #271); a discussion form for release feedback (`d110f10b`, #294); the Homebrew cask is installed by full name for tap trust (`14666074`, #267); production checks: never on a Friday, the built app run before the tag, two peers checked before announcing (`f71f5aa4`, #447, part of #276)
 - **Zome errors**: Zome errors come from `utils/src/errors.rs`, written down as a rule in `CLAUDE.md` (`23825ddc`, #472)
-- **Installation**: The Kangaroo desktop app does not set the progenitor key, so a new desktop network runs in development mode and its first profile becomes admin (`8ad45332`, #445)
+- **Installation**: A desktop network built without a progenitor key runs in development mode and its first profile becomes admin; the alpha 2 release build carries the network creator's key (`8ad45332`, #445)
 - **Development**: The inspector's adapter contract, packaging options and a Nondominium trial (`15d069e8`, #446); the guides follow what `bun start` and `bun start:web` now launch, and the ports they take (`ff26c178`, #449)
 - **Installation**: A desktop release runs in development mode: what that protects, what it does not, and the first-admin practice (`ca31467f`, #466)
 - **Status**: The status page matches the alpha 2 tree (`725fe638`, #489, part of #415)
@@ -131,6 +149,9 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Messaging**: The notes from the stack reviews, and that a block holds on this device only (`bd2b0d60`, #519)
 - **Alpha 2 sync**: The documentation matches the alpha 2 code: 61 broken links fixed, renamed commands and scripts, the names in the front-end specs and the structs in the requirements (`72098ffe`, #477, part of #415)
 - **Validation**: What the sealed reason trait guards, and three examples from before #476 brought up to date (`8e187dd1`, #531)
+- **Architecture**: The refactoring counts are re-baselined at `f5c799ad` (`c8f3d915`, #538)
+- **README**: Status, release, docs, license, stack and DeepWiki badges (`e9de91e0`, #536)
+- **Alpha 2 sync**: The counts are measured in one place, `status.md`, with their commands; the `Zomes (unit tests)` job and the zome labels are documented, the commands that no longer exist are replaced, nine domains are named, every page is in `SUMMARY.md`, and the organisation name in the clone and issue links is corrected (`65166e85`, #567, closes #415)
 
 ### CI and Testing
 
@@ -141,7 +162,10 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Exchanges**: The derived state and the exchange UI predicates are pinned by tests (`8ce42848`, #258)
 - **Lint**: ESLint errors cleared in the files no open pull request touches (`922aeb07`, #450); the contrast test also reads Skeleton token pairs (`ab1a9419`, #448)
 - **E2E**: The test conductor runs on its own network (`9b2d8b24`, #372); the onboarding connection probes can go red (`5ad458df`, #314, closes #252); the organisation is re-read after the update toast (`5fcdc272`, #275, closes #274); the offer form test accepts either Medium of Exchange heading (`5fed7656`, #470)
+- **Architecture**: A ratchet test, so the refactoring counts may only go down (`33633f27`, #539)
+- **Unit tests**: The exchange page is imported once, in a hook with its own timeout (`2d7c880b`, #544)
 - **Release**: Every release is published as Latest, alphas included, so the alpha 2 tag shows as the repository's latest (`b60bf26d`, #502); the first-admin seat on a new desktop network is taken in the dry run, before the tag, and the desktop installers wait in a draft until it is held (`36fcff39`, #504)
+- **CI**: A check warns when a pull request changes an integrity zome without `zome:integrity` and `breaking-change`, or a coordinator zome without `zome:coordinator` (`169743ed`, #560)
 
 ## [0.6.0-alpha.1] - 2026-09-14
 

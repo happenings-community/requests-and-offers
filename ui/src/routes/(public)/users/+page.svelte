@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import NavButton from '$lib/components/shared/NavButton.svelte';
   import UsersTable from '$lib/components/users/UsersTable.svelte';
@@ -56,6 +57,10 @@
     }
   }
 </script>
+
+<svelte:head>
+  <title>{pageTitle('All users')}</title>
+</svelte:head>
 
 <section class="container mx-auto flex flex-col gap-4 p-4">
   <PageHeader title="All Users" subtitle="Everyone in the community">

@@ -33,6 +33,7 @@ import usersStore from '$lib/stores/users.store.svelte';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
 import { createWriteGuard } from '$lib/utils/store-helpers/write-guard';
 import { decodedSuspensionEnd, remainingMs } from '$lib/utils/suspension';
+import { formatDateTime } from '$lib/utils/dates';
 
 // ============================================================================
 // CONSTANTS
@@ -542,32 +543,41 @@ const createEventEmitters = () => {
 // ADMINISTRATOR MANAGEMENT HELPERS
 // ============================================================================
 
+const hashKey = (user: UIUser): string | undefined => user.original_action_hash?.toString();
+
 /**
- * Creates helper for administrator management operations
+ * The members who are not administrators. Derived from both lists, so it is right whatever
+ * order they load in: opened directly, /admin/administrators reads the administrators before
+ * the members (dogfooding of 21 November, F1).
  */
-const createAdministratorManager = (
-  administrators: UIUser[],
-  nonAdministrators: UIUser[],
-  allUsers: UIUser[]
-) => {
-  const updateAdministratorLists = (): void => {
-    nonAdministrators.splice(0, nonAdministrators.length);
+const nonAdministratorsOf = (allUsers: UIUser[], administrators: UIUser[]): UIUser[] => {
+  const adminHashes = new Set(administrators.map(hashKey));
+  return allUsers.filter((user) => {
+    const userHash = hashKey(user);
+    return userHash !== undefined && !adminHashes.has(userHash);
+  });
+};
 
-    // Create set of administrator hashes for quick lookup
-    const adminHashes = new Set(
-      administrators.map((admin) => admin.original_action_hash?.toString())
-    );
-
-    // Filter non-administrators from all users
-    const nonAdmins = allUsers.filter((user) => {
-      const userHash = user.original_action_hash?.toString();
-      return userHash && !adminHashes.has(userHash);
-    });
-
-    nonAdministrators.push(...nonAdmins);
+/**
+ * Keeps the administrators list in step with a write that just succeeded, so the table does
+ * not wait for a reload (F2). The member is taken from the loaded members, where the Add
+ * Administrator dialog picked them.
+ */
+const createAdministratorManager = (administrators: UIUser[], allUsers: UIUser[]) => {
+  const markAdministrator = (entityHash: ActionHash): void => {
+    const key = entityHash.toString();
+    if (administrators.some((admin) => hashKey(admin) === key)) return;
+    const user = allUsers.find((u) => hashKey(u) === key);
+    if (user) administrators.push(user);
   };
 
-  return { updateAdministratorLists };
+  const unmarkAdministrator = (entityHash: ActionHash): void => {
+    const key = entityHash.toString();
+    const index = administrators.findIndex((admin) => hashKey(admin) === key);
+    if (index !== -1) administrators.splice(index, 1);
+  };
+
+  return { markAdministrator, unmarkAdministrator };
 };
 
 // ============================================================================
@@ -610,7 +620,7 @@ export const createAdministrationStore = (): E.Effect<
     const allUsers: UIUser[] = $state([]);
     const allOrganizations: UIOrganization[] = $state([]);
     const administrators: UIUser[] = $state([]);
-    const nonAdministrators: UIUser[] = $state([]);
+    const nonAdministrators: UIUser[] = $derived(nonAdministratorsOf(allUsers, administrators));
     const allUsersStatusesHistory: Revision[] = $state([]);
     const allOrganizationsStatusesHistory: Revision[] = $state([]);
     let agentIsAdministrator: boolean = $state(false);
@@ -623,7 +633,6 @@ export const createAdministrationStore = (): E.Effect<
       allUsers.length = 0;
       allOrganizations.length = 0;
       administrators.length = 0;
-      nonAdministrators.length = 0;
       allUsersStatusesHistory.length = 0;
       allOrganizationsStatusesHistory.length = 0;
       agentIsAdministrator = false;
@@ -653,9 +662,8 @@ export const createAdministrationStore = (): E.Effect<
       emitOrganizationAccepted
     } = createEventEmitters();
 
-    const { updateAdministratorLists } = createAdministratorManager(
+    const { markAdministrator, unmarkAdministrator } = createAdministratorManager(
       administrators,
-      nonAdministrators,
       allUsers
     );
 
@@ -673,7 +681,6 @@ export const createAdministrationStore = (): E.Effect<
       allUsers.length = 0;
       allOrganizations.length = 0;
       administrators.length = 0;
-      nonAdministrators.length = 0;
       allUsersStatusesHistory.length = 0;
       allOrganizationsStatusesHistory.length = 0;
       agentIsAdministrator = false;
@@ -854,7 +861,7 @@ export const createAdministrationStore = (): E.Effect<
           ),
           E.tap((success) => {
             if (success) {
-              updateAdministratorLists();
+              markAdministrator(entity_original_action_hash);
             }
           }),
           E.catchAll((error) =>
@@ -892,7 +899,7 @@ export const createAdministrationStore = (): E.Effect<
           ),
           E.tap((success) => {
             if (success) {
-              updateAdministratorLists();
+              markAdministrator(entity_original_action_hash);
             }
           }),
           E.catchAll((error) =>
@@ -914,7 +921,7 @@ export const createAdministrationStore = (): E.Effect<
           }),
           E.tap((success) => {
             if (success) {
-              updateAdministratorLists();
+              unmarkAdministrator(entity_original_action_hash);
             }
           }),
           E.catchAll((error) =>
@@ -989,7 +996,6 @@ export const createAdministrationStore = (): E.Effect<
           E.map((users) => users.filter((u): u is UIUser => u !== null)),
           E.tap((admins) => {
             administrators.splice(0, administrators.length, ...admins);
-            updateAdministratorLists();
           }),
           E.catchAll((error) =>
             E.fail(AdministrationError.fromError(error, ERROR_CONTEXTS.GET_ADMINISTRATORS))
@@ -1685,7 +1691,7 @@ export const createAdministrationStore = (): E.Effect<
                       );
                       revisions.forEach((rev, index) => {
                         console.log(
-                          `   ${index + 1}. ${rev.status?.status_type} - ${rev.status?.reason || 'No reason'} (${new Date(rev.timestamp || 0).toLocaleString()})`
+                          `   ${index + 1}. ${rev.status?.status_type} - ${rev.status?.reason || 'No reason'} (${formatDateTime(rev.timestamp || 0)})`
                         );
                       });
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatDateTime } from '$lib/utils/dates';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64 } from '@holochain/client';
   import administrationStore from '$lib/stores/administration.store.svelte';
@@ -29,13 +30,7 @@
 
   // Format date for display
   function formatDate(date: Date): string {
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+    return formatDateTime(date);
   }
 </script>
 

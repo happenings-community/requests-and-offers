@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { onDestroy, tick, untrack } from 'svelte';
   import { page } from '$app/stores';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
@@ -141,9 +142,9 @@
   const whenOf = (at: number) => formatMessageTime(at);
 </script>
 
-<svelte:head><title>{conversation.name}</title></svelte:head>
+<svelte:head><title>{pageTitle(conversation.name, S.messages.title)}</title></svelte:head>
 
-<section class="container mx-auto flex max-w-3xl flex-col gap-4 p-4">
+<section class="container mx-auto flex max-w-reading flex-col gap-4 p-4">
   <a class="text-sm text-surface-500 no-underline" href={paths.messages()}
     >← {S.conversation.back}</a
   >

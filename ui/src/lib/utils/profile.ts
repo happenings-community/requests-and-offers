@@ -2,6 +2,7 @@ import type { ActionHash } from '@holochain/client';
 import type { UIExchange, UIStatus, UIUser } from '$lib/types/ui';
 import { counterpartyOf } from '$lib/utils/exchange-ui';
 import { suspensionEndDate } from '$lib/utils/suspension';
+import { formatDay } from '$lib/utils/dates';
 
 /**
  * The member profile (#350), as the design system lays it out: the status
@@ -21,7 +22,7 @@ export interface StatusChip {
 }
 
 const formatDate = (date: Date) =>
-  date.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+  formatDay(date);
 
 /**
  * Accepted is green; pending and an expired suspension waiting on review are

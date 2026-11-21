@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatDay } from '$lib/utils/dates';
   import { timeframeLabel } from '$lib/utils/timeframe';
   import { encodeHashToBase64, type ActionHash } from '@holochain/client';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
@@ -46,11 +47,7 @@
 
   const when = $derived(
     exchange.created_at
-      ? new Date(exchange.created_at).toLocaleDateString('en-GB', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric'
-        })
+      ? formatDay(exchange.created_at)
       : ''
   );
 

@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { gotoApp, selectTimezone, createTestClient, closeTestClient } from '../utils/e2e-helpers.js';
+import {
+  gotoApp,
+  selectTimezone,
+  createTestClient,
+  closeTestClient
+} from '../utils/e2e-helpers.js';
 import type { AppWebsocket } from '@holochain/client';
 
 // ============================================================================
@@ -100,7 +105,9 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     // The first user becomes the network's administrator with their own
     // membership still pending, so the first-run message replaces the
     // standard welcome and its button opens the members page (#358).
-    await expect(page.getByRole('heading', { name: /You're the first administrator/i })).toBeVisible({
+    await expect(
+      page.getByRole('heading', { name: /You're the first administrator/i })
+    ).toBeVisible({
       timeout: 15_000
     });
     await page.getByRole('button', { name: 'Open the members page' }).click();
@@ -124,18 +131,20 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     await gotoApp(page, '/offers');
 
     // A pending member is blocked like a rejected one (#335), and told about
-    // their status rather than about a missing profile (#331): listings open
-    // once an administrator approves the profile.
+    // their status rather than about a missing profile (#331). The e2e agent is the
+    // network's first administrator, so the wall tells them to accept their own
+    // membership rather than to wait for the administrators (dogfooding F14).
     await expect(
       page.getByRole('heading', { name: 'Your application is waiting for approval' })
     ).toBeVisible({ timeout: 15_000 });
     await expect(
       page
         .getByText(
-          "You can't see listings, members or organisations until an administrator approves your profile."
+          "You can't see listings, members or organisations until you accept your own membership."
         )
         .first()
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('link', { name: 'Open the members page' })).toBeVisible();
   });
 
   test('pending profile can still open its own profile page', async ({ page }) => {

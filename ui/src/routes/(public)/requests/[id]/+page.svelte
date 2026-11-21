@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { timeframeLabel } from '$lib/utils/timeframe';
-  import { estimateLabel } from '$lib/utils/estimate';
+  import { estimateLabel, hasEstimate } from '$lib/utils/estimate';
   import BackButton from '$lib/components/shared/BackButton.svelte';
   import { termsState, TERMS_LOADING, TERMS_FAILED } from '$lib/utils/listing-terms';
   import { page } from '$app/state';
@@ -257,9 +258,7 @@
 </script>
 
 <svelte:head>
-  <title>
-    {request ? `${request.title} Request` : 'Request'} - Requests & Offers
-  </title>
+  <title>{pageTitle(request?.title ?? 'Request')}</title>
   <meta
     name="description"
     content={request
@@ -368,7 +367,7 @@
           {/if}
 
           <!-- Time Estimate -->
-          {#if request.time_estimate_hours != null}
+          {#if hasEstimate(request.time_estimate_hours)}
             <div>
               <h3 class="h4 mb-2 font-semibold">Estimated time</h3>
               <!-- The listing's estimate, a decimal printed as written (#525). -->

@@ -9,7 +9,13 @@ import type {
   Proposal,
   ResourceSpecification
 } from '$lib/types/hrea';
-import { actionForKind, rnoAgreementRef } from '$lib/services/mappers/agreement-commitment.mapper';
+import {
+  actionForKind,
+  carriesResource,
+  rnoAgreementRef
+} from '$lib/services/mappers/agreement-commitment.mapper';
+import { exchangeState } from '$lib/utils/exchange-ui';
+import { noteRefersTo } from '$lib/utils/hrea-ref';
 
 /**
  * The admin hREA dashboard doubles as the mapping audit. Every hREA number
@@ -55,10 +61,6 @@ export function countVfTypes(s: HreaSnapshot): VfCounts {
 
 const isAccepted = (ex: UIExchange) => ex.response?.accepted === true;
 const isMapped = (kind: ResourceKind) => actionForKind(kind) !== null;
-/** Same rule as mapAgreementToHrea: no reciprocal commitment for a gift or a Tbd. */
-const reciprocalMapped = (ex: UIExchange) =>
-  isMapped(ex.agreement.reciprocal.resource_kind) &&
-  ex.agreement.reciprocal.resource_kind !== 'Gift';
 
 /** What the mirror should hold for these exchanges, by the mapper's own rules. */
 export function expectedFromExchanges(exchanges: UIExchange[]): {
@@ -71,10 +73,12 @@ export function expectedFromExchanges(exchanges: UIExchange[]): {
   let events = 0;
   for (const ex of exchanges) {
     if (!isAccepted(ex) || !isMapped(ex.agreement.primary.resource_kind)) continue;
+    // Same rule as mapAgreementToHrea: both clauses on every accepted exchange, and one
+    // event for each side done, a gift's reciprocal side included.
     agreements++;
-    commitments += reciprocalMapped(ex) ? 2 : 1;
+    commitments += 2;
     if (ex.provider_done) events++;
-    if (ex.receiver_done && reciprocalMapped(ex)) events++;
+    if (ex.receiver_done) events++;
   }
   return { agreements, commitments, events };
 }
@@ -149,14 +153,14 @@ export function buildLedger(ro: RoInventory, s: HreaSnapshot): LedgerRow[] {
     row({
       ro: 'Requests',
       hrea: 'Proposal + Intents',
-      link: 'name "Request: <title>" (no ref note)',
+      link: 'name "Request: <title>", one per active request, note "Original request hash"',
       roCount: ro.requests,
       hreaCount: s.proposals.filter((p) => p.name.startsWith('Request: ')).length
     }),
     row({
       ro: 'Offers',
       hrea: 'Proposal + Intents',
-      link: 'name "Offer: <title>" (no ref note)',
+      link: 'name "Offer: <title>", one per active offer, note "Original offer hash"',
       roCount: ro.offers,
       hreaCount: s.proposals.filter((p) => p.name.startsWith('Offer: ')).length
     }),
@@ -198,10 +202,13 @@ export type FlowKind =
 
 /**
  * present: hREA holds it. missing: this exchange's stage expects it and hREA
- * does not hold it, so the mirror is incomplete. not-yet: the stage does not
- * call for it. not-mapped: R&O never mirrors it for this kind of term.
+ * does not hold it, so the mirror is incomplete. not-yet: the stage has not reached
+ * it. ended: the exchange was cancelled, declined or withdrawn before it, so it will
+ * never be created. no-resource: the reciprocal moves no resource (a gift or a term
+ * to be discussed), so there is no specification for it to conform to. not-mapped:
+ * R&O does not mirror an exchange whose service is still to be discussed.
  */
-export type FlowState = 'present' | 'missing' | 'not-yet' | 'not-mapped';
+export type FlowState = 'present' | 'missing' | 'not-yet' | 'ended' | 'no-resource' | 'not-mapped';
 
 export type FlowNode = {
   id: string;
@@ -226,10 +233,14 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
   const ref = rnoAgreementRef(ex);
   const accepted = isAccepted(ex);
   const primaryMapped = isMapped(a.primary.resource_kind);
-  const recipMapped = reciprocalMapped(ex);
+  const recipResource = carriesResource(a.reciprocal.resource_kind);
+  const state = exchangeState(ex);
+  // Ended before agreeing (declined, withdrawn) or after (cancelled): what it had not
+  // reached by then will not happen.
+  const ended = state === 'declined' || state === 'withdrawn' || state === 'cancelled';
 
-  const agentA = s.agents.find((g) => g.note === `ref:user:${a.provider.toString()}`);
-  const agentB = s.agents.find((g) => g.note === `ref:user:${a.receiver.toString()}`);
+  const agentA = s.agents.find((g) => noteRefersTo(g.note, 'user', a.provider));
+  const agentB = s.agents.find((g) => noteRefersTo(g.note, 'user', a.receiver));
   const proposalName = `${a.listing_type}: ${ctx.listingTitle}`;
   const proposal = s.proposals.find((p) => p.name === proposalName);
   const specS = s.specs.find((x) => x.name === a.primary.resource_conforms_to);
@@ -239,7 +250,11 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
   const published = new Set(proposal?.intentIds ?? []);
   const ownIntents = s.intents.filter((i) => published.has(i.id));
   const intentP = specS ? ownIntents.find((i) => i.resourceSpecifiedBy === specS.id) : undefined;
-  const intentR = specM ? ownIntents.find((i) => i.resourceSpecifiedBy === specM.id) : undefined;
+  // The reciprocal intent conforms to the medium's spec when it names one; one framed by a
+  // base category conforms to nothing, and is the proposal's other intent.
+  const intentR =
+    (specM ? ownIntents.find((i) => i.resourceSpecifiedBy === specM.id) : undefined) ??
+    ownIntents.find((i) => i.id !== intentP?.id);
   const agreement = s.agreements.find((g) => g.note === ref);
   const clauses = s.commitments.filter(
     (c) => c.agreedIn === ref || (agreement && c.clauseOf === agreement.id)
@@ -253,9 +268,14 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
   const eventR = realized.find((e) => agentB && e.provider === agentB.id);
 
   const found = (x: unknown, expected: boolean): FlowState =>
-    x ? 'present' : expected ? 'missing' : 'not-yet';
+    x ? 'present' : expected ? 'missing' : ended ? 'ended' : 'not-yet';
   const stage = (x: unknown, mapped: boolean, expected: boolean): FlowState =>
     !mapped ? 'not-mapped' : found(x, expected);
+  const reciprocalLabel = recipResource
+    ? a.medium || a.reciprocal.resource_conforms_to
+    : a.reciprocal.resource_kind === 'Tbd'
+      ? `to be discussed, framed by ${a.medium || 'no medium'}`
+      : `nothing owed, framed by ${a.medium || 'no medium'}`;
   const idField = (x?: { id: string }): [string, string][] => (x ? [['hREA id', x.id]] : []);
   const cancelled = !!ex.cancellation;
   // A Commitment's progress, and whether it trails R&O: over in R&O (that side done,
@@ -310,7 +330,7 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       state: found(proposal, true),
       fields: [
         ...idField(proposal),
-        ['matched by', `name "${proposalName}" (proposals carry no ref note)`]
+        ['matched by', `name "${proposalName}" (its note carries the listing hash)`]
       ]
     },
     {
@@ -329,10 +349,14 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       kind: 'intent',
       title: 'Intent · reciprocal',
       sub: a.medium,
-      state: stage(intentR, recipMapped, true),
+      state: stage(intentR, primaryMapped, true),
       fields: [
         ...idField(intentR),
-        ['matched by', 'published by the proposal, conforms to the medium spec']
+        [
+          'conformsTo',
+          intentR?.resourceSpecifiedBy ?? `(none, framed by ${a.medium || 'no medium'})`
+        ],
+        ['matched by', 'published by the proposal, its reciprocal intent']
       ]
     },
     {
@@ -348,7 +372,9 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       kind: 'spec',
       title: 'ResourceSpecification',
       sub: a.medium,
-      state: stage(specM, recipMapped, true),
+      // Drawn only when the reciprocal moves a resource (the DS model): a base category
+      // frames the deal and nothing conforms to it.
+      state: recipResource ? stage(specM, primaryMapped, true) : 'no-resource',
       fields: [
         ...idField(specM),
         ['matched by', 'name of the medium'],
@@ -380,8 +406,8 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       id: 'commitR',
       kind: 'commitment',
       title: 'Commitment',
-      sub: `reciprocal in ${a.medium || '—'}`,
-      state: stage(commitR, recipMapped, accepted),
+      sub: recipResource ? `reciprocal in ${reciprocalLabel}` : reciprocalLabel,
+      state: stage(commitR, primaryMapped, accepted),
       ...commitmentProgress(commitR, cancelled || !!ex.receiver_done),
       fields: [
         ...idField(commitR),
@@ -405,8 +431,8 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       id: 'eventR',
       kind: 'event',
       title: 'EconomicEvent',
-      sub: 'reciprocal delivered',
-      state: stage(eventR, recipMapped, accepted && !!ex.receiver_done),
+      sub: 'reciprocal fulfilled',
+      state: stage(eventR, primaryMapped, accepted && !!ex.receiver_done),
       fields: [
         ...idField(eventR),
         ['fulfills', eventR?.fulfills?.join(', ') || '—'],
@@ -431,5 +457,12 @@ export const KNOWN_MAPPING_GAPS: { title: string; detail: string; where: string 
       'An exchange whose mirror failed is mirrored again when the member who accepted it next reads their exchanges, unless either side has already marked it done: its completion was recorded without an Agreement. A mirror that wrote its Agreement and primary Commitment but not its reciprocal is taken as mirrored, and one that failed on the primary Commitment leaves an empty Agreement behind the repaired one.',
     where:
       'exchangesToMirror and agreementRefsFromHrea in services/mappers/agreement-commitment.mapper.ts'
+  },
+  {
+    title: 'What was mirrored before alpha 2 is read, not rewritten',
+    detail:
+      'A gift exchange accepted before alpha 2 holds one Commitment and no reciprocal event, so it reads as missing its reciprocal clause. A proposal an earlier edit, archive or delete left behind stays in hREA until that listing is next edited, archived or deleted, when every proposal noted with its hash is retired. Notes written with a hash as a list of byte values are still matched. An exchange whose listing was archived or deleted draws its Proposal and Intents as missing: archiving or deleting a listing retires them.',
+    where:
+      'mapAgreementToHrea in services/mappers/agreement-commitment.mapper.ts; retireListingProposals in stores/hrea.store.svelte.ts; utils/hrea-ref.ts'
   }
 ];

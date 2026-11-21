@@ -23,6 +23,12 @@ export interface OfferProposalMappingParams {
   offererAgent: Agent;
   serviceTypeResourceSpecs: ResourceSpecification[];
   mediumOfExchangeResourceSpec: ResourceSpecification;
+  /**
+   * The medium is a base category (Time Banking, Skill Exchange): it frames the deal, it is
+   * not a resource. The reciprocal intent then conforms to nothing, as the design system's
+   * hREA page draws it ("none, framed by <medium>"); the medium keeps its specification.
+   */
+  mediumIsBaseCategory?: boolean;
 }
 
 export interface MappedIntent extends Intent {
@@ -98,7 +104,9 @@ export const createProposalFromOffer = (
       id: '', // Will be set by hREA service
       action: 'transfer', // Payment/transfer action
       receiver: offererAgent.id, // Offerer receives the payment
-      resourceSpecifiedBy: mediumOfExchangeResourceSpec.id,
+      resourceSpecifiedBy: params.mediumIsBaseCategory
+        ? undefined
+        : mediumOfExchangeResourceSpec.id,
       isReciprocal: true
     };
 

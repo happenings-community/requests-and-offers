@@ -72,7 +72,9 @@
   const STATE_LABEL: Record<FlowState, string> = {
     present: 'in hREA',
     missing: 'missing',
-    'not-yet': 'not yet',
+    'not-yet': 'not yet created',
+    ended: 'will not happen',
+    'no-resource': 'no resource',
     'not-mapped': 'not mapped'
   };
 
@@ -507,8 +509,11 @@
           </dl>
         {:else}
           <p class="hrea-sub">
-            Missing: the exchange's stage expects it and hREA does not hold it. Not yet: the stage
-            does not call for it. Not mapped: R&amp;O never mirrors it for this kind of term.
+            Missing: the exchange's stage expects it and hREA does not hold it. Not yet created:
+            the stage has not reached it. Will not happen: the exchange was cancelled, declined or
+            withdrawn before it. No resource: the reciprocal moves nothing (a gift, or a term to be
+            discussed), so no specification is drawn for it. Not mapped: an exchange whose service
+            is still to be discussed has no mirror.
           </p>
         {/if}
       </div>
@@ -803,6 +808,8 @@
     outline-offset: 2px;
   }
   .hrea-node--not-yet,
+  .hrea-node--ended,
+  .hrea-node--no-resource,
   .hrea-node--not-mapped {
     background: rgb(var(--color-surface-500) / 0.08);
     color: inherit;
@@ -811,11 +818,15 @@
     box-shadow: none;
   }
   :global(.dark) .hrea-node--not-yet,
+  :global(.dark) .hrea-node--ended,
+  :global(.dark) .hrea-node--no-resource,
   :global(.dark) .hrea-node--not-mapped {
     border-color: rgb(var(--color-surface-300));
     border-left-color: rgb(var(--kl));
   }
   :global(.dark) .hrea-node--not-yet .hrea-node-kind,
+  :global(.dark) .hrea-node--ended .hrea-node-kind,
+  :global(.dark) .hrea-node--no-resource .hrea-node-kind,
   :global(.dark) .hrea-node--not-mapped .hrea-node-kind {
     color: rgb(var(--kl));
   }

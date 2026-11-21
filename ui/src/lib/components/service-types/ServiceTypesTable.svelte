@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatDateTime } from '$lib/utils/dates';
   import { goto } from '$app/navigation';
   import { encodeHashToBase64, type ActionHash } from '@holochain/client';
   import type { UIServiceType } from '$lib/types/ui';
@@ -42,13 +43,7 @@
 
   // Format date for display
   function formatDate(date: Date): string {
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+    return formatDateTime(date);
   }
 
   function handleEdit(serviceType: UIServiceType) {

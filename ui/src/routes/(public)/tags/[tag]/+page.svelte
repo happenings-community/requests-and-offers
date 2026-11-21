@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { paths } from '$lib/paths';
@@ -10,7 +11,7 @@
 </script>
 
 <svelte:head>
-  <title>Redirecting... - Requests and Offers</title>
+  <title>{pageTitle('Redirecting')}</title>
 </svelte:head>
 
 <section class="container mx-auto p-4 text-center">

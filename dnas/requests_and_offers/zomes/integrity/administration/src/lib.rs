@@ -9,7 +9,7 @@ pub mod status;
 mod tests;
 
 /// Registry of all HDK entry types defined in this integrity zome.
-///
+/// (throwaway probe for the zome label check, do not merge)
 /// [`Status`] is the moderation lifecycle entry used to track the approval state of any
 /// entity (user, offer, request, etc.) in the network. `RoleGrant` and `RoleRevocation`
 /// are the chain of grants: who holds which role, and by whose authority.

@@ -12,12 +12,16 @@ import { decodeReviewInput } from '$lib/schemas/exchanges.schemas';
 import {
   counterpartyOf,
   doneBy,
+  EXCHANGE_STATE_LABEL,
+  exchangeState,
   otherRole,
   reviewedBy,
   roleOf,
   wroteIt
 } from '$lib/utils/exchange-ui';
 import type { ReviewInput } from '$lib/types/holochain';
+import type { ExchangeState } from '$lib/utils/exchange-ui';
+import { EXCHANGE_STRINGS, fill } from '$lib/strings/exchanges.strings';
 import type { UIExchange, UIUser } from '$lib/types/ui';
 import { paths } from '$lib/paths';
 
@@ -60,6 +64,30 @@ export function isSettled(exchange: Pick<UIExchange, 'status'> | null | undefine
     exchange?.status === 'Cancelled'
   );
 }
+
+/**
+ * What a member reads when their action met an exchange that had moved on while the page
+ * was open (dogfooding, 21 November): who did what, and that nothing was changed.
+ */
+export function movedOnMessage(now: ExchangeState, otherName: string): string {
+  const S = EXCHANGE_STRINGS.detail.movedOn;
+  switch (now) {
+    case 'withdrawn':
+    case 'declined':
+    case 'cancelled':
+      return fill(S[now], { name: otherName });
+    case 'proposed':
+    case 'agreed':
+    case 'partlyDone':
+    case 'awaitingReviews':
+    case 'reviewed':
+      return fill(S.other, { state: EXCHANGE_STATE_LABEL[now].toLowerCase() });
+  }
+}
+
+/** The states each irreversible action belongs to; met in any other, it is refused. */
+const PROPOSED: readonly ExchangeState[] = ['proposed'];
+const UNDER_WAY: readonly ExchangeState[] = ['agreed', 'partlyDone'];
 
 export interface UseExchangeDetailsOptions {
   /** The agreement to load. Null while the route parameter is unreadable. */
@@ -114,17 +142,51 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
   let writes = 0;
   let reads = 0;
 
-  /** Runs one write, keeps the page honest about being busy, reports either way. */
-  async function act(done: string, run: () => Promise<UIExchange>): Promise<boolean> {
+  /**
+   * Re-reads the exchange after this member's action met something other than what the
+   * page showed, and says so. True when it had moved: the page now shows it as it is and
+   * the member has been told why nothing happened.
+   */
+  async function reportIfMoved(expected: readonly ExchangeState[]): Promise<boolean> {
+    let fresh: UIExchange;
+    try {
+      fresh = await runEffect(exchangesStore.getExchange(exchange!.agreement_hash));
+    } catch {
+      return false;
+    }
+    const now = exchangeState(fresh);
+    if (expected.includes(now)) return false;
+    exchange = fresh;
+    failedReads = 0;
+    showToast(movedOnMessage(now, other?.name ?? 'The other member'), 'error', 8000);
+    return true;
+  }
+
+  /**
+   * Runs one write, keeps the page honest about being busy, reports either way.
+   *
+   * With `expected`, the exchange is read first and the write runs only if it is still in
+   * one of those states: the page learns of the other member's moves at its next re-read,
+   * so a click can arrive on a proposal already withdrawn. A write the network refuses is
+   * followed by the same read, so a move that landed in between is named too, rather
+   * than shown as the zome's error.
+   */
+  async function act(
+    done: string,
+    run: () => Promise<UIExchange>,
+    expected?: readonly ExchangeState[]
+  ): Promise<boolean> {
     busy = true;
     writes += 1;
     try {
+      if (expected && (await reportIfMoved(expected))) return false;
       exchange = await run();
       failedReads = 0;
       showToast(done, 'success');
       note = '';
       return true;
     } catch (e) {
+      if (expected && (await reportIfMoved(expected))) return false;
       fail(e);
       return false;
     } finally {
@@ -136,10 +198,14 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
 
   const accept = () =>
     // No note on an accept: the box belongs to Decline, and nothing shows an accept's.
-    act('Agreement accepted', () => runEffect(exchangesStore.respond(hash(), true, '')));
+    act('Agreement accepted', () => runEffect(exchangesStore.respond(hash(), true, '')), PROPOSED);
 
   const decline = () =>
-    act('Agreement declined', () => runEffect(exchangesStore.respond(hash(), false, note)));
+    act(
+      'Agreement declined',
+      () => runEffect(exchangesStore.respond(hash(), false, note)),
+      PROPOSED
+    );
 
   /**
    * Hands back where the counter-proposal is written. Nothing is declined here:
@@ -154,11 +220,13 @@ export function useExchangeDetails(options: UseExchangeDetailsOptions) {
   const complete = () => act('Marked as done', () => runEffect(exchangesStore.complete(hash())));
 
   const cancel = () =>
-    act('Agreement cancelled', () => runEffect(exchangesStore.cancel(hash(), note)));
+    act('Agreement cancelled', () => runEffect(exchangesStore.cancel(hash(), note)), UNDER_WAY);
 
   const withdraw = () =>
-    act('Proposal withdrawn', () =>
-      runEffect(exchangesStore.cancel(hash(), 'Withdrawn by the proposer'))
+    act(
+      'Proposal withdrawn',
+      () => runEffect(exchangesStore.cancel(hash(), 'Withdrawn by the proposer')),
+      PROPOSED
     );
 
   /** Refused before the round trip when the rating is outside what a review is. */

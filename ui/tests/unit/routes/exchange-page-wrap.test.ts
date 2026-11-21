@@ -60,6 +60,12 @@ vi.mock('$lib/utils/exchange-ui', async (importOriginal) => ({
   exchangeStatusVariant: () => 'variant-soft-success'
 }));
 
+// The page asks through the app's ConfirmModal before a final action.
+vi.mock('@skeletonlabs/skeleton', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@skeletonlabs/skeleton')>()),
+  getModalStore: () => ({ trigger: vi.fn() })
+}));
+
 vi.mock('$lib/components/exchanges/ReachPerson.svelte', async () => ({
   default: (await import('../../mocks/Empty.svelte')).default
 }));

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { useOffersManagement } from '$lib/composables';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
@@ -41,7 +42,7 @@
 </script>
 
 <svelte:head>
-  <title>Offers | Happening Community</title>
+  <title>{pageTitle('Offers')}</title>
 </svelte:head>
 
 <!-- SIMPLE WORKING VERSION -->

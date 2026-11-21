@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
@@ -210,6 +211,10 @@
     loadUserOrganizations();
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Edit offer')}</title>
+</svelte:head>
 
 <PrerequisitesGuard
   title="Service Types Required for Offers"

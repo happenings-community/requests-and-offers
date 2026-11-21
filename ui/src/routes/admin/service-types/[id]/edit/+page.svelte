@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import ServiceTypeForm from '$lib/components/service-types/ServiceTypeForm.svelte';
   import { useServiceTypeDetails } from '$lib/composables';
   import { paths } from '$lib/paths';
@@ -18,6 +19,10 @@
     navigateBack();
   }
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Edit service type', 'Admin')}</title>
+</svelte:head>
 
 <section class="space-y-6">
   <div class="flex items-center justify-between">

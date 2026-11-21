@@ -77,11 +77,9 @@
       <div class="rounded-lg border-l-4 border-blue-500 p-4">
         <h3 class="text-tertiary-500 text-lg font-bold">Important Next Steps:</h3>
         <ul class="mt-2 list-disc space-y-2 pl-5 text-left">
-          <li>A network administrator will contact you via email and platform message shortly.</li>
-          <li>You'll be invited to schedule a meeting for identity verification.</li>
-          <li>
-            After successful verification, the status of your organization will update to "accepted".
-          </li>
+          <li>A network administrator will review your organization.</li>
+          <li>If they need to know more about it, they will ask you here, in the app.</li>
+          <li>Once they accept it, your organization's status reads "accepted".</li>
         </ul>
       </div>
       <p class="text-sm">
@@ -132,7 +130,7 @@
         alertModal({
           id: 'welcome-and-next-steps',
           message: welcomeAndNextStepsMessage(escapeHtml(organization?.name || '')),
-          confirmLabel: 'Ok !'
+          confirmLabel: 'Got it'
         })
       );
 
@@ -227,7 +225,7 @@
             alertModal({
               id: 'welcome-and-next-steps',
               message: welcomeAndNextStepsMessage(escapeHtml(updatedOrganization?.name || '')),
-              confirmLabel: 'Ok !'
+              confirmLabel: 'Got it'
             })
           );
           goto(paths.organizations());

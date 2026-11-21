@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { page } from '$app/state';
   import { paths, readCreateListingParams } from '$lib/paths';
   import { goto } from '$app/navigation';
@@ -113,6 +114,10 @@
     loadData();
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('New offer')}</title>
+</svelte:head>
 
 <ProfileGuard
   allowBrowsing={false}

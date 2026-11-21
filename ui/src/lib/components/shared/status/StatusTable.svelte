@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatDateTime } from '$lib/utils/dates';
   import type { Revision } from '$lib/types/ui';
 
   type Props = {
@@ -43,7 +44,7 @@
     if (!timestamp) return 'N/A';
     // Convert from microseconds to milliseconds if needed
     const timestampMs = timestamp > 1e12 ? Math.floor(timestamp / 1000) : timestamp;
-    return new Date(timestampMs).toLocaleString();
+    return formatDateTime(timestampMs);
   }
 </script>
 

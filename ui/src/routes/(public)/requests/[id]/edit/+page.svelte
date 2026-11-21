@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
@@ -215,6 +216,10 @@
     loadUserOrganizations();
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Edit request')}</title>
+</svelte:head>
 
 <PrerequisitesGuard
   title="Prerequisites Required for Requests"

@@ -33,6 +33,7 @@ import usersStore from '$lib/stores/users.store.svelte';
 import organizationsStore from '$lib/stores/organizations.store.svelte';
 import { createWriteGuard } from '$lib/utils/store-helpers/write-guard';
 import { decodedSuspensionEnd, remainingMs } from '$lib/utils/suspension';
+import { formatDateTime } from '$lib/utils/dates';
 
 // ============================================================================
 // CONSTANTS
@@ -1685,7 +1686,7 @@ export const createAdministrationStore = (): E.Effect<
                       );
                       revisions.forEach((rev, index) => {
                         console.log(
-                          `   ${index + 1}. ${rev.status?.status_type} - ${rev.status?.reason || 'No reason'} (${new Date(rev.timestamp || 0).toLocaleString()})`
+                          `   ${index + 1}. ${rev.status?.status_type} - ${rev.status?.reason || 'No reason'} (${formatDateTime(rev.timestamp || 0)})`
                         );
                       });
 

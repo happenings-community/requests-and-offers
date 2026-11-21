@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
+  import { formatDateTime } from '$lib/utils/dates';
   import { suspensionEndDate } from '$lib/utils/suspension';
   import { untrack } from 'svelte';
   import { page } from '$app/state';
@@ -288,6 +290,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>{pageTitle(organization?.name ?? 'Organization')}</title>
+</svelte:head>
+
 <section class="flex flex-col items-center px-4 sm:px-6">
   {#if error}
     <div class="alert variant-filled-error" role="alert">
@@ -344,7 +350,7 @@
               {#if ends}
                 <p class="text-wrap">
                   <b>Suspended until :</b>
-                  {ends.toLocaleString()}
+                  {formatDateTime(ends)}
                 </p>
               {/if}
             {/if}

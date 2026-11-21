@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatDay } from '$lib/utils/dates';
   import { encodeHashToBase64, type ActionHash } from '@holochain/client';
   import exchangesStore from '$lib/stores/exchanges.store.svelte';
   import requestsStore from '$lib/stores/requests.store.svelte';
@@ -79,11 +80,7 @@
 
   const since = (at: number | undefined) =>
     at
-      ? new Date(at).toLocaleDateString('en-GB', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric'
-        })
+      ? formatDay(at)
       : '';
 
   /**

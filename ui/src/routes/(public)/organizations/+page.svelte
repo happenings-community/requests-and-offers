@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
@@ -42,6 +43,10 @@
     goto(paths.organizationCreate());
   }
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Organizations')}</title>
+</svelte:head>
 
 <section class="container mx-auto flex flex-col gap-8 p-4">
   <PageHeader title="Organizations" subtitle="Groups and projects in the community">

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { useRequestsManagement } from '$lib/composables';
   import RequestsTable from '$lib/components/requests/RequestsTable.svelte';
@@ -41,7 +42,7 @@
 </script>
 
 <svelte:head>
-  <title>Requests | Happening Community</title>
+  <title>{pageTitle('Requests')}</title>
 </svelte:head>
 
 <!-- SIMPLE WORKING VERSION -->

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { useExchangesManagement } from '$lib/composables/domain/exchanges/useExchangesManagement.svelte';
   import { type ExchangeTab } from '$lib/utils/exchange-ui';
@@ -116,7 +117,7 @@
 </script>
 
 <svelte:head>
-  <title>My Exchanges</title>
+  <title>{pageTitle('My exchanges')}</title>
 </svelte:head>
 
 <!--

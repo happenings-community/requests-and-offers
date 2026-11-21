@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { timeframeLabel } from '$lib/utils/timeframe';
   import { estimateLabel } from '$lib/utils/estimate';
   import BackButton from '$lib/components/shared/BackButton.svelte';
@@ -257,9 +258,7 @@
 </script>
 
 <svelte:head>
-  <title>
-    {request ? `${request.title} Request` : 'Request'} - Requests & Offers
-  </title>
+  <title>{pageTitle(request?.title ?? 'Request')}</title>
   <meta
     name="description"
     content={request

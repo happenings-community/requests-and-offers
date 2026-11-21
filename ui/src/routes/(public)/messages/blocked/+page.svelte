@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
+  import { formatDateTime } from '$lib/utils/dates';
   import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { decodeHashFromBase64, type ActionHash } from '@holochain/client';
   import messagingStore from '$lib/stores/messaging.store.svelte';
@@ -58,13 +60,7 @@
   });
 
   const when = (at: number) =>
-    new Date(at).toLocaleString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    formatDateTime(at);
 
   function unblock(b64: string) {
     const hash = hashOf(b64);
@@ -72,7 +68,7 @@
   }
 </script>
 
-<svelte:head><title>{S.blocked.title}</title></svelte:head>
+<svelte:head><title>{pageTitle(S.blocked.title)}</title></svelte:head>
 
 <section class="container mx-auto flex max-w-3xl flex-col gap-5 p-4">
   <a class="text-sm text-surface-500 no-underline" href={paths.messages()}

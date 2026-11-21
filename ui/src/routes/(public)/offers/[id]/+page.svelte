@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import BackButton from '$lib/components/shared/BackButton.svelte';
   import { termsState, TERMS_LOADING, TERMS_FAILED } from '$lib/utils/listing-terms';
   import { page } from '$app/state';
@@ -252,9 +253,7 @@
 </script>
 
 <svelte:head>
-  <title>
-    {offer ? `${offer.title} Offer` : 'Offer'} - Requests & Offers
-  </title>
+  <title>{pageTitle(offer?.title ?? 'Offer')}</title>
   <meta
     name="description"
     content={offer ? `Offer details for ${offer.title} - ${offer.description}` : 'Offer details'}

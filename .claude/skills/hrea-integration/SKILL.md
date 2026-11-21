@@ -61,16 +61,16 @@ If any prerequisite is missing, the request/offer is **queued** in `pendingReque
 // MoE approved → createResourceSpecificationFromMediumOfExchange() → retryPendingProposals()
 ```
 
-## Request→Proposal Mapping (service intents and a reciprocal intent)
+## Request→Proposal Mapping (service intents and reciprocal intents)
 
-Each request/offer creates a Proposal with one service intent per service type plus one reciprocal intent, whose action follows the listing's medium (`services/mappers/listing-medium.ts`, the same rule as an agreement's reciprocal term): `transfer` for a currency, `work` for Service Exchange, and no reciprocal intent at all for a medium that expects nothing back (Free/Pay it Forward):
+Each request/offer creates a Proposal with one service intent per service type plus one reciprocal intent per medium the listing accepts, whose action follows that medium (`services/mappers/listing-medium.ts`, the same rule as an agreement's reciprocal term): `transfer` for a currency, `work` for Service Exchange, and no reciprocal intent at all for a medium that expects nothing back (Free/Pay it Forward):
 
 ```
 Request "I need web development"
   → Proposal: name="Request: I need web development"
   → Service intent (primary, one per service type): action="work", receiver=requester's agent
       resourceConformsTo = service type resource spec
-  → Reciprocal intent: action by the medium (transfer | work | none), provider=requester's agent
+  → Reciprocal intent per medium: action by that medium (transfer | work | none), provider=requester's agent
       resourceConformsTo = medium of exchange resource spec
 ```
 

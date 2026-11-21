@@ -333,11 +333,15 @@ integration.
 What is implemented:
 
 - Listings mirror as Proposals publishing a `work` Intent per service type
-  and a reciprocal Intent set by the listing's medium
-  (`listing-medium.ts`), the same rule an agreement's reciprocal term
-  follows: a `transfer` for a currency, `work` for Service Exchange, and no
-  reciprocal Intent for a medium that expects nothing back (Free/Pay it
-  Forward). The intents are written first and the Proposal names them in
+  and a reciprocal Intent for each medium the listing accepts, its action
+  set by that medium (`listing-medium.ts`), the same rule an agreement's
+  reciprocal term follows: a `transfer` for a currency, `work` for Service
+  Exchange, and no reciprocal Intent for a medium that expects nothing
+  back (Free/Pay it Forward). A medium named twice adds one intent. A
+  second medium whose ResourceSpecification is not in hREA yet is left
+  out, with a warning, rather than holding the proposal back; the
+  listing's next edit adds it (a first medium without one queues the
+  whole listing, as before). The intents are written first and the Proposal names them in
   `publishes` and `reciprocal`; the adapter has no `proposeIntent`.
 - A listing's Proposal is found by the line its note carries,
   `Original offer hash: …` or `Original request hash: …`, read only

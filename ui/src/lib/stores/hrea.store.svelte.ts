@@ -1443,6 +1443,42 @@ export const createHreaStore = (): E.Effect<
         })
       );
 
+    /**
+     * The reciprocal intents of a listing's other mediums, after the first: each one's
+     * ResourceSpecification and what it records back, a medium expecting nothing back
+     * left out. A medium whose specification is not in hREA yet is left out too, with a
+     * warning, rather than holding the listing's proposal back; its next edit adds it.
+     */
+    const otherMediumReciprocals = (first: ActionHash | undefined, hashes: readonly ActionHash[]) =>
+      E.gen(function* () {
+        const out: { resourceSpecifiedBy: string; action: 'transfer' | 'work' }[] = [];
+        const root = (hash: ActionHash) =>
+          pipe(
+            mediumsOfExchangeService.resolveToOriginal(hash),
+            E.catchAll(() => E.succeed(hash))
+          );
+        // A medium named twice is one medium: one reciprocal intent.
+        const seen = new Set<string>(first ? [(yield* root(first)).toString()] : []);
+        for (const hash of hashes) {
+          const original = yield* root(hash);
+          if (seen.has(original.toString())) continue;
+          seen.add(original.toString());
+          const action = yield* reciprocalActionOf(original);
+          if (!action) continue;
+          const spec = state.resourceSpecifications.find((s) =>
+            s.note?.includes(`ref:mediumOfExchange:${original.toString()}`)
+          );
+          if (!spec) {
+            console.warn(
+              `hREA Store: medium "${original.toString()}" has no Resource Specification yet; its reciprocal intent waits for the listing's next edit`
+            );
+            continue;
+          }
+          out.push({ resourceSpecifiedBy: spec.id, action });
+        }
+        return out;
+      });
+
     const getAllProposals = (): E.Effect<void, HreaError> => {
       return pipe(
         E.sync(() => setters.setLoading(true)),
@@ -1974,6 +2010,10 @@ export const createHreaStore = (): E.Effect<
               ) || null;
             reciprocalAction = yield* reciprocalActionOf(mediumRootHash);
           }
+          const otherReciprocals = yield* otherMediumReciprocals(
+            request.medium_of_exchange_hashes?.[0],
+            (request.medium_of_exchange_hashes ?? []).slice(1)
+          );
 
           // 4. Validate requirements
           yield* validateRequestMappingRequirements(
@@ -1989,7 +2029,8 @@ export const createHreaStore = (): E.Effect<
             requesterAgent,
             serviceTypeResourceSpecs,
             mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!,
-            reciprocalAction
+            reciprocalAction,
+            otherReciprocals
           });
 
           // 6. Create the intents, then the proposal that publishes them: hREA
@@ -2456,6 +2497,10 @@ export const createHreaStore = (): E.Effect<
               ) || null;
             reciprocalAction = yield* reciprocalActionOf(mediumRootHash);
           }
+          const otherReciprocals = yield* otherMediumReciprocals(
+            offer.medium_of_exchange_hashes?.[0],
+            (offer.medium_of_exchange_hashes ?? []).slice(1)
+          );
 
           // 4. Validate requirements
           yield* validateOfferMappingRequirements(
@@ -2471,7 +2516,8 @@ export const createHreaStore = (): E.Effect<
             offererAgent,
             serviceTypeResourceSpecs,
             mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!,
-            reciprocalAction
+            reciprocalAction,
+            otherReciprocals
           });
 
           // 6. Create the intents, then the proposal that publishes them: hREA

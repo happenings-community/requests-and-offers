@@ -33,6 +33,12 @@ export interface OfferProposalMappingParams {
    * is published. Defaults to `transfer`, what every listing wrote before.
    */
   reciprocalAction?: ListingReciprocalAction;
+  /**
+   * A reciprocal intent for each of the listing's other mediums, after the first: its
+   * specification and its action, a medium expecting nothing back left out. A listing
+   * accepts any of its mediums, so an exchange may settle in any one of them.
+   */
+  otherReciprocals?: { resourceSpecifiedBy: string; action: 'transfer' | 'work' }[];
 }
 
 export interface MappedIntent extends Intent {
@@ -42,8 +48,10 @@ export interface MappedIntent extends Intent {
 export interface OfferProposalMappingResult {
   proposal: Proposal;
   serviceIntents: MappedIntent[];
-  /** The reciprocal intent, or null for a medium that expects nothing back. */
+  /** The first medium's reciprocal intent, or null for a medium that expects nothing back. */
   paymentIntent: MappedIntent | null;
+  /** Every reciprocal intent, one per medium that expects something back. */
+  reciprocalIntents: MappedIntent[];
   allIntents: MappedIntent[];
 }
 
@@ -66,7 +74,8 @@ export const createProposalFromOffer = (
       offererAgent,
       serviceTypeResourceSpecs,
       mediumOfExchangeResourceSpec,
-      reciprocalAction = 'transfer'
+      reciprocalAction = 'transfer',
+      otherReciprocals = []
     } = params;
 
     // Validate input parameters
@@ -122,15 +131,25 @@ export const createProposalFromOffer = (
             isReciprocal: true
           };
 
+    const reciprocalIntents: MappedIntent[] = [
+      ...(paymentIntent ? [paymentIntent] : []),
+      ...otherReciprocals.map((r) => ({
+        id: '',
+        action: r.action,
+        receiver: offererAgent.id, // Offerer receives what comes back
+        resourceSpecifiedBy: r.resourceSpecifiedBy,
+        isReciprocal: true
+      }))
+    ];
+
     // Combine all intents
-    const allIntents: MappedIntent[] = paymentIntent
-      ? [...serviceIntents, paymentIntent]
-      : serviceIntents;
+    const allIntents: MappedIntent[] = [...serviceIntents, ...reciprocalIntents];
 
     return {
       proposal,
       serviceIntents,
       paymentIntent,
+      reciprocalIntents,
       allIntents
     };
   });

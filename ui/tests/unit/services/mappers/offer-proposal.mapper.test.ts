@@ -200,6 +200,25 @@ describe('Offer to Proposal Mapper', () => {
       expect(result.allIntents.filter((i) => i.isReciprocal)).toHaveLength(1);
     });
 
+    it("adds a reciprocal intent for each of the listing's other mediums", async () => {
+      const result = await E.runPromise(
+        createProposalFromOffer({
+          ...params(null),
+          otherReciprocals: [{ resourceSpecifiedBy: 'rs-se', action: 'work' }]
+        })
+      );
+      expect(result.paymentIntent).toBeNull();
+      expect(result.reciprocalIntents).toEqual([
+        expect.objectContaining({
+          action: 'work',
+          resourceSpecifiedBy: 'rs-se',
+          receiver: 'agent-1',
+          isReciprocal: true
+        })
+      ]);
+      expect(result.allIntents.filter((i) => i.isReciprocal)).toHaveLength(1);
+    });
+
     it('publishes no reciprocal intent for a medium that expects nothing back', async () => {
       const result = await E.runPromise(createProposalFromOffer(params(null)));
       expect(result.paymentIntent).toBeNull();

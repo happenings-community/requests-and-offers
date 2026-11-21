@@ -33,6 +33,8 @@ const ME = bytes(1, 1);
 const SERVICE_TYPE = bytes(3, 3);
 const MEDIUM = bytes(4, 4);
 const OFFER = bytes(7, 8, 9);
+const MEDIUM_2 = bytes(5, 5);
+const MEDIUM_NO_SPEC = bytes(6, 6);
 
 const noteFor = (kind: 'request' | 'offer', hash: string, description = 'x') =>
   `Description: ${description}\nOffered by: Ada\n\n--- hREA Mapping ---\nOriginal ${kind} hash: ${hash}\nCreated: 2026-11-20`;
@@ -51,7 +53,9 @@ const held = (id: string, kind: 'request' | 'offer', hash: string, created = '20
 
 type Medium = { code: string; name: string; exchange_type: 'base' | 'currency' };
 
-const make = async (opts: { proposals?: unknown[] | Error; medium?: Medium | null } = {}) => {
+const make = async (
+  opts: { proposals?: unknown[] | Error; medium?: Medium | null; medium2?: Medium } = {}
+) => {
   let n = 0;
   const service = {
     initialize: vi.fn().mockReturnValue(E.succeed({ id: 'client' })),
@@ -63,7 +67,8 @@ const make = async (opts: { proposals?: unknown[] | Error; medium?: Medium | nul
     getResourceSpecifications: vi.fn().mockReturnValue(
       E.succeed([
         { id: 'spec-service', name: 'Bike repair', note: `ref:serviceType:${SERVICE_TYPE}` },
-        { id: 'spec-medium', name: 'Medium', note: `ref:mediumOfExchange:${MEDIUM}` }
+        { id: 'spec-medium', name: 'Medium', note: `ref:mediumOfExchange:${MEDIUM}` },
+        { id: 'spec-medium-2', name: 'Medium 2', note: `ref:mediumOfExchange:${MEDIUM_2}` }
       ])
     ),
     getProposalsWithIntents: vi.fn(() =>
@@ -97,7 +102,13 @@ const make = async (opts: { proposals?: unknown[] | Error; medium?: Medium | nul
         };
   const mediums = {
     resolveToOriginal: vi.fn((h) => E.succeed(h)),
-    getLatestMediumOfExchangeRecord: vi.fn(() => E.succeed(record))
+    getLatestMediumOfExchangeRecord: vi.fn((h: Uint8Array) =>
+      E.succeed(
+        h.toString() === MEDIUM_2.toString() && opts.medium2
+          ? { entry: { Present: { entry: encode(opts.medium2) } } }
+          : record
+      )
+    )
   };
   const store = await runEffect(
     createHreaStore().pipe(
@@ -334,6 +345,66 @@ describe("a listing's medium sets its reciprocal intent", () => {
     });
     expect(got.actions).toEqual(['work']);
     expect(got.proposal.reciprocal).toEqual([]);
+  });
+
+  it('one reciprocal intent per medium that expects something back, Free left out', async () => {
+    const { store, service } = await make({
+      medium: { code: 'PAY_IT_FORWARD', name: 'Free/Pay it Forward', exchange_type: 'base' },
+      medium2: { code: 'EXCHANGE_SERVICES', name: 'Service Exchange', exchange_type: 'base' }
+    });
+    await runEffect(store.getAllAgents());
+    await runEffect(store.getAllResourceSpecifications());
+    await runEffect(
+      store.createProposalFromOffer(offer({ medium_of_exchange_hashes: [MEDIUM, MEDIUM_2] }))
+    );
+    const calls = service.createIntent.mock.calls.map(
+      ([p]) => p as { action: string; resourceSpecifiedBy: string }
+    );
+    expect(calls.map((c) => [c.action, c.resourceSpecifiedBy])).toEqual([
+      ['work', 'spec-service'],
+      ['work', 'spec-medium-2']
+    ]);
+    const proposal = service.createProposal.mock.calls[0]?.[0] as unknown as {
+      reciprocal: string[];
+    };
+    expect(proposal.reciprocal).toHaveLength(1);
+  });
+
+  it('a currency first and Service Exchange second: two reciprocal intents, in order', async () => {
+    const { store, service } = await make({
+      medium: { code: 'GBP', name: 'Pound', exchange_type: 'currency' },
+      medium2: { code: 'EXCHANGE_SERVICES', name: 'Service Exchange', exchange_type: 'base' }
+    });
+    await runEffect(store.getAllAgents());
+    await runEffect(store.getAllResourceSpecifications());
+    await runEffect(
+      store.createProposalFromOffer(
+        offer({ medium_of_exchange_hashes: [MEDIUM, MEDIUM_2, MEDIUM] })
+      )
+    );
+    const calls = service.createIntent.mock.calls.map(
+      ([p]) => p as { action: string; resourceSpecifiedBy: string }
+    );
+    expect(calls.map((c) => [c.action, c.resourceSpecifiedBy])).toEqual([
+      ['work', 'spec-service'],
+      ['transfer', 'spec-medium'],
+      ['work', 'spec-medium-2']
+    ]);
+    const proposal = service.createProposal.mock.calls[0]?.[0] as unknown as {
+      reciprocal: string[];
+    };
+    expect(proposal.reciprocal, 'the repeated medium adds nothing').toHaveLength(2);
+  });
+
+  it('leaves out a medium with no Resource Specification yet, and still writes the proposal', async () => {
+    const { store, service } = await make();
+    await runEffect(store.getAllAgents());
+    await runEffect(store.getAllResourceSpecifications());
+    await runEffect(
+      store.createProposalFromOffer(offer({ medium_of_exchange_hashes: [MEDIUM, MEDIUM_NO_SPEC] }))
+    );
+    expect(service.createIntent).toHaveBeenCalledTimes(2);
+    expect(service.createProposal).toHaveBeenCalledTimes(1);
   });
 
   it('a medium that cannot be read: a transfer, as before', async () => {

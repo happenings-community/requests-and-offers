@@ -117,13 +117,6 @@
 </script>
 
 <div class="space-y-6">
-  {#if canCreate}
-    <div class="flex flex-wrap justify-end gap-2">
-      <a href={paths.requestCreate()} class="variant-filled-secondary btn btn-sm">+ Request</a>
-      <a href={paths.offerCreate()} class="variant-filled-warning btn btn-sm">+ Offer</a>
-    </div>
-  {/if}
-
   <!-- Toggle buttons, not tabs: no arrow-key movement and no panel to point at -->
   <div class="grid gap-4 md:grid-cols-3" role="group" aria-label="Listing views">
     {#each VIEWS as v (v.key)}

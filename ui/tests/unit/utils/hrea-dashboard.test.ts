@@ -240,6 +240,62 @@ describe('buildExchangeFlow', () => {
     });
   });
 
+  describe("a Commitment's progress, read from its latest revision", () => {
+    const progressOf = (ex: UIExchange, snap: HreaSnapshot) =>
+      Object.fromEntries(
+        buildExchangeFlow(ex, ctx, snap)
+          .filter((n) => n.kind === 'commitment')
+          .map((n) => [n.id, { progress: n.progress, behind: !!n.behind, fields: n.fields }])
+      );
+    const withFinished = (ex: UIExchange, p?: boolean, r?: boolean): HreaSnapshot => {
+      const snap = fullSnapshot(ex);
+      snap.commitments = snap.commitments.map((c) =>
+        c.id === 'c-p' ? { ...c, finished: p } : { ...c, finished: r }
+      );
+      return snap;
+    };
+
+    it('marks each Commitment finished or open, from its latest revision', () => {
+      const ex = exchange({ provider_done: { created_at: 3 } });
+      const got = progressOf(ex, withFinished(ex, true, false));
+      expect(got.commitP.progress).toBe('finished');
+      expect(got.commitP.behind, 'finished, and its side done: not behind').toBe(false);
+      expect(got.commitR.progress).toBe('open');
+      expect(got.commitR.behind, 'open, but its side is not done').toBe(false);
+      expect(got.commitP.fields).toContainEqual(['hREA state', 'finished']);
+      expect(got.commitP.fields).toContainEqual(['R&O state', 'this side done']);
+      expect(got.commitR.fields).toContainEqual(['R&O state', 'under way']);
+    });
+
+    it('flags an open Commitment R&O says is over as behind R&O', () => {
+      // The cancellation record, not the status, is what says it was cancelled after acceptance.
+      const cancelled = exchange({ cancellation: { created_at: 4 } } as never);
+      const got = progressOf(cancelled, withFinished(cancelled, false, false));
+      expect(got.commitP).toMatchObject({ progress: 'open', behind: true });
+      expect(got.commitR).toMatchObject({ progress: 'open', behind: true });
+      expect(got.commitP.fields).toContainEqual(['R&O state', 'cancelled']);
+      expect(got.commitP.fields.map(([k]) => k)).toContain('behind R&O');
+
+      const done = exchange({ provider_done: { created_at: 3 } });
+      expect(progressOf(done, withFinished(done, false, false)).commitP.behind).toBe(true);
+    });
+
+    it('says unread, never open, when the latest revision was not read', () => {
+      const ex = exchange({ provider_done: { created_at: 3 } });
+      const got = progressOf(ex, withFinished(ex, undefined, undefined));
+      expect(got.commitP.progress).toBe('unknown');
+      expect(got.commitP.behind, 'unread is not open, so not behind').toBe(false);
+      expect(got.commitP.fields).toContainEqual(['hREA state', 'state unread']);
+    });
+
+    it('gives no progress to a Commitment hREA does not hold', () => {
+      const ex = exchange();
+      const got = progressOf(ex, { ...fullSnapshot(ex), commitments: [] });
+      expect(got.commitP.progress).toBeUndefined();
+      expect(got.commitP.fields.some(([k]) => k === 'hREA state')).toBe(false);
+    });
+  });
+
   it('marks a node missing when the stage expects it and hREA does not have it', () => {
     const ex = exchange({ provider_done: { created_at: 3 } });
     const snap = { ...fullSnapshot(ex), agreements: [], commitments: [], events: [] };

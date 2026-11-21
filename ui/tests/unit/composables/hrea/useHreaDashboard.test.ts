@@ -6,7 +6,8 @@ import type { HreaSnapshot } from '$lib/utils/hrea-dashboard';
 // U14: the dashboard composable gathers the R&O inventory beside the hREA
 // snapshot. R&O has no list-all read for exchanges, so they come per listing.
 
-const h = (n: number) => new Uint8Array([132, 41, 36, n]) as unknown as UIExchange['agreement_hash'];
+const h = (n: number) =>
+  new Uint8Array([132, 41, 36, n]) as unknown as UIExchange['agreement_hash'];
 
 const exchange = (agreement: number, listing: number, created_at = 1): UIExchange =>
   ({
@@ -20,8 +21,18 @@ const exchange = (agreement: number, listing: number, created_at = 1): UIExchang
       counterparty: h(51),
       provider: h(52),
       receiver: h(51),
-      primary: { direction: 'Provide', resource_conforms_to: 'Repair', resource_kind: 'Service', quantity: null },
-      reciprocal: { direction: 'Receive', resource_conforms_to: 'CAD', resource_kind: 'Currency', quantity: null },
+      primary: {
+        direction: 'Provide',
+        resource_conforms_to: 'Repair',
+        resource_kind: 'Service',
+        quantity: null
+      },
+      reciprocal: {
+        direction: 'Receive',
+        resource_conforms_to: 'CAD',
+        resource_kind: 'Currency',
+        quantity: null
+      },
       medium: 'CAD',
       terms: '',
       delivery_timeframe: { Preset: 'Flexible' }
@@ -118,6 +129,17 @@ describe('useHreaDashboard', () => {
     expect(dash.selected?.agreement_hash).toEqual(h(10));
     expect(dash.exchangeLabel(dash.exchanges[0])).toBe('Fix your bike · Proposed');
     expect(dash.flow.find((n) => n.id === 'agentA')?.title).toBe('Ada Lovelace');
+  });
+
+  it("names an edited listing's exchange by the listing it was found through", async () => {
+    // The store labels an edited listing with its latest revision's hash (3 here), while
+    // the agreement records the listing's original hash (77).
+    mocks.getExchangesForListing.mockImplementation((l: Uint8Array) =>
+      E.succeed(l[3] === 3 ? [exchange(11, 77, 1)] : [])
+    );
+    const dash = useHreaDashboard();
+    await dash.load();
+    expect(dash.exchangeLabel(dash.exchanges[0])).toBe('Fix your bike · Proposed');
   });
 
   it('switches the flow to the chosen exchange', async () => {

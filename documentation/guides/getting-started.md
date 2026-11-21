@@ -26,7 +26,7 @@ Before you begin, ensure you have:
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/Happening-Community/requests-and-offers.git
+   git clone https://github.com/happenings-community/requests-and-offers.git
    cd requests-and-offers
    ```
 
@@ -249,7 +249,7 @@ The application integrates with hREA (Holochain Resource-Event-Agent) framework:
 - **Development Questions**: Check the root `CLAUDE.md` and `.claude/skills/` for project patterns
 - **Community**: Join our [Discord](https://discord.gg/happening)
 - **Project Info**: Visit [hAppenings Community](https://happenings.community/)
-- **Issues**: Report on [GitHub](https://github.com/Happening-Community/requests-and-offers/issues)
+- **Issues**: Report on [GitHub](https://github.com/happenings-community/requests-and-offers/issues)
 
 ## What Sets This Apart
 

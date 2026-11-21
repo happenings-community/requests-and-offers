@@ -300,7 +300,10 @@ export interface HreaService {
   // Agreement, Commitment and EconomicEvent operations
   readonly createAgreement: (params: AgreementInput) => E.Effect<Agreement, HreaError>;
   readonly createCommitment: (params: CommitmentInput) => E.Effect<Commitment, HreaError>;
-  readonly getLatestCommitments: (commitments: readonly Commitment[]) => E.Effect<Commitment[], HreaError>;
+  readonly getLatestCommitments: (
+    commitments: readonly Commitment[],
+    options?: LatestCommitmentOptions
+  ) => E.Effect<Commitment[], HreaError>;
   readonly updateCommitment: (params: { revisionId: string; finished: boolean }) => E.Effect<Commitment, HreaError>;
   readonly createEconomicEvent: (params: EconomicEventInput) => E.Effect<EconomicEvent, HreaError>;
   readonly getAgreements: () => E.Effect<Agreement[], HreaError>;
@@ -330,16 +333,27 @@ export interface HreaService {
 export class HreaServiceTag extends Context.Tag('HreaService')<HreaServiceTag, HreaService>() {}
 
 /**
+ * How getLatestCommitments answers for a Commitment whose latest revision it could
+ * not read. By default it keeps the listed one, which is what an update needs. The
+ * audit page asks for `unread: 'unknown'` instead: `finished` left undefined, and a
+ * failed read of one Commitment no longer fails the rest, so the page never shows a
+ * first revision's `finished` as though it were the latest.
+ */
+export type LatestCommitmentOptions = { unread?: 'listed' | 'unknown' };
+
+/**
  * A listed commitment with the fields of its latest revision that callers rely
  * on (`finished`, and the revision to update from), read from the zome's
- * Record. Keeps the listed commitment when the zome returns nothing.
+ * Record. Keeps the listed commitment when the zome returns nothing, or, asked
+ * for `unknown`, the listed one with `finished` undefined.
  */
 export function latestCommitmentFields(
   listed: Commitment,
-  record: HolochainRecord | null
+  record: HolochainRecord | null,
+  unread: 'listed' | 'unknown' = 'listed'
 ): Commitment {
   const present = (record?.entry as { Present?: { entry: Uint8Array } } | undefined)?.Present;
-  if (!record || !present) return listed;
+  if (!record || !present) return unread === 'unknown' ? { ...listed, finished: undefined } : listed;
   const entry = decode(present.entry) as { finished?: boolean };
   return {
     ...listed,
@@ -1107,12 +1121,14 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
       // ten seconds. Remove once hREA's update moves the link (issue drafted for
       // h-REA/hREA, 2026-11-02).
       const getLatestCommitments = (
-        commitments: readonly Commitment[]
-      ): E.Effect<Commitment[], HreaError> =>
-        E.forEach(
+        commitments: readonly Commitment[],
+        options: LatestCommitmentOptions = {}
+      ): E.Effect<Commitment[], HreaError> => {
+        const unread = options.unread ?? 'listed';
+        return E.forEach(
           commitments,
-          (listed) =>
-            E.tryPromise({
+          (listed) => {
+            const read = E.tryPromise({
               try: async () => {
                 const record = (await holochainClient.callZome(
                   'hrea',
@@ -1121,12 +1137,17 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
                   undefined,
                   'hrea'
                 )) as HolochainRecord | null;
-                return latestCommitmentFields(listed, record);
+                return latestCommitmentFields(listed, record, unread);
               },
               catch: (error) => error
-            }),
+            });
+            return unread === 'unknown'
+              ? E.catchAll(read, () => E.succeed({ ...listed, finished: undefined }))
+              : read;
+          },
           { concurrency: 8 }
         ).pipe(E.mapError((error) => HreaError.fromError(error, HREA_CONTEXTS.GET_COMMITMENTS)));
+      };
 
       const createIntent = (params: {
         action: string;

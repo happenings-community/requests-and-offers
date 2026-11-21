@@ -1,6 +1,6 @@
 # Project Status
 
-This document reflects the current implementation state as of **v0.6.0-alpha.1 (2026-09-14)**.
+This document reflects the current implementation state as of **v0.6.0-alpha.2 (2026-11-23)**.
 For full change history, see [CHANGELOG.md](../CHANGELOG.md).
 
 **Current Phase: Alpha Testing** — Core MVP features are live; active bug triage underway from alpha user feedback.
@@ -9,26 +9,38 @@ For full change history, see [CHANGELOG.md](../CHANGELOG.md).
 
 ## What's Working
 
-### Architecture — Unified Effect-TS (All 8 Domains)
+### Architecture — Unified Effect-TS (All 9 Domains)
 
 All domains are fully standardized with the 7-layer Effect-TS architecture:
-`Service Types`, `Requests`, `Offers`, `Users`, `Organizations`, `Administration`, `Exchanges`, `Mediums of Exchange`
+`Service Types`, `Requests`, `Offers`, `Users`, `Organizations`, `Administration`, `Exchanges`, `Mediums of Exchange`, `Messaging`
 
 Pattern established: `Context.Tag` services → Effect-native stores → `Schema.Class` validation → `Data.TaggedError` error handling → composables → Svelte 5 components.
+
+### New in alpha 2
+
+The full list, with pull request numbers, is in the [CHANGELOG](../CHANGELOG.md).
+The headlines:
+
+- **Network reset**: alpha 2 runs on Holochain 0.7 with a changed DNA, so it starts on a new, empty network.
+  Data from alpha 1 does not carry over.
+  See [the notice to testers](releases/v0.6.0-alpha.2-network-reset.md).
+- **Exchanges on hREA**: listings, exchanges and their completion are mirrored into hREA, with counter-proposals threaded as one exchange.
+- **Messaging**: members have an encrypted inbox and in-app conversations, with listings, interests and proposals as cards in them.
+- **Roles as grants**: administrator and other roles are `RoleGrant` entries the network validates.
 
 ### Core Infrastructure
 
 **Holochain Backend (Rust):**
 - Holochain 0.7 (HDK 0.7.0, HDI 0.8.0)
-- 9 coordinator zomes and 7 integrity zomes: `messaging` and `misc` are coordinator-only
+- 9 coordinator zomes and 8 integrity zomes: `misc` is coordinator-only
 - Progenitor pattern — secure designated network creator for trusted bootstrapping
 - Action hash type safety — compile-time distinct types preventing hash kind confusion
 - Active/Archived/Deleted listing status management across requests and offers
-- Sweettest integration tests (101 cases across 21 files, 5 of them under `administration/`; replaced Tryorama in v0.5.0)
+- Sweettest integration tests (177 cases across 25 files, 5 of them under `administration/`; replaced Tryorama in v0.5.0)
 
 **Frontend (SvelteKit + Effect-TS):**
 - Svelte 5 Runes (`$state`, `$derived`, `$effect`) throughout
-- All 8 domain stores fully Effect-TS based
+- All 9 domain stores fully Effect-TS based
 - `EntityCache` pattern for in-memory caching
 - Event Bus system (`storeEvents.ts`) for cross-store communication
 - Weave/Moss integration — runs as a Weave Tool with hybrid profile display
@@ -48,18 +60,28 @@ Pattern established: `Context.Tag` services → Effect-native stores → `Schema
 
 | Layer | Count | Status |
 |-------|-------|--------|
-| Backend (Sweettest / Rust) | 101 cases across 21 files | Off the pull-request path: run with the `run:sweettest` label or the Heavy tests workflow |
-| Frontend unit tests (Vitest) | 934 tests across 68 files | All passing, on every pull request |
+| Backend (Sweettest / Rust) | 177 cases across 25 files | Off the pull-request path: run with the `run:sweettest` label or the Heavy tests workflow |
+| Frontend unit tests (Vitest) | 1843 tests across 139 files | All passing, on every pull request |
 | Frontend integration tests (Vitest) | 43 tests across 4 files | All passing |
-| E2E / Playwright | 11 specs, an ordered journey on one sandbox conductor ([#10](https://github.com/happenings-community/requests-and-offers/issues/10)) | Off the pull-request path: run with the `run:e2e` label or the Heavy tests workflow |
+| Zome crates' own unit tests (`cargo test --lib`) | Not counted on this page | On every pull request, in the `Zomes (unit tests)` job |
+| E2E / Playwright | 12 spec files, an ordered journey on one sandbox conductor ([#10](https://github.com/happenings-community/requests-and-offers/issues/10)) | Off the pull-request path: run with the `run:e2e` label or the Heavy tests workflow |
 
-How these counts were taken, so they can be refreshed: `grep -rhE '#\[(tokio::test|test)' tests/sweettest/tests | wc -l`, `cd ui && bun run test:unit` and `cd ui && bun run test:integration` (with `VITE_MOCK_BUTTONS_ENABLED` unset), and `ls ui/tests/e2e/specs`.
+These counts were taken on 2026-11-20 at `dev` `f6dba8b6`. The Sweettest figure counts `#[tokio::test]` and `#[test]` attributes by grep, so it is a count of cases, not of passing cases.
+Sweettest has not been run for this page.
+
+To refresh them:
+
+- Sweettest cases: `grep -rhE '#\[(tokio::test|test)' tests/sweettest/tests | wc -l`, and `grep -rlE '#\[(tokio::test|test)' tests/sweettest/tests | wc -l` for the files.
+- Unit and integration tests: `cd ui && bun run test:unit` and `cd ui && bun run test:integration`, with `VITE_MOCK_BUTTONS_ENABLED` and `VITE_PEERS_DISPLAY_ENABLED` unset in your shell.
+  On a fresh clone, run `cd ui && bunx svelte-kit sync` first.
+- E2E spec files: `ls ui/tests/e2e/specs | wc -l`.
 
 ---
 
 ## Active Bugs
 
 Bugs from alpha testing, ordered by priority. See the [project board](https://github.com/orgs/happenings-community/projects/2) for live status.
+All five issues below were still open on 2026-11-20.
 
 ### P1 — Critical
 
@@ -113,6 +135,8 @@ Large features deferred to upcoming milestones.
 | [#52](https://github.com/happenings-community/requests-and-offers/issues/52) | Admin Inbox & Task Management | — | P2 |
 | [#53](https://github.com/happenings-community/requests-and-offers/issues/53) | Admin Audit Trail | — | P2 |
 | — | Review & Reputation System | — | — |
+
+Alpha 2 delivers a large part of the exchange flow on hREA and of messaging (see the CHANGELOG), but #90 and #91 are still open on the board, so they stay listed here.
 
 ---
 

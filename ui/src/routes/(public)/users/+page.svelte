@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import NavButton from '$lib/components/shared/NavButton.svelte';
   import UsersTable from '$lib/components/users/UsersTable.svelte';
   import UserFilterControls from '$lib/components/users/UserFilterControls.svelte';
@@ -57,7 +58,15 @@
 </script>
 
 <section class="container mx-auto flex flex-col gap-4 p-4">
-  <h2 class="h1 text-center">Users</h2>
+  <PageHeader title="All Users" subtitle="Everyone in the community">
+    {#snippet actions()}
+      {#if !currentUser}
+        <NavButton href={paths.myProfileCreate()} className="variant-filled-primary btn-sm"
+          >Create Profile</NavButton
+        >
+      {/if}
+    {/snippet}
+  </PageHeader>
 
   <!-- Test mode banner -->
   {#if showTestMode}
@@ -67,12 +76,6 @@
       </div>
     </div>
   {/if}
-
-  <div class="flex w-full justify-center gap-4">
-    {#if !currentUser}
-      <NavButton href={paths.myProfileCreate()}>Create Profile</NavButton>
-    {/if}
-  </div>
 
   <!-- Network peers section (test mode only) -->
   {#if showTestMode && networkPeers.length > 0}

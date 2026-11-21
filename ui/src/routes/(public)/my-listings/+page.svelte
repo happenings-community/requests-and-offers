@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { onMount } from 'svelte';
   import MyListings from '$lib/components/shared/listings/MyListings.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -52,12 +53,14 @@
 </svelte:head>
 
 <div class="container mx-auto space-y-6 p-4">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="h1 font-bold">My Listings</h1>
-      <p class="text-surface-600 dark:text-surface-400">Manage your requests and offers</p>
-    </div>
-  </div>
+  <PageHeader title="My Listings" subtitle="Manage your requests and offers">
+    {#snippet actions()}
+      {#if usersStore.currentUser?.status?.status_type === 'accepted'}
+        <a href={paths.requestCreate()} class="variant-filled-secondary btn btn-sm">+ Request</a>
+        <a href={paths.offerCreate()} class="variant-filled-warning btn btn-sm">+ Offer</a>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
   {#if loading}
     <div class="card p-8 text-center">

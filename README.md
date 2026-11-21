@@ -1,6 +1,15 @@
 # Requests and Offers
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/happenings-community/requests-and-offers)
+[![CI](https://github.com/happenings-community/requests-and-offers/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/happenings-community/requests-and-offers/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/happenings-community/requests-and-offers?include_prereleases&label=release)](https://github.com/happenings-community/requests-and-offers/releases/latest)
+[![Docs](https://img.shields.io/badge/docs-mdBook-blue)](https://happenings-community.github.io/requests-and-offers/)
+[![License: CAL-1.0](https://img.shields.io/badge/license-CAL--1.0-green)](LICENSE.md)
+[![Holochain](https://img.shields.io/badge/Holochain-0.7.0-1D9BF0)](https://www.holochain.org/)
+[![hREA](https://img.shields.io/badge/hREA-happ--0.5.0--beta.1-orange)](https://github.com/h-REA/hREA/releases/tag/happ-0.5.0-beta.1)
+[![Valueflows](https://img.shields.io/badge/Valueflows-vf--graphql%200.9.1--alpha.6-orange)](https://www.valueflo.ws/)
+[![SvelteKit](https://img.shields.io/badge/UI-SvelteKit%202%20%2B%20Svelte%205-FF3E00)](https://svelte.dev/)
+[![Effect](https://img.shields.io/badge/Effect--TS-3-black)](https://effect.website/)
+[![Ask DeepWiki](https://img.shields.io/badge/DeepWiki-Ask-blue)](https://deepwiki.com/happenings-community/requests-and-offers)
 
 A **simple peer-to-peer bulletin board** for the Holochain community, enabling creators, developers, and organizations to post requests and offers for services, skills, and resources with direct contact facilitation.
 
@@ -13,7 +22,7 @@ A **simple peer-to-peer bulletin board** for the Holochain community, enabling c
 
 ```bash
 # Clone and setup
-git clone https://github.com/Happening-Community/requests-and-offers.git
+git clone https://github.com/happenings-community/requests-and-offers.git
 cd requests-and-offers && nix develop
 bun install && bun start
 ```

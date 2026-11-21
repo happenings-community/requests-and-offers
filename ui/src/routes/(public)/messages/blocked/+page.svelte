@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { decodeHashFromBase64, type ActionHash } from '@holochain/client';
   import messagingStore from '$lib/stores/messaging.store.svelte';
   import usersStore from '$lib/stores/users.store.svelte';
@@ -77,7 +78,7 @@
   <a class="text-sm text-surface-500 no-underline" href={paths.messages()}
     >← {S.conversation.back}</a
   >
-  <h1 class="h1">{S.blocked.title}</h1>
+  <PageHeader title={S.blocked.title} />
 
   <div class="flex flex-col gap-2">
     <h2 class="h4">{S.blocked.now}</h2>

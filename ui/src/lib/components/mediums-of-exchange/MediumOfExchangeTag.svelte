@@ -117,13 +117,6 @@
     loadMedium();
   });
 
-  // Helper function to get exchange type display
-  function getExchangeTypeIcon(type: 'base' | 'currency' | null): string {
-    if (type === 'base') return '📂';
-    if (type === 'currency') return '💰';
-    return '';
-  }
-
   // Simplified display text calculation
   let displayText = $state('Loading...');
 
@@ -133,10 +126,10 @@
       displayText = 'Loading...';
     } else if (mediumError) {
       displayText = mediumError;
-    } else if (mediumCode && mediumName && exchangeType) {
-      const icon = getExchangeTypeIcon(exchangeType);
-      displayText = `${icon} ${mediumName}`;
     } else if (mediumCode && mediumName) {
+      // No 📂 or 💰 in front: in the desktop app it showed as a blank gap that pushed
+      // the name off centre (Sam, 21 November). The chip's tone and its title already
+      // say base category or currency.
       displayText = `${mediumName}`;
     } else if (mediumName) {
       displayText = mediumName;

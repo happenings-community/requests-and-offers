@@ -172,6 +172,8 @@ export type MediumsOfExchangeStore = {
   ) => E.Effect<HolochainRecord, MediumOfExchangeStoreError>;
   getPendingMediumsOfExchange: () => E.Effect<UIMediumOfExchange[], MediumOfExchangeStoreError>;
   getApprovedMediumsOfExchange: () => E.Effect<UIMediumOfExchange[], MediumOfExchangeStoreError>;
+  /** The original (root) action hash of any revision of a medium, as the DHT answers it. */
+  resolveToOriginal: (hash: ActionHash) => E.Effect<ActionHash, MediumOfExchangeStoreError>;
   getRejectedMediumsOfExchange: () => E.Effect<UIMediumOfExchange[], MediumOfExchangeStoreError>;
   approveMediumOfExchange: (
     mediumOfExchangeHash: ActionHash
@@ -542,6 +544,17 @@ export const createMediumsOfExchangeStore = (): E.Effect<
         )
       )(setters);
 
+    const resolveToOriginal = (hash: ActionHash) =>
+      pipe(
+        mediumsOfExchangeService.resolveToOriginal(hash),
+        E.mapError((error) =>
+          MediumOfExchangeStoreError.fromError(
+            error,
+            MEDIUM_OF_EXCHANGE_CONTEXTS.RESOLVE_MEDIUM_ROOT
+          )
+        )
+      );
+
     const getApprovedMediumsOfExchange = (): E.Effect<
       UIMediumOfExchange[],
       MediumOfExchangeStoreError
@@ -853,6 +866,7 @@ export const createMediumsOfExchangeStore = (): E.Effect<
       createMediumOfExchange,
       getPendingMediumsOfExchange,
       getApprovedMediumsOfExchange,
+      resolveToOriginal,
       getRejectedMediumsOfExchange,
       approveMediumOfExchange,
       rejectMediumOfExchange,

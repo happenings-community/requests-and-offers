@@ -4,6 +4,12 @@
 @tailwind variants;
 
 @layer base {
+  /* The pinned navigation bar is 5rem (h-20). A scroll to a focused element or an anchor
+     stops a little below it, clear of its shadow, so the bar never covers what has focus
+     (WCAG 2.4.11). */
+  html {
+    scroll-padding-top: 5.5rem;
+  }
 }
 
 @layer components {
@@ -24,34 +30,46 @@
      were a 20% wash with 700 text; gold on its wash read 2.7:1. Member pages only: admin's
      dark mode keeps Skeleton's. The rule weighs two classes, so a hover: variant on a chip
      (which comes later) still wins, but a plain text-* or bg-* colour on a soft chip does
-     not. Offer and Request labels are solid orange and gold, and counts stay solid. */
+     not. Offer and Request labels are solid orange and gold, and counts stay solid.
+     A hairline of the label's own text colour at half strength marks its edge
+     (Sam, 21 November): a pale fill sits at about 1.1:1 on a table row or a grey card,
+     so without it the label had no outline there. On a row the edge reads 1.7:1 (gold)
+     to 3.1:1 (violet). It is set through --tw-shadow: Skeleton draws a soft variant's
+     box-shadow from that variable with !important, so a box-shadow here would lose. */
   :where(html:not(.dark)) :is(.chip, .badge).variant-soft-primary {
     background-color: rgb(var(--color-primary-100));
     color: rgb(var(--color-primary-800));
+    --tw-shadow: inset 0 0 0 1px rgb(var(--color-primary-800) / 0.5);
   }
   :where(html:not(.dark)) :is(.chip, .badge).variant-soft-secondary {
     background-color: rgb(var(--color-secondary-100));
     color: rgb(var(--color-secondary-900));
+    --tw-shadow: inset 0 0 0 1px rgb(var(--color-secondary-900) / 0.5);
   }
   :where(html:not(.dark)) :is(.chip, .badge).variant-soft-tertiary {
     background-color: rgb(var(--color-tertiary-100));
     color: rgb(var(--color-tertiary-800));
+    --tw-shadow: inset 0 0 0 1px rgb(var(--color-tertiary-800) / 0.5);
   }
   :where(html:not(.dark)) :is(.chip, .badge).variant-soft-success {
     background-color: rgb(var(--color-success-100));
     color: rgb(var(--color-success-900));
+    --tw-shadow: inset 0 0 0 1px rgb(var(--color-success-900) / 0.5);
   }
   :where(html:not(.dark)) :is(.chip, .badge).variant-soft-warning {
     background-color: rgb(var(--color-warning-100));
     color: rgb(var(--color-warning-800));
+    --tw-shadow: inset 0 0 0 1px rgb(var(--color-warning-800) / 0.5);
   }
   :where(html:not(.dark)) :is(.chip, .badge).variant-soft-error {
     background-color: rgb(var(--color-error-100));
     color: rgb(var(--color-error-800));
+    --tw-shadow: inset 0 0 0 1px rgb(var(--color-error-800) / 0.5);
   }
   :where(html:not(.dark)) :is(.chip, .badge).variant-soft-surface {
     background-color: rgb(var(--color-surface-100));
     color: rgb(var(--color-surface-800));
+    --tw-shadow: inset 0 0 0 1px rgb(var(--color-surface-800) / 0.5);
   }
 
   /* Skeleton's chip never wraps. In a narrow column (a table cell, a small window) its

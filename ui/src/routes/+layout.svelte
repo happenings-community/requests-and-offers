@@ -646,7 +646,11 @@
 {:else}
   <!-- Main app routes with navigation -->
   <div class="grid min-h-screen grid-rows-[auto_1fr]">
-    <NavBar {connectionStatus} {lastPingTime} {pingError} {networkSeed} {networkInfo} />
+    <!-- The bar stays pinned to the top while the page scrolls under it, as in the design
+         system and the admin area. -->
+    <div class="sticky top-0 z-30">
+      <NavBar {connectionStatus} {lastPingTime} {pingError} {networkSeed} {networkInfo} />
+    </div>
     <!-- Pages start at the top. Centring a page shorter than the window floated each one at
          a different height, and moved it when its content changed (Sam's walk, 20 November:
          My Listings' views, the Community pages). -->

@@ -8,7 +8,7 @@ Essential commands, patterns, and workflows for efficient development in the Req
 
 ```bash
 # Clone with submodules and enter project
-git clone --recurse-submodules https://github.com/happening-community/requests-and-offers.git
+git clone --recurse-submodules https://github.com/happenings-community/requests-and-offers.git
 cd requests-and-offers
 
 # Setup environment
@@ -25,8 +25,8 @@ bun start                      # Start development (2 agents)
 bun start                      # 2 agents (default)
 AGENTS=3 bun start            # Custom number of agents
 bun start:web                 # Browser tabs, one URL per member (Vite HMR)
-bun start:test                # Test mode (dev features, no mock buttons)
-bun start:prod                # Production mode (all dev features disabled)
+# Mock buttons and the peers display follow VITE_MOCK_BUTTONS_ENABLED and
+# VITE_PEERS_DISPLAY_ENABLED in a .env copied from .env.example (both false there)
 
 # Building
 bun build:zomes               # Build Rust zomes
@@ -49,8 +49,8 @@ cd ui && bun run check        # TypeScript check
 # Submodule management
 git submodule update --remote kangaroo-electron    # Update desktop app
 git submodule update --remote homebrew               # Update homebrew formula
-cd deployment/kangaroo-electron && npm run tauri dev   # Desktop app development
-cd deployment/kangaroo-electron && npm run tauri build  # Build desktop app
+cd deployment/kangaroo-electron && yarn dev            # Desktop app development
+cd deployment/kangaroo-electron && yarn build:linux    # Build desktop app (also build:win, build:mac-arm64, build:mac-x64)
 
 # Deployment automation
 ./deployment/scripts/deploy.sh deploy 0.1.X          # Full deployment
@@ -87,7 +87,7 @@ requests-and-offers/
 │   │   └── errors/               # Tagged error definitions
 │   └── src/routes/               # SvelteKit pages
 ├── deployment/                   # Deployment repositories as submodules
-│   ├── kangaroo-electron/        # Desktop app (Tauri) submodule
+│   ├── kangaroo-electron/        # Desktop app (Electron) submodule
 │   ├── homebrew/                 # Homebrew formula submodule
 │   └── scripts/                  # Deployment automation scripts
 ├── tests/sweettest/              # Sweettest integration tests (Rust)
@@ -264,16 +264,18 @@ describe("EntityService", () => {
 ```bash
 # Desktop app development (in submodule)
 cd deployment/kangaroo-electron
-npm run tauri dev                    # Start desktop app in dev mode
+yarn dev                             # Start desktop app in dev mode
 
-# Build desktop applications
-npm run tauri build                  # Build for all platforms
-npm run tauri build --target x64   # Build specific platform
+# Build desktop applications, one script per platform
+yarn build:linux
+yarn build:win
+yarn build:mac-arm64
+yarn build:mac-x64
 
 # Update kangaroo submodule
 git submodule update --remote kangaroo-electron
 cd deployment/kangaroo-electron
-npm install  # Install any new dependencies
+yarn  # Install any new dependencies
 ```
 
 ### Deployment Automation
@@ -409,7 +411,7 @@ See [Development Features System](technical-specs/development-features-system.md
 - **Discord**: [Join our community](https://discord.gg/happening)
 - **Website**: [hAppenings.community](https://happenings.community/)
 - **Contributing**: [Contributing Guide](guides/contributing.md)
-- **Issues**: [GitHub Issues](https://github.com/Happening-Community/requests-and-offers/issues)
+- **Issues**: [GitHub Issues](https://github.com/happenings-community/requests-and-offers/issues)
 
 ---
 

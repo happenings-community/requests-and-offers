@@ -55,7 +55,7 @@ graph TB
 - **State Management**: Effect-TS + Svelte 5 Runes
 - **Runtime**: Bun for TypeScript/JavaScript execution
 - **Economic Framework**: hREA (Holochain Resource-Event-Agent)
-- **Desktop Apps**: Tauri-based Kangaroo applications (Windows, macOS, Linux)
+- **Desktop Apps**: Electron-based Kangaroo applications (Windows, macOS, Linux)
 - **Repository Management**: Git submodules for unified development
 - **Development Environment**: Nix shell (DNA/zome development only)
 
@@ -523,7 +523,7 @@ The project includes desktop applications as git submodules for unified developm
 requests-and-offers/
 ├── deployment/                   # Deployment repositories as git submodules
 │   ├── kangaroo-electron/        # Desktop app repository (submodule)
-│   │   ├── src/                 # Tauri application source code
+│   │   ├── src/                 # Electron application source code
 │   │   ├── pouch/               # WebHapp packaging directory
 │   │   ├── kangaroo.config.ts   # Desktop app configuration
 │   │   └── dist/                # Built applications
@@ -536,13 +536,13 @@ requests-and-offers/
 
 ### **Desktop App Architecture**
 
-The Kangaroo desktop applications are built using **Tauri** with the following architecture:
+The Kangaroo desktop applications are built using **Electron** (electron-vite) with the following architecture:
 
 ```mermaid
 graph TB
     subgraph "Desktop Application Layer"
-        A[Tauri Frontend]
-        B[Rust Backend]
+        A[Electron Renderer]
+        B[Electron Main Process]
         C[WebHapp Integration]
     end
 
@@ -590,10 +590,10 @@ git submodule update --remote
 
 # Desktop app development
 cd deployment/kangaroo-electron
-npm run tauri dev
+yarn dev
 
-# Build for production
-npm run tauri build
+# Build for production, one script per platform
+yarn build:linux   # or build:win, build:mac-arm64, build:mac-x64
 ```
 
 ### **Deployment Automation**
@@ -786,11 +786,11 @@ bun run build:happ
 bun test
 
 # Frontend-only development
-cd ui && bun run dev
+cd ui && UI_PORT=8880 bun start
 cd ui && bun run test:unit
 
 # Desktop app development
-cd deployment/kangaroo-electron && npm run tauri dev
+cd deployment/kangaroo-electron && yarn dev
 
 # Submodule management
 git submodule update --remote kangaroo-electron
@@ -870,9 +870,9 @@ bun test:integration       # Integration tests
 
 ### **📈 Metrics & Achievements**
 
-- **343 Unit Tests**: All passing across 20 test files with Effect-TS integration
+- **Unit tests**: Counts live in [status.md](status.md#testing-infrastructure), measured there with the commands it names
 - **90%+ Code Coverage**: Across service and store layers
-- **8 Domains**: Fully standardized with proven patterns (100% completion)
+- **9 Domains**: Fully standardized with proven patterns (100% completion)
 - **9 Helper Functions**: Massive code reduction through standardization
 - **Zero Breaking Changes**: During domain standardization process
 - **100% Type Safety**: Complete Effect-TS integration

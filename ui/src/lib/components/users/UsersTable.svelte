@@ -86,7 +86,7 @@
                 </td>
               {/if}
               <td class="whitespace-nowrap">
-                <button class="variant-filled-secondary btn" onclick={() => handleViewUser(user)}>
+                <button class="variant-ghost-primary btn" onclick={() => handleViewUser(user)}>
                   View Profile
                 </button>
               </td>
@@ -110,10 +110,7 @@
             </div>
           </div>
           <div class="mt-4">
-            <button
-              class="variant-filled-secondary btn w-full"
-              onclick={() => handleViewUser(user)}
-            >
+            <button class="variant-ghost-primary btn w-full" onclick={() => handleViewUser(user)}>
               View Profile
             </button>
           </div>

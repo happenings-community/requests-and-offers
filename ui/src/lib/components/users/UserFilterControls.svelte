@@ -34,7 +34,7 @@
 
 <div class="space-y-4">
   <!-- Basic Search -->
-  <div class="flex flex-col items-center gap-4">
+  <div class="flex flex-wrap items-center gap-4">
     <input
       type="search"
       bind:value={search.searchState.searchTerm}
@@ -73,24 +73,10 @@
 
   <!-- Search Statistics -->
   {#if showStatistics && (users.length > 0 || filteredUsers.length > 0)}
-    <div class="card p-4">
-      <div class="flex items-center justify-between">
-        <h3 class="h4">Search Results</h3>
-        <div class="text-surface-600-300-token space-x-4 text-sm">
-          <span>Total: {users.length}</span>
-          <span>Filtered: {filteredUsers.length}</span>
-        </div>
-      </div>
-      {#if filteredUsers.length !== users.length}
-        <div class="mt-2">
-          <div class="bg-surface-200-700-token h-2 rounded-container-token">
-            <div
-              class="h-2 bg-primary-500 transition-all duration-300 rounded-container-token"
-              style="width: {(filteredUsers.length / users.length) * 100}%"
-            ></div>
-          </div>
-        </div>
-      {/if}
-    </div>
+    <p class="text-sm text-surface-500 dark:text-surface-300" aria-live="polite">
+      {filteredUsers.length === users.length
+        ? `${users.length} in all`
+        : `Showing ${filteredUsers.length} of ${users.length}`}
+    </p>
   {/if}
 </div>

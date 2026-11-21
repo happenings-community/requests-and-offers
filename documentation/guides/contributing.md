@@ -8,7 +8,7 @@ Please read and follow our Code of Conduct to maintain a welcoming and inclusive
 
 ## Getting Started
 
-1. Fork the [repository](https://github.com/Happening-Community/requests-and-offers)
+1. Fork the [repository](https://github.com/happenings-community/requests-and-offers)
 2. Clone your fork
 3. Set up the development environment following our [Installation Guide](./installation.md)
 
@@ -76,6 +76,8 @@ Scopes:
 Opening the pull request runs the fast checks automatically: type check, the front-end unit suite, a lint report, and a zome build that packs the hApp. They take two to three minutes. See [Continuous Integration](continuous-integration.md) for what each job does and how to run the same checks locally.
 
 The heavy suites do not run automatically. If your change touches the zomes or a user journey, add the `run:sweettest`, `run:e2e` or `run:heavy` label to your pull request and the suite runs against it. The label comes off by itself, so re-applying it runs the suite again.
+
+If your change touches `dnas/*/zomes/integrity/`, it alters the DNA hash: label the pull request `breaking-change` and `zome:integrity`. A change to a coordinator zome does not move the hash and takes `zome:coordinator`. A check warns when the integrity labels are missing; it never blocks the merge. See [Continuous Integration](continuous-integration.md#the-zome-label-check).
 
 #### Draft or in review
 
@@ -266,8 +268,8 @@ We follow a systematic approach to feature development that ensures proper testi
 1. **DNA Testing**
 
    ```bash
-   # Test specific feature
-   bun test:new-feature
+   # Test one domain's zomes (example: requests; the scripts are in the root package.json)
+   bun run test:sweettest:requests
 
    # Run all tests
    bun test
@@ -333,7 +335,7 @@ We follow a systematic approach to feature development that ensures proper testi
 
 - Join our [Community](https://happenings.community/)
 - Ask questions on [Discord](https://discord.gg/happening)
-- Check [GitHub Issues](https://github.com/Happening-Community/requests-and-offers/issues)
+- Check [GitHub Issues](https://github.com/happenings-community/requests-and-offers/issues)
 - Review [Technical Documentation](../technical-specs.md) & [Architecture](../architecture.md)
 
 ### Feedback on a release

@@ -145,6 +145,18 @@ Theme values should be accessed through Skeleton's theme system rather than hard
 <button class="bg-blue-500 hover:bg-blue-600">Submit</button>
 ```
 
+### Chips and badges
+
+`ui/src/app.postcss` draws every Skeleton `chip` and `badge` as the design system's pill: fully round, 4 by 10px, 12px semibold. A count keeps its own padding utilities (`px-1.5 py-0`).
+
+- **Labels** use a soft variant, which on member pages is one of seven pale tones: each colour's 100 shade behind its 800 text, or its 900 for gold (`secondary`) and green (`success`), so every one reads at 4.5:1 or more. Admin's dark mode keeps Skeleton's soft variants.
+- **Offer and Request labels** are solid: `variant-filled-warning` for an Offer, `variant-filled-secondary` for a Request, as in the nav bar. Gold and orange mean Requests and Offers.
+- **Counts** stay solid (`variant-filled-*`, or white on the violet bar).
+- The tone rule weighs two classes: a `hover:variant-*` on a chip still wins, but a plain `text-*` or `bg-*` colour on a soft chip does not; use another variant instead.
+- The grey tone (`variant-soft-surface`) is surface-100, so it reads on a white card and not on a grey surface.
+
+`ui/tests/unit/theme/contrast.test.ts` reads the stylesheet for each tone and holds its text to 4.5:1.
+
 ### Custom Utility Classes
 
 In addition to Tailwind's utility classes, the application defines several custom utilities for consistent styling:
@@ -152,6 +164,16 @@ In addition to Tailwind's utility classes, the application defines several custo
 - `.card-hover`: Standard hover effects for cards
 - `.form-input-wrapper`: Consistent styling for form inputs
 - `.tag-pill`: Styling for tag elements
+
+### Cards and fields
+
+`ui/src/app.postcss` restyles Skeleton's cards and fields to the design system, inside `@layer components`:
+
+- **Cards**: a `.card` is white with 12px corners, a surface-200 hairline and a faint shadow; in admin's dark mode it keeps Skeleton's surface-800 fill with a surface-700 edge. A card with a `variant-*` class keeps its variant. The rule weighs one class, so a utility on the card (`bg-*`, `border-*`, `shadow-*`, `ring-*`) wins in light mode: write `bg-warning-50` for a notice. In dark mode Skeleton's `.dark .card` still wins over a plain `bg-*` or `ring-*`, so a tinted card needs its `dark:bg-*` too.
+- **Cards that open something**: an `a.card` or `button.card` without a variant (and not disabled) lifts 3px on hover with a violet edge (primary-400; primary-300 in admin) and a larger shadow; `card-hover` on it no longer scales. Every `a.card` and `button.card`, variant or not, shows a violet focus ring when tabbed to. The hover rule weighs as much as a `hover:` utility, which still wins; the transition (transform, shadow, border, background, text colour, 150ms) outweighs `transition-*` and `duration-*` utilities on these cards. Nothing moves with reduced motion.
+- **Fields**: `.input`, `.select`, `.textarea` and `.input-group` have 8px corners, a white fill and a surface-500 edge (surface-400 in dark mode, on Skeleton's surface-700 fill). Focus adds a primary-500 edge and halo. On an `.input`, `.select` or `.textarea`, `input-error` or `aria-invalid="true"` adds a red edge and halo; the field keeps its white fill (dark fill in dark mode) and its own text colour, where Skeleton filled it pink. An `.input-group` has no error state of its own. On phones (below 640px) a field's text is 16px, so the browser does not zoom in, unless the field itself carries a `text-*` size.
+
+`ui/tests/unit/theme/contrast.test.ts` checks these edges at 3:1 and reads the stylesheet, so changing a colour there means changing the test.
 
 ## Best Practices
 

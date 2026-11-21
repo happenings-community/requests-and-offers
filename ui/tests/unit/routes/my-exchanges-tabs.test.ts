@@ -103,7 +103,7 @@ describe('the Exchanges and Interested in tabs', () => {
   });
 
   /**
-   * The root layout centres a page shorter than the window, and Interested in is shorter
+   * The root layout used to centre a page shorter than the window, and Interested in is shorter
    * than Exchanges, so switching tabs moved the whole page up and down. Filling the height
    * keeps it at the top. **To make it go red:** drop `flex-1` from the page's section.
    */

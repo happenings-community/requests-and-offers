@@ -225,6 +225,24 @@ describe('the nav bar', () => {
     expect(button.textContent?.trim()).toBe('');
   });
 
+  it('keeps Requests and Offers beside the menu button on a narrow window, in their own colours (#350, #387)', () => {
+    render(NavBar);
+
+    const requests = screen.getByTestId('bar-requests');
+    const offers = screen.getByTestId('bar-offers');
+    expect(requests.getAttribute('href')).toBe('/requests');
+    expect(offers.getAttribute('href')).toBe('/offers');
+    expect(requests.className).toContain('variant-filled-secondary');
+    expect(offers.className).toContain('variant-filled-warning');
+    // Shown only below the desktop bar, which has its own pair, and tall enough to tap.
+    for (const link of [requests, offers]) {
+      expect(link.parentElement?.className).toContain('lg:hidden');
+      expect(link.className).toContain('min-h-11');
+    }
+    // Gold means Requests, so the menu button beside them is on-violet, not gold.
+    expect(screen.getByTestId('menu-button').className).not.toContain('variant-filled-secondary');
+  });
+
   describe('as an administrator with one member waiting', () => {
     beforeEach(() => {
       admin.agentIsAdministrator = true;

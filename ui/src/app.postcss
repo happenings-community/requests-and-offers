@@ -7,6 +7,53 @@
 }
 
 @layer components {
+  /* Chips and badges as the design system's pill (#350, #387; scope agreed 18 November):
+     fully round, 4 by 10px, 12px semibold. A count's own padding utilities still win.
+     Skeleton drew chips with 4px corners beside round badges. */
+  .chip,
+  .badge {
+    border-radius: 9999px;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 600;
+  }
+
+  /* A label's seven pale tones: each colour's 100 shade behind its 800 text, or its 900
+     where the 800 falls under 4.5:1 (gold 4.0:1, green 4.45:1). Skeleton's soft variants
+     were a 20% wash with 700 text; gold on its wash read 2.7:1. Member pages only: admin's
+     dark mode keeps Skeleton's. The rule weighs two classes, so a hover: variant on a chip
+     (which comes later) still wins, but a plain text-* or bg-* colour on a soft chip does
+     not. Offer and Request labels are solid orange and gold, and counts stay solid. */
+  :where(html:not(.dark)) :is(.chip, .badge).variant-soft-primary {
+    background-color: rgb(var(--color-primary-100));
+    color: rgb(var(--color-primary-800));
+  }
+  :where(html:not(.dark)) :is(.chip, .badge).variant-soft-secondary {
+    background-color: rgb(var(--color-secondary-100));
+    color: rgb(var(--color-secondary-900));
+  }
+  :where(html:not(.dark)) :is(.chip, .badge).variant-soft-tertiary {
+    background-color: rgb(var(--color-tertiary-100));
+    color: rgb(var(--color-tertiary-800));
+  }
+  :where(html:not(.dark)) :is(.chip, .badge).variant-soft-success {
+    background-color: rgb(var(--color-success-100));
+    color: rgb(var(--color-success-900));
+  }
+  :where(html:not(.dark)) :is(.chip, .badge).variant-soft-warning {
+    background-color: rgb(var(--color-warning-100));
+    color: rgb(var(--color-warning-800));
+  }
+  :where(html:not(.dark)) :is(.chip, .badge).variant-soft-error {
+    background-color: rgb(var(--color-error-100));
+    color: rgb(var(--color-error-800));
+  }
+  :where(html:not(.dark)) :is(.chip, .badge).variant-soft-surface {
+    background-color: rgb(var(--color-surface-100));
+    color: rgb(var(--color-surface-800));
+  }
+
   /* Skeleton's chip never wraps. In a narrow column (a table cell, a small window) its
      text then ran past its background. Let it wrap between words instead, within its
      container; break-word keeps its narrowest at its longest word. In this layer it
@@ -15,6 +62,131 @@
   .chip {
     @apply max-w-full whitespace-normal;
     overflow-wrap: break-word;
+  }
+
+  /* Cards, as the design system draws them (#350, #387; scope agreed 18 November):
+     white, 12px corners, a hairline edge and a faint shadow on the grey-blue page.
+     The test sits inside :where(), so the rule weighs one class, as a utility does, and
+     any utility on a card still wins (bg-, border-, shadow-, ring-): utilities come later.
+     A card with a variant-* class keeps Skeleton's variant, which comes earlier and would
+     otherwise lose. The shadow is set through --tw-shadow, which Skeleton's own box-shadow
+     reads alongside a ring, so a selected card's ring-2 still shows. In admin's dark mode
+     Skeleton's `.dark .card` keeps its surface-800 fill; this adds the edge. */
+  .card {
+    border-radius: 12px;
+  }
+  .card:where(:not([class*='variant-'])) {
+    background-color: rgb(255 255 255);
+    border: 1px solid rgb(var(--color-surface-200));
+    /* The design system's shadow-sm; a card that opens something rises to shadow-md. */
+    --tw-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+  :where(.dark) .card:where(:not([class*='variant-'])) {
+    border-color: rgb(var(--color-surface-700));
+    --tw-shadow: 0 0 #0000;
+  }
+
+  /* A card that opens something (a link or a button drawn as a card) lifts 3px on hover,
+     its edge turns violet (primary-400, 4.6:1 on white; primary-300, 5.4:1 on admin's
+     surface-800), and tabbing to it shows a violet focus ring. A card that opens nothing
+     stays still, as does a disabled button card. The hover rule weighs two classes, as a `hover:` utility does, and comes
+     later than Skeleton's `card-hover` scale, so it replaces that and a `hover:` utility
+     still wins. Skeleton's brightening on `a.card:hover` weighs more and is undone on its own.
+     The transition lists background-color, so a `hover:bg-*` card still fades. */
+  a.card,
+  button.card {
+    transition-property: transform, box-shadow, border-color, background-color, color;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .card:where(a, button):where(:not([class*='variant-'], :disabled)):hover {
+    transform: translateY(-3px);
+    border-color: rgb(var(--color-primary-400));
+    --tw-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  }
+  :where(.dark) .card:where(a, button):where(:not([class*='variant-'], :disabled)):hover {
+    border-color: rgb(var(--color-primary-300));
+  }
+  a.card:hover {
+    filter: none;
+  }
+  a.card:focus-visible,
+  button.card:focus-visible {
+    outline: 2px solid rgb(var(--color-primary-500));
+    outline-offset: 2px;
+  }
+  .dark a.card:focus-visible,
+  .dark button.card:focus-visible {
+    outline-color: rgb(var(--color-primary-300));
+  }
+  /* With reduced motion nothing moves: no lift, and no `card-hover` scale on any card. */
+  @media (prefers-reduced-motion: reduce) {
+    :is(a, button).card:hover,
+    .card-hover:hover {
+      transform: none;
+    }
+  }
+
+  /* Inputs: one shape for every field (text boxes were pills, selects and text areas
+     rounded squares), a white fill and a surface-500 edge (5.4:1 on the page, 6.7:1 on
+     a card, where Skeleton's surface-400 edge was 2.7:1 on the page). Focus, by click or keyboard,
+     is a 2px violet edge with a pale violet halo; an error a 2px red edge with a pale red
+     halo. The halo rides on --tw-shadow, which Skeleton's own box-shadow already reads, so
+     no border width changes and nothing shifts. */
+  /* Skeleton's `.dark .input` (surface-700 fill) is more specific, so admin's dark
+     fields keep their fill and take the corners, focus and error; their edge is the
+     design system's dark border-2, surface-400 (3.6:1 on admin's surface-800 page). */
+  .input,
+  .select,
+  .textarea,
+  .input-group {
+    border-radius: 8px;
+    background-color: rgb(255 255 255);
+    border-color: rgb(var(--color-surface-500));
+  }
+  .dark .input,
+  .dark .select,
+  .dark .textarea,
+  .dark .input-group {
+    border-color: rgb(var(--color-surface-400));
+  }
+  .input:focus,
+  .select:focus,
+  .textarea:focus,
+  .input-group:focus-within {
+    border-color: rgb(var(--color-primary-500));
+    /* The design system's focus: a primary-500 edge and a 3px primary-200 halo at 55%. */
+    --tw-shadow:
+      0 0 0 1px rgb(var(--color-primary-500)), 0 0 0 4px rgb(var(--color-primary-200) / 0.55);
+  }
+  .input.input-error,
+  .select.input-error,
+  .textarea.input-error,
+  .input[aria-invalid='true'],
+  .select[aria-invalid='true'],
+  .textarea[aria-invalid='true'] {
+    border-color: rgb(var(--color-error-500));
+    color: inherit;
+    --tw-shadow: 0 0 0 1px rgb(var(--color-error-500)), 0 0 0 4px rgb(var(--color-error-100));
+  }
+  /* Skeleton fills an error field error-200; with the field's own text colour inherited
+     above, dark mode's white text would sit on that pink, so the field keeps its dark
+     fill, and the red edge and halo mark it. */
+  .dark .input.input-error,
+  .dark .select.input-error,
+  .dark .textarea.input-error {
+    background-color: rgb(var(--color-surface-700));
+  }
+
+  /* On a phone, 16px text in a field, so the browser does not zoom in while typing. */
+  @media (max-width: 639px) {
+    .input,
+    .select,
+    .textarea,
+    .input-group input,
+    .input-group select {
+      font-size: 16px;
+    }
   }
 }
 

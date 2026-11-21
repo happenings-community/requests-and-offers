@@ -316,6 +316,12 @@ describe('KNOWN_MAPPING_GAPS', () => {
     const text = KNOWN_MAPPING_GAPS.map((g) => `${g.title} ${g.detail}`).join(' ');
     expect(text).not.toMatch(/Fulfillment/);
     expect(text).not.toMatch(/agreementMappings/);
-    expect(KNOWN_MAPPING_GAPS).toHaveLength(1);
+    expect(KNOWN_MAPPING_GAPS).toHaveLength(2);
+  });
+
+  it('names what the repair of a failed mirror leaves', () => {
+    const text = KNOWN_MAPPING_GAPS.map((g) => `${g.title} ${g.detail}`).join(' ');
+    expect(text).toMatch(/marked it done/);
+    expect(text).toMatch(/not its reciprocal/);
   });
 });

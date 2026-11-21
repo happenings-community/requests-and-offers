@@ -324,7 +324,8 @@ This feedback-driven approach ensures quality while maintaining the decentralize
 
 The mirror is live end to end, event-driven and UI-layer only: the R&O
 zomes do not know hREA exists. Store events (`request:created`,
-`offer:created`, `exchange:accepted`, `exchange:completed`) drive
+`offer:created`, `exchange:accepted`, `exchange:completed`,
+`exchange:cancelled`, `exchanges:loaded`) drive
 handlers in `hrea.store.svelte.ts`; removing those handlers removes the
 integration.
 
@@ -342,6 +343,51 @@ What is implemented:
 - Each party's completion records an EconomicEvent (`realizationOf` the
   agreement) and marks their Commitment `finished`. Both sides verified
   on two peers.
+- A mirror that fails when an exchange is accepted (the conductor away, a
+  refusal) is repaired, not lost. Each read of a member's own exchanges
+  (a page load, the nav bar's polling, Messages) emits `exchanges:loaded`,
+  and the hREA store mirrors each accepted exchange that the mapper maps,
+  whose acceptance that member wrote (they are its `counterparty`), that
+  neither side has marked done, and of which hREA holds no Agreement with
+  its primary Commitment (`exchangesToMirror`). The repair stays with the
+  member who would have written the mirror, so an administrator never
+  writes a party's Commitments and two parties never race to write one
+  Agreement. An exchange cancelled since it was accepted is mirrored and
+  then its Commitments finished, as the cancellation would have done. One
+  read of hREA's lists sorts out what it holds, remembered for the
+  session, from what it does not, which is read again inside the
+  one-at-a-time lock before it is written. An exchange whose mirror is
+  still writing is left to that mirror. Each
+  exchange is tried once a session, so the polling does not ask hREA again
+  on every reload. A pass whose own read of hREA failed has tried nothing:
+  its exchanges are asked again on the next reload.
+- **One mirror per exchange at a time.** Accepting from Messages fires the
+  live mirror and then reloads the member's exchanges, which starts the
+  repair a moment later. hREA keeps every record it is given, so a second
+  Agreement would be permanent: `createAgreementFromExchange` lets the
+  second caller wait for the first's answer, and a cancellation waits for
+  a mirror under way before it closes the Commitments. The close itself runs
+  one at a time per exchange, so a cancel and the repair of a cancelled
+  exchange never both update from the same revision. Two tabs of the
+  same member each keep their own record, so they can still race at boot.
+- Both Commitments are checked before the Agreement is written
+  (`commitmentProblem`: ids present, a quantity that is a finite number
+  above zero, dates that are dates hREA's adapter can carry as an exact
+  i64, roughly 1685 to 2255). hREA cannot name what was wrong with an
+  input it could not decode, since its zome answers with the input's
+  bytes, so the check gives the reason in words, and no Agreement is left
+  without Commitments by a refusal the check could have seen. A failed
+  mirror is logged with the zome's own sentence where it gave one
+  (`reasonOf`).
+- **Not repaired**, and listed on the audit page: an exchange either side
+  marked done before its mirror landed (the completion was recorded
+  without an Agreement), and a mirror that wrote its Agreement and primary
+  Commitment but not its reciprocal. A mirror that wrote its Agreement and
+  failed on the primary Commitment is repaired with a new Agreement, and
+  the empty one stays in hREA. A cancellation whose own close of the
+  Commitments failed leaves them open: closing them again from the next
+  pass would cost reads every session, and either party may be closing
+  them too, so two closes could race and fork a revision.
 - Cross-DHT identity uses chain roots as the join key: refs carry true
   Create-action hashes, resolved by the R&O DHT (`resolve_to_original`),
   never chosen client-side. Link anchors are canonicalised at receipt in

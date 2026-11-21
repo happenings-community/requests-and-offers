@@ -117,18 +117,31 @@ export function unitRegistryFrom(
   return registry;
 }
 
+/**
+ * A quantity as an hREA measure: the Unit id the label resolves to, or none while
+ * the label has no seeded Unit. Exchanges and request estimates both come through
+ * here, so they name the same Unit; a label is never sent as `hasUnit`, hREA
+ * rejects it and the whole write with it.
+ */
+export function measureFor(
+  value: string,
+  unitLabel: string
+): { hasNumericalValue: number; hasUnit: string } | undefined {
+  const unitId = unitRegistry[unitLabel];
+  // The one place a quantity becomes a float. hREA stores
+  // `has_numerical_value` as f64 and R&O's hREA schema is `Schema.Number`, so the
+  // exact decimal string is converted here and nowhere else, until hREA stores
+  // decimals itself: https://github.com/h-REA/hREA/issues/382. The zome caps a
+  // quantity at 15 significant digits, which an f64 round-trips.
+  return unitId ? { hasNumericalValue: Number(value), hasUnit: unitId } : undefined;
+}
+
 /** Structured measure when the label maps to a seeded hREA Unit id. */
 export function measureOf(
   term: ExchangeTerm
 ): { hasNumericalValue: number; hasUnit: string } | undefined {
   if (!term.quantity) return undefined;
-  const unitId = unitRegistry[term.quantity.unit];
-  // The one place an exchange quantity becomes a float. hREA stores
-  // `has_numerical_value` as f64 and R&O's hREA schema is `Schema.Number`, so the
-  // exact decimal string is converted here and nowhere else, until hREA stores
-  // decimals itself: https://github.com/h-REA/hREA/issues/382. The zome caps a
-  // quantity at 15 significant digits, which an f64 round-trips.
-  return unitId ? { hasNumericalValue: Number(term.quantity.value), hasUnit: unitId } : undefined;
+  return measureFor(term.quantity.value, term.quantity.unit);
 }
 
 /** Prose fallback, only for labels with no seeded Unit. */
@@ -138,9 +151,24 @@ export function quantityText(term: ExchangeTerm): string | undefined {
   return `Quantity: ${term.quantity.value} ${term.quantity.unit}`;
 }
 
-function iso(micros: number): string {
-  // Holochain timestamps are microseconds; Date wants milliseconds.
-  return new Date(micros / 1000).toISOString();
+/**
+ * Whether hREA's adapter can carry this date: it sends `getTime() * 1000` to the zome
+ * as an i64, and a number past `MAX_SAFE_INTEGER` goes as a float the zome cannot
+ * decode. That is any date before about 1685 or after about 2255.
+ */
+function encodable(ms: number): boolean {
+  return Number.isSafeInteger(Math.round(ms) * 1000);
+}
+
+/**
+ * A Holochain timestamp (microseconds) as an ISO date, or null when hREA could not
+ * carry it. Validation bounds a window's end (after the action that writes it, within
+ * 365 days) but not its start, so a hand-written start can be out of range, and
+ * `toISOString` throws on a date it cannot hold.
+ */
+function iso(micros: number): string | null {
+  const date = new Date(micros / 1000);
+  return Number.isNaN(date.getTime()) || !encodable(date.getTime()) ? null : date.toISOString();
 }
 
 /** Days a preset allows, counted from acceptance; Flexible sets no due date. */
@@ -163,13 +191,70 @@ export function datesFor(timeframe: Timeframe, acceptedAtMs: number): Commitment
   if ('Dates' in timeframe) {
     const { start, end } = timeframe.Dates;
     const due = iso(end);
-    return start === null || start === undefined
-      ? { due }
-      : { due, hasBeginning: iso(start), hasEnd: due };
+    if (due === null) return {};
+    const beginning = start === null || start === undefined ? null : iso(start);
+    return beginning === null ? { due } : { due, hasBeginning: beginning, hasEnd: due };
   }
   const days = PRESET_DAYS[timeframe.Preset];
   if (days === null) return {};
   return { due: new Date(acceptedAtMs + days * 24 * 60 * 60 * 1000).toISOString() };
+}
+
+/**
+ * What is wrong with a Commitment input, in our own words, before hREA sees it; null
+ * when nothing is. hREA cannot say this itself: a zome that cannot decode its input
+ * answers with the input's bytes, not the field it stopped at. So the mirror checks
+ * what it built (ids present, a quantity that is a finite number above zero, dates
+ * that are dates) and fails with a reason a reader can act on.
+ */
+export function commitmentProblem(input: CommitmentInput): string | null {
+  for (const field of ['action', 'provider', 'receiver'] as const) {
+    if (!input[field]) return `the Commitment has no ${field}`;
+  }
+  const q = input.resourceQuantity;
+  if (q) {
+    if (!Number.isFinite(q.hasNumericalValue) || q.hasNumericalValue <= 0) {
+      return `the Commitment's quantity ${q.hasNumericalValue} is not a number above zero`;
+    }
+    if (!q.hasUnit) return "the Commitment's quantity has no unit";
+  }
+  for (const field of ['due', 'hasBeginning', 'hasEnd'] as const) {
+    const value = input[field];
+    if (value === undefined) continue;
+    const ms = Date.parse(value);
+    if (Number.isNaN(ms)) return `the Commitment's ${field} "${value}" is not a date`;
+    if (!encodable(ms)) return `the Commitment's ${field} "${value}" is out of range for hREA`;
+  }
+  return null;
+}
+
+/**
+ * The accepted exchanges this member should mirror and has no record of mirroring:
+ * those whose acceptance they wrote. The member who accepts is the agreement's
+ * counterparty (`respond_to_agreement` refuses anyone else), and the mirror is
+ * written from their app when they accept, so a repair is theirs too: an
+ * administrator never writes a party's Commitments for them, and two parties never
+ * race to write the same Agreement. `known` holds the refs already mirrored or
+ * already tried in this session.
+ *
+ * An exchange either side has marked done is left out: its completion was recorded
+ * without an Agreement, and a repaired Commitment would stay open with nothing to
+ * fulfil it. A cancelled one is kept, and the caller finishes its Commitments.
+ */
+export function exchangesToMirror(
+  exchanges: UIExchange[],
+  me: string,
+  known: ReadonlySet<string>
+): UIExchange[] {
+  return exchanges.filter(
+    (ex) =>
+      ex.response?.accepted === true &&
+      !ex.provider_done &&
+      !ex.receiver_done &&
+      actionForKind(ex.agreement.primary.resource_kind) !== null &&
+      ex.agreement.counterparty.toString() === me &&
+      !known.has(rnoAgreementRef(ex))
+  );
 }
 
 /** The R&O agreement hash as a string, used as agreedIn and as the map key. */

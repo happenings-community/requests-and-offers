@@ -81,8 +81,8 @@
 
   /**
    * Load the counts and organisations. **A reload keeps what is on screen**: only the first
-   * load shows "Loading", so a refresh does not collapse the page and grow it back (the
-   * root layout centres a short page, so every change in height moved it).
+   * load shows "Loading", so a refresh does not collapse the page and grow it back (when
+   * the root layout centred a short page, until 20 November, that moved the whole page).
    */
   let loadedOnce = false;
   async function load() {

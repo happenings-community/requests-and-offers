@@ -2,6 +2,7 @@ import { Effect as E, pipe } from 'effect';
 import { HreaError } from '$lib/errors';
 import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
 import type { UIRequest } from '$lib/types/ui';
+import { measureFor } from '$lib/services/mappers/agreement-commitment.mapper';
 import { decimalProblem, isZeroDecimal } from '$lib/utils/decimal';
 import { estimateLabel } from '$lib/utils/estimate';
 import { timeframeLabel } from '$lib/utils/timeframe';
@@ -26,12 +27,14 @@ import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/
  * hREA's `hasNumericalValue` is a float, so the exact decimal becomes a number only
  * here, in the mirror; the record of truth stays the string. A zero estimate, or one
  * that is not a decimal, gives no quantity: an intent for no hours says nothing.
+ * The Unit is the hours Unit the exchange path resolves, by id; hREA rejects a label,
+ * and with it the whole proposal. Until that Unit is on the network there is no quantity.
  */
 function estimateForHrea(
   hours: string | null | undefined
 ): { hasNumericalValue: number; hasUnit: string } | undefined {
   if (hours == null || decimalProblem(hours) !== null || isZeroDecimal(hours)) return undefined;
-  return { hasNumericalValue: Number(hours), hasUnit: 'hour' };
+  return measureFor(hours, 'hours');
 }
 
 export interface RequestProposalMappingParams {

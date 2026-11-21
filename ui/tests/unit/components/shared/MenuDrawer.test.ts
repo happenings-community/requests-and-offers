@@ -169,4 +169,27 @@ describe('the mobile menu', () => {
     expect(screen.queryByText('My Activity')).toBeNull();
     expect(screen.queryByTestId('drawer-messages')).toBeNull();
   });
+
+  it('opens with Requests and Offers, in the colours they have in the bar (#350, #387)', () => {
+    render(MenuDrawer);
+
+    // By address: the home link's name, "Requests & Offers", carries both words.
+    const links = screen.getAllByRole('link').filter((a) => a.getAttribute('href') !== '/');
+    const [requests, offers] = links;
+    expect(requests.getAttribute('href')).toBe('/requests');
+    expect(offers.getAttribute('href')).toBe('/offers');
+    expect(requests.className).toContain('variant-filled-secondary');
+    expect(offers.className).toContain('variant-filled-warning');
+    // They come first: the member's own section, then the rest, follows them.
+    expect(links.slice(2).some((a) => a.getAttribute('href') === '/requests')).toBe(false);
+  });
+
+  it('draws its counts as white pills, as the bar does: gold means Requests', () => {
+    unread.count = 2;
+    render(MenuDrawer);
+
+    const pill = screen.getByTestId('drawer-messages').querySelector('.badge');
+    expect(pill?.className).toContain('bg-white');
+    expect(pill?.className).not.toContain('variant-filled-secondary');
+  });
 });

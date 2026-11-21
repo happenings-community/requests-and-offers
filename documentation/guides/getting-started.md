@@ -96,7 +96,7 @@ export function useServiceTypesManagement() {
 }
 
 // 4. Component (Using composable for business logic)
-// ServiceTypesGrid.svelte uses the composable
+// The service types pages (`routes/(public)/service-types/+page.svelte`) use the composable
 ```
 
 ### The 9 Standardized Store Helper Functions

@@ -64,4 +64,9 @@ describe('the surfaces use them', () => {
     const source = readFileSync('src/lib/components/requests/RequestForm.svelte', 'utf8');
     expect(source).toMatch(/onblur=\{[^}]*readEstimate/);
   });
+
+  it('the request form opens a zero already published as a blank field', () => {
+    const source = readFileSync('src/lib/components/requests/RequestForm.svelte', 'utf8');
+    expect(source).toMatch(/hasEstimate\(request\?\.time_estimate_hours\)\s*\?/);
+  });
 });

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { readEstimate } from '$lib/utils/estimate';
+  import { hasEstimate, readEstimate } from '$lib/utils/estimate';
   import { getToastStore, getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
   import { InputChip } from '@skeletonlabs/skeleton';
   import type { ActionHash } from '@holochain/client';
@@ -86,7 +86,10 @@
     preselectedOrganization || request?.organization
   );
   // The estimate is an exact decimal, so it stays text from the input to the zome (#380, #525).
-  let timeEstimateHours = $state<string>(request?.time_estimate_hours ?? '');
+  // A zero published before the form refused it is no estimate, so it opens blank (F19).
+  let timeEstimateHours = $state<string>(
+    hasEstimate(request?.time_estimate_hours) ? request.time_estimate_hours : ''
+  );
   let timeEstimateError = $state('');
   let submitting = $state(false);
   let serviceTypesError = $state('');

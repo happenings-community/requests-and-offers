@@ -23,6 +23,7 @@ import {
   buildThreads,
   clampReceipt,
   buildTimeline,
+  milestonesOf,
   bytesLeft,
   classifySendFailure,
   contentBytes,
@@ -1299,6 +1300,33 @@ describe('receiptPlan', () => {
 });
 
 describe('the read mark covers everything the count counts', () => {
+  it('does the same when I receive and they provide', () => {
+    const theirs = {
+      ...exchange({ counterparty: ANITA, provider: ANITA, receiver: ME, created_at: 10_000 }),
+      status: 'OneSideDone' as const,
+      response: { accepted: true, created_at: 11_000 } as UIExchange['response'],
+      provider_done: { created_at: 20_000 }
+    };
+    const before = build({ exchanges: [theirs], readUpTo: { [threadKeyOf(ANITA)]: 11_000 } });
+    expect(before[0].unread).toBe(1);
+    expect(readableUpTo(before[0], ME)).toBe(20_000);
+  });
+
+  it("covers the other person's part marked done, so opening the conversation clears it", () => {
+    const theirs = {
+      ...exchange({ counterparty: ANITA, created_at: 10_000 }),
+      status: 'OneSideDone' as const,
+      response: { accepted: true, created_at: 11_000 } as UIExchange['response'],
+      receiver_done: { created_at: 20_000 }
+    };
+    const before = build({ exchanges: [theirs], readUpTo: { [threadKeyOf(ANITA)]: 11_000 } });
+    expect(before[0].unread, 'their mark is news').toBe(1);
+    const mark = readableUpTo(before[0], ME);
+    expect(mark, 'reading reaches their mark').toBe(20_000);
+    const after = build({ exchanges: [theirs], readUpTo: { [threadKeyOf(ANITA)]: mark } });
+    expect(after[0].unread, 'and it stays read').toBe(0);
+  });
+
   /**
    * **Sam's finding 4: the count came back after reading, with nothing new arriving.**
    *
@@ -1378,5 +1406,81 @@ describe('the read mark covers everything the count counts', () => {
       exchanges: [exchange({ counterparty: ANITA, created_at: 500_000 })]
     });
     expect(readableUpTo(threads[0], ME), 'the mark stops at their message').toBe(10_000);
+  });
+});
+
+describe('what happened to an agreement, as lines in the conversation', () => {
+  // Card times are milliseconds (see buildTimeline's fixtures above).
+  const agreed = (over: Partial<UIExchange> = {}): UIExchange => ({
+    ...exchange({ counterparty: ANITA, created_at: 10_000, status: 'Agreed' }),
+    response: { accepted: true, created_at: 11_000 } as UIExchange['response'],
+    ...over
+  });
+  const thread = (exchanges: UIExchange[], messages: UIThread['messages'] = []): UIThread => ({
+    counterparty: ANITA,
+    key: threadKeyOf(ANITA),
+    messages,
+    interests: [],
+    exchanges,
+    lastAt: 0,
+    unread: 0,
+    archived: false
+  });
+
+  it('has none for an agreement under way, nor for a proposal withdrawn or declined', () => {
+    expect(milestonesOf(agreed())).toEqual([]);
+    const withdrawn = { ...agreed(), status: 'Cancelled' as const, response: undefined };
+    expect(milestonesOf({ ...withdrawn, cancellation: { created_at: 20_000 } } as never)).toEqual(
+      []
+    );
+  });
+
+  it('marks each part done, both done, and a cancellation, each at its own time', () => {
+    const ex = agreed({
+      status: 'Complete',
+      provider_done: { created_at: 20_000 },
+      receiver_done: { created_at: 30_000 }
+    });
+    expect(milestonesOf(ex)).toEqual([
+      { at: 20_000, milestone: 'providerDone' },
+      { at: 30_000, milestone: 'receiverDone' },
+      { at: 30_000, milestone: 'bothDone' }
+    ]);
+    const cancelled = agreed({
+      status: 'Cancelled',
+      provider_done: { created_at: 20_000 },
+      cancellation: { created_at: 40_000 } as UIExchange['cancellation']
+    });
+    expect(milestonesOf(cancelled).map((m) => m.milestone)).toEqual(['providerDone', 'cancelled']);
+  });
+
+  it('puts each line where it happened, and both done after the second part', () => {
+    const ex = agreed({
+      status: 'Complete',
+      provider_done: { created_at: 30_000 },
+      receiver_done: { created_at: 50_000 }
+    });
+    const items = buildTimeline(
+      thread([ex], [{ ...message({ at: micros(40) }), mine: false }])
+    ).map((i) => (i.kind === 'milestone' ? i.milestone : i.kind));
+    expect(items).toEqual(['exchange', 'providerDone', 'message', 'receiverDone', 'bothDone']);
+  });
+
+  it("counts the other person's part done as unread, and not my own", () => {
+    // I am the provider; Anita receives.
+    const mine = agreed({ status: 'OneSideDone', provider_done: { created_at: 20_000 } });
+    const theirs = agreed({ status: 'OneSideDone', receiver_done: { created_at: 20_000 } });
+    const read = { [threadKeyOf(ANITA)]: 15_000 };
+    expect(build({ exchanges: [mine], readUpTo: read })[0].unread).toBe(0);
+    expect(build({ exchanges: [theirs], readUpTo: read })[0].unread).toBe(1);
+    // Once the conversation has been read past it, it is not news.
+    expect(
+      build({ exchanges: [theirs], readUpTo: { [threadKeyOf(ANITA)]: 25_000 } })[0].unread
+    ).toBe(0);
+  });
+
+  it('moves the conversation up the list when something happens to its agreement', () => {
+    const ex = agreed({ status: 'OneSideDone', receiver_done: { created_at: 90_000 } });
+    expect(build({ exchanges: [ex] })[0].lastAt).toBe(90_000);
   });
 });

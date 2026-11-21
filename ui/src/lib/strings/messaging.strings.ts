@@ -219,6 +219,18 @@ export const MESSAGING_STRINGS = {
     cancelled: 'Cancelled since'
   },
 
+  /**
+   * What happened to an agreement afterwards, each as a line where it happened: the
+   * conversation is where the two people arrange the exchange, so it is where they look.
+   */
+  milestone: {
+    youDone: 'You marked your part done',
+    theyDone: '{name} marked their part done',
+    bothDone: 'Both parts are done',
+    cancelled: 'The agreement was cancelled',
+    open: 'Open the exchange'
+  },
+
   picker: {
     title: 'Listings you can propose from',
     intro:

@@ -14,12 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Found in the alpha 2 dogfooding round on 21 November 2026 and still open once that round's fixes are in.
 The enforcement limits are listed under Known gaps in 0.6.0-alpha.2 below.
 
-- **Offers**: the "Generate a mocked offer" button on the offer form fails with a TypeError when no service type is ticked; filling the form by hand works (#581).
-- **Exchanges**: the proposal page labels a request's estimate "Hours offered" for the member answering it, and a zero estimate reads "estimated at none" (#582).
-- **hREA**: a request estimated at zero hours is mirrored with "Estimated time: 0 hours" in its Proposal note, while its Intent carries no hours (#583).
-- **My Listings**: a listing's latest revision hash is passed on as its `original_action_hash`; nothing visible breaks today, but a screen comparing it with a hash from elsewhere can miss after an edit (#584).
-- **Exchanges**: a Base Category medium such as Time Banking reads as "Gift, nothing owed" on an exchange; what it should mean is an open product question (#585).
-- **Messages**: a conversation row's "new" count adds exchange cards to messages, so one message after an exchange can read "5 new"; a label that tells them apart is proposed (#586).
+- **Offers**: the "Generate a mocked offer" button on the offer form fails with a TypeError when no service type is ticked; filling the form by hand works ([#581](https://github.com/happenings-community/requests-and-offers/issues/581)).
+- **Exchanges**: the proposal page labels a request's estimate "Hours offered" for the member answering it, and a zero estimate reads "estimated at none" ([#582](https://github.com/happenings-community/requests-and-offers/issues/582)).
+- **hREA**: a request estimated at zero hours is mirrored with "Estimated time: 0 hours" in its Proposal note, while its Intent carries no hours ([#583](https://github.com/happenings-community/requests-and-offers/issues/583)).
+- **My Listings**: a listing's latest revision hash is passed on as its `original_action_hash`; nothing visible breaks today, but a screen comparing it with a hash from elsewhere can miss after an edit ([#584](https://github.com/happenings-community/requests-and-offers/issues/584)).
+- **Exchanges**: a Base Category medium such as Time Banking reads as "Gift, nothing owed" on an exchange; what it should mean is an open product question ([#585](https://github.com/happenings-community/requests-and-offers/issues/585)).
+- **Messages**: a conversation row's "new" count adds exchange cards to messages, so one message after an exchange can read "5 new"; a label that tells them apart is proposed ([#586](https://github.com/happenings-community/requests-and-offers/issues/586)).
 - **hREA, upstream, tracked for alpha 3**: deleting a Proposal leaves its purpose index link behind; latent here, because the app sets no purpose.
 - **hREA, upstream, tracked for alpha 3**: updating a Commitment leaves the `all_commitments` index on its first revision; the app reads each Commitment's latest revision itself until it is fixed.
 - **hREA, upstream, tracked for alpha 3**: there is no way to find a Proposal by an external reference, so the app finds a listing's Proposals by the hash line in their note.

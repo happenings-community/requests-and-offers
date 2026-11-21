@@ -3,8 +3,11 @@ import {
   MediumsOfExchangeServiceTag,
   MediumsOfExchangeServiceLive
 } from '$lib/services/zomes/mediums-of-exchange.service';
-import { Deferred, Effect as E, FiberId, pipe, Schedule } from 'effect';
-import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
+import { Deferred, Effect as E, FiberId, Option, pipe, Schedule } from 'effect';
+import {
+  HolochainClientServiceLive,
+  HolochainClientServiceTag
+} from '$lib/services/HolochainClientService.svelte';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import usersStore from '$lib/stores/users.store.svelte';
 import type { UIExchange } from '$lib/types/ui';
@@ -19,11 +22,16 @@ import {
   type ResolvedParties,
   type ResolvedSpecs,
   setUnitRegistry,
+  setUnitLabels,
   unitRegistryFrom
 } from '$lib/services/mappers/agreement-commitment.mapper';
 import { HreaError } from '$lib/errors';
 import { reasonOf } from '$lib/utils/error-shape';
-import { proposalIntentLinks } from '$lib/services/mappers/proposal-links';
+import {
+  chainRoot,
+  listingHashOfProposal,
+  proposalIntentLinks
+} from '$lib/services/mappers/proposal-links';
 
 // Import standardized store helpers
 import {
@@ -31,12 +39,15 @@ import {
   createStandardEventEmitters,
   type LoadingStateSetter
 } from '$lib/utils/store-helpers';
-import type { Agent, ResourceSpecification, Proposal, EconomicEvent, Intent, Agreement, Commitment } from '$lib/types/hrea';
+import type { Agent, ResourceSpecification, Proposal, EconomicEvent, Intent, Agreement, Commitment, ProposalWithIntents } from '$lib/types/hrea';
 import type { ApolloClient, NormalizedCacheObject } from '@apollo/client/core';
+import type { ActionHash } from '@holochain/client';
+import { decode } from '@msgpack/msgpack';
 import type { HreaSnapshot } from '$lib/utils/hrea-dashboard';
 import type { UIUser, UIOrganization, UIServiceType, UIRequest, UIOffer } from '$lib/types/ui';
 import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
 import { formatUserName } from '$lib/schemas/users.schemas';
+import { noteRefersTo, refHashFromNote, refNote } from '$lib/utils/hrea-ref';
 import {
   createProposalFromRequest as mapRequestToProposal,
   validateRequestMappingRequirements
@@ -198,8 +209,7 @@ const createUserAgentMapping = (user: UIUser): { name: string; note: string } =>
   const displayName = formatUserName(user.name) || user.nickname || 'Unknown User';
 
   // Store the action hash as the primary reference, with minimal additional info
-  const actionHashRef = user.original_action_hash?.toString() || 'unknown';
-  const note = `ref:user:${actionHashRef}`;
+  const note = refNote('user', user.original_action_hash);
 
   return { name: displayName, note };
 };
@@ -213,8 +223,7 @@ const createOrganizationAgentMapping = (
   const displayName = organization.name || 'Unknown Organization';
 
   // Store the action hash as the primary reference
-  const actionHashRef = organization.original_action_hash?.toString() || 'unknown';
-  const note = `ref:organization:${actionHashRef}`;
+  const note = refNote('organization', organization.original_action_hash);
 
   return { name: displayName, note };
 };
@@ -228,8 +237,7 @@ const createServiceTypeResourceSpecMapping = (
   const displayName = serviceType.name || 'Unknown Service Type';
 
   // Store the action hash as the primary reference
-  const actionHashRef = serviceType.original_action_hash?.toString() || 'unknown';
-  const note = `ref:serviceType:${actionHashRef}`;
+  const note = refNote('serviceType', serviceType.original_action_hash);
 
   return { name: displayName, note };
 };
@@ -243,8 +251,7 @@ const createMediumOfExchangeResourceSpecMapping = (
   const displayName = mediumOfExchange.name || 'Unknown Medium of Exchange';
 
   // Store the action hash as the primary reference
-  const actionHashRef = mediumOfExchange.original_action_hash?.toString() || 'unknown';
-  const note = `ref:mediumOfExchange:${actionHashRef}`;
+  const note = refNote('mediumOfExchange', mediumOfExchange.original_action_hash);
 
   return { name: displayName, note };
 };
@@ -252,16 +259,14 @@ const createMediumOfExchangeResourceSpecMapping = (
 /**
  * Extracts action hash from a note reference
  */
+/**
+ * Extracts the action hash a note names, as the map key (`toString()`), from a note written
+ * in either form: base64, or the byte list notes carried before (hrea-ref.ts).
+ */
 const extractActionHashFromNote = (
   note: string,
   entityType: 'user' | 'organization' | 'serviceType' | 'mediumOfExchange'
-): string | null => {
-  const prefix = `ref:${entityType}:`;
-  if (note.startsWith(prefix)) {
-    return note.substring(prefix.length);
-  }
-  return null;
-};
+): string | null => refHashFromNote(note, entityType);
 
 /**
  * Finds an hREA agent by original action hash reference
@@ -780,6 +785,9 @@ export const createHreaStore = (): E.Effect<
   E.gen(function* () {
     const hreaService = yield* HreaServiceTag;
     const mediumsOfExchangeService = yield* MediumsOfExchangeServiceTag;
+    // Optional: reads listing records to find their chain root (listingRootKey). Absent in
+    // unit tests, where a hash is its own root.
+    const holochainClient = yield* E.serviceOption(HolochainClientServiceTag);
 
     // ========================================================================
     // STATE INITIALIZATION
@@ -1465,6 +1473,7 @@ export const createHreaStore = (): E.Effect<
               // member picks the same Unit for it (#441).
               const registry = unitRegistryFrom([...existing, ...created]);
               setUnitRegistry(registry);
+              setUnitLabels([...existing, ...created]);
               console.log(
                 `hREA Store: unit registry ready - ${Object.keys(registry).length} labels`
               );
@@ -1484,7 +1493,10 @@ export const createHreaStore = (): E.Effect<
         hreaService.getUnits(),
         E.tap((units) =>
           E.sync(() => {
-            if (units.length > 0) setUnitRegistry(unitRegistryFrom(units));
+            if (units.length > 0) {
+              setUnitRegistry(unitRegistryFrom(units));
+              setUnitLabels(units);
+            }
           })
         ),
         E.asVoid,
@@ -1908,6 +1920,7 @@ export const createHreaStore = (): E.Effect<
 
           // 3. Find medium of exchange resource specification
           let mediumOfExchangeResourceSpec: ResourceSpecification | null = null;
+          let mediumIsBaseCategory = false;
           if (request.medium_of_exchange_hashes && request.medium_of_exchange_hashes.length > 0) {
             const mediumRootHash = yield* pipe(
               mediumsOfExchangeService.resolveToOriginal(request.medium_of_exchange_hashes[0]),
@@ -1918,8 +1931,9 @@ export const createHreaStore = (): E.Effect<
             const mediumOfExchangeHash = mediumRootHash.toString();
             mediumOfExchangeResourceSpec =
               state.resourceSpecifications.find((spec) =>
-                spec.note?.includes(`ref:mediumOfExchange:${mediumOfExchangeHash}`)
+                noteRefersTo(spec.note, 'mediumOfExchange', mediumOfExchangeHash)
               ) || null;
+            mediumIsBaseCategory = yield* isBaseCategoryMedium(mediumRootHash);
           }
 
           // 4. Validate requirements
@@ -1935,7 +1949,8 @@ export const createHreaStore = (): E.Effect<
             request,
             requesterAgent,
             serviceTypeResourceSpecs,
-            mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!
+            mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!,
+            mediumIsBaseCategory
           });
 
           // 6. Create the intents, then the proposal that publishes them: hREA
@@ -2409,6 +2424,7 @@ export const createHreaStore = (): E.Effect<
 
           // 3. Find medium of exchange resource specification
           let mediumOfExchangeResourceSpec: ResourceSpecification | null = null;
+          let mediumIsBaseCategory = false;
           if (offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0) {
             const mediumRootHash = yield* pipe(
               mediumsOfExchangeService.resolveToOriginal(offer.medium_of_exchange_hashes[0]),
@@ -2419,8 +2435,9 @@ export const createHreaStore = (): E.Effect<
             const mediumOfExchangeHash = mediumRootHash.toString();
             mediumOfExchangeResourceSpec =
               state.resourceSpecifications.find((spec) =>
-                spec.note?.includes(`ref:mediumOfExchange:${mediumOfExchangeHash}`)
+                noteRefersTo(spec.note, 'mediumOfExchange', mediumOfExchangeHash)
               ) || null;
+            mediumIsBaseCategory = yield* isBaseCategoryMedium(mediumRootHash);
           }
 
           // 4. Validate requirements
@@ -2436,7 +2453,8 @@ export const createHreaStore = (): E.Effect<
             offer,
             offererAgent,
             serviceTypeResourceSpecs,
-            mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!
+            mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!,
+            mediumIsBaseCategory
           });
 
           // 6. Create the intents, then the proposal that publishes them: hREA
@@ -2519,101 +2537,127 @@ export const createHreaStore = (): E.Effect<
     // PROPOSAL DELETION METHODS
     // ========================================================================
 
-    const deleteProposalForRequest = (requestHash: string): E.Effect<boolean, HreaError> => {
-      const proposalId = state.requestProposalMappings.get(requestHash);
-      if (!proposalId) {
-        console.log('hREA Store: No proposal mapping found for request:', requestHash);
-        return E.succeed(false);
-      }
+    /**
+     * Retires every proposal hREA holds for one listing, with the intents each publishes.
+     *
+     * The in-memory map knows the proposal written in this session; hREA's own records,
+     * read by the hash line every proposal note carries (`proposalsForListing`), know the
+     * rest: the one written before a reload, and the copies earlier edits left behind. A
+     * delete, an archive and an edit all come through here, so none of them leaves a
+     * proposal in hREA for a listing that no longer offers it.
+     */
+    /**
+     * A listing hash's chain root, as a map key. Reads each record through the R&O zome;
+     * without a client in the context (unit tests) a hash is its own root.
+     */
+    const listingRootKey = async (kind: 'request' | 'offer', key: string): Promise<string> => {
+      if (Option.isNone(holochainClient)) return key;
+      const client = holochainClient.value;
+      const bytes = new Uint8Array(key.split(',').map(Number));
+      const zome = kind === 'request' ? 'requests' : 'offers';
+      const root = await chainRoot(bytes, (h) => client.callZome(zome, `get_${kind}`, h));
+      return root.toString();
+    };
+
+    /**
+     * Whether a medium is a base category (it frames a deal, it is not a resource), read from
+     * its record. A read that fails answers false, which keeps the reciprocal intent
+     * conforming to the medium's specification, as before.
+     */
+    const isBaseCategoryMedium = (hash: ActionHash): E.Effect<boolean> =>
+      pipe(
+        E.suspend(() => mediumsOfExchangeService.getMediumOfExchange(hash)),
+        E.map((record) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const present = (record?.entry as any)?.Present?.entry;
+          if (!present) return false;
+          return (decode(present) as { exchange_type?: string }).exchange_type === 'base';
+        }),
+        E.catchAllCause(() => E.succeed(false))
+      );
+
+    const retireListingProposals = (
+      kind: 'request' | 'offer',
+      listingHash: string
+    ): E.Effect<boolean, HreaError> => {
+      const proposalMap =
+        kind === 'request' ? state.requestProposalMappings : state.offerProposalMappings;
+      const intentMap =
+        kind === 'request' ? state.requestProposalIntentMappings : state.offerProposalIntentMappings;
 
       return pipe(
         E.gen(function* () {
-          // Get intent IDs from local tracking (fallback for known hREA bug)
-          const intentIds = state.requestProposalIntentMappings.get(requestHash) || [];
+          const listed = yield* pipe(
+            hreaService.getProposalsWithIntents(),
+            E.catchAll((error) => {
+              console.warn('hREA Store: could not read proposals to retire, using the map only', error);
+              return E.succeed([] as ProposalWithIntents[]);
+            })
+          );
+          const targets = new Map<string, { revisionId: string; intentIds: readonly string[] }>();
+          // The same listing can be noted under any hash of its chain (see chainRoot), so a
+          // proposal is this listing's when its noted hash has the same root.
+          const roots = new Map<string, Promise<string>>();
+          const rootOf = (key: string) => {
+            if (!roots.has(key)) roots.set(key, listingRootKey(kind, key));
+            return roots.get(key)!;
+          };
+          const ownRoot = yield* E.promise(() => rootOf(listingHash));
+          for (const p of listed) {
+            const noted = listingHashOfProposal(p.note, kind);
+            if (noted === null) continue;
+            const same = noted === listingHash || (yield* E.promise(() => rootOf(noted))) === ownRoot;
+            if (same) targets.set(p.id, { revisionId: p.revisionId || p.id, intentIds: p.intentIds });
+          }
+          const mappedId = proposalMap.get(listingHash);
+          if (mappedId && !targets.has(mappedId)) {
+            const known = state.proposals.find((p) => p.id === mappedId);
+            targets.set(mappedId, {
+              revisionId: known?.revisionId || mappedId,
+              intentIds: intentMap.get(listingHash) || []
+            });
+          }
+          if (targets.size === 0) {
+            console.log(`hREA Store: No proposal found for ${kind}:`, listingHash);
+            return false;
+          }
 
-          // Delete each intent (look up revisionId from stored entities)
-          for (const intentId of intentIds) {
-            const intent = state.intents.find((i) => i.id === intentId);
+          for (const [proposalId, target] of targets) {
+            for (const intentId of target.intentIds) {
+              const intent = state.intents.find((i) => i.id === intentId);
+              yield* withInitialization(
+                () => hreaService.deleteIntent({ revisionId: intent?.revisionId || intentId }),
+                state.apolloClient,
+                initialize
+              );
+            }
             yield* withInitialization(
-              () => hreaService.deleteIntent({ revisionId: intent?.revisionId || intentId }),
+              () => hreaService.deleteProposal({ revisionId: target.revisionId }),
               state.apolloClient,
               initialize
             );
+            state.proposals = state.proposals.filter((p) => p.id !== proposalId);
+            state.intents = state.intents.filter((i) => !target.intentIds.includes(i.id));
+            console.log(
+              `hREA Store: Deleted proposal "${proposalId}" and ${target.intentIds.length} intents for ${kind} "${listingHash}"`
+            );
           }
-
-          // Delete the proposal (look up revisionId from stored entities)
-          const proposal = state.proposals.find((p) => p.id === proposalId);
-          yield* withInitialization(
-            () => hreaService.deleteProposal({ revisionId: proposal?.revisionId || proposalId }),
-            state.apolloClient,
-            initialize
-          );
-
-          // Remove from local state
-          state.proposals = state.proposals.filter((p) => p.id !== proposalId);
-          state.intents = state.intents.filter((i) => !intentIds.includes(i.id));
-          state.requestProposalMappings.delete(requestHash);
-          state.requestProposalIntentMappings.delete(requestHash);
-
-          console.log(
-            `hREA Store: Deleted proposal "${proposalId}" and ${intentIds.length} intents for request "${requestHash}"`
-          );
+          proposalMap.delete(listingHash);
+          intentMap.delete(listingHash);
           return true;
         }),
         E.catchAll((error) => {
-          console.error('hREA Store: Failed to delete proposal for request:', error);
+          console.error(`hREA Store: Failed to delete proposal for ${kind}:`, error);
           return E.succeed(false);
         })
       );
     };
 
-    const deleteProposalForOffer = (offerHash: string): E.Effect<boolean, HreaError> => {
-      const proposalId = state.offerProposalMappings.get(offerHash);
-      if (!proposalId) {
-        console.log('hREA Store: No proposal mapping found for offer:', offerHash);
-        return E.succeed(false);
-      }
+    const deleteProposalForRequest = (requestHash: string): E.Effect<boolean, HreaError> =>
+      retireListingProposals('request', requestHash);
 
-      return pipe(
-        E.gen(function* () {
-          // Get intent IDs from local tracking (fallback for known hREA bug)
-          const intentIds = state.offerProposalIntentMappings.get(offerHash) || [];
-
-          // Delete each intent (look up revisionId from stored entities)
-          for (const intentId of intentIds) {
-            const intent = state.intents.find((i) => i.id === intentId);
-            yield* withInitialization(
-              () => hreaService.deleteIntent({ revisionId: intent?.revisionId || intentId }),
-              state.apolloClient,
-              initialize
-            );
-          }
-
-          // Delete the proposal (look up revisionId from stored entities)
-          const proposal = state.proposals.find((p) => p.id === proposalId);
-          yield* withInitialization(
-            () => hreaService.deleteProposal({ revisionId: proposal?.revisionId || proposalId }),
-            state.apolloClient,
-            initialize
-          );
-
-          // Remove from local state
-          state.proposals = state.proposals.filter((p) => p.id !== proposalId);
-          state.intents = state.intents.filter((i) => !intentIds.includes(i.id));
-          state.offerProposalMappings.delete(offerHash);
-          state.offerProposalIntentMappings.delete(offerHash);
-
-          console.log(
-            `hREA Store: Deleted proposal "${proposalId}" and ${intentIds.length} intents for offer "${offerHash}"`
-          );
-          return true;
-        }),
-        E.catchAll((error) => {
-          console.error('hREA Store: Failed to delete proposal for offer:', error);
-          return E.succeed(false);
-        })
-      );
-    };
+    const deleteProposalForOffer = (offerHash: string): E.Effect<boolean, HreaError> =>
+      retireListingProposals('offer', offerHash);
 
     // ========================================================================
     // PROPOSAL UPDATE METHODS (delete + recreate)
@@ -2625,32 +2669,24 @@ export const createHreaStore = (): E.Effect<
       const requestHash = request.original_action_hash?.toString();
       if (!requestHash) return E.succeed(null);
 
-      const existingProposalId = state.requestProposalMappings.get(requestHash);
-      if (existingProposalId) {
-        // Delete old proposal, then create new one
-        return pipe(
-          deleteProposalForRequest(requestHash),
-          E.flatMap(() => createProposalFromRequest(request))
-        );
-      }
-      // No existing proposal — create one
-      return createProposalFromRequest(request);
+      // Retire whatever hREA holds for it, mapped in this session or not, then mirror
+      // the edited listing afresh.
+      return pipe(
+        deleteProposalForRequest(requestHash),
+        E.flatMap(() => createProposalFromRequest(request))
+      );
     };
 
     const handleOfferUpdatedEffect = (offer: UIOffer): E.Effect<Proposal | null, HreaError> => {
       const offerHash = offer.original_action_hash?.toString();
       if (!offerHash) return E.succeed(null);
 
-      const existingProposalId = state.offerProposalMappings.get(offerHash);
-      if (existingProposalId) {
-        // Delete old proposal, then create new one
-        return pipe(
-          deleteProposalForOffer(offerHash),
-          E.flatMap(() => createProposalFromOffer(offer))
-        );
-      }
-      // No existing proposal — create one
-      return createProposalFromOffer(offer);
+      // Retire whatever hREA holds for it, mapped in this session or not, then mirror
+      // the edited listing afresh.
+      return pipe(
+        deleteProposalForOffer(offerHash),
+        E.flatMap(() => createProposalFromOffer(offer))
+      );
     };
 
     // ========================================================================

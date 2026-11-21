@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import {
   setUnitRegistry,
+  setUnitLabels,
+  unitLabelOf,
   unitRegistryFrom,
   actionForKind,
   mapAgreementToHrea,
@@ -67,13 +69,30 @@ describe('mapAgreementToHrea', () => {
     expect(m!.reciprocal!.resourceConformsTo).toBe('spec-timebank');
   });
 
-  it('has no reciprocal commitment for a gift', () => {
+  it('writes the reciprocal commitment of a gift too, with no resource, framed by the medium (the DS model)', () => {
     const m = mapAgreementToHrea(
       exchange({ reciprocal: { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Gift', quantity: null } }),
       parties,
       specs
     );
-    expect(m!.reciprocal).toBeNull();
+    expect(m!.reciprocal).not.toBeNull();
+    expect(m!.reciprocal!.action).toBe('transfer');
+    expect(m!.reciprocal!.provider).toBe('agent-r');
+    expect(m!.reciprocal!.receiver).toBe('agent-p');
+    expect(m!.reciprocal!.resourceConformsTo).toBeUndefined();
+    expect(m!.reciprocal!.resourceQuantity).toBeUndefined();
+    expect(m!.reciprocal!.note).toBe('Nothing owed, framed by Time bank');
+  });
+
+  it('writes the reciprocal commitment of a term to be discussed, with no resource', () => {
+    const m = mapAgreementToHrea(
+      exchange({ reciprocal: { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Tbd', quantity: null } }),
+      parties,
+      specs
+    );
+    expect(m!.reciprocal!.action).toBe('transfer');
+    expect(m!.reciprocal!.resourceConformsTo).toBeUndefined();
+    expect(m!.reciprocal!.note).toBe('To be discussed, framed by Time bank');
   });
 
   it('refuses a Tbd primary', () => {
@@ -227,16 +246,22 @@ describe('mapCompletionToEvent', () => {
     expect(mapCompletionToEvent(odd, 'provider', parties, specs, 'hrea-agr', 1)!.resourceQuantity).toBeUndefined();
   });
 
-  it('a receiver completing a gift writes no event', () => {
+  it('a receiver completing a gift writes its event, with no resource, fulfilling the reciprocal commitment', () => {
     const r = mapCompletionToEvent(
       exchange({ reciprocal: { direction: 'Receive', resource_conforms_to: '', resource_kind: 'Gift', quantity: null } }),
       'receiver',
       parties,
       specs,
       'hrea-agr',
-      1
+      1,
+      'c-recip'
     );
-    expect(r).toBeNull();
+    expect(r).not.toBeNull();
+    expect(r!.action).toBe('transfer');
+    expect(r!.provider).toBe('agent-r');
+    expect(r!.resourceConformsTo).toBeUndefined();
+    expect(r!.resourceQuantity).toBeUndefined();
+    expect(r!.fulfills).toEqual(['c-recip']);
   });
 });
 
@@ -298,6 +323,25 @@ describe('agreementRefsFromHrea', () => {
     const refs = agreementRefsFromHrea(ref, parties, twice, [commitment('c-prim', 'agent-p', 'agent-r', 'agr-1')]);
     expect(refs?.agreementId).toBe('agr-1');
     expect(refs?.primaryCommitmentId).toBe('c-prim');
+  });
+});
+
+describe('unitLabelOf', () => {
+  it('names the Unit an id stands for, every copy of a label included, so a quantity never shows a raw hash', () => {
+    setUnitLabels([
+      { id: 'uhCkkV6bL-hours', label: 'hours' },
+      { id: 'uhCkkA-hours', label: 'hours' },
+      { id: 'uhCkkD-days', label: 'days' }
+    ]);
+    expect(unitLabelOf('uhCkkV6bL-hours')).toBe('hours');
+    expect(unitLabelOf('uhCkkA-hours')).toBe('hours');
+    expect(unitLabelOf('uhCkkD-days')).toBe('days');
+  });
+
+  it('answers undefined for an id it has not seen, and for none', () => {
+    setUnitLabels([]);
+    expect(unitLabelOf('uhCkk-unknown')).toBeUndefined();
+    expect(unitLabelOf(undefined)).toBeUndefined();
   });
 });
 

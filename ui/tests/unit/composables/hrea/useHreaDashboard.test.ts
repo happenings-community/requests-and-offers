@@ -116,7 +116,9 @@ describe('useHreaDashboard', () => {
     const byRo = Object.fromEntries(dash.ledger.map((r) => [r.ro, r]));
     expect(byRo['Users'].roCount).toBe(1);
     expect(byRo['Service types'].roCount).toBe(2);
-    expect(byRo['Requests'].roCount).toBe(2);
+    // Active listings only: archiving a listing retires its proposal, so an archived one
+    // has none in hREA to compare with.
+    expect(byRo['Requests'].roCount).toBe(1);
     expect(byRo['Offers'].roCount).toBe(2);
     expect(dash.counts?.agents).toBe(0);
   });

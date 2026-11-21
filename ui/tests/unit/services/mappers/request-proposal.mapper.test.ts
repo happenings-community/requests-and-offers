@@ -103,6 +103,23 @@ describe('Request to Proposal Mapper', () => {
       expect(result.paymentIntent.resourceSpecifiedBy).toBe('rs-moe');
     });
 
+    it('gives the reciprocal intent no resource when the medium is a base category (framed, not owed)', async () => {
+      const params: RequestProposalMappingParams = {
+        request: createMockRequest(),
+        requesterAgent: createMockAgent(),
+        serviceTypeResourceSpecs: [createMockResourceSpec('rs-1', 'Garden help')],
+        mediumOfExchangeResourceSpec: createMockResourceSpec('rs-moe', 'Time Banking'),
+        mediumIsBaseCategory: true
+      };
+
+      const result = await E.runPromise(createProposalFromRequest(params));
+
+      expect(result.paymentIntent.isReciprocal).toBe(true);
+      expect(result.paymentIntent.action).toBe('transfer');
+      expect(result.paymentIntent.resourceSpecifiedBy).toBeUndefined();
+      expect(result.serviceIntents[0].resourceSpecifiedBy).toBe('rs-1');
+    });
+
     it('should combine all intents in allIntents array', async () => {
       const params: RequestProposalMappingParams = {
         request: createMockRequest(),

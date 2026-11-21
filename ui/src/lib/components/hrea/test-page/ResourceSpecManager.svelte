@@ -1,5 +1,6 @@
 <script lang="ts">
   import { hashLabel } from '$lib/utils/hash-label';
+  import { refHashFromNote } from '$lib/utils/hrea-ref';
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import hreaStore from '$lib/stores/hrea.store.svelte';
@@ -284,15 +285,12 @@
     }
   }
 
+  /** The hash a note names, read in either form it was written in (hrea-ref.ts). */
   function extractActionHashFromNote(
     note: string,
     entityType: 'user' | 'organization' | 'serviceType'
   ): string | null {
-    const prefix = `ref:${entityType}:`;
-    if (note.startsWith(prefix)) {
-      return note.substring(prefix.length);
-    }
-    return null;
+    return refHashFromNote(note, entityType);
   }
 
   function findServiceTypeByActionHash(actionHash: string): UIServiceType | null {

@@ -117,8 +117,9 @@ export function useHreaDashboard() {
       organizations: organizations.length,
       serviceTypes: serviceTypes.length,
       mediums: mediums.length,
-      requests: activeRequests.length + archivedRequests.length,
-      offers: activeOffers.length + archivedOffers.length,
+      // Active listings: archiving one retires its proposal (retireListingProposals).
+      requests: activeRequests.length,
+      offers: activeOffers.length,
       exchanges: [...byRef.values()].sort((a, b) => b.created_at - a.created_at)
     };
     return inv;

@@ -72,8 +72,20 @@ export function agreementRefsFromHrea(
 export type MappedAgreement = {
   agreement: AgreementInput;
   primary: CommitmentInput;
+  /** Always written: a gift's reciprocal is a clause too, with no resource (see mapAgreementToHrea). */
   reciprocal: CommitmentInput | null;
 };
+
+/** Whether a term moves a resource: a service or a currency. A gift or a Tbd frames a deal, moves nothing. */
+export function carriesResource(kind: ResourceKind): boolean {
+  return kind === 'Service' || kind === 'Currency';
+}
+
+/** The note of a clause that moves no resource. */
+function unresourcedNote(kind: ResourceKind, medium: string): string {
+  const what = kind === 'Tbd' ? 'To be discussed' : 'Nothing owed';
+  return medium ? `${what}, framed by ${medium}` : what;
+}
 
 /** work matches the existing intent mapper; see the scaffold note on deliverService. */
 export function actionForKind(kind: ResourceKind): string | null {
@@ -97,6 +109,22 @@ let unitRegistry: Record<string, string> = {};
 
 export function setUnitRegistry(registry: Record<string, string>): void {
   unitRegistry = registry;
+}
+
+/**
+ * Unit-id-to-label map of every Unit on the network, each copy of a label included, so a
+ * quantity read back from hREA can name its Unit ("2 hours") instead of showing its id.
+ */
+let unitLabels: Record<string, string> = {};
+
+export function setUnitLabels(units: ReadonlyArray<{ id: string; label: string }>): void {
+  unitLabels = Object.fromEntries(units.map((u) => [u.id, u.label]));
+}
+
+/** The label of the Unit an id names, or undefined when no Unit with that id has been read. */
+export function unitLabelOf(id: string | null | undefined): string | undefined {
+  if (!id) return undefined;
+  return unitLabels[id] ?? Object.entries(unitRegistry).find(([, held]) => held === id)?.[0];
 }
 
 /**
@@ -300,21 +328,31 @@ export function mapAgreementToHrea(
     agreedIn: ref
   };
 
-  const reciprocalAction = actionForKind(a.reciprocal.resource_kind);
-  const reciprocal: CommitmentInput | null =
-    reciprocalAction && a.reciprocal.resource_kind !== 'Gift'
-      ? {
-          action: reciprocalAction,
-          provider: parties.receiverAgentId,
-          receiver: parties.providerAgentId,
-          resourceConformsTo: specs.reciprocalSpecId,
-          resourceQuantity: measureOf(a.reciprocal),
-          ...dates,
-          finished: false,
-          note: [a.medium, quantityText(a.reciprocal)].filter(Boolean).join(' | ') || undefined,
-          agreedIn: ref
-        }
-      : null;
+  // Every accepted exchange has both clauses (the design system's hREA page). A reciprocal
+  // that carries a resource conforms to it; a gift or a term still to be discussed has none,
+  // and its Commitment says so, framed by the medium the deal was made in.
+  const flows = carriesResource(a.reciprocal.resource_kind);
+  const reciprocal: CommitmentInput = flows
+    ? {
+        action: actionForKind(a.reciprocal.resource_kind) ?? 'transfer',
+        provider: parties.receiverAgentId,
+        receiver: parties.providerAgentId,
+        resourceConformsTo: specs.reciprocalSpecId,
+        resourceQuantity: measureOf(a.reciprocal),
+        ...dates,
+        finished: false,
+        note: [a.medium, quantityText(a.reciprocal)].filter(Boolean).join(' | ') || undefined,
+        agreedIn: ref
+      }
+    : {
+        action: 'transfer',
+        provider: parties.receiverAgentId,
+        receiver: parties.providerAgentId,
+        ...dates,
+        finished: false,
+        note: unresourcedNote(a.reciprocal.resource_kind, a.medium),
+        agreedIn: ref
+      };
 
   return { agreement, primary, reciprocal };
 }
@@ -323,8 +361,8 @@ export type CompletionSide = 'provider' | 'receiver';
 
 /**
  * The completing party's event. The provider's completion is the primary flow
- * delivered; the receiver's completion is the reciprocal flow delivered. A
- * receiver completing a gift exchange has no reciprocal flow and no event.
+ * delivered; the receiver's completion is the reciprocal flow delivered, or, for a
+ * gift, the reciprocal clause fulfilled with no resource moved.
  */
 export function mapCompletionToEvent(
   exchange: UIExchange,
@@ -338,11 +376,23 @@ export function mapCompletionToEvent(
 ): EconomicEventInput | null {
   const a = exchange.agreement;
   const term = side === 'provider' ? a.primary : a.reciprocal;
-  if (side === 'receiver' && a.reciprocal.resource_kind === 'Gift') return null;
+  const forward = side === 'provider';
+  if (!actionForKind(a.primary.resource_kind)) return null;
+  // The receiver's side done is an event too when it moved nothing (a gift): it fulfils the
+  // reciprocal clause, with no resource, as the design system's hREA page draws it.
+  if (!forward && !carriesResource(term.resource_kind)) {
+    return {
+      action: 'transfer',
+      provider: parties.receiverAgentId,
+      receiver: parties.providerAgentId,
+      agreedIn: rnoAgreementRef(exchange),
+      realizationOf: hreaAgreementId,
+      fulfills: commitmentId ? [commitmentId] : undefined
+    };
+  }
   const action = actionForKind(term.resource_kind);
   if (!action) return null;
 
-  const forward = side === 'provider';
   return {
     action,
     provider: forward ? parties.providerAgentId : parties.receiverAgentId,

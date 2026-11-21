@@ -144,12 +144,12 @@
                 {#if agent.user}
                   <a
                     href={paths.userProfile(agent.user.original_action_hash!)}
-                    class="text-primary-400 hover:text-primary-300 hover:underline"
+                    class="text-primary-500 hover:text-primary-700 hover:underline dark:text-primary-300 dark:hover:text-primary-200"
                   >
                     {formatUserName(agent.user.name)}
                   </a>
                 {:else}
-                  <span class="italic text-gray-500">N/A</span>
+                  <span class="italic text-surface-600 dark:text-surface-300">N/A</span>
                 {/if}
               </td>
               <td class="italic">{agent.note || '-'}</td>
@@ -159,7 +159,7 @@
       </table>
     </div>
   {:else}
-    <p class="text-center text-gray-500">No Person agents found.</p>
+    <p class="text-center text-surface-600 dark:text-surface-300">No Person agents found.</p>
   {/if}
 
   <!-- Debug Information -->

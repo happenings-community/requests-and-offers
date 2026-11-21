@@ -67,6 +67,10 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 
 - **hREA**: An accepted exchange whose mirror never landed is mirrored again the next time the member who accepted it reads their exchanges, once a session, and never twice at once; a cancel that comes while its mirror is being written waits for it, then closes its Commitments. Both Commitments are checked before the Agreement is written, so a malformed one fails with a reason in words instead of hREA's bytes, and a failed mirror is logged with hREA's own reason (#532)
 - **hREA**: The admin audit page marks each Commitment finished or open, read from its latest revision; hREA's list returns the first, so a finished one showed as open
+- **hREA**: The admin's economic-flow graph fits its panel and zooms and pans like a whiteboard (buttons, Ctrl or Cmd with the wheel, a drag, the arrow keys), instead of a sideways scroll that cut off its left column; each node opens in the inspector on focus or a tap, not only on hover
+- **hREA**: The admin's Test managers find a medium of exchange (every medium read "not found": they looked up a field mediums lack, and an approved medium is listed at a later revision than its specification's note names, so they now compare root hashes), show note hashes as short labels instead of a list of bytes, let their chips wrap, and give every coloured text a dark-mode shade that reads at 4.5:1
+- **hREA**: The admin's economic-flow graph names an edited listing's exchange instead of "(unknown listing)", which had also left its proposal and intents unmatched
+- **hREA**: The admin's Proposals test manager finds an edited listing's source (it read "Source Missing"): it reads the listing's latest revision by the original hash the proposal is mapped under
 - **Exchanges**: Every write that carries a payload is decoded (`499927c0`, #273)
 - **Exchanges**: Interest actions are hidden from members who are not accepted (`4474f97e`, #336, closes #330)
 - **Listings**: Offers, requests and their tables name every medium of exchange a listing accepts, instead of the first one or two and "+N more"

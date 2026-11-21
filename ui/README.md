@@ -55,20 +55,20 @@ Each domain implements:
 # Install dependencies
 bun install
 
-# Start development server
-bun run dev
+# Start the development server (UI_PORT is required)
+UI_PORT=8880 bun start
 
-# Start with specific port
-bun run dev -- --port 3000
+# Start on another port
+UI_PORT=3000 bun start
 ```
 
 ### Commands
 
 ```bash
 # Development
-bun run dev           # Start dev server
-bun run build         # Production build
-bun run preview       # Preview build
+bun start             # Start dev server (needs UI_PORT)
+bun run build         # Type check, then production build
+bun run package       # Build and zip the UI for the hApp
 
 # Code Quality
 bun run check         # TypeScript check
@@ -79,8 +79,8 @@ bun run format        # Prettier
 bun run test          # All tests
 bun run test:unit     # Unit tests
 bun run test:integration  # Integration tests
-bun run test:e2e      # E2E tests
-bun run test:e2e:holochain  # E2E with Holochain
+bun run test:e2e      # E2E tests (needs a built hApp; see tests/e2e/README.md)
+bun run test:e2e:smoke  # E2E smoke tests only
 ```
 
 ## Project Structure

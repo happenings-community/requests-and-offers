@@ -8,7 +8,7 @@ Please read and follow our Code of Conduct to maintain a welcoming and inclusive
 
 ## Getting Started
 
-1. Fork the [repository](https://github.com/Happening-Community/requests-and-offers)
+1. Fork the [repository](https://github.com/happenings-community/requests-and-offers)
 2. Clone your fork
 3. Set up the development environment following our [Installation Guide](./installation.md)
 
@@ -268,8 +268,8 @@ We follow a systematic approach to feature development that ensures proper testi
 1. **DNA Testing**
 
    ```bash
-   # Test specific feature
-   bun test:new-feature
+   # Test one domain's zomes (example: requests; the scripts are in the root package.json)
+   bun run test:sweettest:requests
 
    # Run all tests
    bun test
@@ -335,7 +335,7 @@ We follow a systematic approach to feature development that ensures proper testi
 
 - Join our [Community](https://happenings.community/)
 - Ask questions on [Discord](https://discord.gg/happening)
-- Check [GitHub Issues](https://github.com/Happening-Community/requests-and-offers/issues)
+- Check [GitHub Issues](https://github.com/happenings-community/requests-and-offers/issues)
 - Review [Technical Documentation](../technical-specs.md) & [Architecture](../architecture.md)
 
 ### Feedback on a release

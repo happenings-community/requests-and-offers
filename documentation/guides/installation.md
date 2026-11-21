@@ -29,7 +29,7 @@ This will set up the complete Holochain development environment, including Nix a
 #### Clone the Repository
 
 ```bash
-git clone https://github.com/Happening-Community/requests-and-offers.git
+git clone https://github.com/happenings-community/requests-and-offers.git
 cd requests-and-offers
 ```
 
@@ -49,20 +49,16 @@ This will also download the hREA suite as part of the postinstall script.
 
 #### Environment Configuration
 
-> **Out of date:** `bun start:test` and `bun start:prod` do not exist, and the env files are `.env.example` and `.env.production`. Tracked in [#481](https://github.com/happenings-community/requests-and-offers/issues/481).
+The project uses environment variables to control development features. Two env files live in the repository root, and Vite reads them from there:
 
-The project uses environment variables to control development features. Three environment files are configured:
-
-- **`.env.development`** - Full development features enabled
-- **`.env.test`** - Limited dev features for alpha testing
-- **`.env.production`** - All dev features disabled
+- **`.env.example`** - The template. Copy it to `.env` and set a value to `true` to switch a feature on.
+- **`.env.production`** - Loaded by `vite build`. It sets every dev feature to `false`.
 
 **Key Environment Variables**:
 
 ```bash
-VITE_APP_ENV=development|test|production       # Core environment setting
-VITE_DEV_FEATURES_ENABLED=true|false          # Master dev features toggle
 VITE_MOCK_BUTTONS_ENABLED=true|false          # Form mock buttons
+VITE_PEERS_DISPLAY_ENABLED=true|false         # Show all network peers, for multi-agent testing
 ```
 
 **Development Features Include**:
@@ -101,43 +97,14 @@ bun build:happ
 
 #### Start Development Environment
 
-The project includes three deployment modes for different development scenarios:
-
-**🧑‍💻 Development Mode** (Full dev features + mock buttons):
+Start the development network with the default configuration (2 agents) or a custom number of agents:
 
 ```bash
-# Start with default configuration (2 agents)
 bun start
 
-# Start with custom number of agents
+# Custom number of agents
 AGENTS=3 bun start
 ```
-
-**🧪 Test Mode** (Alpha testing without mock buttons):
-
-```bash
-# Start in test mode - simulates production environment for testing
-bun start:test
-
-# Custom agents in test mode
-AGENTS=3 bun start:test
-```
-
-**🚀 Production Mode** (Clean production build):
-
-```bash
-# Start in production mode - all dev features tree-shaken out
-bun start:prod
-
-# Custom agents in production mode
-AGENTS=3 bun start:prod
-```
-
-**Choosing the Right Mode**:
-
-- **Development**: Use for feature development, debugging, and learning (includes mock data buttons)
-- **Test**: Use for alpha testing and production simulation (realistic environment without dev tools)
-- **Production**: Use for actual deployment and performance testing (optimized builds)
 
 This will:
 
@@ -148,6 +115,10 @@ This will:
 5. Serve the conductor inspector and open it in your browser
 
 To see each member's source chain and DHT state, open the inspector page: `bun start` and `bun start:web` both serve it and print its URL. `INSPECTOR_PORT` fixes its port and `WEB_OPEN=0` stops it opening (`documentation/guides/web-dev-mode.md#the-inspector`). It replaces `hc playground`, whose only build reads Holochain 0.5, not 0.7.
+
+**Mock buttons and the peers display**: both are off in `.env.example`. To see the mock data buttons in forms, copy `.env.example` to `.env` and set `VITE_MOCK_BUTTONS_ENABLED=true`.
+To check the app as a tester sees it, leave both at `false`.
+A production build (`bun package`) sets both to `false` and tree-shakes the dev code out.
 
 #### Verify Development Environment
 
@@ -254,12 +225,12 @@ The **Service Types** domain is 100% complete and serves as the architectural te
 
 3. **See It In Action**:
    - Navigate to Service Types section in the running app
-   - Try creating a new service type (use mock button in development mode)
+   - Try creating a new service type (use the mock button when `VITE_MOCK_BUTTONS_ENABLED=true`)
    - Edit an existing service type
    - Notice the error handling and loading states
    - Observe the Effect-TS patterns in developer tools
-   - **Development Mode**: Notice the "Create Mock Data" button in forms
-   - **Test Mode**: Run `bun start:test` and note the absence of mock buttons
+   - **With `VITE_MOCK_BUTTONS_ENABLED=true`**: Notice the "Create Mock Data" button in forms
+   - **With it `false`** (the default in `.env.example`): Note the absence of mock buttons
 
 **Success Criteria**:
 
@@ -267,9 +238,9 @@ The **Service Types** domain is 100% complete and serves as the architectural te
 - [ ] Service type CRUD operations work in the UI
 - [ ] Tests pass for service-types domain
 - [ ] You can identify the 7-layer architecture in the code
-- [ ] Mock data buttons appear in development mode (`bun start`)
-- [ ] Mock data buttons are hidden in test mode (`bun start:test`)
-- [ ] Development features are completely absent in production mode (`bun start:prod`)
+- [ ] Mock data buttons appear when `VITE_MOCK_BUTTONS_ENABLED=true` is set in `.env`
+- [ ] Mock data buttons are hidden when it is `false`
+- [ ] Development features are completely absent in a production build (`bun package`)
 
 #### Next Steps After Setup
 
@@ -503,7 +474,7 @@ When reporting issues, please include:
 **Support Channels**:
 
 - **Community**: Join our [hAppenings Community](https://happenings.community/)
-- **Issues**: Report on [GitHub Issues](https://github.com/Happening-Community/requests-and-offers/issues)
+- **Issues**: Report on [GitHub Issues](https://github.com/happenings-community/requests-and-offers/issues)
 - **Chat**: Connect on [Discord](https://discord.gg/happening)
 - **Documentation**: Check the root `CLAUDE.md` and `.claude/skills/` for development guidance
 

@@ -22,7 +22,7 @@ A **simple peer-to-peer bulletin board** for the Holochain community, enabling c
 
 ```bash
 # Clone and setup
-git clone https://github.com/Happening-Community/requests-and-offers.git
+git clone https://github.com/happenings-community/requests-and-offers.git
 cd requests-and-offers && nix develop
 bun install && bun start
 ```

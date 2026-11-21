@@ -140,7 +140,7 @@ The architecture is supported by comprehensive pattern documentation:
 
 ### Completed ✅ - MAJOR MILESTONE ACHIEVED
 
-- **All 8 Domains Fully Standardized**: Complete 7-layer Effect-TS architecture implementation
+- **All 9 Domains Fully Standardized**: Complete 7-layer Effect-TS architecture implementation
   - **Service Types Domain**: Template and foundation (100%)
   - **Requests Domain**: Complete standardization (100%)
   - **Offers Domain**: Complete standardization (100%)
@@ -149,9 +149,10 @@ The architecture is supported by comprehensive pattern documentation:
   - **Administration Domain**: Complete Effect-TS conversion (100%)
   - **Exchanges Domain**: Complete implementation with all layers (100%)
   - **Mediums of Exchange Domain**: Complete Effect-TS standardization (100%)
+  - **Messaging Domain**: Service, store, schemas, errors and composables in place
 - **Pattern Documentation**: Comprehensive rule files for consistent development
 - **Foundation Architecture**: Complete Effect TS infrastructure and utilities
-- **Testing Infrastructure**: All 343 unit tests passing across 20 test files with standardized mocks
+- **Testing Infrastructure**: Standardized mocks for the unit suite; the current counts are in [status.md](status.md#testing-infrastructure)
 
 ### Current Focus 🎯
 

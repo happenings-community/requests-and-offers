@@ -103,11 +103,11 @@ The check **warns and does not fail**. A missing integrity label produces a warn
 
 It has to be `pull_request_target`, and that is safe only because of how it is built:
 
-- It checks out the **base** commit and only the one script, never the pull request's head. The code that runs is always the reviewed code, and nothing from a fork is built or executed.
+- It checks out the tip of the default branch (`GITHUB_SHA`, which for `pull_request_target` is the last commit on `dev`) and only the one script, never the pull request's head. The code that runs is always the reviewed code, it always matches the workflow file, and nothing from a fork is built or executed. It does not use the pull request's `base.sha`, which is a snapshot from its last push and, on an older pull request, predates the script.
 - The file list comes from the REST API and the labels from the event payload.
 - Its token is read-only (`contents` and `pull-requests`), and label names reach the script through an environment variable, not through a shell line.
 
-The consequence is that a `pull_request_target` workflow runs from the base branch, so a change to this workflow or script does not take effect on its own pull request. After a change to it, test the logic with `bun test scripts/tests/check-zome-labels.test.ts`, which the Frontend job also runs as part of `bun test scripts/tests`.
+The consequence is that a `pull_request_target` workflow runs from the default branch, `dev`, for pull requests to `dev` and to `main` alike, so a change to this workflow or script does not take effect on its own pull request. After a change to it, test the logic with `bun test scripts/tests/check-zome-labels.test.ts`, which the Frontend job also runs as part of `bun test scripts/tests`.
 
 To make the warning a failure later, make the script exit non-zero when `verdict.missing` is not empty, then add the check to the required ones in the ruleset.
 

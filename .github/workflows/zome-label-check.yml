@@ -12,17 +12,19 @@
 # Why pull_request_target, and why that is safe here:
 #   - A plain pull_request run from a fork gets a read-only token and would have
 #     to check out the fork's code to find the script. This workflow checks out
-#     the BASE commit only, so the script that runs is always the reviewed one.
+#     the tip of the default branch (GITHUB_SHA for pull_request_target), the
+#     same commit the workflow file comes from, so the script that runs is
+#     always the reviewed one and always matches the workflow.
 #   - The pull request's code is never checked out, built or executed. The file
 #     list comes from the REST API and the labels from the event payload.
 #   - The token is read-only: contents and pull-requests.
 #   - Label names reach the script through an environment variable, never
 #     through interpolation into a shell line.
 #
-# Consequence: a pull_request_target workflow runs from the base branch, so a
+# Consequence: a pull_request_target workflow runs from the default branch, so a
 # change to this file or to the script does not take effect on its own pull
-# request. It starts working once it is merged into the branch the pull
-# requests target.
+# request. It starts working, for pull requests to dev and to main alike, once
+# it is merged into dev, the default branch.
 #
 # Guide: documentation/guides/continuous-integration.md
 
@@ -47,10 +49,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      # The base commit, and only the one script. Never the pull request's head.
+      # The default branch tip (GITHUB_SHA), and only the one script. Never the
+      # pull request's head. Not base.sha: that is a snapshot from the last push
+      # and, on older pull requests, predates the script.
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
           sparse-checkout: scripts/check-zome-labels.ts
           sparse-checkout-cone-mode: false

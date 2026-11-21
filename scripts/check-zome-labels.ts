@@ -175,8 +175,11 @@ async function main(): Promise<void> {
 
   for (const line of renderAnnotations(verdict)) console.log(line);
   const summary = renderSummary(verdict);
-  console.log(summary);
+  // The summary holds file paths from the pull request, and a path may contain a
+  // newline followed by "::", which the runner would read as a workflow command.
+  // It goes only to the step summary file, never to stdout, when that file exists.
   if (GITHUB_STEP_SUMMARY) appendFileSync(GITHUB_STEP_SUMMARY, summary);
+  else console.log(summary);
 }
 
 if (import.meta.main) {

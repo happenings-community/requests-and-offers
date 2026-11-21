@@ -136,3 +136,37 @@ describe('fetchPaths', () => {
     await expect(fetchPaths('o/r', 7, 'tok', fake)).rejects.toThrow('403');
   });
 });
+
+describe('cli output', () => {
+  it('keeps pull request paths off stdout when a step summary file exists', async () => {
+    const hostile = 'dnas/x/zomes/integrity/a\n::error title=forged::not from the check';
+    const server = Bun.serve({
+      port: 0,
+      fetch: () => Response.json([{ filename: hostile }])
+    });
+    const { mkdtempSync } = await import('node:fs');
+    const summaryFile = `${mkdtempSync('/tmp/zome-label-')}/summary.md`;
+    try {
+      const proc = Bun.spawn(['bun', `${import.meta.dir}/../check-zome-labels.ts`], {
+        env: {
+          ...process.env,
+          GITHUB_REPOSITORY: 'o/r',
+          GH_TOKEN: 't',
+          PR_NUMBER: '1',
+          PR_LABELS: '[]',
+          GITHUB_STEP_SUMMARY: summaryFile,
+          GITHUB_API_URL: `http://127.0.0.1:${server.port}`
+        },
+        stdout: 'pipe'
+      });
+      // Async spawn: a sync one would block the in-process server it calls.
+      const out = await new Response(proc.stdout).text();
+      expect(await proc.exited).toBe(0);
+      expect(out).toContain('::warning title=Integrity zome changed::');
+      expect(out).not.toContain('::error');
+      expect(await Bun.file(summaryFile).text()).toContain('forged');
+    } finally {
+      server.stop(true);
+    }
+  });
+});

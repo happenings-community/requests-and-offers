@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { encodeHashToBase64 } from '@holochain/client';
 import { hashLabel } from '$lib/utils/hash-label';
+import { findByRoot } from '$lib/utils/medium-by-root';
 
 // The admin's hREA pages, polished for review (20 November). The suite does not mount
 // these components (see hrea-admin-entry.test.ts), so the markup checks read the source.
@@ -50,7 +51,34 @@ describe('the Test managers', () => {
   it('find a medium of exchange by the hash it has', () => {
     const moe = read(`${TEST_PAGE}/MediumOfExchangeResourceSpecManager.svelte`);
     expect(moe).not.toMatch(/moe\.actionHash/);
-    expect(moe).toMatch(/moe\.original_action_hash\?\.toString\(\) === actionHash/);
+    expect(moe).toMatch(/findByRoot\(mediumsOfExchangeStore\.approvedMediumsOfExchange/);
+    expect(moe).toMatch(/roots\.track\(/);
+  });
+
+  describe('findByRoot', () => {
+    const usd = { original_action_hash: '9,9,2', name: 'USD' }; // listed at its approval revision
+    const hours = { original_action_hash: '7,7,1', name: 'Hours' };
+    const roots = new Map([
+      ['9,9,2', '9,9,1'], // the approval revision's root is the first revision
+      ['9,9,1', '9,9,1'],
+      ['7,7,1', '7,7,1']
+    ]);
+
+    it('finds a medium listed at a later revision than the note names', () => {
+      expect(findByRoot([hours, usd], '9,9,1', roots)).toBe(usd);
+      // Without the roots, the revision does not match.
+      expect(findByRoot([hours, usd], '9,9,1', new Map())).toBeNull();
+    });
+
+    it('matches exactly before roots are resolved, and never by name', () => {
+      expect(findByRoot([hours, usd], '7,7,1', new Map())).toBe(hours);
+      const twin = { original_action_hash: '5,5,5', name: 'USD' };
+      expect(findByRoot([twin], '9,9,1', roots)).toBeNull();
+    });
+
+    it('finds nothing for a note whose medium is not approved', () => {
+      expect(findByRoot([hours], '9,9,1', roots)).toBeNull();
+    });
   });
 
   it('give every coloured text a shade for dark mode, the admin area being dark', () => {

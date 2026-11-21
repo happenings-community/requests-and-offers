@@ -1,5 +1,7 @@
 <script lang="ts">
   import { hashLabel } from '$lib/utils/hash-label';
+  import { findByRoot } from '$lib/utils/medium-by-root';
+  import { useMediumRoots } from '$lib/composables/domain/hrea/useMediumRoots.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import hreaStore from '$lib/stores/hrea.store.svelte';
@@ -35,6 +37,20 @@
       spec.note?.startsWith('ref:mediumOfExchange:')
     )
   );
+
+  // Roots, so a medium listed at a later revision than its note names still matches.
+  const roots = useMediumRoots();
+  $effect(() => {
+    const hashes: string[] = [];
+    for (const moe of mediumsOfExchangeStore.approvedMediumsOfExchange) {
+      if (moe.original_action_hash) hashes.push(moe.original_action_hash.toString());
+    }
+    for (const spec of mediumOfExchangeResourceSpecs) {
+      const h = spec.note ? extractActionHashFromNote(spec.note, 'mediumOfExchange') : null;
+      if (h) hashes.push(h);
+    }
+    void roots.track(hashes);
+  });
 
   // Reactive sync counters
   $effect(() => {
@@ -162,12 +178,13 @@
     return null;
   }
 
+  /**
+   * The medium a specification's note names, matched by root hash (see `useMediumRoots`), so a
+   * medium found at a later revision than the note names is still the same medium.
+   * Until its roots are resolved, only an exact hash matches.
+   */
   function findMediumOfExchangeByActionHash(actionHash: string): UIMediumOfExchange | null {
-    return (
-      mediumsOfExchangeStore.approvedMediumsOfExchange.find(
-        (moe) => moe.original_action_hash?.toString() === actionHash
-      ) || null
-    );
+    return findByRoot(mediumsOfExchangeStore.approvedMediumsOfExchange, actionHash, roots.rootOf);
   }
 
   function findResourceSpecByActionHash(

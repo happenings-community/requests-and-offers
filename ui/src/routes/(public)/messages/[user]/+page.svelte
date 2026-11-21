@@ -6,6 +6,7 @@
   import OpeningCard from '$lib/components/messaging/OpeningCard.svelte';
   import ProposalCard from '$lib/components/messaging/ProposalCard.svelte';
   import AgreementLine from '$lib/components/messaging/AgreementLine.svelte';
+  import MilestoneLine from '$lib/components/messaging/MilestoneLine.svelte';
   import ProposalPicker from '$lib/components/messaging/ProposalPicker.svelte';
   import SharedListingCard from '$lib/components/messaging/SharedListingCard.svelte';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
@@ -48,7 +49,9 @@
       ? encodeHashToBase64(item.message.hash)
       : item.kind === 'interest'
         ? encodeHashToBase64(item.interest.interest_hash)
-        : encodeHashToBase64(item.exchange.agreement_hash);
+        : item.kind === 'milestone'
+          ? `${encodeHashToBase64(item.exchange.agreement_hash)}-${item.milestone}`
+          : encodeHashToBase64(item.exchange.agreement_hash);
 
   // Nudges, receipts and the outbox's retries are the root layout's: they carry on after
   // this conversation is left, which is what a message waiting to send needs.
@@ -307,6 +310,14 @@
               encodeHashToBase64(item.interest.user) === encodeHashToBase64(me)}
             onWithdraw={conversation.withdrawInterest}
             disabled={conversation.acting}
+          />
+        {:else if item.kind === 'milestone'}
+          <MilestoneLine
+            exchange={item.exchange}
+            milestone={item.milestone}
+            name={conversation.name}
+            {me}
+            counterparty={conversation.counterparty}
           />
         {:else if showsAsAgreement(item.exchange)}
           <AgreementLine

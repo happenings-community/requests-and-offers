@@ -25,7 +25,9 @@
    *
    * It did happen, and saying so is the honest record; what changed is that it stopped,
    * which the mark says. Hiding the line would make the conversation read as though the
-   * two of them had never agreed at all.
+   * two of them had never agreed at all. The mark stays now that the cancellation has a
+   * line of its own further down (`MilestoneLine`): this one says, at the agreement, that
+   * it did not last; that one says when it stopped.
    */
   const cancelled = $derived(agreementCancelled(exchange));
 </script>
@@ -34,10 +36,11 @@
   <span class="{cancelled ? 'bg-surface-400' : 'bg-success-500'} h-px flex-1"></span>
   <span
     class="text-sm font-semibold {cancelled
-      ? 'text-surface-500'
-      : 'text-success-700 dark:text-success-300'}"
+      ? 'text-surface-600 dark:text-surface-300'
+      : 'text-success-900 dark:text-success-300'}"
   >
-    🤝 {fill(S.agreement.line, { name })}
+    <span aria-hidden="true">🤝</span>
+    {fill(S.agreement.line, { name })}
   </span>
   {#if cancelled}
     <span class="variant-soft-surface badge" data-testid="agreement-cancelled"

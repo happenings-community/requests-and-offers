@@ -216,10 +216,7 @@
   <title>{pageTitle('Edit offer')}</title>
 </svelte:head>
 
-<PrerequisitesGuard
-  title="Service Types Required for Offers"
-  description="Offers must be categorized with service types. Administrators need to create service types before users can edit offers."
->
+<PrerequisitesGuard listing="offers" verb="edit">
   <h1 class="h1">Edit Offer</h1>
 
   <section class="container mx-auto p-4">

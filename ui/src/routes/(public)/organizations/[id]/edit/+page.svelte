@@ -187,7 +187,7 @@
   <title>{pageTitle('Edit organization')}</title>
 </svelte:head>
 
-<div class="container mx-auto max-w-3xl py-8">
+<div class="container mx-auto max-w-reading py-8">
   {#if error}
     <div class="alert variant-filled-error" role="alert">
       <p>{error}</p>

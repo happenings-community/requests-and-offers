@@ -22,8 +22,15 @@
   const { nonAdministrators } = $derived(administrationStore);
   const { currentUser } = $derived(usersStore);
 
-  let filteredUsers: UIUser[] = $state([]);
   let searchInput = $state('');
+  // Derived, not copied: the members can arrive after the dialog opens (F1).
+  const filteredUsers: UIUser[] = $derived(
+    nonAdministrators.filter(
+      (user) =>
+        user.name.toLowerCase().includes(searchInput.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchInput.toLowerCase())
+    )
+  );
   let isLoading = $state(false);
   const modalStore = getModalStore();
   let selectedUser: UIUser | null = $state(null);
@@ -68,7 +75,6 @@
   async function fetchUsers() {
     try {
       await runEffect(administrationStore.fetchAllUsers());
-      filteredUsers = nonAdministrators;
     } catch (error) {
       toastStore.trigger({
         message: 'Failed to fetch users. Please try again.',
@@ -91,14 +97,6 @@
   };
 
   const confirmModalComponent: ModalComponent = { ref: ConfirmModal };
-
-  async function handleSearch() {
-    filteredUsers = nonAdministrators.filter(
-      (user) =>
-        user.name.toLowerCase().includes(searchInput.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchInput.toLowerCase())
-    );
-  }
 
   const confirmModal = (meta: ConfirmModalMeta, user: UIUser): ModalSettings => {
     return {
@@ -151,12 +149,7 @@
     <h3 class="h3">Add Administrator</h3>
     <div class="input-group input-group-divider mt-4 grid-cols-[auto_1fr_auto]">
       <div class="input-group-shim">🔍</div>
-      <input
-        type="search"
-        placeholder="Search users..."
-        bind:value={searchInput}
-        oninput={handleSearch}
-      />
+      <input type="search" placeholder="Search users..." bind:value={searchInput} />
     </div>
   </header>
 
@@ -186,7 +179,7 @@
               width="w-12"
             />
             <div class="flex-1">
-              <h4 class="font-bold"><UserName user={user} /></h4>
+              <h4 class="font-bold"><UserName {user} /></h4>
               <p class="text-sm text-surface-400">{user.email}</p>
             </div>
           </div>

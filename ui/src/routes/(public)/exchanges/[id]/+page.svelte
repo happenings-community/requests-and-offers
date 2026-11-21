@@ -134,7 +134,7 @@
   </div>
 {/snippet}
 
-<section class="container mx-auto max-w-3xl space-y-6 p-4">
+<section class="container mx-auto max-w-reading space-y-6 p-4">
   <div class="flex items-center justify-between">
     <!--
       Reached from a conversation, Back goes to the conversation and says whose it is;

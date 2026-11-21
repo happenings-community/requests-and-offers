@@ -200,6 +200,42 @@ export const EXCHANGE_STRINGS = {
     postOffer: 'Post an offer'
   },
 
+  /**
+   * **The propose page when it cannot open** (alpha 2 dogfooding, 21 November).
+   *
+   * It used to say "This page needs a listing to propose against." in a red bar and
+   * nothing else. Each reason now says what happened in a member's words and comes with a
+   * way on. DRAFT, for Anita.
+   */
+  unavailable: {
+    noListing: {
+      eyebrow: 'No listing chosen',
+      title: 'Proposals start from a listing',
+      body: 'This page opens from a request or an offer you are talking about with someone. Pick up an exchange you have already started, or find the listing you want to propose on.'
+    },
+    noType: {
+      eyebrow: 'Incomplete link',
+      title: 'This link is missing part of the listing',
+      body: 'It names a listing but not whether it is a request or an offer, so it cannot be looked up. Open the proposal again from the listing itself.'
+    },
+    notFound: {
+      eyebrow: 'Listing not found',
+      title: 'This listing is not available',
+      body: 'It may have been archived or deleted, or it has not reached you yet. Look for it among the listings, or pick up an exchange you have already started.'
+    },
+    failed: {
+      eyebrow: 'Could not load',
+      title: 'The listing could not be loaded',
+      body: 'Something went wrong while reading it. Try again, or go back to the listing and start the proposal from there.'
+    },
+    detail: 'The app said:',
+    backToListing: 'Back to the listing',
+    retry: 'Try again',
+    myExchanges: 'My exchanges',
+    browseRequests: 'Browse requests',
+    browseOffers: 'Browse offers'
+  },
+
   /** The Interested in tab on My exchanges. */
   interested: {
     title: "Listings you're interested in",

@@ -127,10 +127,7 @@
   blockedAction="create requests"
   redirectToProfile={true}
 >
-  <PrerequisitesGuard
-    title="Service Types Required for Requests"
-    description="Requests must be categorized with service types. Administrators need to create service types before users can create requests."
-  >
+  <PrerequisitesGuard listing="requests" verb="create">
     <section class="container mx-auto p-4">
       <div class="mb-6 flex items-center justify-between">
         <h1 class="h1">Create Request</h1>

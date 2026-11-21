@@ -70,7 +70,7 @@
 
 <svelte:head><title>{pageTitle(S.blocked.title)}</title></svelte:head>
 
-<section class="container mx-auto flex max-w-3xl flex-col gap-5 p-4">
+<section class="container mx-auto flex max-w-reading flex-col gap-5 p-4">
   <a class="text-sm text-surface-500 no-underline" href={paths.messages()}
     >← {S.conversation.back}</a
   >

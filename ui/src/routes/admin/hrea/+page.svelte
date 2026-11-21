@@ -28,7 +28,7 @@
   />
 </svelte:head>
 
-<div class="container mx-auto max-w-7xl space-y-6 p-4">
+<div class="container mx-auto space-y-6 p-4">
   <h1 class="h1">hREA · ValueFlows</h1>
 
   <TabGroup>

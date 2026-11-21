@@ -41,7 +41,7 @@
   <title>{pageTitle('Counter-proposal')}</title>
 </svelte:head>
 
-<section class="container mx-auto max-w-2xl space-y-6 p-4">
+<section class="container mx-auto max-w-reading space-y-6 p-4">
   <div>
     <a class="variant-soft btn btn-sm" href={backHref}>Back to the proposal</a>
   </div>

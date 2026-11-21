@@ -357,7 +357,7 @@
   <title>Make a proposal</title>
 </svelte:head>
 
-<section class="container mx-auto max-w-2xl space-y-6 p-4">
+<section class="container mx-auto max-w-reading space-y-6 p-4">
   <button class="variant-soft btn btn-sm" onclick={() => history.back()}>Back</button>
 
   {#if loadError}

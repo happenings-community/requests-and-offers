@@ -16,7 +16,7 @@ export function useMediumRoots() {
   const asked = new Set<string>();
 
   const resolveOne = (h: string) =>
-    E.orElseSucceed(
+    E.catchAllCause(
       E.map(
         mediumsOfExchangeStore.resolveToOriginal(
           new Uint8Array(h.split(',').map((n) => parseInt(n, 10)))
@@ -24,8 +24,8 @@ export function useMediumRoots() {
         (root) => [h, root.toString()] as const
       ),
       () => {
-        asked.delete(h); // ask again next time
-        return null;
+        asked.delete(h); // ask again next time (a failure or a throw)
+        return E.succeed(null);
       }
     );
 

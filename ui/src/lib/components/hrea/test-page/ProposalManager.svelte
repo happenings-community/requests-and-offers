@@ -11,6 +11,7 @@
   import { runEffect } from '$lib/utils/effect';
   import { encodeHashToBase64 } from '@holochain/client';
   import { paths } from '$lib/paths';
+  import { useListingSources } from '$lib/composables/domain/hrea/useListingSources.svelte';
 
   let loading = $state(false);
   let error = $state<string | null>(null);
@@ -95,30 +96,40 @@
     }
   }
 
-  function extractActionHashFromNote(note: string, entityType: 'request' | 'offer'): string | null {
-    const prefix = `ref:${entityType}:`;
-    if (note.includes(prefix)) {
-      // Look for the reference in the note
-      const match = note.match(new RegExp(`${prefix}([^\\s]+)`));
-      return match ? match[1] : null;
+  // The page loads the active lists, and each lists a listing at its latest revision,
+  // under that revision's hash rather than the original hash a proposal is mapped under.
+  // A mapped listing not found there is read by that hash instead (see useListingSources).
+  // The effect re-runs when the active lists load, as Refresh does.
+  const sources = useListingSources();
+  $effect(() => {
+    const wanted: { kind: 'request' | 'offer'; hash: string }[] = [];
+    for (const hash of hreaStore.requestProposalMappings.keys()) {
+      if (!listedRequest(hash)) wanted.push({ kind: 'request', hash });
     }
-    return null;
+    for (const hash of hreaStore.offerProposalMappings.keys()) {
+      if (!listedOffer(hash)) wanted.push({ kind: 'offer', hash });
+    }
+    void sources.track(wanted);
+  });
+
+  function listedRequest(actionHash: string): UIRequest | undefined {
+    return requestsStore.activeRequests.find(
+      (request: UIRequest) => request.original_action_hash?.toString() === actionHash
+    );
+  }
+
+  function listedOffer(actionHash: string): UIOffer | undefined {
+    return offersStore.activeOffers.find(
+      (offer: UIOffer) => offer.original_action_hash?.toString() === actionHash
+    );
   }
 
   function findRequestByActionHash(actionHash: string): UIRequest | null {
-    return (
-      requestsStore.requests.find(
-        (request: UIRequest) => request.original_action_hash?.toString() === actionHash
-      ) || null
-    );
+    return listedRequest(actionHash) ?? (sources.found.get(actionHash) as UIRequest) ?? null;
   }
 
   function findOfferByActionHash(actionHash: string): UIOffer | null {
-    return (
-      offersStore.offers.find(
-        (offer: UIOffer) => offer.original_action_hash?.toString() === actionHash
-      ) || null
-    );
+    return listedOffer(actionHash) ?? (sources.found.get(actionHash) as UIOffer) ?? null;
   }
 
   function getProposalSourceEntity(proposal: Proposal): {
@@ -228,6 +239,7 @@
     <button
       class="variant-soft-surface btn btn-sm"
       onclick={async () => {
+        sources.reset();
         await loadHreaData();
         await loadApplicationData();
       }}

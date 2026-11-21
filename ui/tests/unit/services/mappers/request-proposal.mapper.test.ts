@@ -90,10 +90,10 @@ describe('Request to Proposal Mapper', () => {
 
       const result = await E.runPromise(createProposalFromRequest(params));
 
-      expect(result.paymentIntent.isReciprocal).toBe(true);
-      expect(result.paymentIntent.action).toBe('transfer');
-      expect(result.paymentIntent.provider).toBe('agent-1');
-      expect(result.paymentIntent.resourceSpecifiedBy).toBe('rs-moe');
+      expect(result.paymentIntent!.isReciprocal).toBe(true);
+      expect(result.paymentIntent!.action).toBe('transfer');
+      expect(result.paymentIntent!.provider).toBe('agent-1');
+      expect(result.paymentIntent!.resourceSpecifiedBy).toBe('rs-moe');
     });
 
     it('should combine all intents in allIntents array', async () => {
@@ -201,6 +201,39 @@ describe('Request to Proposal Mapper', () => {
       const result = await E.runPromise(createProposalFromRequest(params));
 
       expect(result.proposal.eligible).toContain('agent-1');
+    });
+  });
+
+  describe('the reciprocal intent follows the medium (listing-medium.ts)', () => {
+    const params = (reciprocalAction?: 'transfer' | 'work' | null) => ({
+      request: createMockRequest(),
+      requesterAgent: createMockAgent(),
+      serviceTypeResourceSpecs: [createMockResourceSpec('rs-1', 'Web Dev')],
+      mediumOfExchangeResourceSpec: createMockResourceSpec('rs-moe', 'Service Exchange'),
+      ...(reciprocalAction === undefined ? {} : { reciprocalAction })
+    });
+
+    it('writes a transfer when no action is given, as before', async () => {
+      const result = await E.runPromise(createProposalFromRequest(params()));
+      expect(result.paymentIntent!.action).toBe('transfer');
+    });
+
+    it('writes work for Service Exchange, against the medium, with the same role', async () => {
+      const result = await E.runPromise(createProposalFromRequest(params('work')));
+      expect(result.paymentIntent).toMatchObject({
+        action: 'work',
+        provider: 'agent-1',
+        resourceSpecifiedBy: 'rs-moe',
+        isReciprocal: true
+      });
+      expect(result.allIntents.filter((i) => i.isReciprocal)).toHaveLength(1);
+    });
+
+    it('publishes no reciprocal intent for a medium that expects nothing back', async () => {
+      const result = await E.runPromise(createProposalFromRequest(params(null)));
+      expect(result.paymentIntent).toBeNull();
+      expect(result.allIntents.some((i) => i.isReciprocal)).toBe(false);
+      expect(result.allIntents).toHaveLength(result.serviceIntents.length);
     });
   });
 

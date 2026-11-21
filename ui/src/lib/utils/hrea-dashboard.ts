@@ -149,14 +149,14 @@ export function buildLedger(ro: RoInventory, s: HreaSnapshot): LedgerRow[] {
     row({
       ro: 'Requests',
       hrea: 'Proposal + Intents',
-      link: 'name "Request: <title>" (no ref note)',
+      link: 'name "Request: <title>"; the store finds it by its note',
       roCount: ro.requests,
       hreaCount: s.proposals.filter((p) => p.name.startsWith('Request: ')).length
     }),
     row({
       ro: 'Offers',
       hrea: 'Proposal + Intents',
-      link: 'name "Offer: <title>" (no ref note)',
+      link: 'name "Offer: <title>"; the store finds it by its note',
       roCount: ro.offers,
       hreaCount: s.proposals.filter((p) => p.name.startsWith('Offer: ')).length
     }),
@@ -274,10 +274,7 @@ export function buildExchangeFlow(ex: UIExchange, ctx: FlowContext, s: HreaSnaps
       title: 'Proposal',
       sub: proposalName,
       state: found(proposal, true),
-      fields: [
-        ...idField(proposal),
-        ['matched by', `name "${proposalName}" (proposals carry no ref note)`]
-      ]
+      fields: [...idField(proposal), ['matched by', `name "${proposalName}"`]]
     },
     {
       id: 'intentP',

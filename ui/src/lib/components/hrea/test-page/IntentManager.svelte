@@ -161,10 +161,11 @@
 
   function getResourceSpecTypeFromNote(
     resourceSpec: ResourceSpecification | null
-  ): 'service' | 'currency' | 'unknown' {
+  ): 'service' | 'medium' | 'unknown' {
     if (!resourceSpec?.note) return 'unknown';
     if (resourceSpec.note.startsWith('ref:serviceType:')) return 'service';
-    if (resourceSpec.note.startsWith('ref:mediumOfExchange:')) return 'currency';
+    // A medium of exchange, which is a currency only when its kind says so.
+    if (resourceSpec.note.startsWith('ref:mediumOfExchange:')) return 'medium';
     return 'unknown';
   }
 
@@ -322,7 +323,7 @@
                         ? 'variant-soft-primary'
                         : 'variant-soft-secondary'}"
                     >
-                      {resourceType === 'service' ? 'Service' : 'Currency'}
+                      {resourceType === 'service' ? 'Service' : 'Medium of exchange'}
                     </span>
                   {/if}
                 </div>

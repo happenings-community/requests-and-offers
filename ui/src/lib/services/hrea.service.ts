@@ -1082,7 +1082,11 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
           'proposals',
           (raw: GraphQLProposalResponse) => ({
             ...normalizeProposalResponse(raw),
-            intentIds: [...(raw.publishes ?? []), ...(raw.reciprocal ?? [])].map((i) => i.id)
+            intentIds: [...(raw.publishes ?? []), ...(raw.reciprocal ?? [])].map((i) => i.id),
+            intentRevisions: [...(raw.publishes ?? []), ...(raw.reciprocal ?? [])].map((i) => ({
+              id: i.id,
+              revisionId: i.revisionId ?? undefined
+            }))
           }),
           HREA_CONTEXTS.GET_PROPOSALS
         );

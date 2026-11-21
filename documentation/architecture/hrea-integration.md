@@ -324,15 +324,41 @@ This feedback-driven approach ensures quality while maintaining the decentralize
 
 The mirror is live end to end, event-driven and UI-layer only: the R&O
 zomes do not know hREA exists. Store events (`request:created`,
-`offer:created`, `exchange:accepted`, `exchange:completed`,
+`offer:created`, `request:updated`, `offer:updated`, `request:deleted`,
+`offer:deleted`, `exchange:accepted`, `exchange:completed`,
 `exchange:cancelled`, `exchanges:loaded`) drive
 handlers in `hrea.store.svelte.ts`; removing those handlers removes the
 integration.
 
 What is implemented:
 
-- Listings mirror as Proposals with two reciprocal Intents (work +
-  transfer), linked via `proposeIntent`.
+- Listings mirror as Proposals publishing a `work` Intent per service type
+  and a reciprocal Intent set by the listing's medium
+  (`listing-medium.ts`), the same rule an agreement's reciprocal term
+  follows: a `transfer` for a currency, `work` for Service Exchange, and no
+  reciprocal Intent for a medium that expects nothing back (Free/Pay it
+  Forward). The intents are written first and the Proposal names them in
+  `publishes` and `reciprocal`; the adapter has no `proposeIntent`.
+- A listing's Proposal is found by the line its note carries,
+  `Original offer hash: …` or `Original request hash: …`, read only
+  inside the note's `--- hREA Mapping ---` block (the description above it
+  is the member's own text). The store's listing-to-proposal map is kept
+  in memory and starts empty each launch (#278), so an edit or a delete
+  reads the proposals this node holds links to (on a full-arc node,
+  every member's) and removes every one naming the listing, duplicates an
+  earlier session wrote included: the proposal first, then its intents,
+  an intent that will not delete being left unpublished. If a proposal
+  cannot be removed (hREA unread, or its delete failed), an edit writes
+  nothing new, so a listing never holds two. hREA does not check who
+  deletes a proposal (its delete validation is a TODO at
+  `happ-0.5.0-beta.1`): whoever edits a listing replaces its proposal from
+  their own cell, an administrator included (the new proposal then names
+  the editor as the listing's agent until the member edits it again; a
+  follow-up can resolve the author from the original record), and an
+  administrator's delete or archive removes the member's proposal where
+  their node holds it. Removal and replacement run one at a time per listing; a create
+  and an edit seconds apart can still race. Loading the proposals (the
+  admin's Test managers) fills the map from the notes.
 - Accepted exchanges mirror as an Agreement plus primary and reciprocal
   Commitments, with structured quantities backed by seeded hREA Units
   (hours, days, each). An exchange quantity is an exact decimal string in

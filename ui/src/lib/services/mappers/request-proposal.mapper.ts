@@ -6,6 +6,7 @@ import { decimalProblem, isZeroDecimal } from '$lib/utils/decimal';
 import { estimateLabel } from '$lib/utils/estimate';
 import { timeframeLabel } from '$lib/utils/timeframe';
 import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/hrea';
+import type { ListingReciprocalAction } from './listing-medium';
 
 /**
  * Request to hREA Proposal + Intents Mapping Infrastructure
@@ -15,7 +16,9 @@ import type { Agent, ResourceSpecification, Proposal, Intent } from '$lib/types/
  *
  * Request → Proposal with:
  * 1. Service Intent: action='work', receiver=requester, resourceSpecifiedBy=serviceType
- * 2. Payment Intent: action='transfer', provider=requester, resourceSpecifiedBy=mediumOfExchange
+ * 2. Reciprocal Intent: provider=requester, resourceSpecifiedBy=mediumOfExchange, its action
+ *    set by the medium (listing-medium.ts): transfer for a currency, work for Service
+ *    Exchange, and no reciprocal intent for a medium that expects nothing back
  *
  * This creates the proper economic reciprocity that hREA requires for value flow modeling.
  */
@@ -39,6 +42,13 @@ export interface RequestProposalMappingParams {
   requesterAgent: Agent;
   serviceTypeResourceSpecs: ResourceSpecification[];
   mediumOfExchangeResourceSpec: ResourceSpecification;
+  /**
+   * What the reciprocal intent records, from the listing's medium
+   * (`listingReciprocalAction`): `transfer` for a currency, `work` for Service
+   * Exchange, null for a medium that expects nothing back, when no reciprocal intent
+   * is published. Defaults to `transfer`, what every listing wrote before.
+   */
+  reciprocalAction?: ListingReciprocalAction;
 }
 
 export interface MappedIntent extends Intent {
@@ -48,7 +58,8 @@ export interface MappedIntent extends Intent {
 export interface RequestProposalMappingResult {
   proposal: Proposal;
   serviceIntents: MappedIntent[];
-  paymentIntent: MappedIntent;
+  /** The reciprocal intent, or null for a medium that expects nothing back. */
+  paymentIntent: MappedIntent | null;
   allIntents: MappedIntent[];
 }
 
@@ -66,8 +77,13 @@ export const createProposalFromRequest = (
   params: RequestProposalMappingParams
 ): E.Effect<RequestProposalMappingResult, HreaError> =>
   E.gen(function* () {
-    const { request, requesterAgent, serviceTypeResourceSpecs, mediumOfExchangeResourceSpec } =
-      params;
+    const {
+      request,
+      requesterAgent,
+      serviceTypeResourceSpecs,
+      mediumOfExchangeResourceSpec,
+      reciprocalAction = 'transfer'
+    } = params;
 
     // Validate input parameters
     if (!request.title?.trim()) {
@@ -111,16 +127,21 @@ export const createProposalFromRequest = (
     }));
 
     // Create payment intent (requester provides payment) — reciprocal intent
-    const paymentIntent: MappedIntent = {
-      id: '', // Will be set by hREA service
-      action: 'transfer', // Payment/transfer action
-      provider: requesterAgent.id, // Requester provides the payment
-      resourceSpecifiedBy: mediumOfExchangeResourceSpec.id,
-      isReciprocal: true
-    };
+    const paymentIntent: MappedIntent | null =
+      reciprocalAction === null
+        ? null
+        : {
+            id: '', // Will be set by hREA service
+            action: reciprocalAction,
+            provider: requesterAgent.id, // Requester gives what goes back
+            resourceSpecifiedBy: mediumOfExchangeResourceSpec.id,
+            isReciprocal: true
+          };
 
     // Combine all intents
-    const allIntents: MappedIntent[] = [...serviceIntents, paymentIntent];
+    const allIntents: MappedIntent[] = paymentIntent
+      ? [...serviceIntents, paymentIntent]
+      : serviceIntents;
 
     return {
       proposal,

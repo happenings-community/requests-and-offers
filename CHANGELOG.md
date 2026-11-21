@@ -112,6 +112,7 @@ The network creator holds the first admin seat. The desktop build sets the creat
 - **Navigation**: Requests and Offers stay in the bar on phones, and the bar fits (`85a8ea93`, #552)
 - **UI**: Labels are drawn as the design system's pills (`19ba0c07`, #553)
 - **UI**: Every page starts at the top of the window (`071f64e6`, #554)
+- **UI**: Every list page has one header, and Requests and Offers follow the same layout as the other lists (`1043621e`, #555, part of #350)
 
 ### Performance
 

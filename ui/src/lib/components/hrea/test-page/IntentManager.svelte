@@ -194,7 +194,7 @@
 
 <div class="space-y-6">
   <!-- Header -->
-  <div class="flex items-center gap-2">
+  <div class="flex flex-wrap items-center gap-2">
     <button
       class="variant-soft-surface btn btn-sm"
       onclick={async () => {
@@ -212,24 +212,34 @@
     <h3 class="mb-3 text-lg font-semibold">hREA Intent Analytics</h3>
     <div class="grid grid-cols-2 gap-4 text-center md:grid-cols-5">
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-primary-400">{syncInfo.intentsCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">Total Intents</div>
+        <div class="text-2xl font-bold text-primary-500 dark:text-primary-300">
+          {syncInfo.intentsCount}
+        </div>
+        <div class="text-sm text-surface-600 dark:text-surface-300">Total Intents</div>
       </div>
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-secondary-500">{syncInfo.serviceIntentsCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">Service Intents</div>
+        <div class="text-2xl font-bold text-secondary-900 dark:text-secondary-400">
+          {syncInfo.serviceIntentsCount}
+        </div>
+        <div class="text-sm text-surface-600 dark:text-surface-300">Service Intents</div>
       </div>
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-tertiary-500">{syncInfo.paymentIntentsCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">Payment Intents</div>
+        <div class="text-2xl font-bold text-tertiary-800 dark:text-tertiary-400">
+          {syncInfo.paymentIntentsCount}
+        </div>
+        <div class="text-sm text-surface-600 dark:text-surface-300">Payment Intents</div>
       </div>
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-success-500">{syncInfo.linkedIntentsCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">Linked to Proposals</div>
+        <div class="text-2xl font-bold text-success-900 dark:text-success-400">
+          {syncInfo.linkedIntentsCount}
+        </div>
+        <div class="text-sm text-surface-600 dark:text-surface-300">Linked to Proposals</div>
       </div>
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-warning-500">{syncInfo.unlinkedIntentsCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">Unlinked Intents</div>
+        <div class="text-2xl font-bold text-warning-800 dark:text-warning-400">
+          {syncInfo.unlinkedIntentsCount}
+        </div>
+        <div class="text-sm text-surface-600 dark:text-surface-300">Unlinked Intents</div>
       </div>
     </div>
 
@@ -237,7 +247,7 @@
       <strong>Last Auto Event:</strong>
       {syncInfo.lastSyncEvent}
     </div>
-    <div class="mt-2 text-xs text-surface-500">
+    <div class="mt-2 text-xs text-surface-600 dark:text-surface-300">
       <i class="fa-solid fa-info-circle mr-1"></i>
       Note: Intents are created automatically as part of proposals following the two-intent reciprocal
       pattern. Service intents represent work to be done, payment intents represent compensation.
@@ -273,18 +283,19 @@
       <h3 class="text-lg font-semibold">
         hREA Intents ({hreaStore.intents.length})
       </h3>
-      <div class="text-sm text-surface-500">
+      <div class="text-sm text-surface-600 dark:text-surface-300">
         Explore individual economic intents created from proposals
       </div>
     </div>
 
     {#if loading || hreaStore.loading}
       <div class="flex items-center justify-center p-8">
-        <i class="fa-solid fa-spinner animate-spin text-2xl text-primary-500"></i>
+        <i class="fa-solid fa-spinner animate-spin text-2xl text-primary-500 dark:text-primary-300"
+        ></i>
         <span class="ml-2">Loading intents...</span>
       </div>
     {:else if hreaStore.intents.length === 0}
-      <div class="card p-8 text-center text-surface-500">
+      <div class="card p-8 text-center text-surface-600 dark:text-surface-300">
         <i class="fa-solid fa-bullseye mb-4 text-4xl"></i>
         <p>No intents found in hREA DHT</p>
         <p class="mt-2 text-sm">
@@ -306,7 +317,7 @@
             <!-- Header with action type -->
             <div class="flex items-start justify-between">
               <div class="flex-1">
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                   <i class="{getIntentActionIcon(intent.action)} text-lg"></i>
                   <h4 class="font-semibold text-surface-700 dark:text-surface-300">
                     {getIntentActionLabel(intent.action)}
@@ -333,11 +344,11 @@
             {#if resourceSpec}
               <div class="bg-surface-100-800-token rounded p-2 text-sm">
                 <div class="font-medium text-surface-700 dark:text-surface-300">Resource:</div>
-                <div class="text-surface-600 dark:text-surface-400">
+                <div class="text-surface-600 dark:text-surface-300">
                   {resourceSpec.name}
                 </div>
                 {#if resourceSpec.note}
-                  <div class="mt-1 text-xs text-surface-500">
+                  <div class="mt-1 text-xs text-surface-600 dark:text-surface-300">
                     {resourceSpec.note.startsWith('ref:')
                       ? 'Linked to application entity'
                       : resourceSpec.note}
@@ -346,10 +357,10 @@
               </div>
             {:else if intent.resourceSpecifiedBy}
               <div class="rounded bg-warning-500/10 p-2 text-sm">
-                <div class="text-warning-700 dark:text-warning-300">
+                <div class="text-warning-800 dark:text-warning-400">
                   Resource specification not found
                 </div>
-                <div class="text-xs text-warning-600 dark:text-warning-400">
+                <div class="text-xs text-warning-800 dark:text-warning-400">
                   ID: {intent.resourceSpecifiedBy.slice(-8)}
                 </div>
               </div>
@@ -363,8 +374,8 @@
 
               {#if provider}
                 <div class="flex items-center gap-2 text-sm">
-                  <i class="fa-solid fa-user-plus text-success-500"></i>
-                  <span class="text-surface-600 dark:text-surface-400">Provider:</span>
+                  <i class="fa-solid fa-user-plus text-success-900 dark:text-success-400"></i>
+                  <span class="text-surface-600 dark:text-surface-300">Provider:</span>
                   <span class="font-medium text-surface-700 dark:text-surface-300"
                     >{provider.name}</span
                   >
@@ -373,8 +384,8 @@
 
               {#if receiver}
                 <div class="flex items-center gap-2 text-sm">
-                  <i class="fa-solid fa-user-check text-primary-500"></i>
-                  <span class="text-surface-600 dark:text-surface-400">Receiver:</span>
+                  <i class="fa-solid fa-user-check text-primary-500 dark:text-primary-300"></i>
+                  <span class="text-surface-600 dark:text-surface-300">Receiver:</span>
                   <span class="font-medium text-surface-700 dark:text-surface-300"
                     >{receiver.name}</span
                   >
@@ -385,7 +396,7 @@
             <!-- Resource Quantity -->
             {#if intent.resourceQuantity}
               <div class="rounded bg-tertiary-500/10 p-2 text-sm">
-                <div class="text-tertiary-700 dark:text-tertiary-300">
+                <div class="text-tertiary-800 dark:text-tertiary-400">
                   Quantity: {intent.resourceQuantity.hasNumericalValue}
                   {intent.resourceQuantity.hasUnit || 'units'}
                 </div>
@@ -394,7 +405,7 @@
 
             <!-- Footer with hREA ID -->
             <div
-              class="border-surface-200-700-token flex items-center justify-between border-t pt-2 text-xs text-surface-500"
+              class="border-surface-200-700-token flex items-center justify-between border-t pt-2 text-xs text-surface-600 dark:text-surface-300"
             >
               <span>hREA ID: {intent.id.slice(-8)}</span>
               <span class="flex items-center gap-1">
@@ -415,36 +426,42 @@
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <!-- Service Intents -->
         <div class="rounded bg-primary-500/10 p-3">
-          <h4 class="flex items-center gap-2 font-semibold text-primary-500">
+          <h4 class="flex items-center gap-2 font-semibold text-primary-500 dark:text-primary-300">
             <i class="fa-solid fa-wrench"></i>
             Service Intents (work)
           </h4>
           <div class="space-y-1 text-sm">
             <div>Count: {serviceIntents.length}</div>
-            <div class="text-xs text-surface-500">Represent services or work to be performed</div>
+            <div class="text-xs text-surface-600 dark:text-surface-300">
+              Represent services or work to be performed
+            </div>
           </div>
         </div>
 
         <!-- Payment Intents -->
         <div class="rounded bg-secondary-500/10 p-3">
-          <h4 class="flex items-center gap-2 font-semibold text-secondary-500">
+          <h4
+            class="flex items-center gap-2 font-semibold text-secondary-900 dark:text-secondary-400"
+          >
             <i class="fa-solid fa-exchange-alt"></i>
             Payment Intents (transfer)
           </h4>
           <div class="space-y-1 text-sm">
             <div>Count: {paymentIntents.length}</div>
-            <div class="text-xs text-surface-500">Represent payments or value transfers</div>
+            <div class="text-xs text-surface-600 dark:text-surface-300">
+              Represent payments or value transfers
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Two-Intent Pattern Explanation -->
       <div class="mt-4 rounded bg-tertiary-500/10 p-3">
-        <h4 class="flex items-center gap-2 font-semibold text-tertiary-500">
+        <h4 class="flex items-center gap-2 font-semibold text-tertiary-800 dark:text-tertiary-400">
           <i class="fa-solid fa-arrows-rotate"></i>
           Two-Intent Reciprocal Pattern
         </h4>
-        <div class="mt-2 text-sm text-surface-600 dark:text-surface-400">
+        <div class="mt-2 text-sm text-surface-600 dark:text-surface-300">
           Each proposal contains both service and payment intents to model complete economic
           exchange:
           <ul class="mt-2 list-inside list-disc space-y-1 text-xs">

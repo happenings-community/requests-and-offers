@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { hashLabel } from '$lib/utils/hash-label';
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import hreaStore from '$lib/stores/hrea.store.svelte';
@@ -223,7 +224,7 @@
 
 <div class="space-y-6">
   <!-- Header -->
-  <div class="flex items-center gap-2">
+  <div class="flex flex-wrap items-center gap-2">
     <button
       class="variant-soft-surface btn btn-sm"
       onclick={async () => {
@@ -242,24 +243,34 @@
     <h3 class="mb-3 text-lg font-semibold">Request/Offer → hREA Proposal Status</h3>
     <div class="grid grid-cols-2 gap-4 text-center md:grid-cols-5">
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-primary-400">{syncInfo.requestsCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">Total Requests</div>
+        <div class="text-2xl font-bold text-primary-500 dark:text-primary-300">
+          {syncInfo.requestsCount}
+        </div>
+        <div class="text-sm text-surface-600 dark:text-surface-300">Total Requests</div>
       </div>
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-secondary-500">{syncInfo.offersCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">Total Offers</div>
+        <div class="text-2xl font-bold text-secondary-900 dark:text-secondary-400">
+          {syncInfo.offersCount}
+        </div>
+        <div class="text-sm text-surface-600 dark:text-surface-300">Total Offers</div>
       </div>
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-tertiary-500">{syncInfo.proposalsCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">Total hREA Proposals</div>
+        <div class="text-2xl font-bold text-tertiary-800 dark:text-tertiary-400">
+          {syncInfo.proposalsCount}
+        </div>
+        <div class="text-sm text-surface-600 dark:text-surface-300">Total hREA Proposals</div>
       </div>
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-primary-400">{syncInfo.requestProposalsCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">Request-based Proposals</div>
+        <div class="text-2xl font-bold text-primary-500 dark:text-primary-300">
+          {syncInfo.requestProposalsCount}
+        </div>
+        <div class="text-sm text-surface-600 dark:text-surface-300">Request-based Proposals</div>
       </div>
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-secondary-400">{syncInfo.offerProposalsCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">Offer-based Proposals</div>
+        <div class="text-2xl font-bold text-secondary-900 dark:text-secondary-400">
+          {syncInfo.offerProposalsCount}
+        </div>
+        <div class="text-sm text-surface-600 dark:text-surface-300">Offer-based Proposals</div>
       </div>
     </div>
 
@@ -267,7 +278,7 @@
       <strong>Last Auto Event:</strong>
       {syncInfo.lastSyncEvent}
     </div>
-    <div class="mt-2 text-xs text-surface-500">
+    <div class="mt-2 text-xs text-surface-600 dark:text-surface-300">
       <i class="fa-solid fa-info-circle mr-1"></i>
       Note: Proposals are created automatically when requests and offers are submitted. Each proposal
       contains multiple intents following the two-intent reciprocal pattern.
@@ -303,18 +314,19 @@
       <h3 class="text-lg font-semibold">
         hREA Proposals ({hreaStore.proposals.length})
       </h3>
-      <div class="text-sm text-surface-500">
+      <div class="text-sm text-surface-600 dark:text-surface-300">
         Click on a proposal to view its source request or offer
       </div>
     </div>
 
     {#if loading || hreaStore.loading}
       <div class="flex items-center justify-center p-8">
-        <i class="fa-solid fa-spinner animate-spin text-2xl text-primary-500"></i>
+        <i class="fa-solid fa-spinner animate-spin text-2xl text-primary-500 dark:text-primary-300"
+        ></i>
         <span class="ml-2">Loading proposals...</span>
       </div>
     {:else if hreaStore.proposals.length === 0}
-      <div class="card p-8 text-center text-surface-500">
+      <div class="card p-8 text-center text-surface-600 dark:text-surface-300">
         <i class="fa-solid fa-handshake mb-4 text-4xl"></i>
         <p>No proposals found in hREA DHT</p>
         <p class="mt-2 text-sm">
@@ -340,7 +352,7 @@
             <!-- Header with name and type -->
             <div class="flex items-start justify-between">
               <div class="flex-1">
-                <h4 class="font-semibold text-primary-600 dark:text-primary-400">
+                <h4 class="font-semibold text-primary-500 dark:text-primary-300">
                   {proposal.name}
                 </h4>
                 <div class="mt-1 flex items-center gap-2">
@@ -360,7 +372,9 @@
                   {/if}
                 </div>
               </div>
-              <i class="fa-solid fa-external-link ml-2 mt-1 text-sm text-surface-400"></i>
+              <i
+                class="fa-solid fa-external-link ml-2 mt-1 text-sm text-surface-600 dark:text-surface-300"
+              ></i>
             </div>
 
             <!-- Source Entity Information -->
@@ -369,29 +383,29 @@
                 <div class="font-medium text-surface-700 dark:text-surface-300">
                   Source {source.type === 'request' ? 'Request' : 'Offer'}:
                 </div>
-                <div class="text-surface-600 dark:text-surface-400">
+                <div class="text-surface-600 dark:text-surface-300">
                   {source.entity.title}
                 </div>
                 {#if source.entity.description}
-                  <div class="mt-1 line-clamp-2 text-xs text-surface-500">
+                  <div class="mt-1 line-clamp-2 text-xs text-surface-600 dark:text-surface-300">
                     {source.entity.description}
                   </div>
                 {/if}
               </div>
             {:else if source.actionHash}
               <div class="rounded bg-warning-500/10 p-2 text-sm">
-                <div class="text-warning-700 dark:text-warning-300">
+                <div class="text-warning-800 dark:text-warning-400">
                   Source {source.type} not found
                 </div>
-                <div class="text-xs text-warning-600 dark:text-warning-400">
-                  Hash: {source.actionHash.slice(-12)}
+                <div class="text-xs text-warning-800 dark:text-warning-400">
+                  Hash: {hashLabel(source.actionHash)}
                 </div>
               </div>
             {/if}
 
             <!-- Proposal Details -->
             {#if proposal.note}
-              <div class="text-sm text-surface-600 dark:text-surface-400">
+              <div class="text-sm text-surface-600 dark:text-surface-300">
                 <div class="line-clamp-3">
                   {proposal.note}
                 </div>
@@ -411,14 +425,14 @@
 
             <!-- Footer with hREA ID and creation date -->
             <div
-              class="border-surface-200-700-token flex items-center justify-between border-t pt-2 text-xs text-surface-500"
+              class="border-surface-200-700-token flex items-center justify-between border-t pt-2 text-xs text-surface-600 dark:text-surface-300"
             >
               <span>hREA ID: {proposal.id.slice(-8)}</span>
-              <div class="flex items-center gap-2">
+              <div class="flex flex-wrap items-center gap-2">
                 {#if proposal.created}
                   <span>{new Date(proposal.created).toLocaleDateString()}</span>
                 {/if}
-                <span class="text-primary-500">
+                <span class="text-primary-500 dark:text-primary-300">
                   <i class="fa-solid fa-arrow-right"></i>
                   View Source
                 </span>
@@ -437,10 +451,12 @@
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <!-- Request-based Proposals -->
         <div class="rounded bg-primary-500/10 p-3">
-          <h4 class="font-semibold text-primary-500">Request-based Proposals</h4>
+          <h4 class="font-semibold text-primary-500 dark:text-primary-300">
+            Request-based Proposals
+          </h4>
           <div class="space-y-1 text-sm">
             <div>Count: {requestProposals.length}</div>
-            <div class="text-xs text-surface-500">
+            <div class="text-xs text-surface-600 dark:text-surface-300">
               Created when users submit requests for services
             </div>
           </div>
@@ -448,10 +464,12 @@
 
         <!-- Offer-based Proposals -->
         <div class="rounded bg-secondary-500/10 p-3">
-          <h4 class="font-semibold text-secondary-500">Offer-based Proposals</h4>
+          <h4 class="font-semibold text-secondary-900 dark:text-secondary-400">
+            Offer-based Proposals
+          </h4>
           <div class="space-y-1 text-sm">
             <div>Count: {offerProposals.length}</div>
-            <div class="text-xs text-surface-500">
+            <div class="text-xs text-surface-600 dark:text-surface-300">
               Created when users submit offers to provide services
             </div>
           </div>

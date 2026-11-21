@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { hashLabel } from '$lib/utils/hash-label';
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import hreaStore from '$lib/stores/hrea.store.svelte';
@@ -114,7 +115,7 @@
 
       for (const moe of mediumsOfExchangeStore.approvedMediumsOfExchange) {
         try {
-          const moeHash = moe.actionHash?.toString();
+          const moeHash = moe.original_action_hash?.toString();
           if (!moeHash) continue;
 
           // Check if resource spec already exists
@@ -164,7 +165,7 @@
   function findMediumOfExchangeByActionHash(actionHash: string): UIMediumOfExchange | null {
     return (
       mediumsOfExchangeStore.approvedMediumsOfExchange.find(
-        (moe) => moe.actionHash?.toString() === actionHash
+        (moe) => moe.original_action_hash?.toString() === actionHash
       ) || null
     );
   }
@@ -243,7 +244,7 @@
 
 <div class="space-y-6">
   <!-- Header -->
-  <div class="flex items-center gap-2">
+  <div class="flex flex-wrap items-center gap-2">
     <button
       class="variant-soft-surface btn btn-sm"
       onclick={async () => {
@@ -270,20 +271,24 @@
     <h3 class="mb-3 text-lg font-semibold">Medium of Exchange → hREA Synchronization Status</h3>
     <div class="grid grid-cols-2 gap-4 text-center md:grid-cols-3">
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-primary-400">{syncInfo.mediumsOfExchangeCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">
+        <div class="text-2xl font-bold text-primary-500 dark:text-primary-300">
+          {syncInfo.mediumsOfExchangeCount}
+        </div>
+        <div class="text-sm text-surface-600 dark:text-surface-300">
           Approved Mediums of Exchange
         </div>
       </div>
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-secondary-500">
+        <div class="text-2xl font-bold text-secondary-900 dark:text-secondary-400">
           {mediumOfExchangeResourceSpecs.length}
         </div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">hREA Resource Specs (MoE)</div>
+        <div class="text-sm text-surface-600 dark:text-surface-300">hREA Resource Specs (MoE)</div>
       </div>
       <div class="space-y-1">
-        <div class="text-2xl font-bold text-tertiary-500">{syncInfo.resourceSpecsCount}</div>
-        <div class="text-sm text-surface-600 dark:text-surface-400">Total hREA Resource Specs</div>
+        <div class="text-2xl font-bold text-tertiary-800 dark:text-tertiary-400">
+          {syncInfo.resourceSpecsCount}
+        </div>
+        <div class="text-sm text-surface-600 dark:text-surface-300">Total hREA Resource Specs</div>
       </div>
     </div>
 
@@ -295,10 +300,10 @@
       <strong>Last Manual Sync:</strong>
       {syncInfo.lastManualSync}
     </div>
-    <div class="mt-2 text-xs text-surface-500">
+    <div class="mt-2 text-xs text-surface-600 dark:text-surface-300">
       <i class="fa-solid fa-info-circle mr-1"></i>
-      Note: Full hREA sync functionality is a placeholder. This demonstrates the UI concept for Medium
-      of Exchange resource specifications.
+      A medium of exchange is mirrored as an hREA Resource Specification when an administrator approves
+      it. Manual Sync creates any that are missing.
     </div>
   </div>
 
@@ -307,13 +312,15 @@
     <div class="card bg-surface-50-900-token p-4">
       <h3 class="mb-3 text-lg font-semibold">Manual Sync Results</h3>
       <div class="rounded bg-primary-500/10 p-3">
-        <h4 class="font-semibold text-primary-500">Mediums of Exchange</h4>
+        <h4 class="font-semibold text-primary-500 dark:text-primary-300">Mediums of Exchange</h4>
         <div class="space-y-1 text-sm">
           <div>Synced: {syncResults.mediumsOfExchange.synced}</div>
           <div>Created: {syncResults.mediumsOfExchange.created}</div>
           <div>Updated: {syncResults.mediumsOfExchange.updated}</div>
           {#if syncResults.mediumsOfExchange.errors > 0}
-            <div class="text-error-500">Errors: {syncResults.mediumsOfExchange.errors}</div>
+            <div class="text-error-600 dark:text-error-300">
+              Errors: {syncResults.mediumsOfExchange.errors}
+            </div>
           {/if}
         </div>
       </div>
@@ -349,18 +356,19 @@
       <h3 class="text-lg font-semibold">
         Medium of Exchange Resource Specifications ({mediumOfExchangeResourceSpecs.length})
       </h3>
-      <div class="text-sm text-surface-500">
+      <div class="text-sm text-surface-600 dark:text-surface-300">
         Click on a resource specification to view its associated medium of exchange
       </div>
     </div>
 
     {#if loading || hreaStore.loading}
       <div class="flex items-center justify-center p-8">
-        <i class="fa-solid fa-spinner animate-spin text-2xl text-primary-500"></i>
+        <i class="fa-solid fa-spinner animate-spin text-2xl text-primary-500 dark:text-primary-300"
+        ></i>
         <span class="ml-2">Loading resource specifications...</span>
       </div>
     {:else if mediumOfExchangeResourceSpecs.length === 0}
-      <div class="card p-8 text-center text-surface-500">
+      <div class="card p-8 text-center text-surface-600 dark:text-surface-300">
         <i class="fa-solid fa-coins mb-4 text-4xl"></i>
         <p>No medium of exchange resource specifications found in hREA DHT</p>
         <p class="mt-2 text-sm">
@@ -385,10 +393,12 @@
           >
             <!-- Header with name and link indicator -->
             <div class="flex items-start justify-between">
-              <h4 class="flex-1 font-semibold text-primary-600 dark:text-primary-400">
+              <h4 class="flex-1 font-semibold text-primary-500 dark:text-primary-300">
                 {spec.name}
               </h4>
-              <i class="fa-solid fa-external-link ml-2 mt-1 text-sm text-surface-400"></i>
+              <i
+                class="fa-solid fa-external-link ml-2 mt-1 text-sm text-surface-600 dark:text-surface-300"
+              ></i>
             </div>
 
             <!-- Action Hash Reference -->
@@ -399,7 +409,7 @@
                 : null}
 
               <div class="space-y-2">
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                   <span class="variant-soft-primary badge text-xs">
                     Medium of Exchange Reference
                   </span>
@@ -421,26 +431,26 @@
                     <div class="font-medium text-surface-700 dark:text-surface-300">
                       Associated Medium of Exchange:
                     </div>
-                    <div class="text-surface-600 dark:text-surface-400">
+                    <div class="text-surface-600 dark:text-surface-300">
                       {mediumOfExchange.code} - {mediumOfExchange.name}
                     </div>
-                    <div class="mt-1 text-xs text-surface-500">
+                    <div class="mt-1 text-xs text-surface-600 dark:text-surface-300">
                       Status: {mediumOfExchange.status}
                     </div>
                   </div>
                 {:else}
                   <div class="rounded bg-warning-500/10 p-2 text-sm">
-                    <div class="text-warning-700 dark:text-warning-300">
+                    <div class="text-warning-800 dark:text-warning-400">
                       Associated medium of exchange not found
                     </div>
-                    <div class="text-xs text-warning-600 dark:text-warning-400">
-                      Hash: {actionHash?.slice(-12) || 'Unknown'}
+                    <div class="text-xs text-warning-800 dark:text-warning-400">
+                      Hash: {hashLabel(actionHash)}
                     </div>
                   </div>
                 {/if}
               </div>
             {:else if spec.note}
-              <div class="text-sm text-surface-600 dark:text-surface-400">
+              <div class="text-sm text-surface-600 dark:text-surface-300">
                 {spec.note}
               </div>
             {/if}
@@ -458,10 +468,10 @@
 
             <!-- Footer with hREA ID -->
             <div
-              class="border-surface-200-700-token flex items-center justify-between border-t pt-2 text-xs text-surface-500"
+              class="border-surface-200-700-token flex items-center justify-between border-t pt-2 text-xs text-surface-600 dark:text-surface-300"
             >
               <span>hREA ID: {spec.id.slice(-8)}</span>
-              <span class="text-primary-500">
+              <span class="text-primary-500 dark:text-primary-300">
                 <i class="fa-solid fa-arrow-right"></i>
                 View Details
               </span>

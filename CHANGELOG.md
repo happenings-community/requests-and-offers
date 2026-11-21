@@ -67,6 +67,8 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 
 - **hREA**: An accepted exchange whose mirror never landed is mirrored again the next time the member who accepted it reads their exchanges, once a session, and never twice at once; a cancel that comes while its mirror is being written waits for it, then closes its Commitments. Both Commitments are checked before the Agreement is written, so a malformed one fails with a reason in words instead of hREA's bytes, and a failed mirror is logged with hREA's own reason (#532)
 - **hREA**: The admin audit page marks each Commitment finished or open, read from its latest revision; hREA's list returns the first, so a finished one showed as open
+- **hREA**: The admin's economic-flow graph fits its panel and zooms and pans like a whiteboard (buttons, Ctrl or Cmd with the wheel, a drag, the arrow keys), instead of a sideways scroll that cut off its left column; each node opens in the inspector on focus or a tap, not only on hover
+- **hREA**: The admin's Test managers find a medium of exchange by the hash it has (every medium read "not found"), show note hashes as short labels instead of a list of bytes, let their chips wrap, and give every coloured text a dark-mode shade that reads at 4.5:1
 - **Exchanges**: Every write that carries a payload is decoded (`499927c0`, #273)
 - **Exchanges**: Interest actions are hidden from members who are not accepted (`4474f97e`, #336, closes #330)
 - **Exchanges**: A counter keeps each quantity's unit; only the amount may change, enforced by validation (`279f9a64`, #422)

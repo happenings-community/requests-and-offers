@@ -1,0 +1,68 @@
+# zome-label-check.yml
+#
+# Warns when a pull request's labels do not match the zomes it touches.
+# Only an integrity zome change alters the DNA hash, so:
+#
+#   dnas/*/zomes/integrity/**   expects `breaking-change` and `zome:integrity`
+#   dnas/*/zomes/coordinator/** suggests `zome:coordinator`
+#
+# It WARNS and never fails on a missing label. It does fail when it cannot read
+# the file list: a check that cannot go red when it is blind is not a check.
+#
+# Why pull_request_target, and why that is safe here:
+#   - A plain pull_request run from a fork gets a read-only token and would have
+#     to check out the fork's code to find the script. This workflow checks out
+#     the BASE commit only, so the script that runs is always the reviewed one.
+#   - The pull request's code is never checked out, built or executed. The file
+#     list comes from the REST API and the labels from the event payload.
+#   - The token is read-only: contents and pull-requests.
+#   - Label names reach the script through an environment variable, never
+#     through interpolation into a shell line.
+#
+# Consequence: a pull_request_target workflow runs from the base branch, so a
+# change to this file or to the script does not take effect on its own pull
+# request. It starts working once it is merged into the branch the pull
+# requests target.
+#
+# Guide: documentation/guides/continuous-integration.md
+
+name: Zome label check
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+    branches: [dev, main]
+
+concurrency:
+  group: zome-label-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check:
+    name: Zome labels match the change
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # The base commit, and only the one script. Never the pull request's head.
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+          sparse-checkout: scripts/check-zome-labels.ts
+          sparse-checkout-cone-mode: false
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          # Pinned for the same reason as ci.yml.
+          bun-version: '1.4.2'
+
+      - name: Check labels against changed zome paths
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: bun scripts/check-zome-labels.ts

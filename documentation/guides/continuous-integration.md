@@ -10,7 +10,7 @@ Before September 2026 this repository had no CI beyond a documentation deploy, s
 
 | Job | Steps | Blocking | Typical time |
 |---|---|---|---|
-| **Frontend** | `bun run check` (svelte-check), `bun run test:unit` (646 tests), `bun test scripts/tests` (the release scripts), `bun run lint` | types and tests yes, lint errors no | about a minute |
+| **Frontend** | `bun run check` (svelte-check), `bun run test:unit` (646 tests), `bun test scripts/tests` (the release scripts and the zome label check), `bun run lint` | types and tests yes, lint errors no | about a minute |
 | **Zomes** | `bun run download-hrea`, then `bun run build:zomes` and `hc app pack` under Nix | yes | 2 to 3 minutes, faster with a warm cache |
 
 ### Why the zomes job packs and does not only compile
@@ -81,12 +81,42 @@ The matrix trades runner count for wall clock: each leg compiles once and runs o
 
 If a sweettest failure says "Consistency not reached", suspect the machine before the code, and re-run it alone.
 
+## The zome label check
+
+`.github/workflows/zome-label-check.yml`, on pull requests to `dev` and `main` (opened, reopened, synchronized, labeled, unlabeled). It runs `scripts/check-zome-labels.ts`.
+
+Only a change to an **integrity** zome alters the DNA hash. A coordinator change does not. A pull request that moves the hash without saying so ships a network reset to every member as a surprise, so the label has to be on the pull request before the merge.
+
+| Changed path | Labels expected |
+|---|---|
+| `dnas/*/zomes/integrity/**` | `breaking-change` and `zome:integrity` |
+| `dnas/*/zomes/coordinator/**` | `zome:coordinator` (a suggestion) |
+| anything else | none |
+
+The three labels mean:
+
+- `zome:integrity`: an integrity zome changed, so the DNA hash moves. It always comes with `breaking-change`.
+- `zome:coordinator`: a coordinator zome changed and the DNA hash does not move.
+- `breaking-change`: the change alters the DNA or a public contract and needs a network reset or a migration.
+
+The check **warns and does not fail**. A missing integrity label produces a warning annotation on the run and a list of the changed paths in the job summary; a missing `zome:coordinator` produces a notice. The decision was a warning, so the check never blocks a merge. It does fail when it cannot read the pull request's file list, for the reason given under lint above: a check that cannot go red when it is blind is not a check. A renamed file counts on both sides, so moving a file out of an integrity zome is still seen.
+
+It has to be `pull_request_target`, and that is safe only because of how it is built:
+
+- It checks out the **base** commit and only the one script, never the pull request's head. The code that runs is always the reviewed code, and nothing from a fork is built or executed.
+- The file list comes from the REST API and the labels from the event payload.
+- Its token is read-only (`contents` and `pull-requests`), and label names reach the script through an environment variable, not through a shell line.
+
+The consequence is that a `pull_request_target` workflow runs from the base branch, so a change to this workflow or script does not take effect on its own pull request. After a change to it, test the logic with `bun test scripts/tests/check-zome-labels.test.ts`, which the Frontend job also runs as part of `bun test scripts/tests`.
+
+To make the warning a failure later, make the script exit non-zero when `verdict.missing` is not empty, then add the check to the required ones in the ruleset.
+
 ## Running the same checks locally
 
 ```bash
 cd ui && bun run check      # svelte-check, also generates SvelteKit types
 cd ui && bun run test:unit  # 646 unit tests, no Nix needed
-bun test scripts/tests      # release manifest and release note scripts
+bun test scripts/tests      # release scripts and the zome label check
 cd ui && bun run lint       # expect the known backlog
 
 nix develop --command bun run build:happ   # what the zomes job does

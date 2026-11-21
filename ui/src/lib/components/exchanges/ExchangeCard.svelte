@@ -46,10 +46,15 @@
   const get = $derived(role === 'provider' ? e.agreement.reciprocal : e.agreement.primary);
 </script>
 
+<!--
+  Unframed, the card sits in another card that carries more than this link (Go to chat
+  below it), so the hover belongs to that wrapper, which covers both: tinting the link
+  alone left the button looking like it belonged to something else.
+-->
 <a
   class="{framed
-    ? 'card'
-    : 'rounded-container-token'} block space-y-3 p-4 transition-colors hover:bg-surface-100 dark:hover:bg-surface-700"
+    ? 'card transition-colors hover:bg-surface-100 dark:hover:bg-surface-700'
+    : 'rounded-container-token'} block space-y-3 p-4"
   href={`/exchanges/${encodeHashToBase64(e.agreement_hash)}`}
   data-testid="exchange-card"
 >

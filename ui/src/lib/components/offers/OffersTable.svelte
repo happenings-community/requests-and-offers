@@ -179,14 +179,9 @@
               <td class="max-w-32">
                 {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
                   <div class="flex flex-col items-start gap-1">
-                    <MediumOfExchangeTag
-                      mediumOfExchangeActionHash={offer.medium_of_exchange_hashes[0]!}
-                    />
-                    {#if offer.medium_of_exchange_hashes.length > 1}
-                      <span class="variant-soft-secondary badge self-start text-xs"
-                        >+{offer.medium_of_exchange_hashes.length - 1} more</span
-                      >
-                    {/if}
+                    {#each offer.medium_of_exchange_hashes as mediumHash}
+                      <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
+                    {/each}
                   </div>
                 {:else}
                   <span class="text-xs text-surface-500">No medium specified</span>
@@ -285,14 +280,11 @@
               </td>
               <td class="max-w-32">
                 {#if offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0}
-                  <MediumOfExchangeTag
-                    mediumOfExchangeActionHash={offer.medium_of_exchange_hashes[0]!}
-                  />
-                  {#if offer.medium_of_exchange_hashes.length > 1}
-                    <div class="mt-1 text-xs text-surface-500">
-                      +{offer.medium_of_exchange_hashes.length - 1} more
-                    </div>
-                  {/if}
+                  <div class="flex flex-col items-start gap-1">
+                    {#each offer.medium_of_exchange_hashes as mediumHash}
+                      <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
+                    {/each}
+                  </div>
                 {:else}
                   <span class="text-xs text-surface-500">No medium specified</span>
                 {/if}
@@ -398,14 +390,9 @@
               <div class="space-y-2">
                 <span class="text-xs font-medium text-surface-500">Medium of Exchange:</span>
                 <div class="flex flex-wrap gap-2">
-                  {#each offer.medium_of_exchange_hashes.slice(0, 2) as mediumHash}
+                  {#each offer.medium_of_exchange_hashes as mediumHash}
                     <MediumOfExchangeTag mediumOfExchangeActionHash={mediumHash} />
                   {/each}
-                  {#if offer.medium_of_exchange_hashes.length > 2}
-                    <span class="variant-soft-secondary badge text-xs">
-                      +{offer.medium_of_exchange_hashes.length - 2} more
-                    </span>
-                  {/if}
                 </div>
               </div>
             {:else}

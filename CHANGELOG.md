@@ -69,6 +69,8 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **hREA**: The admin audit page marks each Commitment finished or open, read from its latest revision; hREA's list returns the first, so a finished one showed as open
 - **Exchanges**: Every write that carries a payload is decoded (`499927c0`, #273)
 - **Exchanges**: Interest actions are hidden from members who are not accepted (`4474f97e`, #336, closes #330)
+- **Listings**: Offers, requests and their tables name every medium of exchange a listing accepts, instead of the first one or two and "+N more"
+- **Exchanges**: On My Exchanges, an exchange and its Go to chat share one hover, and the four group counts start at the top of their cards
 - **Exchanges**: A counter keeps each quantity's unit; only the amount may change, enforced by validation (`279f9a64`, #422)
 - **hREA**: A mirrored proposal publishes its intents; the link step had silently failed since the adapter has no `proposeIntent` (`42848be5`, #431)
 - **hREA**: Every member picks the same seed Unit, so the Commitments two members write name one hours Unit (`e3c95711`, #443, closes #441)

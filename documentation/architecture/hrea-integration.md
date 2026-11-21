@@ -322,6 +322,12 @@ What is implemented:
 - Each party's completion records an EconomicEvent (`realizationOf` the
   agreement) and marks their Commitment `finished`. Both sides verified
   on two peers.
+- Every accepted exchange has both Commitments, as the design system's hREA page draws it (alpha 2).
+  A reciprocal that moves no resource (a gift, or a term to be discussed) is a Commitment with no `resourceConformsTo` and the note "Nothing owed, framed by <medium>", and the receiver's side done is an EconomicEvent with no resource that fulfils it.
+  A listing whose medium is a base category (Time Banking) publishes its reciprocal Intent with no resource either; the medium keeps its ResourceSpecification.
+- An edit, an archive or a delete retires every Proposal hREA holds for the listing, with its Intents, then an edit mirrors it afresh (`retireListingProposals`).
+  Proposals are found by the `Original <kind> hash` line of their note and matched by chain root, so one written before a reload, or under a revision's hash (My Listings names a listing by its latest revision), is found too.
+- `ref:` notes carry the hash in base64 (`ref:serviceType:uhCkk…`); every reader still matches the byte list older notes carry (`utils/hrea-ref.ts`).
 - A mirror that fails when an exchange is accepted (the conductor away, a
   refusal) is repaired, not lost. Each read of a member's own exchanges
   (a page load, the nav bar's polling, Messages) emits `exchanges:loaded`,

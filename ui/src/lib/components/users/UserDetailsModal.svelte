@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatDateTime } from '$lib/utils/dates';
   import { suspensionEndDate } from '$lib/utils/suspension';
   import { page } from '$app/state';
   import { Avatar, getModalStore } from '@skeletonlabs/skeleton';
@@ -43,7 +44,7 @@
       console.log('Debug UserDetailsModal - User status:', userStatus);
 
       const ends = suspensionEndDate(userStatus?.suspended_until);
-      if (ends) suspensionDate = ends.toLocaleString();
+      if (ends) suspensionDate = formatDateTime(ends);
     } catch (error) {
       console.log('Debug UserDetailsModal - Error fetching status:', error);
     }

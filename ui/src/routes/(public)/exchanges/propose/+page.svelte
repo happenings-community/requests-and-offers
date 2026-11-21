@@ -27,6 +27,8 @@
   import { EXCHANGE_STRINGS } from '$lib/strings/exchanges.strings';
   import { runEffect } from '$lib/utils/effect';
   import ReachPerson from '$lib/components/exchanges/ReachPerson.svelte';
+  import ErrorState from '$lib/components/shared/ErrorState.svelte';
+  import { proposeUnavailable, type ProposeProblem } from '$lib/utils/propose-unavailable';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import {
     namedInterest,
@@ -94,7 +96,13 @@
    * "them", and met the zome's refusal at Send.
    */
   let interestOnListing = $state<'loading' | 'found' | 'missing'>('loading');
-  let loadError = $state<string | null>(null);
+  /** Why the page cannot show the form, if it cannot; `proposeUnavailable` says it. */
+  let problem = $state<ProposeProblem | null>(null);
+  const unavailable = $derived(
+    problem
+      ? proposeUnavailable(problem, { listing: params.listing, type: params.listingType })
+      : null
+  );
   let busy = $state(false);
 
   let medium = $state('');
@@ -238,9 +246,7 @@
       // Naming what is actually missing. This used to say "a listing and an interest"
       // whatever was wrong, which sent me looking for the interest when the type was
       // the thing absent.
-      loadError = !hash
-        ? 'This page needs a listing to propose against.'
-        : 'This link is missing the listing type, so the listing cannot be looked up.';
+      problem = { kind: !hash ? 'no-listing' : 'no-type' };
       return;
     }
     (async () => {
@@ -251,7 +257,7 @@
             ? await runEffect(offersStore.getOffer(hash))
             : await runEffect(requestsStore.getRequest(hash));
         if (!item) {
-          loadError = 'That listing could not be found.';
+          problem = { kind: 'not-found' };
           return;
         }
         listing = item;
@@ -306,7 +312,7 @@
           }
         }
       } catch (e) {
-        loadError = e instanceof Error ? e.message : String(e);
+        problem = { kind: 'failed', detail: e instanceof Error ? e.message : String(e) };
       }
     })();
   }
@@ -314,7 +320,7 @@
   function retryTerms() {
     termsLoad = 'loading';
     interestOnListing = 'loading';
-    loadError = null;
+    problem = null;
     loadListing();
   }
 
@@ -357,11 +363,21 @@
   <title>Make a proposal</title>
 </svelte:head>
 
-<section class="container mx-auto max-w-2xl space-y-6 p-4">
+<section class="container mx-auto max-w-reading space-y-6 p-4">
   <button class="variant-soft btn btn-sm" onclick={() => history.back()}>Back</button>
 
-  {#if loadError}
-    <div class="alert variant-filled-error">{loadError}</div>
+  {#if unavailable}
+    <ErrorState
+      icon={unavailable.icon}
+      eyebrow={unavailable.eyebrow}
+      title={unavailable.title}
+      body={unavailable.body}
+      detail={unavailable.detail}
+      detailLabel={S.unavailable.detail}
+      actions={unavailable.actions}
+      retryLabel={S.unavailable.retry}
+      onretry={unavailable.retry ? retryTerms : undefined}
+    />
   {:else if !listing}
     <p class="text-surface-500">Loading the listing...</p>
   {:else}

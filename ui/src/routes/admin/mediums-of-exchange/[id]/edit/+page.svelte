@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
@@ -64,7 +65,7 @@
 </script>
 
 <svelte:head>
-  <title>Edit Medium of Exchange - Admin</title>
+  <title>{pageTitle('Edit medium of exchange', 'Admin')}</title>
 </svelte:head>
 
 <div class="container mx-auto p-6">

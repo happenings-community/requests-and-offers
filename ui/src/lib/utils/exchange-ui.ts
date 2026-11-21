@@ -2,6 +2,7 @@ import type { ActionHash } from '@holochain/client';
 import type { ExchangeQuantity, ExchangeStatus, ExchangeTerm } from '$lib/types/holochain';
 import type { UIExchange } from '$lib/types/ui';
 import { decimalProblem, isOne, isZeroDecimal } from '$lib/utils/decimal';
+import { formatDay } from '$lib/utils/dates';
 
 /**
  * What an exchange's record means to a member, in one name.
@@ -333,11 +334,7 @@ export function actionLabel(exchange: UIExchange, role: ExchangeRole | null): st
 }
 
 export function formatWhen(ms: number): string {
-  return new Date(ms).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  });
+  return formatDay(ms);
 }
 
 /** A listing's amount, when it is in `unit` and above zero; otherwise none. */

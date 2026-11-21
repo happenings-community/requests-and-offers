@@ -1,6 +1,7 @@
 import type { Timeframe, TimeframePreset } from '$lib/types/holochain';
 import { EXCHANGE_STRINGS } from '$lib/strings/exchanges.strings';
 import { fill } from '$lib/strings/fill';
+import { formatDay } from '$lib/utils/dates';
 
 /**
  * Timeframes (#380): when a listing is needed or offered, or an agreement delivered.
@@ -34,17 +35,17 @@ export interface TimeframeOption {
   label: string;
 }
 
-/** A Holochain timestamp (microseconds) as a local date. */
-function microsToDate(micros: number, locale?: string): string {
-  return new Date(micros / 1000).toLocaleDateString(locale);
+/** A Holochain timestamp (microseconds) as a local date, in the app's one format. */
+function microsToDate(micros: number): string {
+  return formatDay(micros / 1000);
 }
 
 /** A timeframe as the member reads it: the preset's name, or its dates. */
-export function timeframeLabel(t: Timeframe, locale?: string): string {
+export function timeframeLabel(t: Timeframe): string {
   if ('Preset' in t) return S.presets[t.Preset] ?? t.Preset;
-  const end = microsToDate(t.Dates.end, locale);
+  const end = microsToDate(t.Dates.end);
   if (t.Dates.start === null || t.Dates.start === undefined) return fill(S.by, { end });
-  return fill(S.between, { start: microsToDate(t.Dates.start, locale), end });
+  return fill(S.between, { start: microsToDate(t.Dates.start), end });
 }
 
 /** Two timeframes are the same when every field is, as the zome compares them. */

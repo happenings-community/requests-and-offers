@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/svelte';
 import { paths, readOrigin, routeAfterPublish, readProposeParams, routeAfter } from '$lib/paths';
 import { visit } from '../../mocks/app-state';
+import { EXCHANGE_STRINGS } from '$lib/strings/exchanges.strings';
 import ProposePage from '../../../src/routes/(public)/exchanges/propose/+page.svelte';
 
 /**
@@ -340,5 +341,43 @@ describe('a listing’s figures on the proposal', () => {
     select.selectedIndex = [...select.options].findIndex((o) => o.text === 'Flexible');
     await fireEvent.change(select);
     expect((await sent()).delivery_timeframe).toEqual({ Preset: 'Flexible' });
+  });
+});
+
+/**
+ * **When the page cannot open, it says so calmly and leads somewhere** (Soushi, alpha 2
+ * dogfooding, 21 November). Opened with no listing it showed a saturated red bar and
+ * nothing else. To make this go red: put the old `alert variant-filled-error` back.
+ */
+describe('the propose page when it cannot open', () => {
+  it('opened with no listing, explains where proposals start and offers ways on', async () => {
+    visit('/exchanges/propose');
+    const { container } = render(ProposePage);
+
+    await screen.findByRole('heading', { name: EXCHANGE_STRINGS.unavailable.noListing.title });
+    const href = (name: string) => screen.getByRole('link', { name }).getAttribute('href');
+    expect(href(EXCHANGE_STRINGS.unavailable.myExchanges)).toBe(paths.exchanges());
+    expect(href(EXCHANGE_STRINGS.unavailable.browseRequests)).toBe(paths.requests());
+    expect(href(EXCHANGE_STRINGS.unavailable.browseOffers)).toBe(paths.offers());
+    expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy();
+    expect(container.querySelector('.variant-filled-error'), 'no alarm block').toBeNull();
+    expect(getOffer, 'nothing to look up').not.toHaveBeenCalled();
+  });
+
+  it('leads back to the listing, and retries, when reading it failed', async () => {
+    getOffer.mockRejectedValueOnce(new Error('Connection closed'));
+    openWith(INTEREST);
+    render(ProposePage);
+
+    await screen.findByRole('heading', { name: EXCHANGE_STRINGS.unavailable.failed.title });
+    expect(
+      screen
+        .getByRole('link', { name: EXCHANGE_STRINGS.unavailable.backToListing })
+        .getAttribute('href')
+    ).toBe(paths.offerDetail(LISTING));
+    expect(screen.getByText('Connection closed')).toBeTruthy();
+
+    await fireEvent.click(screen.getByRole('button', { name: EXCHANGE_STRINGS.unavailable.retry }));
+    expect((await screen.findAllByText('CAD')).length, 'the retry loaded it').toBeGreaterThan(0);
   });
 });

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { getModalStore } from '@skeletonlabs/skeleton';
   import { goto } from '$app/navigation';
   import NavButton from '$lib/components/shared/NavButton.svelte';
@@ -38,6 +39,10 @@
     }
   }
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Edit your profile')}</title>
+</svelte:head>
 
 <section class="flex w-1/2 flex-col gap-10">
   {#if !currentUser}

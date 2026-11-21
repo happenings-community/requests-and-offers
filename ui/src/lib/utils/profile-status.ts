@@ -1,4 +1,5 @@
 import { suspensionEndDate } from '$lib/utils/suspension';
+import { formatDay } from '$lib/utils/dates';
 
 /**
  * What a blocked member is told, by their status (#331 follow-up).
@@ -90,5 +91,5 @@ export function statusLabel(statusType: string | undefined): string {
 function formatEnd(suspendedUntil: number | null | undefined): string | undefined {
   const date = suspensionEndDate(suspendedUntil);
   if (!date || Number.isNaN(date.getTime())) return undefined;
-  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+  return formatDay(date);
 }

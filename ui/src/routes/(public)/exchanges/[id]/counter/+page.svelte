@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { sameTimeframe, timeframeLabel } from '$lib/utils/timeframe';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
@@ -37,10 +38,10 @@
 </script>
 
 <svelte:head>
-  <title>Counter-proposal</title>
+  <title>{pageTitle('Counter-proposal')}</title>
 </svelte:head>
 
-<section class="container mx-auto max-w-2xl space-y-6 p-4">
+<section class="container mx-auto max-w-reading space-y-6 p-4">
   <div>
     <a class="variant-soft btn btn-sm" href={backHref}>Back to the proposal</a>
   </div>
@@ -151,7 +152,7 @@
       </label>
 
       <p class="text-xs text-surface-500">
-        0 or blank means no quantity, for things like a digital file.
+        Leave a figure blank, or enter 0, to propose none for that side.
       </p>
 
       {#if unchanged}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { getToastStore } from '@skeletonlabs/skeleton';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
@@ -182,7 +183,11 @@
   }
 </script>
 
-<div class="container mx-auto max-w-3xl py-8">
+<svelte:head>
+  <title>{pageTitle('Edit organization')}</title>
+</svelte:head>
+
+<div class="container mx-auto max-w-reading py-8">
   {#if error}
     <div class="alert variant-filled-error" role="alert">
       <p>{error}</p>

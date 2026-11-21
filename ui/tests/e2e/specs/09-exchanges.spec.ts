@@ -138,10 +138,12 @@ test.describe.serial('09 — exchanges', () => {
     await gotoApp(page, `/requests/${encodeHashToBase64(windowed.signed_action.hashed.hash)}`);
 
     await expect(page.getByRole('heading', { name: 'Timeframe' })).toBeVisible({ timeout: 15_000 });
-    // The page prints the end in the browser's own locale and time zone, so ask the
-    // browser what that is rather than assuming one.
+    // The page prints the end in the app's one date format (utils/dates.ts: "1 Dec 2026",
+    // English whatever the browser's language) in the browser's own time zone, so ask the
+    // browser for that day rather than assuming a zone.
     const byEnd = await page.evaluate(
-      (micros) => `by ${new Date(micros / 1000).toLocaleDateString()}`,
+      (micros) =>
+        `by ${new Date(micros / 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`,
       end
     );
     await expect(page.getByText(byEnd, { exact: true })).toBeVisible();

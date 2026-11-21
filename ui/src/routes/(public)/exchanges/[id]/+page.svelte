@@ -20,6 +20,11 @@
   import type { ReviewInDHT } from '$lib/types/holochain';
   import { paths, readOrigin, routeBack } from '$lib/paths';
   import { getBackToChat } from '$lib/extensions/back-to-chat';
+  import { getModalStore, type ModalComponent } from '@skeletonlabs/skeleton';
+  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
+  import type { ConfirmModalMeta } from '$lib/types/ui';
+  import { EXCHANGE_STRINGS, fill } from '$lib/strings/exchanges.strings';
+  import { pageTitle } from '$lib/utils/page-title';
 
   const agreementHash = $derived.by(() => {
     try {
@@ -46,7 +51,35 @@
   const myReviewText = $derived(details.myReviewText);
   const theirReviewText = $derived(details.theirReviewText);
 
-  const { accept, decline, complete, cancel, withdraw, review } = details;
+  const { accept, complete, review } = details;
+
+  const S = EXCHANGE_STRINGS.detail;
+  const modalStore = getModalStore();
+  const confirmModal: ModalComponent = { ref: ConfirmModal };
+
+  /**
+   * Decline, Withdraw and Cancel are final, so each asks first through the app's
+   * ConfirmModal, as archiving a listing does. The note stays in its field while the
+   * dialog is open, so it goes with the write.
+   */
+  function confirmThen(message: string, confirmLabel: string, run: () => Promise<unknown>) {
+    modalStore.trigger({
+      type: 'component',
+      component: confirmModal,
+      meta: {
+        message: fill(message, { name: other?.name ?? 'them' }),
+        confirmLabel,
+        cancelLabel: S.confirm.keep
+      } as ConfirmModalMeta,
+      response: (confirmed: boolean) => {
+        if (confirmed) void run();
+      }
+    });
+  }
+
+  const decline = () => confirmThen(S.confirm.decline, S.confirm.declineLabel, details.decline);
+  const withdraw = () => confirmThen(S.confirm.withdraw, S.confirm.withdrawLabel, details.withdraw);
+  const cancel = () => confirmThen(S.confirm.cancel, S.confirm.cancelLabel, details.cancel);
 
   /** Opens the counter page. Nothing is declined until the counter is sent there. */
   async function counter() {
@@ -82,7 +115,7 @@
 </script>
 
 <svelte:head>
-  <title>{listingTitle ? `Exchange: ${listingTitle}` : 'Exchange'}</title>
+  <title>{pageTitle(listingTitle ? `Exchange: ${listingTitle}` : 'Exchange')}</title>
 </svelte:head>
 
 {#snippet reviewCard(label: string, r: (ReviewInDHT & { created_at: number }) | undefined)}
@@ -101,7 +134,7 @@
   </div>
 {/snippet}
 
-<section class="container mx-auto max-w-3xl space-y-6 p-4">
+<section class="container mx-auto max-w-reading space-y-6 p-4">
   <div class="flex items-center justify-between">
     <!--
       Reached from a conversation, Back goes to the conversation and says whose it is;
@@ -195,7 +228,7 @@
       </div>
     {/if}
 
-    {#if role}
+    {#if role && state !== 'withdrawn' && state !== 'declined' && state !== 'cancelled'}
       <div class="card space-y-3 p-4">
         {#if state === 'proposed'}
           {#if iWroteIt}
@@ -299,7 +332,7 @@
               >
             </div>
             <label class="label pt-2">
-              <span>Comment <span class="text-xs text-surface-500">max 200</span></span>
+              <span>{S.commentLabel}</span>
               <textarea
                 class="textarea"
                 rows="3"
@@ -307,7 +340,9 @@
                 bind:value={details.comment}
                 placeholder="A few words about the exchange"
               ></textarea>
-              <span class="text-xs text-surface-500">{details.comment.length}/200</span>
+              <span class="text-xs text-surface-500"
+                >{fill(S.commentCount, { count: details.comment.length })}</span
+              >
             </label>
             {#if details.rating > 0 && details.rating <= 2}
               <p class="text-sm text-warning-600">
@@ -334,7 +369,10 @@
     {#if state === 'awaitingReviews' || state === 'reviewed'}
       <div class="grid gap-4 md:grid-cols-2">
         {@render reviewCard('Your review', myReviewText)}
-        {@render reviewCard(`${other?.name ?? 'Their'} review`, theirReviewText)}
+        {@render reviewCard(
+          other?.name ? fill(S.review, { name: other.name }) : 'Their review',
+          theirReviewText
+        )}
       </div>
     {/if}
 

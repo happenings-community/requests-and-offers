@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
@@ -211,10 +212,11 @@
   });
 </script>
 
-<PrerequisitesGuard
-  title="Service Types Required for Offers"
-  description="Offers must be categorized with service types. Administrators need to create service types before users can edit offers."
->
+<svelte:head>
+  <title>{pageTitle('Edit offer')}</title>
+</svelte:head>
+
+<PrerequisitesGuard listing="offers" verb="edit">
   <h1 class="h1">Edit Offer</h1>
 
   <section class="container mx-auto p-4">

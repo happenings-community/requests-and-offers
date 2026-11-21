@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { useMessages, FILTERS } from '$lib/composables/domain/messaging/useMessages.svelte';
   import ConversationRow from '$lib/components/messaging/ConversationRow.svelte';
@@ -39,9 +40,9 @@
   });
 </script>
 
-<svelte:head><title>{S.messages.title}</title></svelte:head>
+<svelte:head><title>{pageTitle(S.messages.title)}</title></svelte:head>
 
-<section class="container mx-auto flex max-w-4xl flex-col gap-5 p-4">
+<section class="container mx-auto flex max-w-reading flex-col gap-5 p-4">
   <PageHeader title={S.messages.title} subtitle={S.messages.intro}>
     {#snippet actions()}
       <label class="flex items-center gap-2 text-sm">

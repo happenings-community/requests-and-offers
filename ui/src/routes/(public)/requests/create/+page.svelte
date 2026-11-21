@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { page } from '$app/state';
   import { paths, readCreateListingParams } from '$lib/paths';
   import { goto } from '$app/navigation';
@@ -114,6 +115,10 @@
   });
 </script>
 
+<svelte:head>
+  <title>{pageTitle('New request')}</title>
+</svelte:head>
+
 <ProfileGuard
   allowBrowsing={false}
   allowCreating={true}
@@ -122,10 +127,7 @@
   blockedAction="create requests"
   redirectToProfile={true}
 >
-  <PrerequisitesGuard
-    title="Service Types Required for Requests"
-    description="Requests must be categorized with service types. Administrators need to create service types before users can create requests."
-  >
+  <PrerequisitesGuard listing="requests" verb="create">
     <section class="container mx-auto p-4">
       <div class="mb-6 flex items-center justify-between">
         <h1 class="h1">Create Request</h1>

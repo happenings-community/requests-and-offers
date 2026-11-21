@@ -25,6 +25,36 @@ export function approvalChange(before?: string, after?: string): ApprovalChange 
   return after === 'accepted' ? 'accepted' : 'left-pending';
 }
 
+/**
+ * The dialogs an approval makes out of date: the welcomes that say an administrator
+ * will review the profile, shown when it was created (`UserForm`).
+ */
+export const SUPERSEDED_BY_APPROVAL: readonly string[] = [
+  'welcome-and-next-steps',
+  'progenitor-welcome'
+];
+
+interface ModalQueue<T> {
+  close: () => void;
+  trigger: (settings: T) => void;
+}
+
+/**
+ * Shows the approval in front (F12, dogfooding 21 November). The modal store is a queue
+ * that shows its first entry only, so an approval triggered while the welcome dialog was
+ * still open waited behind it, and the member saw nothing until they closed the welcome.
+ * The welcome is out of date once the member is accepted, so it is closed first; any
+ * other dialog, one the member may be acting in, stays where it is.
+ */
+export function showApproval<T extends { meta?: { id?: string } }>(
+  store: ModalQueue<T>,
+  queue: () => readonly T[],
+  approval: T
+): void {
+  while (SUPERSEDED_BY_APPROVAL.includes(queue()[0]?.meta?.id ?? '')) store.close();
+  store.trigger(approval);
+}
+
 export interface UseApprovalWatchOptions {
   /** Called once when the member is accepted. */
   onAccepted: () => void;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { onMount } from 'svelte';
   import MyListings from '$lib/components/shared/listings/MyListings.svelte';
@@ -45,7 +46,7 @@
 </script>
 
 <svelte:head>
-  <title>My Listings - Requests & Offers</title>
+  <title>{pageTitle('My listings')}</title>
   <meta
     name="description"
     content="Manage your requests and offers in the Requests & Offers platform."

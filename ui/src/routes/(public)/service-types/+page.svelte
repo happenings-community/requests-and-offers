@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { onMount } from 'svelte';
   import ServiceTypesTable from '$lib/components/service-types/ServiceTypesTable.svelte';
@@ -30,6 +31,10 @@
     };
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Service types')}</title>
+</svelte:head>
 
 <section class="container mx-auto space-y-6 p-4">
   <PageHeader title="Service Types" subtitle="The kinds of help members ask for and offer">

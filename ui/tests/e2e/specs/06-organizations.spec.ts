@@ -49,7 +49,7 @@ test.describe.serial('06 — organizations: creation, moderation, edit', () => {
     // A success alert modal may flash before the redirect — dismiss it if it
     // shows, but the durable signal is landing on the new detail page.
     await page
-      .getByRole('button', { name: /^Ok/ })
+      .getByRole('button', { name: 'Got it' })
       .click({ timeout: 8_000 })
       .catch(() => {});
 

@@ -15,4 +15,25 @@ describe('where a page sits', () => {
     expect(main).toContain('flex-col');
     expect(main).not.toContain('justify-center');
   });
+
+  // Asked for by Sam on 21 November: the bar stays put while the page scrolls under it,
+  // as the design system's NavBar does (z-30 there too, below Skeleton's drawer at z-40).
+  // **To make it go red:** drop `sticky` from the wrapper, the scroll padding from
+  // app.postcss, or the menu's own scrolling from NavDropdown.svelte.
+  it('keeps the bar pinned to the top, and scrolls focus below it', () => {
+    const layout = readFileSync('src/routes/+layout.svelte', 'utf8');
+    const wrapper = /<div class="([^"]*)">\s*<NavBar/.exec(layout)?.[1].split(' ') ?? [];
+    expect(wrapper).toEqual(expect.arrayContaining(['sticky', 'top-0', 'z-30']));
+    const navbar = readFileSync('src/lib/components/shared/NavBar.svelte', 'utf8');
+    expect(navbar, 'the padding below assumes the bar is h-20').toMatch(
+      /<nav class="[^"]*\bh-20\b/
+    );
+    const css = readFileSync('src/app.postcss', 'utf8');
+    expect(css).toMatch(/html\s*\{\s*scroll-padding-top:\s*5\.5rem;/);
+    // A long menu opened from the pinned bar scrolls itself, as the page no longer can.
+    const dropdown = readFileSync('src/lib/components/shared/NavDropdown.svelte', 'utf8');
+    const menu =
+      /<div\s+class="([^"]*)"\s+\{id\}\s+role="menu"/.exec(dropdown)?.[1].split(' ') ?? [];
+    expect(menu).toEqual(expect.arrayContaining(['max-h-[calc(100vh-6rem)]', 'overflow-y-auto']));
+  });
 });

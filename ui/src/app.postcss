@@ -4,6 +4,12 @@
 @tailwind variants;
 
 @layer base {
+  /* The pinned navigation bar is 5rem (h-20). A scroll to a focused element or an anchor
+     stops a little below it, clear of its shadow, so the bar never covers what has focus
+     (WCAG 2.4.11). */
+  html {
+    scroll-padding-top: 5.5rem;
+  }
 }
 
 @layer components {

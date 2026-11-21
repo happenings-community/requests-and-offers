@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Effect as E } from 'effect';
 import {
   createProposalFromRequest,
@@ -7,8 +7,15 @@ import {
   extractProposalIdFromReference,
   type RequestProposalMappingParams
 } from '$lib/services/mappers/request-proposal.mapper';
+import { setUnitRegistry } from '$lib/services/mappers/agreement-commitment.mapper';
 import type { UIRequest } from '$lib/types/ui';
 import type { Agent, ResourceSpecification } from '$lib/types/hrea';
+
+// The hours Unit the exchange path resolves; a request's estimate must name it, not a label.
+const HOUR_UNIT_ID = 'uhCkkHoursUnit';
+
+beforeEach(() => setUnitRegistry({ hours: HOUR_UNIT_ID }));
+afterEach(() => setUnitRegistry({}));
 
 // ============================================================================
 // TEST FIXTURES
@@ -126,7 +133,7 @@ describe('Request to Proposal Mapper', () => {
 
       expect(result.serviceIntents[0].resourceQuantity).toEqual({
         hasNumericalValue: 10,
-        hasUnit: 'hour'
+        hasUnit: HOUR_UNIT_ID
       });
     });
 
@@ -146,7 +153,7 @@ describe('Request to Proposal Mapper', () => {
       expect(result.proposal.note).toContain('Estimated time: 1.1 hours');
       expect(result.serviceIntents[0].resourceQuantity).toEqual({
         hasNumericalValue: 1.1,
-        hasUnit: 'hour'
+        hasUnit: HOUR_UNIT_ID
       });
       expect((await mapped({ time_estimate_hours: '1' })).proposal.note).toContain(
         'Estimated time: 1 hour\n'
@@ -156,6 +163,12 @@ describe('Request to Proposal Mapper', () => {
     it('notes a zero estimate, and gives its intent no quantity', async () => {
       const result = await mapped({ time_estimate_hours: '0' });
       expect(result.proposal.note).toContain('Estimated time: 0 hours');
+      expect(result.serviceIntents[0].resourceQuantity).toBeUndefined();
+    });
+
+    it('gives no quantity when the hours Unit is not on the network yet, rather than a label', async () => {
+      setUnitRegistry({});
+      const result = await mapped({ time_estimate_hours: '2' });
       expect(result.serviceIntents[0].resourceQuantity).toBeUndefined();
     });
 

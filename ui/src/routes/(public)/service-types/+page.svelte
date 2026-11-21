@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { onMount } from 'svelte';
   import ServiceTypesTable from '$lib/components/service-types/ServiceTypesTable.svelte';
   import ServiceTypeSearch from '$lib/components/service-types/ServiceTypeSearch.svelte';
@@ -31,14 +32,15 @@
 </script>
 
 <section class="container mx-auto space-y-6 p-4">
-  <div class="flex items-center justify-between">
-    <h1 class="h1">Available Service Types</h1>
-    {#if currentUser?.status?.status_type === 'accepted'}
-      <a href={paths.serviceTypeSuggest()} class="variant-filled-primary btn">
-        Suggest a Service Type
-      </a>
-    {/if}
-  </div>
+  <PageHeader title="Service Types" subtitle="The kinds of help members ask for and offer">
+    {#snippet actions()}
+      {#if currentUser?.status?.status_type === 'accepted'}
+        <a href={paths.serviceTypeSuggest()} class="variant-filled-primary btn btn-sm">
+          Suggest a Service Type
+        </a>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
   <!-- Search and Filter Section -->
   <div class="mb-6">

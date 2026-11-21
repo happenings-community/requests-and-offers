@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { useExchangesManagement } from '$lib/composables/domain/exchanges/useExchangesManagement.svelte';
   import { type ExchangeTab } from '$lib/utils/exchange-ui';
   import { groupChains, type GroupKey } from '$lib/utils/exchange-chains';
@@ -125,10 +126,10 @@
   this one there if that ever changes.
 -->
 <section class="container mx-auto flex-1 space-y-6 p-4">
-  <header class="space-y-1">
-    <h1 class="h1">My Exchanges</h1>
-    <p class="text-surface-500">Deals you're proposing, working through, and have completed</p>
-  </header>
+  <PageHeader
+    title="My Exchanges"
+    subtitle="Deals you're proposing, working through, and have completed"
+  />
 
   <!--
     The outer switch, above the exchange groups. Interested in is a different kind of
@@ -184,7 +185,7 @@
       <div class="grid gap-4 md:grid-cols-4" role="group" aria-label="Exchange groups">
         {#each TABS as t (t.key)}
           <button
-            class="card space-y-2 p-4 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {exchanges.tab ===
+            class="card flex flex-col space-y-2 p-4 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {exchanges.tab ===
             t.key
               ? `ring-2 ${t.ring}`
               : ''}"

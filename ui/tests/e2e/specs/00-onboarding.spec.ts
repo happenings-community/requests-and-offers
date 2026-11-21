@@ -192,7 +192,7 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
   test('accepted profile can now create offers', async ({ page }) => {
     await gotoApp(page, '/offers');
 
-    await expect(page.getByRole('button', { name: 'Create Offer', exact: true })).toBeVisible({
+    await expect(page.getByRole('link', { name: '+ Offer', exact: true })).toBeVisible({
       timeout: 15_000
     });
     await expect(page.getByTestId('nav-exchanges')).toBeVisible();

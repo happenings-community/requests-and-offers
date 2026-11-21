@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
+  import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { useOffersManagement } from '$lib/composables';
   import OffersTable from '$lib/components/offers/OffersTable.svelte';
   import OfferFilterControls from '$lib/components/offers/OfferFilterControls.svelte';
@@ -16,7 +16,7 @@
   const emptyStateMessage = $derived.by(() => {
     const messages = {
       active: {
-        all: 'No active offers found. Create your first offer!',
+        all: 'No active offers yet.',
         my: "You haven't created any active offers yet.",
         organization: 'No active organization offers found.'
       },
@@ -28,11 +28,6 @@
     };
     return messages[management.listingTab][management.filterType];
   });
-
-  // Handle create offer action
-  function handleCreateOffer() {
-    goto(paths.offerCreate());
-  }
 
   // Handle filtered results change from search component
   function handleFilteredResultsChange(filtered: typeof management.filteredOffers) {
@@ -57,70 +52,50 @@
   description="Create a profile to make offers to the community."
   blockedAction="view or create offers"
 >
-  <div class="container mx-auto p-4">
-    <!-- Tab Switcher -->
-    <div class="mb-4 flex items-center justify-between">
-      <div class="flex gap-2">
-        <button
-          class="btn btn-sm"
-          class:variant-filled-primary={management.listingTab === 'active'}
-          class:variant-ghost-primary={management.listingTab !== 'active'}
-          onclick={() => management.setListingTab('active')}
-        >
-          📋 Active Offers
-        </button>
-        <button
-          class="btn btn-sm"
-          class:variant-filled-warning={management.listingTab === 'archived'}
-          class:variant-ghost-warning={management.listingTab !== 'archived'}
-          onclick={() => management.setListingTab('archived')}
-        >
-          📦 Archived Offers
-        </button>
-      </div>
-      <div>
+  <div class="container mx-auto space-y-6 p-4">
+    <PageHeader title="Offers" subtitle="What members are offering">
+      {#snippet actions()}
         {#if usersStore.currentUser?.status?.status_type === 'accepted'}
-          <button class="variant-filled-primary btn btn-sm" onclick={handleCreateOffer}>
-            Create Offer
-          </button>
+          <a href={paths.offerCreate()} class="variant-filled-warning btn btn-sm">+ Offer</a>
         {:else if usersStore.currentUser}
-          <button class="variant-soft btn btn-sm" disabled>
-            Create Offer (Profile Approval Required)
-          </button>
+          <button class="variant-filled-warning btn btn-sm" disabled>+ Offer</button>
+          <span class="text-sm text-surface-500">Once your profile is approved</span>
         {:else}
           <a href={paths.myProfileCreate()} class="variant-filled-primary btn btn-sm">
-            Create Profile to Make Offers
+            Create a profile to post offers
           </a>
         {/if}
-      </div>
-    </div>
+      {/snippet}
+    </PageHeader>
 
-    <!-- Filter Buttons -->
-    <div class="mb-4 flex items-center gap-2">
-      <button
-        class="btn btn-sm"
-        class:variant-filled-primary={management.filterType === 'all'}
-        class:variant-ghost-primary={management.filterType !== 'all'}
-        onclick={() => management.setFilterType('all')}
-      >
-        All
-      </button>
-      <button
-        class="btn btn-sm"
-        class:variant-filled-secondary={management.filterType === 'my'}
-        class:variant-ghost-secondary={management.filterType !== 'my'}
-        onclick={() => management.setFilterType('my')}
-      >
-        My
-      </button>
-      <button
-        class="btn btn-sm"
-        class:variant-filled-tertiary={management.filterType === 'organization'}
-        class:variant-ghost-tertiary={management.filterType !== 'organization'}
-        onclick={() => management.setFilterType('organization')}
-      >
-        Organization
-      </button>
+    <!-- Which offers, and whose: toggle buttons in My Exchanges' style, violet when chosen -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div class="flex flex-wrap gap-2" role="group" aria-label="Active or archived offers">
+        {#each [['active', 'Active Offers'], ['archived', 'Archived Offers']] as const as [tab, label] (tab)}
+          <button
+            class="btn btn-sm {management.listingTab === tab
+              ? 'variant-filled-primary'
+              : 'variant-ghost'}"
+            aria-pressed={management.listingTab === tab}
+            onclick={() => management.setListingTab(tab)}
+          >
+            {label}
+          </button>
+        {/each}
+      </div>
+      <div class="flex flex-wrap gap-2" role="group" aria-label="Whose offers">
+        {#each [['all', 'All'], ['my', 'My'], ['organization', 'Organization']] as const as [filter, label] (filter)}
+          <button
+            class="btn btn-sm {management.filterType === filter
+              ? 'variant-filled-primary'
+              : 'variant-ghost'}"
+            aria-pressed={management.filterType === filter}
+            onclick={() => management.setFilterType(filter)}
+          >
+            {label}
+          </button>
+        {/each}
+      </div>
     </div>
 
     <!-- Search Controls -->
@@ -142,8 +117,16 @@
       </div>
     {:else if searchFilteredOffers.length === 0}
       {#key `${management.listingTab}-${management.filterType}`}
-        <div class="text-center text-xl text-surface-500">
-          <p>{emptyStateMessage}</p>
+        <div class="card space-y-3 p-6 text-center">
+          <!-- A search that matches none of a list that has some: say so, with nothing to create. -->
+          {#if management.filteredOffers.length > 0}
+            <p class="text-surface-500">No offers match your search.</p>
+          {:else}
+            <p class="text-surface-500">{emptyStateMessage}</p>
+          {/if}
+          {#if management.filteredOffers.length === 0 && management.listingTab === 'active' && management.filterType !== 'organization' && usersStore.currentUser?.status?.status_type === 'accepted'}
+            <a href={paths.offerCreate()} class="variant-filled-warning btn">Create an offer</a>
+          {/if}
         </div>
       {/key}
     {:else}

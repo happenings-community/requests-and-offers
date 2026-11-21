@@ -61,7 +61,7 @@ test.describe.serial('02 — service types: curation, suggestion, moderation', (
   test('admin-created service type is approved and publicly listed', async ({ page }) => {
     await gotoApp(page, '/service-types');
 
-    await expect(page.getByRole('heading', { name: 'Available Service Types' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Service Types', exact: true })).toBeVisible({
       timeout: 15_000
     });
     await expect(page.locator(`text=${ADMIN_ST}`).first()).toBeVisible({ timeout: 15_000 });
@@ -103,7 +103,7 @@ test.describe.serial('02 — service types: curation, suggestion, moderation', (
 
     // Anti-criterion: pending suggestions are never publicly listed.
     await gotoApp(page, '/service-types');
-    await expect(page.getByRole('heading', { name: 'Available Service Types' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Service Types', exact: true })).toBeVisible({
       timeout: 15_000
     });
     await expect(page.locator(`text=${SUGGESTED_ST}`)).toBeHidden();
@@ -148,7 +148,7 @@ test.describe.serial('02 — service types: curation, suggestion, moderation', (
     await expect(page.locator(`text=${REJECTED_ST}`).first()).toBeVisible({ timeout: 15_000 });
 
     await gotoApp(page, '/service-types');
-    await expect(page.getByRole('heading', { name: 'Available Service Types' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Service Types', exact: true })).toBeVisible({
       timeout: 15_000
     });
     await expect(page.locator(`text=${REJECTED_ST}`)).toBeHidden();

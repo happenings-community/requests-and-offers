@@ -100,6 +100,21 @@ describe('label tones', () => {
       AA
     );
   });
+
+  it.each(TONES)('edges a %s label with its own text colour, faintly', (tone) => {
+    // A pale fill sits at about 1.1:1 on a table row, so the label needs an edge to show
+    // where it ends (Sam, 21 November): a hairline of its text colour at half strength.
+    const head = `:where(html:not(.dark)) :is(.chip, .badge).variant-soft-${tone} {`;
+    const at = css.indexOf(head);
+    const rule = css.slice(at, css.indexOf('}', at));
+    const text = new RegExp(`(?<![\\w-])color: rgb\\(var\\(--color-${tone}-(\\d+)\\)\\)`).exec(
+      rule
+    )?.[1];
+    // Through --tw-shadow: Skeleton sets a soft variant's box-shadow with !important,
+    // from that variable, so a plain box-shadow never shows.
+    expect(rule).toContain(`--tw-shadow: inset 0 0 0 1px rgb(var(--color-${tone}-${text}) / 0.5);`);
+    expect(rule).not.toMatch(/(^|\s)box-shadow:/);
+  });
 });
 
 describe('the admin shell (forced dark mode, #205)', () => {
@@ -134,14 +149,22 @@ describe('the admin shell (forced dark mode, #205)', () => {
   it('uses no dark shade too dim for the dark background', () => {
     // surface-400 is 3.56:1 on surface-800, primary-400 is 2.57:1.
     const dim = /dark:text-(surface-(400|500|600)|primary-(400|500))(?![\w-])/;
-    expect(lines().filter(({ line }) => dim.test(line)).map(({ at }) => at)).toEqual([]);
+    expect(
+      lines()
+        .filter(({ line }) => dim.test(line))
+        .map(({ at }) => at)
+    ).toEqual([]);
   });
 
   it('uses no Skeleton token pair whose dark shade is too dim', () => {
     // `text-surface-500-400-token` is surface-500 in light mode and surface-400
     // in dark mode, which the two checks above do not see.
     const dimPair = /text-(surface-\d{2,3}-(400|500|600)|primary-\d{2,3}-(400|500))-token/;
-    expect(lines().filter(({ line }) => dimPair.test(line)).map(({ at }) => at)).toEqual([]);
+    expect(
+      lines()
+        .filter(({ line }) => dimPair.test(line))
+        .map(({ at }) => at)
+    ).toEqual([]);
   });
 });
 

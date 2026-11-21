@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import { useMessages, FILTERS } from '$lib/composables/domain/messaging/useMessages.svelte';
   import ConversationRow from '$lib/components/messaging/ConversationRow.svelte';
   import FaultRow from '$lib/components/messaging/FaultRow.svelte';
@@ -41,12 +42,8 @@
 <svelte:head><title>{S.messages.title}</title></svelte:head>
 
 <section class="container mx-auto flex max-w-4xl flex-col gap-5 p-4">
-  <div class="flex flex-wrap items-end justify-between gap-3">
-    <div class="flex flex-col gap-1">
-      <h1 class="h1">{S.messages.title}</h1>
-      <p class="text-surface-500">{S.messages.intro}</p>
-    </div>
-    <div class="flex flex-wrap items-center gap-2">
+  <PageHeader title={S.messages.title} subtitle={S.messages.intro}>
+    {#snippet actions()}
       <label class="flex items-center gap-2 text-sm">
         <span class="font-semibold text-surface-500">{S.messages.filter.label}</span>
         <select
@@ -63,8 +60,8 @@
       <a class="variant-ghost btn btn-sm" href={paths.blockedMembers()}
         >{S.messages.blocked.button}</a
       >
-    </div>
-  </div>
+    {/snippet}
+  </PageHeader>
 
   <aside
     class="card border border-dashed border-warning-500 bg-warning-50 p-3 dark:bg-warning-900/20"

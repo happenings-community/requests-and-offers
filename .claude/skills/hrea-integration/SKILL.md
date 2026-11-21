@@ -61,20 +61,22 @@ If any prerequisite is missing, the request/offer is **queued** in `pendingReque
 // MoE approved → createResourceSpecificationFromMediumOfExchange() → retryPendingProposals()
 ```
 
-## Request→Proposal Mapping (Two-Intent Reciprocal Pattern)
+## Request→Proposal Mapping (service intents and reciprocal intents)
 
-Each request/offer creates a Proposal with one service intent per service type plus one payment intent:
+Each request/offer creates a Proposal with one service intent per service type plus one reciprocal intent per medium the listing accepts, whose action follows that medium (`services/mappers/listing-medium.ts`, the same rule as an agreement's reciprocal term): `transfer` for a currency, `work` for Service Exchange, and no reciprocal intent at all for a medium that expects nothing back (Free/Pay it Forward):
 
 ```
 Request "I need web development"
   → Proposal: name="Request: I need web development"
   → Service intent (primary, one per service type): action="work", receiver=requester's agent
       resourceConformsTo = service type resource spec
-  → Payment intent (reciprocal): action="transfer", provider=requester's agent
+  → Reciprocal intent per medium: action by that medium (transfer | work | none), provider=requester's agent
       resourceConformsTo = medium of exchange resource spec
 ```
 
-The intents are created first, then the proposal is created with `publishes` (primary intent IDs) and `reciprocal` (payment intent IDs); the adapter has no `proposeIntent` mutation.
+The intents are created first, then the proposal is created with `publishes` (primary intent IDs) and `reciprocal` (reciprocal intent IDs, possibly none); the adapter has no `proposeIntent` mutation.
+
+**Finding a listing's proposal.** The note ends with a `--- hREA Mapping ---` block carrying `Original offer hash: <hash>` (or `request`), the hash as the action hash's `toString()`. The in-memory maps start empty each launch (#278), so an edit or delete reads hREA's proposals and matches that line, inside the mapping block only (`proposalsForListing`). hREA does not check who deletes a proposal: whoever edits replaces it from their own cell. Removal and replacement run one at a time per listing.
 
 ## Action Hash Reference Format
 
@@ -130,6 +132,8 @@ The hREA store subscribes to `storeEventBus` events:
 | `mediumOfExchange:approved` | `handleMediumOfExchangeApproved` | `createResourceSpecificationFromMediumOfExchange()` → `retryPendingProposals()` |
 | `request:created` | `handleRequestCreated` | `createProposalFromRequest()` |
 | `offer:created` | `handleOfferCreated` | `createProposalFromOffer()` |
+| `request:updated` / `offer:updated` | `handleRequestUpdated` / `handleOfferUpdated` | remove the listing's proposals (found by note), then `createProposalFrom…()` |
+| `request:deleted` / `offer:deleted` | `handleRequestDeleted` / `handleOfferDeleted` | remove the listing's proposals, found by note |
 
 ## Testing hREA
 

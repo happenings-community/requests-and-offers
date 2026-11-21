@@ -70,6 +70,8 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 - **Exchanges**: Interest actions are hidden from members who are not accepted (`4474f97e`, #336, closes #330)
 - **Exchanges**: A counter keeps each quantity's unit; only the amount may change, enforced by validation (`279f9a64`, #422)
 - **hREA**: A mirrored proposal publishes its intents; the link step had silently failed since the adapter has no `proposeIntent` (`42848be5`, #431)
+- **hREA**: Editing or deleting a listing after a restart finds its proposal in hREA by the note that names the listing, instead of writing a second one or leaving the first behind; duplicates an earlier session wrote go too (#278)
+- **hREA**: A listing publishes a reciprocal intent for each medium it accepts, not only the first, and each follows its medium: a transfer for a currency, work for Service Exchange, and none for Free/Pay it Forward; it was one transfer of the first medium, whatever the medium
 - **hREA**: Every member picks the same seed Unit, so the Commitments two members write name one hours Unit (`e3c95711`, #443, closes #441)
 - **hREA**: A request's estimated hours reach hREA in the hours Unit, not a label hREA rejected, so a request with hours is mirrored again (#558)
 - **hREA**: After a reload, a completion finds its agreement's mirror again and an acceptance is not mirrored twice (`f40f1b4d`, #437)

@@ -90,10 +90,10 @@ describe('Offer to Proposal Mapper', () => {
 
       const result = await E.runPromise(createProposalFromOffer(params));
 
-      expect(result.paymentIntent.isReciprocal).toBe(true);
-      expect(result.paymentIntent.action).toBe('transfer');
-      expect(result.paymentIntent.receiver).toBe('agent-1'); // Offerer receives payment
-      expect(result.paymentIntent.resourceSpecifiedBy).toBe('rs-moe');
+      expect(result.paymentIntent!.isReciprocal).toBe(true);
+      expect(result.paymentIntent!.action).toBe('transfer');
+      expect(result.paymentIntent!.receiver).toBe('agent-1'); // Offerer receives payment
+      expect(result.paymentIntent!.resourceSpecifiedBy).toBe('rs-moe');
     });
 
     it('should have opposite role assignment compared to request mapper', async () => {
@@ -113,8 +113,8 @@ describe('Offer to Proposal Mapper', () => {
       expect(result.serviceIntents[0].receiver).toBeUndefined();
 
       // Payment intent: offerer is the RECEIVER (they receive payment)
-      expect(result.paymentIntent.receiver).toBe('agent-1');
-      expect(result.paymentIntent.provider).toBeUndefined();
+      expect(result.paymentIntent!.receiver).toBe('agent-1');
+      expect(result.paymentIntent!.provider).toBeUndefined();
     });
 
     it('should combine all intents in allIntents array', async () => {
@@ -172,6 +172,58 @@ describe('Offer to Proposal Mapper', () => {
       await expect(E.runPromise(createProposalFromOffer(params))).rejects.toThrow(
         'At least one service type resource specification is required'
       );
+    });
+  });
+
+  describe('the reciprocal intent follows the medium (listing-medium.ts)', () => {
+    const params = (reciprocalAction?: 'transfer' | 'work' | null) => ({
+      offer: createMockOffer(),
+      offererAgent: createMockAgent(),
+      serviceTypeResourceSpecs: [createMockResourceSpec('rs-1', 'Web Dev')],
+      mediumOfExchangeResourceSpec: createMockResourceSpec('rs-moe', 'Service Exchange'),
+      ...(reciprocalAction === undefined ? {} : { reciprocalAction })
+    });
+
+    it('writes a transfer when no action is given, as before', async () => {
+      const result = await E.runPromise(createProposalFromOffer(params()));
+      expect(result.paymentIntent!.action).toBe('transfer');
+    });
+
+    it('writes work for Service Exchange, against the medium, with the same role', async () => {
+      const result = await E.runPromise(createProposalFromOffer(params('work')));
+      expect(result.paymentIntent).toMatchObject({
+        action: 'work',
+        receiver: 'agent-1',
+        resourceSpecifiedBy: 'rs-moe',
+        isReciprocal: true
+      });
+      expect(result.allIntents.filter((i) => i.isReciprocal)).toHaveLength(1);
+    });
+
+    it("adds a reciprocal intent for each of the listing's other mediums", async () => {
+      const result = await E.runPromise(
+        createProposalFromOffer({
+          ...params(null),
+          otherReciprocals: [{ resourceSpecifiedBy: 'rs-se', action: 'work' }]
+        })
+      );
+      expect(result.paymentIntent).toBeNull();
+      expect(result.reciprocalIntents).toEqual([
+        expect.objectContaining({
+          action: 'work',
+          resourceSpecifiedBy: 'rs-se',
+          receiver: 'agent-1',
+          isReciprocal: true
+        })
+      ]);
+      expect(result.allIntents.filter((i) => i.isReciprocal)).toHaveLength(1);
+    });
+
+    it('publishes no reciprocal intent for a medium that expects nothing back', async () => {
+      const result = await E.runPromise(createProposalFromOffer(params(null)));
+      expect(result.paymentIntent).toBeNull();
+      expect(result.allIntents.some((i) => i.isReciprocal)).toBe(false);
+      expect(result.allIntents).toHaveLength(result.serviceIntents.length);
     });
   });
 

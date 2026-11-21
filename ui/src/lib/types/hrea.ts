@@ -14,7 +14,11 @@ export type ResourceSpecification = Schema.Schema.Type<typeof ResourceSpecificat
 export type Proposal = Schema.Schema.Type<typeof ProposalSchema>;
 export type Intent = Schema.Schema.Type<typeof IntentSchema>;
 /** A proposal with the ids of the intents it publishes, reciprocal ones included. */
-export type ProposalWithIntents = Proposal & { readonly intentIds: readonly string[] };
+export type ProposalWithIntents = Proposal & {
+  readonly intentIds: readonly string[];
+  /** The same intents with the revision each was read at, which a delete needs. */
+  readonly intentRevisions?: readonly { id: string; revisionId?: string }[];
+};
 export type Agreement = Schema.Schema.Type<typeof AgreementSchema>;
 export type Commitment = Schema.Schema.Type<typeof CommitmentSchema>;
 export type EconomicEvent = Schema.Schema.Type<typeof EconomicEventSchema>;

@@ -4,6 +4,7 @@ import {
   MediumsOfExchangeServiceLive
 } from '$lib/services/zomes/mediums-of-exchange.service';
 import { Deferred, Effect as E, FiberId, pipe, Schedule } from 'effect';
+import type { ActionHash } from '@holochain/client';
 import { HolochainClientServiceLive } from '$lib/services/HolochainClientService.svelte';
 import { storeEventBus } from '$lib/stores/storeEvents';
 import usersStore from '$lib/stores/users.store.svelte';
@@ -45,6 +46,13 @@ import {
   createProposalFromOffer as mapOfferToProposal,
   validateOfferMappingRequirements
 } from '$lib/services/mappers/offer-proposal.mapper';
+import {
+  listingReciprocalAction,
+  listingOfProposal,
+  mediumFromRecord,
+  proposalsForListing,
+  type ListingReciprocalAction
+} from '$lib/services/mappers/listing-medium';
 export type { HreaAgreementRefs };
 
 // ============================================================================
@@ -173,6 +181,9 @@ export type HreaStore = {
   readonly mirrorCancellation: (exchange: UIExchange) => E.Effect<number, HreaError>;
   readonly deleteProposalForRequest: (requestHash: string) => E.Effect<boolean, HreaError>;
   readonly deleteProposalForOffer: (offerHash: string) => E.Effect<boolean, HreaError>;
+  /** An edited listing's proposal replaced (#278). */
+  readonly handleRequestUpdatedEffect: (request: UIRequest) => E.Effect<Proposal | null, HreaError>;
+  readonly handleOfferUpdatedEffect: (offer: UIOffer) => E.Effect<Proposal | null, HreaError>;
   readonly createRetroactiveProposalMappings: (
     requests: UIRequest[],
     offers: UIOffer[]
@@ -1393,6 +1404,81 @@ export const createHreaStore = (): E.Effect<
         )
       )(setters);
 
+    /**
+     * The listing-to-proposal maps are kept in memory, so after a restart they hold
+     * only what this session wrote (#278). Each proposal's note names its listing
+     * (`listingOfProposal`), so loading the proposals fills the maps from the notes:
+     * the latest proposal for each listing, never over a mapping already made.
+     */
+    const rememberListingProposals = (proposals: readonly Proposal[]) => {
+      const latest = new Map<string, { kind: 'request' | 'offer'; hash: string; p: Proposal }>();
+      for (const p of proposals) {
+        const listing = listingOfProposal(p);
+        if (!listing) continue;
+        const key = `${listing.kind}:${listing.hash}`;
+        const prev = latest.get(key);
+        if (!prev || (p.created ?? '') > (prev.p.created ?? '')) latest.set(key, { ...listing, p });
+      }
+      for (const { kind, hash, p } of latest.values()) {
+        const mappings =
+          kind === 'request' ? state.requestProposalMappings : state.offerProposalMappings;
+        if (!mappings.has(hash)) mappings.set(hash, p.id);
+      }
+    };
+
+    /**
+     * What a listing's reciprocal intent records, from its medium's kind
+     * (`listingReciprocalAction`). A medium that cannot be read keeps `transfer`.
+     */
+    const reciprocalActionOf = (mediumRootHash: ActionHash) =>
+      pipe(
+        mediumsOfExchangeService.getLatestMediumOfExchangeRecord(mediumRootHash),
+        E.map((record) => listingReciprocalAction(mediumFromRecord(record))),
+        E.catchAll((error) => {
+          console.warn(
+            'hREA Store: medium of exchange unread, its intent stays a transfer:',
+            error
+          );
+          return E.succeed<ListingReciprocalAction>('transfer');
+        })
+      );
+
+    /**
+     * The reciprocal intents of a listing's other mediums, after the first: each one's
+     * ResourceSpecification and what it records back, a medium expecting nothing back
+     * left out. A medium whose specification is not in hREA yet is left out too, with a
+     * warning, rather than holding the listing's proposal back; its next edit adds it.
+     */
+    const otherMediumReciprocals = (first: ActionHash | undefined, hashes: readonly ActionHash[]) =>
+      E.gen(function* () {
+        const out: { resourceSpecifiedBy: string; action: 'transfer' | 'work' }[] = [];
+        const root = (hash: ActionHash) =>
+          pipe(
+            mediumsOfExchangeService.resolveToOriginal(hash),
+            E.catchAll(() => E.succeed(hash))
+          );
+        // A medium named twice is one medium: one reciprocal intent.
+        const seen = new Set<string>(first ? [(yield* root(first)).toString()] : []);
+        for (const hash of hashes) {
+          const original = yield* root(hash);
+          if (seen.has(original.toString())) continue;
+          seen.add(original.toString());
+          const action = yield* reciprocalActionOf(original);
+          if (!action) continue;
+          const spec = state.resourceSpecifications.find((s) =>
+            s.note?.includes(`ref:mediumOfExchange:${original.toString()}`)
+          );
+          if (!spec) {
+            console.warn(
+              `hREA Store: medium "${original.toString()}" has no Resource Specification yet; its reciprocal intent waits for the listing's next edit`
+            );
+            continue;
+          }
+          out.push({ resourceSpecifiedBy: spec.id, action });
+        }
+        return out;
+      });
+
     const getAllProposals = (): E.Effect<void, HreaError> => {
       return pipe(
         E.sync(() => setters.setLoading(true)),
@@ -1403,6 +1489,7 @@ export const createHreaStore = (): E.Effect<
           E.sync(() => {
             console.log('hREA Store: Loaded proposals:', fetchedProposals.length);
             state.proposals = [...fetchedProposals];
+            rememberListingProposals(fetchedProposals);
             setters.setLoading(false);
           })
         ),
@@ -1908,6 +1995,7 @@ export const createHreaStore = (): E.Effect<
 
           // 3. Find medium of exchange resource specification
           let mediumOfExchangeResourceSpec: ResourceSpecification | null = null;
+          let reciprocalAction: ListingReciprocalAction = 'transfer';
           if (request.medium_of_exchange_hashes && request.medium_of_exchange_hashes.length > 0) {
             const mediumRootHash = yield* pipe(
               mediumsOfExchangeService.resolveToOriginal(request.medium_of_exchange_hashes[0]),
@@ -1920,7 +2008,12 @@ export const createHreaStore = (): E.Effect<
               state.resourceSpecifications.find((spec) =>
                 spec.note?.includes(`ref:mediumOfExchange:${mediumOfExchangeHash}`)
               ) || null;
+            reciprocalAction = yield* reciprocalActionOf(mediumRootHash);
           }
+          const otherReciprocals = yield* otherMediumReciprocals(
+            request.medium_of_exchange_hashes?.[0],
+            (request.medium_of_exchange_hashes ?? []).slice(1)
+          );
 
           // 4. Validate requirements
           yield* validateRequestMappingRequirements(
@@ -1935,7 +2028,9 @@ export const createHreaStore = (): E.Effect<
             request,
             requesterAgent,
             serviceTypeResourceSpecs,
-            mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!
+            mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!,
+            reciprocalAction,
+            otherReciprocals
           });
 
           // 6. Create the intents, then the proposal that publishes them: hREA
@@ -2387,6 +2482,7 @@ export const createHreaStore = (): E.Effect<
 
           // 3. Find medium of exchange resource specification
           let mediumOfExchangeResourceSpec: ResourceSpecification | null = null;
+          let reciprocalAction: ListingReciprocalAction = 'transfer';
           if (offer.medium_of_exchange_hashes && offer.medium_of_exchange_hashes.length > 0) {
             const mediumRootHash = yield* pipe(
               mediumsOfExchangeService.resolveToOriginal(offer.medium_of_exchange_hashes[0]),
@@ -2399,7 +2495,12 @@ export const createHreaStore = (): E.Effect<
               state.resourceSpecifications.find((spec) =>
                 spec.note?.includes(`ref:mediumOfExchange:${mediumOfExchangeHash}`)
               ) || null;
+            reciprocalAction = yield* reciprocalActionOf(mediumRootHash);
           }
+          const otherReciprocals = yield* otherMediumReciprocals(
+            offer.medium_of_exchange_hashes?.[0],
+            (offer.medium_of_exchange_hashes ?? []).slice(1)
+          );
 
           // 4. Validate requirements
           yield* validateOfferMappingRequirements(
@@ -2414,7 +2515,9 @@ export const createHreaStore = (): E.Effect<
             offer,
             offererAgent,
             serviceTypeResourceSpecs,
-            mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!
+            mediumOfExchangeResourceSpec: mediumOfExchangeResourceSpec!,
+            reciprocalAction,
+            otherReciprocals
           });
 
           // 6. Create the intents, then the proposal that publishes them: hREA
@@ -2497,138 +2600,186 @@ export const createHreaStore = (): E.Effect<
     // PROPOSAL DELETION METHODS
     // ========================================================================
 
-    const deleteProposalForRequest = (requestHash: string): E.Effect<boolean, HreaError> => {
-      const proposalId = state.requestProposalMappings.get(requestHash);
-      if (!proposalId) {
-        console.log('hREA Store: No proposal mapping found for request:', requestHash);
-        return E.succeed(false);
-      }
-
+    /**
+     * Removes every proposal this node holds for one listing, with the intents each
+     * publishes.
+     *
+     * Found by the listing's note line (`proposalsForListing`), not only the in-memory map,
+     * which starts empty on each launch (#278): before this, an edit after a restart wrote
+     * a second proposal beside the first, and a delete left the first behind. Any
+     * duplicates an earlier session wrote go with it. A proposal this session wrote that
+     * hREA's list has not caught up with yet is added from the map. hREA's list reads the
+     * links this node holds, which on a full-arc node is every member's proposals: any
+     * proposal naming the listing goes, whoever wrote it.
+     *
+     * hREA does not check who deletes a proposal or an intent (its delete validation is
+     * a TODO at `happ-0.5.0-beta.1`), so an administrator's delete or archive of a
+     * member's listing removes the member's proposal too, where the administrator's node
+     * holds it. That is the outcome wanted: the listing is gone.
+     *
+     * `failed` when hREA could not be read or a delete failed: the caller then writes
+     * nothing new, since hREA keeps every record and a second proposal could not be
+     * taken back. A proposal removed is dropped from the map as soon as it goes, so a
+     * later failure in the same pass does not leave the map naming it.
+     */
+    const removeListingProposals = (
+      kind: 'request' | 'offer',
+      hash: string
+    ): E.Effect<'none' | 'removed' | 'failed', never> => {
+      const mappings =
+        kind === 'request' ? state.requestProposalMappings : state.offerProposalMappings;
+      const intentMappings =
+        kind === 'request'
+          ? state.requestProposalIntentMappings
+          : state.offerProposalIntentMappings;
       return pipe(
         E.gen(function* () {
-          // Get intent IDs from local tracking (fallback for known hREA bug)
-          const intentIds = state.requestProposalIntentMappings.get(requestHash) || [];
-
-          // Delete each intent (look up revisionId from stored entities)
-          for (const intentId of intentIds) {
-            const intent = state.intents.find((i) => i.id === intentId);
-            yield* withInitialization(
-              () => hreaService.deleteIntent({ revisionId: intent?.revisionId || intentId }),
-              state.apolloClient,
-              initialize
-            );
-          }
-
-          // Delete the proposal (look up revisionId from stored entities)
-          const proposal = state.proposals.find((p) => p.id === proposalId);
-          yield* withInitialization(
-            () => hreaService.deleteProposal({ revisionId: proposal?.revisionId || proposalId }),
+          const held = yield* withInitialization(
+            () => hreaService.getProposalsWithIntents(),
             state.apolloClient,
             initialize
           );
+          const targets = proposalsForListing(held, kind, hash).map((p) => ({
+            id: p.id,
+            revisionId: p.revisionId,
+            intents: p.intentRevisions ?? p.intentIds.map((id) => ({ id }))
+          }));
+          const mapped = mappings.get(hash);
+          if (mapped && !targets.some((t) => t.id === mapped)) {
+            targets.push({
+              id: mapped,
+              revisionId: state.proposals.find((p) => p.id === mapped)?.revisionId,
+              intents: (intentMappings.get(hash) ?? []).map((id) => ({ id }))
+            });
+          }
+          if (targets.length === 0) return 'none' as const;
 
-          // Remove from local state
-          state.proposals = state.proposals.filter((p) => p.id !== proposalId);
-          state.intents = state.intents.filter((i) => !intentIds.includes(i.id));
-          state.requestProposalMappings.delete(requestHash);
-          state.requestProposalIntentMappings.delete(requestHash);
-
-          console.log(
-            `hREA Store: Deleted proposal "${proposalId}" and ${intentIds.length} intents for request "${requestHash}"`
-          );
-          return true;
+          const revisionOf = (
+            x: { id: string; revisionId?: string },
+            known: { id: string; revisionId?: string }[]
+          ) => x.revisionId || known.find((k) => k.id === x.id)?.revisionId || x.id;
+          for (const t of targets) {
+            // The proposal first: once it is gone the listing no longer has it, whatever
+            // happens to its intents. An intent that will not delete is left unpublished,
+            // and logged; it must not hold the listing's next proposal back, since a
+            // retry would only fail on it again.
+            yield* withInitialization(
+              () => hreaService.deleteProposal({ revisionId: revisionOf(t, state.proposals) }),
+              state.apolloClient,
+              initialize
+            );
+            for (const intent of t.intents) {
+              yield* pipe(
+                withInitialization(
+                  () => hreaService.deleteIntent({ revisionId: revisionOf(intent, state.intents) }),
+                  state.apolloClient,
+                  initialize
+                ),
+                E.catchAll((error) => {
+                  console.warn(`hREA Store: intent "${intent.id}" left unpublished:`, error);
+                  return E.void;
+                })
+              );
+            }
+            const gone = new Set(t.intents.map((i) => i.id));
+            state.proposals = state.proposals.filter((p) => p.id !== t.id);
+            state.intents = state.intents.filter((i) => !gone.has(i.id));
+            if (mappings.get(hash) === t.id) {
+              mappings.delete(hash);
+              intentMappings.delete(hash);
+            }
+          }
+          console.log(`hREA Store: Removed ${targets.length} proposal(s) for ${kind} "${hash}"`);
+          return 'removed' as const;
         }),
         E.catchAll((error) => {
-          console.error('hREA Store: Failed to delete proposal for request:', error);
-          return E.succeed(false);
+          console.error(`hREA Store: Failed to remove the proposals for ${kind} "${hash}":`, error);
+          return E.succeed('failed' as const);
         })
       );
     };
 
-    const deleteProposalForOffer = (offerHash: string): E.Effect<boolean, HreaError> => {
-      const proposalId = state.offerProposalMappings.get(offerHash);
-      if (!proposalId) {
-        console.log('hREA Store: No proposal mapping found for offer:', offerHash);
-        return E.succeed(false);
+    /**
+     * One removal or replacement at a time per listing. Two quick edits would otherwise
+     * both read the old proposal, or the second would read hREA between the first's
+     * removal and its write, and so write a duplicate.
+     */
+    const listingLocks = new Map<string, E.Semaphore>();
+    const oneAtATime = <A, Err>(
+      kind: 'request' | 'offer',
+      hash: string,
+      run: E.Effect<A, Err>
+    ): E.Effect<A, Err> => {
+      const key = `${kind}:${hash}`;
+      let lock = listingLocks.get(key);
+      if (!lock) {
+        lock = E.unsafeMakeSemaphore(1);
+        listingLocks.set(key, lock);
       }
-
-      return pipe(
-        E.gen(function* () {
-          // Get intent IDs from local tracking (fallback for known hREA bug)
-          const intentIds = state.offerProposalIntentMappings.get(offerHash) || [];
-
-          // Delete each intent (look up revisionId from stored entities)
-          for (const intentId of intentIds) {
-            const intent = state.intents.find((i) => i.id === intentId);
-            yield* withInitialization(
-              () => hreaService.deleteIntent({ revisionId: intent?.revisionId || intentId }),
-              state.apolloClient,
-              initialize
-            );
-          }
-
-          // Delete the proposal (look up revisionId from stored entities)
-          const proposal = state.proposals.find((p) => p.id === proposalId);
-          yield* withInitialization(
-            () => hreaService.deleteProposal({ revisionId: proposal?.revisionId || proposalId }),
-            state.apolloClient,
-            initialize
-          );
-
-          // Remove from local state
-          state.proposals = state.proposals.filter((p) => p.id !== proposalId);
-          state.intents = state.intents.filter((i) => !intentIds.includes(i.id));
-          state.offerProposalMappings.delete(offerHash);
-          state.offerProposalIntentMappings.delete(offerHash);
-
-          console.log(
-            `hREA Store: Deleted proposal "${proposalId}" and ${intentIds.length} intents for offer "${offerHash}"`
-          );
-          return true;
-        }),
-        E.catchAll((error) => {
-          console.error('hREA Store: Failed to delete proposal for offer:', error);
-          return E.succeed(false);
-        })
-      );
+      return lock.withPermits(1)(run);
     };
+
+    const deleteProposalForRequest = (requestHash: string): E.Effect<boolean, HreaError> =>
+      oneAtATime(
+        'request',
+        requestHash,
+        E.map(removeListingProposals('request', requestHash), (r) => r === 'removed')
+      );
+
+    const deleteProposalForOffer = (offerHash: string): E.Effect<boolean, HreaError> =>
+      oneAtATime(
+        'offer',
+        offerHash,
+        E.map(removeListingProposals('offer', offerHash), (r) => r === 'removed')
+      );
 
     // ========================================================================
     // PROPOSAL UPDATE METHODS (delete + recreate)
     // ========================================================================
 
+    /**
+     * An edited listing's proposal is replaced: the old ones removed, then a new one
+     * written. If the old ones could not be removed nothing new is written, so a listing
+     * never ends up with two proposals; its old one stays until the next edit.
+     *
+     * Whoever edits replaces it, from their own cell: an administrator's edit of a
+     * member's listing writes the new proposal from the administrator's node, as it did
+     * before this read existed (it then wrote a second one beside the member's). The
+     * update record names its editor, not the listing's author, so the store cannot
+     * tell the two apart here, and the new proposal names the editor as the listing's
+     * agent until the member edits it again. Resolving the author from the original
+     * record is a follow-up.
+     */
+    const replaceListingProposal = (
+      kind: 'request' | 'offer',
+      listing: { original_action_hash?: ActionHash },
+      create: () => E.Effect<Proposal | null, HreaError>
+    ): E.Effect<Proposal | null, HreaError> => {
+      const hash = listing.original_action_hash?.toString();
+      if (!hash) return E.succeed(null);
+      return oneAtATime(
+        kind,
+        hash,
+        E.flatMap(removeListingProposals(kind, hash), (removed) => {
+          if (removed === 'failed') {
+            console.warn(
+              `hREA Store: ${kind} "${hash}" keeps its old proposal; not writing a second`
+            );
+            return E.succeed(null);
+          }
+          return create();
+        })
+      );
+    };
+
     const handleRequestUpdatedEffect = (
       request: UIRequest
     ): E.Effect<Proposal | null, HreaError> => {
-      const requestHash = request.original_action_hash?.toString();
-      if (!requestHash) return E.succeed(null);
-
-      const existingProposalId = state.requestProposalMappings.get(requestHash);
-      if (existingProposalId) {
-        // Delete old proposal, then create new one
-        return pipe(
-          deleteProposalForRequest(requestHash),
-          E.flatMap(() => createProposalFromRequest(request))
-        );
-      }
-      // No existing proposal — create one
-      return createProposalFromRequest(request);
+      return replaceListingProposal('request', request, () => createProposalFromRequest(request));
     };
 
     const handleOfferUpdatedEffect = (offer: UIOffer): E.Effect<Proposal | null, HreaError> => {
-      const offerHash = offer.original_action_hash?.toString();
-      if (!offerHash) return E.succeed(null);
-
-      const existingProposalId = state.offerProposalMappings.get(offerHash);
-      if (existingProposalId) {
-        // Delete old proposal, then create new one
-        return pipe(
-          deleteProposalForOffer(offerHash),
-          E.flatMap(() => createProposalFromOffer(offer))
-        );
-      }
-      // No existing proposal — create one
-      return createProposalFromOffer(offer);
+      return replaceListingProposal('offer', offer, () => createProposalFromOffer(offer));
     };
 
     // ========================================================================
@@ -2997,6 +3148,8 @@ export const createHreaStore = (): E.Effect<
       mirrorCancellation,
       deleteProposalForRequest,
       deleteProposalForOffer,
+      handleRequestUpdatedEffect,
+      handleOfferUpdatedEffect,
       createRetroactiveProposalMappings,
       // Manual sync methods for independent updates
       syncUserToAgent,

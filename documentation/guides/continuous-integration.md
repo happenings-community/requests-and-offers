@@ -1,6 +1,7 @@
 # Continuous Integration
 
-Two workflows, split by what they cost. The fast checks run on every pull request; the slow suites run when you ask for them.
+The workflows are split by what they cost. The fast checks run on every pull request; the slow suites run when you ask for them.
+A separate check, [the zome label check](#the-zome-label-check), watches which zomes a pull request touches.
 
 Before September 2026 this repository had no CI beyond a documentation deploy, so a green pull request proved nothing. That is the gap [#222](https://github.com/happenings-community/requests-and-offers/issues/222) closed.
 
@@ -10,8 +11,14 @@ Before September 2026 this repository had no CI beyond a documentation deploy, s
 
 | Job | Steps | Blocking | Typical time |
 |---|---|---|---|
-| **Frontend** | `bun run check` (svelte-check), `bun run test:unit` (646 tests), `bun test scripts/tests` (the release scripts and the zome label check), `bun run lint` | types and tests yes, lint errors no | about a minute |
-| **Zomes** | `bun run download-hrea`, then `bun run build:zomes` and `hc app pack` under Nix | yes | 2 to 3 minutes, faster with a warm cache |
+| **Frontend (types, unit, lint)** | `bun run check` (svelte-check), `bun run test:unit`, `bun test scripts/tests` (the release scripts and the zome label check), `bun run lint` | types and tests yes, lint errors no | about a minute |
+| **Zomes (unit tests)** | `cargo test --lib --workspace --exclude requests_and_offers_sweettest`, on the host target with plain cargo: no Nix and no wasm | yes | under a minute (37s cold, 15s warm, as measured in the workflow comment) |
+| **Zomes (build and pack)** | `bun run download-hrea`, then `bun run build:zomes` and `hc app pack` under Nix | yes | 2 to 3 minutes, faster with a warm cache |
+
+The unit-test job runs the `#[cfg(test)]` modules inside the zome crates. It uses `--workspace`, so a crate that gains its first test module is covered without editing the workflow.
+The Sweettest package is excluded because it needs a packed hApp and a conductor; [the heavy suites](#on-a-pull-request-by-label) own it.
+
+Current test counts live in [status.md](../status.md#testing-infrastructure), so they are measured in one place.
 
 ### Why the zomes job packs and does not only compile
 
@@ -115,7 +122,7 @@ To make the warning a failure later, make the script exit non-zero when `verdict
 
 ```bash
 cd ui && bun run check      # svelte-check, also generates SvelteKit types
-cd ui && bun run test:unit  # 646 unit tests, no Nix needed
+cd ui && bun run test:unit  # the front-end unit suite, no Nix needed
 bun test scripts/tests      # release scripts and the zome label check
 cd ui && bun run lint       # expect the known backlog
 

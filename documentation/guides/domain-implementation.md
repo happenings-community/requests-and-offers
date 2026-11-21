@@ -151,7 +151,7 @@ pub struct UpdateMyEntityInput {
 ```bash
 # Build and test the zome
 bun build:zomes
-bun test:my-domain
+bun run test:sweettest:my-domain   # placeholder: add this script to the root package.json, or use an existing one such as test:sweettest:requests
 ```
 
 ### Step 2: Service Layer (Effect-TS)
@@ -1100,7 +1100,7 @@ After implementing all layers, validate your domain:
 
 ### ✅ **Testing Validation**
 
-- [ ] Backend tests pass: `bun test:my-domain`
+- [ ] Backend tests pass: `bun run test:sweettest:<your-domain>` (a script you add to the root `package.json`)
 - [ ] Frontend unit tests pass: `cd ui && bun test:unit -- my-domain`
 - [ ] Integration tests cover main workflows
 - [ ] Error scenarios are tested

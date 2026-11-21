@@ -71,8 +71,9 @@ pub fn get_my_entities() -> ExternResult<Vec<Record>> {
 #### Testing Pattern
 
 ```bash
-# Create and run zome tests
-bun test:my-domain
+# Run the Sweettest group for your domain (example: requests)
+bun run test:sweettest:requests
+# A new domain adds its own test:sweettest:<name> script to the root package.json
 ```
 
 Test all CRUD operations and business logic before moving to frontend.

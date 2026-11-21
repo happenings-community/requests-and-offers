@@ -42,7 +42,10 @@ cd ui && bun run lint && bun run format && bun run check
 
 ## Continuous Integration
 
-Pull requests to `dev` and `main` run type check, the front-end unit suite, a lint report and a zome build that packs the hApp. Sweettest and e2e are not on that path: label a pull request `run:sweettest`, `run:e2e` or `run:heavy` to run them against it, or dispatch **Heavy tests (manual)** from the Actions tab against a branch or tag. Full detail: `documentation/guides/continuous-integration.md`.
+Pull requests to `dev` and `main` run type check, the front-end unit suite, a lint report, the zome crates' own unit tests (`Zomes (unit tests)`, `cargo test --lib`) and a zome build that packs the hApp.
+Sweettest and e2e are not on that path: label a pull request `run:sweettest`, `run:e2e` or `run:heavy` to run them against it, or dispatch **Heavy tests (manual)** from the Actions tab against a branch or tag.
+A separate check warns when a pull request changes a zome without the matching label: `zome:integrity` and `breaking-change` for an integrity zome, `zome:coordinator` for a coordinator zome.
+Full detail: `documentation/guides/continuous-integration.md`.
 
 Three rules worth holding when touching the pipeline. Change any `package.json` and you must run `bun install` and commit `bun.lock` in the same commit, because CI installs with `--frozen-lockfile`. And `.github` is no longer blanket-ignored, but two paths in it still are (the issue and pull-request templates), each commented in `.gitignore`. And lint any workflow change before committing: `actionlint`, or at least `bash -n` over each `run:` block. A comment inside a single-quoted `bash -c '...'` script is still code, and an apostrophe in it closes the quote, which has broken every Sweettest leg before now. `actionlint` reports one known false positive (SC2016 on the sampler's `trap`), so read its findings rather than its exit code.
 
@@ -172,8 +175,8 @@ The sealed trait guards only `invalid` and `verdict`: a refusal written as `Vali
 
 ## Domains
 
-All 8 domains follow the 7-layer pattern. Use **Service Types** as the reference template:
-- Service Types, Requests, Offers, Users, Organizations, Administration, Exchanges, Mediums of Exchange
+All 9 domains follow the 7-layer pattern. Use **Service Types** as the reference template:
+- Service Types, Requests, Offers, Users, Organizations, Administration, Exchanges, Mediums of Exchange, Messaging
 
 ## Testing Gotchas
 
@@ -193,7 +196,7 @@ Nix is required for anything that compiles or packs Holochain artifacts: `bun bu
 `bun build:happ`, `bun package`, and the sweettest suite. It is **not** required for the
 front-end unit suite, despite what this file said until 2026-09-14: `@valueflows/vf-graphql-holochain`
 is a prebuilt JavaScript package installed from npm (0.700.0-rc.0, published from hREA by CI with
-provenance; the `vendor/` tarball it replaced is gone), and `cd ui && bun run test:unit` passes 646/646 outside the shell.
+provenance; the `vendor/` tarball it replaced is gone), and `cd ui && bun run test:unit` passes outside the shell (counts: `documentation/status.md`).
 CI relies on that, which is why the frontend job takes two minutes rather than ten.
 ```bash
 nix develop --command bun run build:happ   # needs Nix

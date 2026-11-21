@@ -199,8 +199,10 @@
   {#if open}
     <!-- pt-1 rather than a margin, so the pointer can cross to the menu without leaving it -->
     <div class="absolute top-full z-50 w-64 pt-1 {alignRight ? 'right-0' : 'left-0'}">
+      <!-- The bar is pinned, so the page cannot scroll a long menu into view: the menu
+           scrolls itself, kept within the window below the bar. -->
       <div
-        class="rounded-lg border border-gray-200 bg-white shadow-xl"
+        class="max-h-[calc(100vh-6rem)] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl"
         {id}
         role="menu"
         aria-labelledby="{id}-trigger"

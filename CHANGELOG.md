@@ -84,6 +84,7 @@ The network creator holds the first admin seat. The desktop build sets the creat
 - **Exchanges**: Interest actions are hidden from members who are not accepted (`4474f97e`, #336, closes #330)
 - **Listings**: Offers, requests and their tables name every medium of exchange a listing accepts, instead of the first one or two and "+N more" (`28e8e2f1`, #563)
 - **Exchanges**: On My Exchanges, an exchange and its Go to chat share one hover, and the four group counts start at the top of their cards (`28e8e2f1`, #563)
+- **UI**: The navigation bar stays pinned to the top of the window while a page scrolls under it, as in the admin area and the design system; a focused element scrolls into view below it, not under it, and a long menu opened from the bar scrolls within the window (`ab7255d2`, #572)
 - **Exchanges**: A counter keeps each quantity's unit; only the amount may change, enforced by validation (`279f9a64`, #422)
 - **hREA**: A mirrored proposal publishes its intents; the link step had silently failed since the adapter has no `proposeIntent` (`42848be5`, #431)
 - **hREA**: Every member picks the same seed Unit, so the Commitments two members write name one hours Unit (`e3c95711`, #443, closes #441)

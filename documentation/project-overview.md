@@ -164,28 +164,28 @@ All zome interactions use Effect TS for:
 
 ```bash
 # Clone the repository
-git clone https://github.com/hAppening-Community/requests-and-offers.git
+git clone https://github.com/happenings-community/requests-and-offers.git
 cd requests-and-offers
 
 # Enter Nix development environment (for backend)
 nix develop
 
-# Install frontend dependencies
-cd ui && bun install
+# Install dependencies (the root workspace includes ui)
+bun install
 
-# Run development servers
-bun run dev
+# Run the development network (2 agents)
+bun start
 ```
 
 ### Testing
 
 ```bash
-# Run backend tests
-bun run test:backend
+# Run backend tests (Sweettest, inside the Nix shell)
+bun run test:sweettest
 
 # Run frontend tests
-bun run test:unit
-bun run test:integration
+cd ui && bun run test:unit
+cd ui && bun run test:integration
 ```
 
 ## Contributing
@@ -199,6 +199,6 @@ We welcome contributions! Please see our contributing guidelines and feel free t
 
 ## Community
 
-- **GitHub**: [hAppening-Community/requests-and-offers](https://github.com/hAppening-Community/requests-and-offers)
+- **GitHub**: [happenings-community/requests-and-offers](https://github.com/happenings-community/requests-and-offers)
 - **Community**: hAppenings.community
 - **Discord**: [Join our Discord](https://discord.gg/hAppening)

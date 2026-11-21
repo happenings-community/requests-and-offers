@@ -62,6 +62,13 @@
     }
   ];
 
+  /** A Commitment's tag: finished, open, or open while R&O says it is over. */
+  function progressLabel(n: FlowNode): string {
+    if (n.progress === 'unknown') return 'state unread';
+    if (n.progress === 'open' && n.behind) return 'open, behind R&O';
+    return n.progress ?? '';
+  }
+
   const STATE_LABEL: Record<FlowState, string> = {
     present: 'in hREA',
     missing: 'missing',
@@ -121,6 +128,99 @@
         label: 'fulfills'
       }
     ];
+
+  /**
+   * The graph as a whiteboard: it fits the panel by default, and zooms and pans like
+   * one (buttons, Ctrl or Cmd with the wheel, a drag, the arrow keys), instead of a
+   * sideways scroll that cut off the left column (Sam, 20 November).
+   */
+  let viewW = $state(0);
+  let zoom = $state<number | null>(null); // null: fit the panel
+  let pan = $state({ x: 0, y: 0 });
+  const ZOOM_MIN = 0.4;
+  const ZOOM_MAX = 2;
+  const fitScale = $derived(viewW > 0 ? Math.min(1, viewW / CANVAS.w) : 1);
+  const scale = $derived(zoom ?? fitScale);
+  const viewH = $derived(CANVAS.h * Math.max(fitScale, Math.min(scale, 1)));
+  const clampPan = (x: number, y: number) => {
+    const minX = Math.min(0, viewW - CANVAS.w * scale);
+    const minY = Math.min(0, viewH - CANVAS.h * scale);
+    // A stage narrower than the panel sits in its middle; a wider one may move between
+    // its two edges.
+    const centred = (viewW - CANVAS.w * scale) / 2;
+    return {
+      x: centred >= 0 ? centred : Math.min(Math.max(x, minX), 0),
+      y: Math.min(Math.max(y, minY), 0)
+    };
+  };
+  function setZoom(next: number | null, about?: { x: number; y: number }) {
+    if (next === null) {
+      zoom = null;
+      pan = clampPan((viewW - CANVAS.w * fitScale) / 2, 0);
+      return;
+    }
+    const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next));
+    // Keep the point under the pointer (or the view's centre) where it was.
+    const c = about ?? { x: viewW / 2, y: viewH / 2 };
+    const sx = (c.x - pan.x) / scale;
+    const sy = (c.y - pan.y) / scale;
+    zoom = z;
+    pan = clampPan(c.x - sx * z, c.y - sy * z);
+  }
+  $effect(() => {
+    // Refit when the panel changes size while fitted.
+    if (zoom === null && viewW > 0) pan = clampPan((viewW - CANVAS.w * fitScale) / 2, 0);
+  });
+  let drag = $state<{ x: number; y: number; px: number; py: number } | null>(null);
+  function onPointerDown(e: PointerEvent) {
+    if (e.button !== 0 || !e.isPrimary) return;
+    drag = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  }
+  function onPointerMove(e: PointerEvent) {
+    if (!drag) return;
+    pan = clampPan(drag.px + e.clientX - drag.x, drag.py + e.clientY - drag.y);
+  }
+  function onPointerUp() {
+    drag = null;
+  }
+  function onWheel(e: WheelEvent) {
+    if (!(e.ctrlKey || e.metaKey)) return; // a plain wheel scrolls the page
+    e.preventDefault();
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setZoom(scale * (e.deltaY < 0 ? 1.1 : 1 / 1.1), {
+      x: e.clientX - r.left,
+      y: e.clientY - r.top
+    });
+  }
+  /**
+   * Tabbing to a node the viewport has clipped makes the browser scroll the viewport to
+   * it. That scroll is folded into the pan, so dragging and the clamps keep working.
+   */
+  function onFocusScroll(e: Event) {
+    const v = e.currentTarget as HTMLElement;
+    if (!v.scrollLeft && !v.scrollTop) return;
+    pan = clampPan(pan.x - v.scrollLeft, pan.y - v.scrollTop);
+    v.scrollLeft = 0;
+    v.scrollTop = 0;
+  }
+  function onKey(e: KeyboardEvent) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return; // the browser's own zoom and shortcuts
+    const step = 40;
+    const moves: Record<string, [number, number]> = {
+      ArrowLeft: [step, 0],
+      ArrowRight: [-step, 0],
+      ArrowUp: [0, step],
+      ArrowDown: [0, -step]
+    };
+    if (e.key in moves) {
+      e.preventDefault();
+      const [dx, dy] = moves[e.key];
+      pan = clampPan(pan.x + dx, pan.y + dy);
+    } else if (e.key === '+' || e.key === '=') setZoom(scale * 1.25);
+    else if (e.key === '-') setZoom(scale / 1.25);
+    else if (e.key === '0') setZoom(null);
+  }
 
   const nodeById = $derived(new Map(dash.flow.map((n) => [n.id, n])));
   const present = (id: string) => nodeById.get(id)?.state === 'present';
@@ -212,9 +312,9 @@
       <div>
         <h2 class="h3">Economic-flow graph</h2>
         <p class="hrea-sub">
-          One exchange's ValueFlows structure, each node marked from what hREA holds. Hover a node
-          to inspect it; screen readers read each node's fields in the list.
-          {#if missingCount}<strong class="text-error-500"
+          One exchange's ValueFlows structure, each node marked from what hREA holds. Hover, tap or
+          tab to a node to inspect it; screen readers read each node's fields in the list.
+          {#if missingCount}<strong class="text-error-600 dark:text-error-300"
               >{missingCount} expected node{missingCount === 1 ? '' : 's'} missing from hREA.</strong
             >{/if}
         </p>
@@ -240,12 +340,59 @@
         {dash.loading ? 'Reading exchanges…' : 'No exchange on this network yet.'}
       </p>
     {:else}
-      <div class="hrea-stage-scroll">
+      <div class="hrea-zoom-bar" role="group" aria-label="Zoom the graph">
+        <button
+          type="button"
+          class="variant-ghost btn btn-sm"
+          aria-label="Zoom out"
+          disabled={scale <= ZOOM_MIN}
+          onclick={() => setZoom(scale / 1.25)}>−</button
+        >
+        <button
+          type="button"
+          class="variant-ghost btn btn-sm"
+          aria-pressed={zoom === null}
+          onclick={() => setZoom(null)}>Fit</button
+        >
+        <button
+          type="button"
+          class="variant-ghost btn btn-sm"
+          aria-label="Zoom in"
+          disabled={scale >= ZOOM_MAX}
+          onclick={() => setZoom(scale * 1.25)}>+</button
+        >
+        <span class="hrea-zoom-level" aria-live="polite">{Math.round(scale * 100)}%</span>
+        <span class="hrea-zoom-hint">Drag to move; Ctrl or ⌘ with the wheel to zoom.</span>
+      </div>
+      <!--
+        A focusable region the arrow keys move and plus and minus zoom, as a map does; the
+        buttons above do the same for anyone not using the keyboard here.
+      -->
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div
+        class="hrea-viewport"
+        class:hrea-viewport--dragging={drag !== null}
+        class:hrea-viewport--zoomed={scale > fitScale + 0.001}
+        bind:clientWidth={viewW}
+        style="height:{viewH}px"
+        tabindex="0"
+        role="region"
+        aria-label="Economic-flow graph. Arrow keys move it, plus and minus zoom, 0 fits it."
+        onpointerdown={onPointerDown}
+        onpointermove={onPointerMove}
+        onpointerup={onPointerUp}
+        onpointercancel={onPointerUp}
+        onwheel={onWheel}
+        onkeydown={onKey}
+        onscroll={onFocusScroll}
+        data-testid="hrea-viewport"
+      >
         <div
           class="hrea-stage"
           role="list"
           aria-label="hREA records of this exchange"
-          style="width:{CANVAS.w}px; height:{CANVAS.h}px"
+          style="width:{CANVAS.w}px; height:{CANVAS.h}px; transform: translate({pan.x}px, {pan.y}px) scale({scale})"
         >
           <svg
             class="hrea-edges"
@@ -294,18 +441,36 @@
           </svg>
           {#each dash.flow as n (n.id)}
             {@const pos = LAYOUT[n.id]}
+            <!--
+              A list item a keyboard can reach and a tap can open: focusing or tapping it
+              shows it in the inspector, as hovering does, so the inspector is not
+              pointer-only.
+            -->
             <div
               class="hrea-node hrea-k--{n.kind} hrea-node--{n.state}"
               class:hrea-node--hover={hover === n.id}
               style="left:{pos.x}px; top:{pos.y}px; width:{pos.w}px; height:{pos.h}px"
               role="listitem"
+              tabindex="0"
               onmouseenter={() => (hover = n.id)}
               onmouseleave={() => hover === n.id && (hover = null)}
+              onfocus={() => (hover = n.id)}
+              onblur={() => hover === n.id && (hover = null)}
+              onpointerdown={(e) => {
+                // A tap shows the node in the inspector; it does not start a drag.
+                e.stopPropagation();
+                hover = n.id;
+              }}
             >
               <span class="hrea-node-kind">{n.kind}</span>
               <span class="hrea-node-title">{n.title}</span>
               <span class="hrea-node-sub">{n.sub}</span>
               {#if n.state !== 'present'}<span class="hrea-node-state">{STATE_LABEL[n.state]}</span
+                >{:else if n.progress}<span
+                  class="hrea-node-state hrea-progress--{n.progress}"
+                  class:hrea-progress--behind={n.behind}
+                  aria-hidden="true"
+                  data-testid="commitment-progress">{progressLabel(n)}</span
                 >{/if}
               <!-- What the inspector shows on hover, read in the list by screen readers. -->
               <span class="sr-only"
@@ -480,11 +645,55 @@
     font-size: 0.75rem;
     opacity: 0.8;
   }
-  .hrea-stage-scroll {
-    overflow-x: auto;
-    padding-bottom: 6px;
+  .hrea-zoom-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .hrea-zoom-level {
+    min-width: 3.5rem;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.875rem;
+  }
+  .hrea-zoom-hint {
+    font-size: 0.875rem;
+    color: rgb(var(--color-surface-600));
+  }
+  :global(.dark) .hrea-zoom-hint {
+    color: rgb(var(--color-surface-300));
+  }
+  .hrea-viewport {
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+    /* Fitted, a touch scrolls the page; zoomed in, it moves the graph. */
+    touch-action: pan-y;
+    border-radius: 12px;
+  }
+  .hrea-viewport--zoomed {
+    touch-action: none;
+  }
+  .hrea-viewport--dragging {
+    cursor: grabbing;
+  }
+  .hrea-viewport:focus-visible {
+    outline: 2px solid rgb(var(--color-primary-500));
+    outline-offset: 2px;
+  }
+  :global(.dark) .hrea-viewport:focus-visible {
+    outline-color: rgb(var(--color-primary-300));
+  }
+  .hrea-node:focus-visible {
+    outline: 2px solid rgb(var(--color-primary-500));
+    outline-offset: 2px;
+  }
+  /* The ring sits on the stage, dark in the admin area: primary-300 there (5.4:1). */
+  :global(.dark) .hrea-node:focus-visible {
+    outline-color: rgb(var(--color-primary-300));
   }
   .hrea-stage {
+    transform-origin: 0 0;
     position: relative;
     background: rgb(var(--color-surface-900) / 0.06);
     border: 1px solid rgb(var(--color-surface-500) / 0.2);
@@ -619,14 +828,23 @@
     top: 6px;
     right: 9px;
     font-weight: 700;
-    font-size: 8px;
+    font-size: 9px;
     line-height: 1;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     opacity: 0.7;
   }
+  .hrea-progress--finished {
+    color: rgb(var(--color-success-900));
+    opacity: 1;
+  }
+  .hrea-progress--behind {
+    color: rgb(var(--color-warning-800));
+    opacity: 1;
+  }
   .hrea-node--missing .hrea-node-state {
-    color: rgb(var(--color-error-500));
+    /* error-700 on the node's surface-50: 6.6:1 (error-500 was 4.3:1) */
+    color: rgb(var(--color-error-700));
     opacity: 1;
   }
 

@@ -185,7 +185,7 @@
       <div class="grid gap-4 md:grid-cols-4" role="group" aria-label="Exchange groups">
         {#each TABS as t (t.key)}
           <button
-            class="card space-y-2 p-4 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {exchanges.tab ===
+            class="card flex flex-col space-y-2 p-4 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {exchanges.tab ===
             t.key
               ? `ring-2 ${t.ring}`
               : ''}"

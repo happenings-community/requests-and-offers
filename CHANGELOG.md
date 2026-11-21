@@ -22,13 +22,12 @@ The network creator holds the first admin seat. The desktop build sets the creat
 ### Platform
 
 - **Holochain**: The hApp moves to Holochain 0.7 and hREA `happ-0.5.0-beta.1` (`a2c5fd40`, #295, closes #192)
-- **hREA**: The GraphQL adapter `0.700.0-rc.0` is vendored as a release tarball until npm serves it (`3282e649`, #317, closes #316), and `hrea.dna` is pinned by sha256 so a pin bump reaches existing clones (`e15b0e2a`, #290, closes #223)
-- **hREA**: The GraphQL adapter is installed from npm and the vendored tarball is gone (`04aeee0d`, #455)
+- **hREA**: The GraphQL adapter `0.700.0-rc.0` was vendored as a release tarball (`3282e649`, #317, closes #316) and is now installed from npm, the tarball gone (`04aeee0d`, #455); `hrea.dna` is pinned by sha256 so a pin bump reaches existing clones (`e15b0e2a`, #290, closes #223)
 - **Zomes**: chrono moves from 0.3 to 0.4 before the network reset, which changes the DNA hash (`bac79cf4`, #366, closes #305)
 
 ### Features
 
-- **hREA**: Listings, exchanges and their completion are mirrored into hREA end to end (`30a7b7b6`, #255); the exchange record stays as it is for alpha 2, with no migration (`a83fda1b`, #402, closes #250)
+- **hREA**: Listings, exchanges and their completion are mirrored into hREA end to end (`30a7b7b6`, #255); the `exchanges` zome stays as the validated record under that mirror, and no alpha 1 exchange is migrated, because alpha 2 starts on a new network (`a83fda1b`, #402, closes #250)
 - **Requests and Offers**: A listing names exactly one service type, and needs an approved service type before it can be published. Several services in one exchange belong on the agreement, as separate commitments. Not yet enforced in validation; tracked in #257 (`4992fb30`, #256)
 - **Exchanges**: Either party may mark their part done first (`de9f2410`, #259)
 - **Exchanges**: A quantity is an exact decimal string (`"12.50"`), not a float, in the zome and in the UI; validation refuses malformed values and a counter compares amounts as numbers. This changes the `Agreement` entry format, inside the alpha 2 network reset; hREA still receives a number, converted at one place until h-REA/hREA#382 lands (`093e56d7`, #475)
@@ -76,8 +75,15 @@ The network creator holds the first admin seat. The desktop build sets the creat
 ### Bug Fixes
 
 - **hREA**: An accepted exchange whose mirror never landed is mirrored again the next time the member who accepted it reads their exchanges, once a session, and never twice at once; a cancel that comes while its mirror is being written waits for it, then closes its Commitments. Both Commitments are checked before the Agreement is written, so a malformed one fails with a reason in words instead of hREA's bytes, and a failed mirror is logged with hREA's own reason (`3ad995ef`, #556, takes over #532)
+- **hREA**: The admin audit page marks each Commitment finished or open, read from its latest revision; hREA's list returns the first, so a finished one showed as open (`a96af548`, #562)
+- **hREA**: The admin's economic-flow graph fits its panel and zooms and pans like a whiteboard (buttons, Ctrl or Cmd with the wheel, a drag, the arrow keys), instead of a sideways scroll that cut off its left column; each node opens in the inspector on focus or a tap, not only on hover (`f6dba8b6`, #566)
+- **hREA**: The admin's Test managers find a medium of exchange (every medium read "not found": they looked up a field mediums lack, and an approved medium is listed at a later revision than its specification's note names, so they now compare root hashes), show note hashes as short labels instead of a list of bytes, let their chips wrap, and give every coloured text a dark-mode shade that reads at 4.5:1 (`f6dba8b6`, #566)
+- **hREA**: The admin's economic-flow graph names an edited listing's exchange instead of "(unknown listing)", which had also left its proposal and intents unmatched (`f6dba8b6`, #566)
+- **hREA**: The admin's Proposals test manager finds an edited listing's source (it read "Source Missing"): it reads the listing's latest revision by the original hash the proposal is mapped under (`f6dba8b6`, #566)
 - **Exchanges**: Every write that carries a payload is decoded (`499927c0`, #273)
 - **Exchanges**: Interest actions are hidden from members who are not accepted (`4474f97e`, #336, closes #330)
+- **Listings**: Offers, requests and their tables name every medium of exchange a listing accepts, instead of the first one or two and "+N more" (`28e8e2f1`, #563)
+- **Exchanges**: On My Exchanges, an exchange and its Go to chat share one hover, and the four group counts start at the top of their cards (`28e8e2f1`, #563)
 - **Exchanges**: A counter keeps each quantity's unit; only the amount may change, enforced by validation (`279f9a64`, #422)
 - **hREA**: A mirrored proposal publishes its intents; the link step had silently failed since the adapter has no `proposeIntent` (`42848be5`, #431)
 - **hREA**: Every member picks the same seed Unit, so the Commitments two members write name one hours Unit (`e3c95711`, #443, closes #441)
@@ -144,6 +150,7 @@ The network creator holds the first admin seat. The desktop build sets the creat
 - **Validation**: What the sealed reason trait guards, and three examples from before #476 brought up to date (`8e187dd1`, #531)
 - **Architecture**: The refactoring counts are re-baselined at `f5c799ad` (`c8f3d915`, #538)
 - **README**: Status, release, docs, license, stack and DeepWiki badges (`e9de91e0`, #536)
+- **Alpha 2 sync**: The counts are measured in one place, `status.md`, with their commands; the `Zomes (unit tests)` job and the zome labels are documented, the commands that no longer exist are replaced, nine domains are named, every page is in `SUMMARY.md`, and the organisation name in the clone and issue links is corrected (`65166e85`, #567, closes #415)
 
 ### CI and Testing
 
@@ -157,6 +164,7 @@ The network creator holds the first admin seat. The desktop build sets the creat
 - **Architecture**: A ratchet test, so the refactoring counts may only go down (`33633f27`, #539)
 - **Unit tests**: The exchange page is imported once, in a hook with its own timeout (`2d7c880b`, #544)
 - **Release**: Every release is published as Latest, alphas included, so the alpha 2 tag shows as the repository's latest (`b60bf26d`, #502); the first-admin seat on a new desktop network is taken in the dry run, before the tag, and the desktop installers wait in a draft until it is held (`36fcff39`, #504)
+- **CI**: A check warns when a pull request changes an integrity zome without `zome:integrity` and `breaking-change`, or a coordinator zome without `zome:coordinator` (`169743ed`, #560)
 
 ## [0.6.0-alpha.1] - 2026-09-14
 

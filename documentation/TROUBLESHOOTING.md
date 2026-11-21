@@ -473,7 +473,7 @@ async fn debug_service_type_creation() -> anyhow::Result<()> {
 ### Community Support
 
 - **Discord**: [Join our community](https://discord.gg/happening) for real-time help
-- **GitHub Issues**: [Report bugs and get support](https://github.com/Happening-Community/requests-and-offers/issues)
+- **GitHub Issues**: [Report bugs and get support](https://github.com/happenings-community/requests-and-offers/issues)
 - **Holochain Documentation**: [Official Holochain docs](https://developer.holochain.org/)
 - **Effect-TS Documentation**: [Effect-TS official docs](https://effect.website/)
 

@@ -189,6 +189,7 @@ export const MEDIUM_OF_EXCHANGE_CONTEXTS = {
   APPROVE_MEDIUM: 'Failed to approve medium of exchange',
   REJECT_MEDIUM: 'Failed to reject medium of exchange',
   GET_MEDIUMS_FOR_ENTITY: 'Failed to get mediums of exchange for entity',
+  RESOLVE_MEDIUM_ROOT: 'Failed to resolve medium of exchange chain root',
   EMIT_MEDIUM_CREATED: `Failed to ${BASE_CONTEXTS.EMIT} medium of exchange created event`,
   EMIT_MEDIUM_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} medium of exchange updated event`
 } as const;

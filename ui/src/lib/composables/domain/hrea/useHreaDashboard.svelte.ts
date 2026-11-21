@@ -83,12 +83,11 @@ export function useHreaDashboard() {
       { concurrency: 'unbounded' }
     );
     const listings = [...activeRequests, ...archivedRequests, ...activeOffers, ...archivedOffers];
+    const withHash = listings.filter((l) => l.original_action_hash);
     const perListing = yield* E.all(
-      listings
-        .filter((l) => l.original_action_hash)
-        .map((l) =>
-          E.orElseSucceed(exchangesStore.getExchangesForListing(l.original_action_hash!), () => [])
-        ),
+      withHash.map((l) =>
+        E.orElseSucceed(exchangesStore.getExchangesForListing(l.original_action_hash!), () => [])
+      ),
       { concurrency: 5 }
     );
     const byRef = new Map<string, UIExchange>();
@@ -102,11 +101,17 @@ export function useHreaDashboard() {
           formatUserName(u.name) || u.nickname || 'Member'
         ])
     );
-    titles = new Map(
-      listings
-        .filter((l) => l.original_action_hash)
-        .map((l) => [l.original_action_hash!.toString(), l.title])
+    // A listing read from a list is its latest revision, and the store labels it with that
+    // revision's hash, while an agreement records the listing's original hash. Once a
+    // listing is edited the two differ, so each exchange is named by the listing it was
+    // found through, under the hash the agreement carries.
+    const titleMap = new Map<string, string>(
+      withHash.map((l) => [l.original_action_hash!.toString(), l.title])
     );
+    perListing.forEach((found, i) => {
+      for (const x of found) titleMap.set(x.agreement.listing.toString(), withHash[i].title);
+    });
+    titles = titleMap;
     const inv: RoInventory = {
       users: users.length,
       organizations: organizations.length,

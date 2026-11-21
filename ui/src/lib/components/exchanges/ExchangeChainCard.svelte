@@ -84,22 +84,30 @@
 </script>
 
 <div class="card" data-testid="exchange-chain">
-  <ExchangeCard
-    exchange={latest}
-    {me}
-    other={otherName}
-    picture={otherPicture}
-    {title}
-    when={lastMoved}
-    {chip}
-    framed={false}
-  />
   <!--
-    Outside the card's link, not inside it: a link within a link is invalid and the
-    browser picks one for you. Go to chat is a second destination, so it gets its own.
+    One hover for the exchange and its Go to chat, so the button reads as part of the card.
   -->
-  <div class="flex flex-wrap items-center gap-2 px-4 pb-3">
-    <ReachPerson person={counterpartyOf(latest, me)} context="exchange" count />
+  <div
+    class="rounded-t-[inherit] transition-colors last:rounded-b-[inherit] hover:bg-surface-100 dark:hover:bg-surface-700"
+    data-testid="exchange-chain-hover"
+  >
+    <ExchangeCard
+      exchange={latest}
+      {me}
+      other={otherName}
+      picture={otherPicture}
+      {title}
+      when={lastMoved}
+      {chip}
+      framed={false}
+    />
+    <!--
+      Outside the card's link, not inside it: a link within a link is invalid and the
+      browser picks one for you. Go to chat is a second destination, so it gets its own.
+    -->
+    <div class="flex flex-wrap items-center gap-2 px-4 pb-3">
+      <ReachPerson person={counterpartyOf(latest, me)} context="exchange" count />
+    </div>
   </div>
 
   {#if earlier.length > 0 || chain.missingEarlier}

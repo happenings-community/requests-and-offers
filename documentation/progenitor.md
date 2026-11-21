@@ -77,14 +77,21 @@ So the progenitor can make themselves the first administrator before any adminis
 - All subsequent users receive `Pending` status.
 - Useful for local development and integration tests where pre-generating a key adds friction.
 - **It is also the mode every desktop release runs in** (see Production below), so on a real network the creator installs first, creates the first profile, and appoints two or three further administrators on separate devices before the link goes to anyone else. The first admin's only unique power is that first grant; once others hold admin, the chain of grants carries on without them.
-- **What it does not protect.** The "no admins yet" check is a DHT read, not a lock: two agents whose first `create_user` calls each run before the other's administrator link has reached them can both become admin. That check and `add_administrator`'s refusal of a non-admin caller run in the coordinator zome (see *Coordinator-enforced* below), which is the member's own code, so a member running a modified client can write an administrator link that validation accepts, and until #377 validation does not read the key either. The key is what would give validation an anchor; without one, the practice above is the protection, and it holds on an invited network where the creator installs alone.
+- **What it does not protect.** The "no admins yet" check is a DHT read, not a lock: two agents whose first `create_user` calls each run before the other's administrator link has reached them can both become admin.
+  That check and `add_administrator`'s refusal of a non-admin caller run in the coordinator zome, which is the member's own code.
+  Without a key, validation accepts a root administrator grant from any author (`root_is_valid` returns no verdict, and the Sweettest `without_a_progenitor_key_the_root_is_accepted` pins it), so a member running a modified client can write themselves a root grant at any time.
+  The key is what would give validation an anchor; without one, the practice above is the protection, and it holds on an invited network where the creator installs alone.
+  Every grant, honest or not, is a signed record on its author's chain, so who did what stays visible.
 
 ## Key Properties
 
 - **Revocable**: The progenitor is a regular administrator. Any other administrator can call `remove_administrator` to remove them. They have no permanent super-admin privilege.
 - **Idempotent**: Calling `add_administrator` for an agent who is already an admin returns `false` without error and creates no duplicate links.
 - **Last-admin protection**: `remove_administrator` rejects the call if it would remove the final administrator from the network (`LastAdminError`).
-- **Coordinator-enforced**: Authorization lives in the coordinator zome only. The integrity zome returns `Valid` unconditionally for `AllAdministrators` links because HDI 0.7.0 does not expose `get_links` inside validation callbacks.
+- **Network-enforced from #377**: Every administrator act carries the grant it rests on, and validation checks that grant one step up through `must_get_valid_record`.
+  The roster links (`AllAdministrators`, `AgentAdministrators`) carry a grant in their tag, which validation checks.
+  With a key configured, the root grant must be signed by the progenitor key and written by it.
+  What validation cannot check is an absence: it has no `get_links`, so it cannot prove that no administrator exists yet, or that no revocation names a grant (see `architecture/validation.md`).
 
 ## Configuration
 

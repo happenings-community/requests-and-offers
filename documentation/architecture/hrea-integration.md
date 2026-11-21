@@ -258,36 +258,15 @@ interface FeedbackEntry {
 
 ### Privacy Architecture
 
-Exchange-related hREA entities are accessible **only to the agents named as participants** in those entities. This is a core architectural constraint, not a UI-layer concern.
+Exchange records are public on alpha 2.
+Every entry of the `exchanges` zome (interest, agreement, response, completion, review, cancellation) is a public entry: its author publishes it to the DHT, and any agent on the network, administrators included, can read it.
+hREA's entries, the mirror's Commitments and EconomicEvents among them, are public as well: the pinned `happ-0.5.0-beta.1` declares no private entry type.
+No capability grant restricts the exchange zome's functions to the two parties; the coordinator's only unrestricted grant is the messaging zome's `recv_remote_signal`.
+There is no `conversations` zome: a conversation is the `messaging` zome, which encrypts a message's content to each recipient's key while who wrote to whom, and when, stays public.
 
-#### Scope of Private Exchange Data
-
-The following entities are private to exchange participants only:
-
-- `Agreement` — accessible only to the two agents named in the agreement
-- `Commitment` — accessible only to the commitment parties
-- `EconomicEvent` — accessible only to the agents who created and received it
-- `Fulfillment` links — traversable only by exchange participants
-- Conversations and counter-proposals (see `conversations` zome in `requests_and_offers` DNA)
-
-#### Agent-Centric Enforcement
-
-Holochain's agent-centric model provides the underlying enforcement:
-
-- Entries are stored in participants' source chains, not in a shared public DHT
-- `get_*` zome calls are validated against the calling agent's identity
-- Capability tokens on exchange zome functions restrict access to named participants
-- No admin-level capability token grants access to exchange, commitment, or economic event data
-
-#### Administrator Exclusion
-
-Administrator agents are **explicitly excluded** from exchange data access:
-
-- The `admin` zome in `requests_and_offers` DNA handles platform-level operations only: user approval/suspension, service type and organization management
-- Admin capability tokens do NOT grant access to `Agreement`, `Commitment`, `EconomicEvent`, or `Fulfillment` queries
-- This separation is intentional — peer-to-peer exchange contracts are private to their parties
-
-For the full privacy model including conversation privacy and the `ConversationToAgreement` link architecture, see [Exchange Process — Privacy Model](../requirements/post-mvp/exchange-process.md#privacy-model-critical).
+Public records let both parties and their peers validate each step against the one before it.
+Private exchange data would be a design of its own: a private entry is validated only on its author's chain, so the rules that today refuse a forged counter or a second live interest would need another anchor.
+The earlier design for private exchanges is kept in [Exchange Process, Privacy Model](../requirements/post-mvp/exchange-process.md#privacy-model-critical).
 
 ## Future Evolution
 

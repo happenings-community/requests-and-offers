@@ -68,7 +68,7 @@ UI_PORT=3000 bun start
 # Development
 bun start             # Start dev server (needs UI_PORT)
 bun run build         # Type check, then production build
-bun run package      # Build and zip the UI for the hApp
+bun run package       # Build and zip the UI for the hApp
 
 # Code Quality
 bun run check         # TypeScript check

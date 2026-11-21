@@ -90,6 +90,7 @@ So the progenitor can make themselves the first administrator before any adminis
 - **Last-admin protection**: `remove_administrator` rejects the call if it would remove the final administrator from the network (`LastAdminError`).
 - **Network-enforced from #377**: Every administrator act carries the grant it rests on, and validation checks that grant one step up through `must_get_valid_record`.
   The roster links (`AllAdministrators`, `AgentAdministrators`) carry a grant in their tag, which validation checks.
+  Their tombstones, written by `remove_administrator`, carry no grant, and validation accepts one from any agent (see `architecture/validation.md`).
   With a key configured, the root grant must be signed by the progenitor key and written by it.
   What validation cannot check is an absence: it has no `get_links`, so it cannot prove that no administrator exists yet, or that no revocation names a grant (see `architecture/validation.md`).
 

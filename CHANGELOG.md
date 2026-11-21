@@ -18,12 +18,12 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 ### The network's first admin
 
 The network creator holds the first admin seat.
-Alpha 2 runs without a progenitor key, in development mode: the desktop app installs the hApp with a fresh agent key and cannot write that key into the DNA before installing it, so the first profile created on the new network becomes its admin.
+Alpha 2 runs without a progenitor key, in development mode: the desktop app generates a fresh agent key at install and passes no progenitor key to `installApp`, so the first profile created on the new network becomes its admin.
 The creator takes that seat from the release dry run, before the tag, and then appoints the team as further administrators on separate devices.
-This protects the seat against everyone running the app as published.
+This protects the seat against members running the app as published, once the creator's grant has reached them: the check is a DHT read, not a lock.
 A member running a modified client can still write themselves a root grant, because without a key validation has nothing to check it against.
 That is the trade we made for an invited network of testers.
-Alpha 3's Create Network flow (#95) binds the creator's key as the progenitor at install, and from then on only that key can write the first admin grant; the join service and onboarding arrive with it.
+Alpha 3's Create Network flow (#95) is to bind the creator's key as the progenitor at install, and from then on only that key will be able to write the first admin grant; the join service and onboarding are to arrive with it.
 
 ### What testers should know
 
@@ -42,7 +42,7 @@ What alpha 2 does not yet enforce, most of it reachable only by a member running
 - **Statuses**: a member's current status is read from a link that validation checks only for its shape, so a modified client can make every reader that holds its link show another status as a member's current one.
 - **Acceptance**: a modified client can remove a member from the accepted list.
   Wherever that removal has reached, the member's messages are hidden from every inbox, and the app refuses the listings and messages they try to send.
-- **Exchanges**: the network checks only that a completion or a review is written by one of the exchange's two members, not that the exchange was accepted first, nor that each member writes one.
+- **Exchanges**: the network checks only that a completion or a review is written by one of the exchange's two members, not that the exchange was accepted first, nor that each member writes at most one of each.
 - **Cancellation**: either member can cancel an exchange at any stage, after both have completed and reviewed it too; the app offers Cancel only until both parts are done, so a completed exchange can be voided only from a modified client.
 - **Administrators' edits**: an administrator's edit or archive of another member's listing can leave the old version on the active list, when the administrator's node has not yet received that listing's link.
 

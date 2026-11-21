@@ -23,7 +23,7 @@
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { runEffect } from '$lib/utils/effect';
   import { ADMIN_SHORTCUT_HINT } from '$lib/utils/admin-shortcut';
-  import { needsSelfAcceptance } from '$lib/utils/progenitor-hint';
+  import { needsSelfAcceptance, SELF_ACCEPTANCE_STEP } from '$lib/utils/progenitor-hint';
   import weaveStore from '$lib/stores/weave.store.svelte';
   import MarkdownField from '$lib/components/shared/MarkdownField.svelte';
   import { paths } from '$lib/paths';
@@ -99,10 +99,7 @@
   <div class="space-y-4">
     <div class="rounded-lg border-l-4 border-blue-500 p-4">
       <h3 class="text-tertiary-500 text-lg font-bold">One step left</h3>
-      <p class="mt-2 text-left">
-        Accept your own membership. Until you do, your status is pending and the app treats you
-        as a new member.
-      </p>
+      <p class="mt-2 text-left">${SELF_ACCEPTANCE_STEP}</p>
     </div>
     <p class="text-sm">Tip: ${ADMIN_SHORTCUT_HINT}.</p>
   </div>`;

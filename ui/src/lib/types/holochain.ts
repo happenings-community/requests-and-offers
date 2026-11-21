@@ -77,8 +77,13 @@ export const TimePreferenceHelpers = {
   getValue: (pref: TimePreference): string =>
     typeof pref === 'object' && 'Other' in pref ? pref.Other : (pref as string),
 
+  // The label the forms offer, never the enum: pages read "NoPreference" before (F4).
   getDisplayValue: (pref: TimePreference): string =>
-    typeof pref === 'object' && 'Other' in pref ? pref.Other || 'Other' : (pref as string)
+    typeof pref === 'object' && 'Other' in pref
+      ? pref.Other || 'Other'
+      : pref === 'NoPreference'
+        ? 'No Preference'
+        : (pref as string)
 };
 
 export enum InteractionType {

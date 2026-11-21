@@ -1,6 +1,6 @@
 <script lang="ts">
   import { timeframeLabel } from '$lib/utils/timeframe';
-  import { estimateLabel } from '$lib/utils/estimate';
+  import { estimateLabel, hasEstimate } from '$lib/utils/estimate';
   import { termsState, TERMS_LOADING, TERMS_FAILED } from '$lib/utils/listing-terms';
   import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
   import { encodeHashToBase64 } from '@holochain/client';
@@ -316,7 +316,7 @@
         {/if}
 
         <!-- Time Estimate -->
-        {#if request?.time_estimate_hours != null}
+        {#if hasEstimate(request?.time_estimate_hours)}
           <div>
             <h3 class="h4 font-semibold">Estimated time</h3>
             <!-- The listing's estimate, a decimal printed as written (#525). -->

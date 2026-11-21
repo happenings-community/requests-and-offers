@@ -216,10 +216,7 @@
   });
 </script>
 
-<PrerequisitesGuard
-  title="Prerequisites Required for Requests"
-  description="Requests require both service types and mediums of exchange. Administrators need to create/approve these before users can edit requests."
->
+<PrerequisitesGuard listing="requests" verb="edit">
   <section class="container mx-auto p-4">
     <div class="mb-6 flex items-center justify-between">
       <h1 class="h1">Edit Request</h1>

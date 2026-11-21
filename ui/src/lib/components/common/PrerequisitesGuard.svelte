@@ -2,6 +2,11 @@
   import { usePrerequisitesGuard } from '$lib/composables/ui/usePrerequisitesGuard.svelte';
   import type { Snippet } from 'svelte';
   import { paths } from '$lib/paths';
+  import {
+    prerequisiteWall,
+    type PrerequisiteListing,
+    type PrerequisiteVerb
+  } from '$lib/utils/prerequisites';
 
   type Props = {
     children: Snippet;
@@ -9,6 +14,9 @@
     mediumsOfExchangeRedirectPath?: string;
     title?: string;
     description?: string;
+    /** When set, the headline names what is actually missing for these listings (F3). */
+    listing?: PrerequisiteListing;
+    verb?: PrerequisiteVerb;
   };
 
   const {
@@ -16,7 +24,9 @@
     serviceTypesRedirectPath = paths.adminServiceTypes(),
     mediumsOfExchangeRedirectPath = paths.adminMediumsOfExchange(),
     title = 'Prerequisites Required',
-    description = 'Both service types and mediums of exchange must be created/approved by administrators before they can be used in requests and offers.'
+    description = 'Both service types and mediums of exchange must be created/approved by administrators before they can be used in requests and offers.',
+    listing,
+    verb = 'create'
   }: Props = $props();
 
   // Use the composable for all state management
@@ -29,8 +39,13 @@
   });
 
   // Dynamic title and description (use custom or fall back to composable)
-  const dynamicTitle = $derived(title || guard.title);
-  const dynamicDescription = $derived(description || guard.description);
+  const wall = $derived(
+    listing && guard.prerequisiteStatus
+      ? prerequisiteWall(guard.prerequisiteStatus, listing, verb)
+      : null
+  );
+  const dynamicTitle = $derived(wall?.title || title || guard.title);
+  const dynamicDescription = $derived(wall?.description || description || guard.description);
 
   function handleActionClick(action: { action?: string; href?: string }) {
     if (action.action === 'retry') {

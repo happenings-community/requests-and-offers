@@ -7,6 +7,8 @@
   import { getModalStore } from '@skeletonlabs/skeleton';
   import ContactAdminsModal from '$lib/components/users/ContactAdminsModal.svelte';
   import { headingFor, isBlockedState, lineFor, statusLabel } from '$lib/utils/profile-status';
+  import administrationStore from '$lib/stores/administration.store.svelte';
+  import { pendingWall } from '$lib/utils/progenitor-hint';
 
   type Props = {
     children: Snippet;
@@ -183,6 +185,10 @@
     return profileState().state === 'accepted';
   });
 
+  // A pending member who is an administrator (the first one, usually) accepts their own
+  // membership; they are not told to wait for, or contact, the administrators (F14).
+  const pending = $derived(pendingWall(administrationStore.agentIsAdministrator, blockedAction));
+
   // Actions based on profile state
   const primaryAction = $derived(() => {
     const state = profileState().state;
@@ -197,11 +203,7 @@
       // These open the administrators' contact details (#331); the routes they
       // used to point at (/support, /help) do not exist.
       case 'pending':
-        return {
-          label: 'Contact the administrators',
-          href: null,
-          variant: 'variant-filled-warning'
-        };
+        return { ...pending.action, variant: 'variant-filled-warning' };
       case 'rejected':
         return {
           label: 'Contact the administrators',
@@ -364,7 +366,13 @@
       <div class="space-y-4 text-surface-600">
         {#if blockedState()}
           <p class="text-lg">
-            {lineFor(blockedState()!, blockedAction, profileState().user?.status?.suspended_until)}
+            {blockedState() === 'pending'
+              ? pending.line
+              : lineFor(
+                  blockedState()!,
+                  blockedAction,
+                  profileState().user?.status?.suspended_until
+                )}
           </p>
         {:else}
           <p class="text-lg">{description}</p>
@@ -399,10 +407,7 @@
         {:else if profileState().state === 'pending'}
           <div class="bg-surface-100-800-token rounded-lg p-4">
             <h3 class="h4 mb-2 text-warning-600">What happens next?</h3>
-            <p class="text-sm">
-              Your profile is currently under review by administrators. This typically takes 24-48
-              hours. You'll be notified once your profile is approved.
-            </p>
+            <p class="text-sm">{pending.next}</p>
           </div>
         {:else if profileState().state === 'error'}
           <div class="bg-surface-100-800-token rounded-lg p-4">

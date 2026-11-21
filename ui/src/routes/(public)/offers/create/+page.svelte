@@ -122,10 +122,7 @@
   blockedAction="create offers"
   redirectToProfile={true}
 >
-  <PrerequisitesGuard
-    title="Service Types Required for Offers"
-    description="Offers must be categorized with service types. Administrators need to create service types before users can create offers."
-  >
+  <PrerequisitesGuard listing="offers" verb="create">
     <section class="container mx-auto p-4">
       <div class="mb-6 flex items-center justify-between">
         <h1 class="h1">Create Offer</h1>

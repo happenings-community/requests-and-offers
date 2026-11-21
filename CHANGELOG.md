@@ -17,7 +17,34 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 
 ### The network's first admin
 
-The network creator holds the first admin seat. The desktop build sets the creator's key as the network's progenitor, so only that key can write the first admin grant. The creator then appoints the team as further administrators on separate devices. The join service and onboarding arrive with alpha 3 (#95).
+The network creator holds the first admin seat.
+Alpha 2 runs without a progenitor key, in development mode: the desktop app generates a fresh agent key at install and passes no progenitor key to `installApp`, so the first profile created on the new network becomes its admin.
+The creator takes that seat from the release dry run, before the tag, and then appoints the team as further administrators on separate devices.
+This protects the seat against members running the app as published, once the creator's grant has reached them: the check is a DHT read, not a lock.
+A member running a modified client can still write themselves a root grant, because without a key validation has nothing to check it against.
+That is the trade we made for an invited network of testers.
+Alpha 3's Create Network flow (#95) is to bind the creator's key as the progenitor at install, and from then on only that key will be able to write the first admin grant; the join service and onboarding are to arrive with it.
+
+### What testers should know
+
+- **No tester keeps their old data.**
+  Holochain 0.7 changes every DNA hash, so alpha 2 is a new network: everyone creates a profile again and is accepted again.
+- **Expect breaking changes, and possibly network forks, before 0.6.0 final.**
+  A later alpha can start a new network again, and alpha data stays disposable until the migration lands (#144).
+
+### Known gaps
+
+What alpha 2 does not yet enforce, most of it reachable only by a member running a modified client.
+`documentation/architecture/validation.md` lists each one with the rest of the known limits, and the work that closes it.
+
+- **Roles**: without a progenitor key, a modified client can write itself a root grant, and so give itself any role.
+- **Listings and the catalogue**: the latest version of a listing, a service type or a medium of exchange is read from a link nothing validates, so a modified client can make another member's listing show text of its own (#400, #234).
+- **Statuses**: a member's current status is read from a link that validation checks only for its shape, so a modified client can make every reader that holds its link show another status as a member's current one.
+- **Acceptance**: a modified client can remove a member from the accepted list.
+  Wherever that removal has reached, the member's messages are hidden from every inbox, and the app refuses the listings and messages they try to send.
+- **Exchanges**: the network checks only that a completion or a review is written by one of the exchange's two members, not that the exchange was accepted first, nor that each member writes at most one of each.
+- **Cancellation**: either member can cancel an exchange at any stage, after both have completed and reviewed it too; the app offers Cancel only until both parts are done, so a completed exchange can be voided only from a modified client.
+- **Administrators' edits**: an administrator's edit or archive of another member's listing can leave the old version on the active list, when the administrator's node has not yet received that listing's link.
 
 ### Platform
 
@@ -44,7 +71,7 @@ The network creator holds the first admin seat. The desktop build sets the creat
 - **hREA**: A cancelled exchange ends its hREA Commitments (`984944a6`, #444)
 - **Administration**: An hREA dashboard audits the mirror against R&O (`73416bff`, #421)
 - **Administration**: The progenitor is told to accept their own membership (`480a2fd9`, #361, closes #358)
-- **Administration**: Roles are grants the network validates: a `RoleGrant` gives one agent one role in one scope, a `RoleRevocation` withdraws it, and adding or removing an administrator and changing a status carry the grant they rest on (`06c391bd`, #377)
+- **Administration**: Roles are grants the network validates: a `RoleGrant` gives one agent one role in one scope, a `RoleRevocation` withdraws it, and adding or removing an administrator and changing a status carry the grant they rest on: a `Status` entry and the accepted index carry it, while the link readers follow to a status's latest revision is checked only for its shape (see *Known gaps*) (`06c391bd`, #377)
 - **Messaging**: Members have an encrypted inbox: a message's content is encrypted to each recipient's key; who wrote to whom, and when, stays public for the life of the network. A member must be accepted to send, and only an administrator may write to a member not yet accepted (`931311e2`, #301)
 - **Messaging**: A message to the administrator role reaches every administrator, who work it together as a case (claim, release, hand over, note, complete, reopen). There is no interface for cases yet (`5ee9f1bd`, #304)
 - **Messaging**: Read state and blocks live in the member's own app, not on the chain, and read receipts travel as signals, never stored (`b3084fe4`, #364)
@@ -67,8 +94,8 @@ The network creator holds the first admin seat. The desktop build sets the creat
 - **Build**: `Cargo.lock` moves the crates behind the Holochain 0.7 advisories to patched releases, and holds `quinn-proto` back until Holochain itself moves (`710f5560`, #557, part of #363)
 - **Build**: `rustls-webpki` moves to 0.103.13 in `Cargo.lock` (`6a4f9c49`, #537)
 - **Users**: Validation decides who may write `UserAgents` and `MyUser` links: only a User's author links agents to it, only to their own key, and `MyUser` runs from the author's key to the author's User (`11bcf7a4`, #473)
-- **Validation**: Every role-gated write outside the administration zome carries the grant it rests on, and the network refuses an act by anyone never given the role. Requests, offers, interests and agreements need the author's member grant, and an organisation is updated by its creator, a coordinator of it, or an administrator. The release build sets the network creator's key as the progenitor, so only that key can write the root grant; on a network built without a progenitor key, such as a development network (#466), validation accepts a root grant from any author, so a modified client can still grant itself a role (`c3db8659`, #378)
-- **Messaging**: A message carries its author's member grant, and validation refuses one that does not. On a network built without a progenitor key, such as a development network (#466), a modified client can write itself a root grant and so a member grant (`a677c286`, #412); validation refuses a ciphertext over 3,840 bytes, inside the 3,959 a recipient's keystore can open (`20c05eee`, #488)
+- **Validation**: Every role-gated write outside the administration zome carries the grant it rests on, and the network refuses an act by anyone never given the role. Requests, offers, interests and agreements need the author's member grant, and an organisation is updated by its creator, a coordinator of it, or an administrator. Alpha 2 is built without a progenitor key (see *The network's first admin*), so validation accepts a root grant from any author and a modified client can still grant itself a role; the key arrives with alpha 3 (#95) (`c3db8659`, #378)
+- **Messaging**: A message carries its author's member grant, and validation refuses one that does not. Alpha 2 is built without a progenitor key, so a modified client can write itself a root grant and so a member grant (`a677c286`, #412); validation refuses a ciphertext over 3,840 bytes, inside the 3,959 a recipient's keystore can open (`20c05eee`, #488)
 - **Messaging**: A message to a role goes to the agents its live grants name, so a revoked administrator, an emptied roster or a roster link written by a modified client no longer changes who receives it (`c1784a45`, #520, closes #518)
 - **Administration**: A temporary suspension's end is a timestamp that validation checks is after its writing; it was text nothing checked, and a malformed one made every later read of that status fail. This changes the Status entry format, so it needs a network reset (`e8b51aac`, #528)
 
@@ -98,7 +125,7 @@ The network creator holds the first admin seat. The desktop build sets the creat
 - **UI**: Alt+A no longer fires while typing, and the Admin button shows at once (`0627f26b`, #356, closes #206)
 - **UI**: The network status shows the iroh relay, not the tx5 signal server (`f8687cdc`, #283)
 - **UI**: The users and organizations lists take the page width, and the service type headers line up (`1e4736e8`, #389, part of #387)
-- **Requests and Offers**: A listing stays in the list its status names, and archiving acts at the chain root (`7c45fb11`, #457)
+- **Requests and Offers**: A listing stays in the list its status names, and archiving acts at the chain root (`7c45fb11`, #457); this holds on a node that already holds the listing's active link, such as its author's, while an edit or an archive made from another node can leave the old version on the active list (see *Known gaps*)
 - **UI**: A save is announced once, by its form, and a failed one says so (`b7acda37`, #459)
 - **Mediums of Exchange**: The store keeps the type the DHT holds, so a currency is no longer shown as Base (`109b7aa0`, #453)
 - **Mediums of Exchange**: The wording says a base is a kind of exchange and a currency a unit people pay in, with no payment methods (`a5a9f15d`, #467); the listing forms always call the section Medium of Exchange (`8e950b8d`, #471)
@@ -141,7 +168,7 @@ The network creator holds the first admin seat. The desktop build sets the creat
 - **Contributing**: The review rules are written down (`d852be25`, #293, closes #225)
 - **Release**: The announcement is gated on a launched packaged build (`162ca5e4`, #271); a discussion form for release feedback (`d110f10b`, #294); the Homebrew cask is installed by full name for tap trust (`14666074`, #267); production checks: never on a Friday, the built app run before the tag, two peers checked before announcing (`f71f5aa4`, #447, part of #276)
 - **Zome errors**: Zome errors come from `utils/src/errors.rs`, written down as a rule in `CLAUDE.md` (`23825ddc`, #472)
-- **Installation**: A desktop network built without a progenitor key runs in development mode and its first profile becomes admin; the alpha 2 release build carries the network creator's key (`8ad45332`, #445)
+- **Installation**: A desktop network built without a progenitor key runs in development mode and its first profile becomes admin (`8ad45332`, #445)
 - **Development**: The inspector's adapter contract, packaging options and a Nondominium trial (`15d069e8`, #446); the guides follow what `bun start` and `bun start:web` now launch, and the ports they take (`ff26c178`, #449)
 - **Installation**: A desktop release runs in development mode: what that protects, what it does not, and the first-admin practice (`ca31467f`, #466)
 - **Status**: The status page matches the alpha 2 tree (`725fe638`, #489, part of #415)

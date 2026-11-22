@@ -20,6 +20,7 @@ The enforcement limits are listed under Known gaps in 0.6.0-alpha.2 below.
 - **My Listings**: a listing's latest revision hash is passed on as its `original_action_hash`; nothing visible breaks today, but a screen comparing it with a hash from elsewhere can miss after an edit ([#584](https://github.com/happenings-community/requests-and-offers/issues/584)).
 - **Exchanges**: a Base Category medium such as Time Banking reads as "Gift, nothing owed" on an exchange; what it should mean is an open product question ([#585](https://github.com/happenings-community/requests-and-offers/issues/585)).
 - **Messages**: a conversation row's "new" count adds exchange cards to messages, so one message after an exchange can read "5 new"; a label that tells them apart is proposed ([#586](https://github.com/happenings-community/requests-and-offers/issues/586)).
+- **Exchanges**: a new interest does not reach the listing owner's open page; the owner sees it after a reload ([#588](https://github.com/happenings-community/requests-and-offers/issues/588)).
 - **hREA, upstream, tracked for alpha 3**: deleting a Proposal leaves its purpose index link behind; latent here, because the app sets no purpose.
 - **hREA, upstream, tracked for alpha 3**: updating a Commitment leaves the `all_commitments` index on its first revision; the app reads each Commitment's latest revision itself until it is fixed.
 - **hREA, upstream, tracked for alpha 3**: there is no way to find a Proposal by an external reference, so the app finds a listing's Proposals by the hash line in their note.

@@ -28,6 +28,7 @@
   import { runEffect } from '$lib/utils/effect';
   import ReachPerson from '$lib/components/exchanges/ReachPerson.svelte';
   import ErrorState from '$lib/components/shared/ErrorState.svelte';
+  import BackButton from '$lib/components/shared/BackButton.svelte';
   import { proposeUnavailable, type ProposeProblem } from '$lib/utils/propose-unavailable';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import {
@@ -250,6 +251,8 @@
       return;
     }
     (async () => {
+      // Whether this attempt read the listing itself, for the message if a read fails.
+      let listingRead = false;
       try {
         await runEffect(useConnectionGuard());
         const item =
@@ -260,6 +263,7 @@
           problem = { kind: 'not-found' };
           return;
         }
+        listingRead = true;
         listing = item;
         loadedType = listingType;
         if (item.creator) creator = await runEffect(usersStore.getUserByActionHash(item.creator));
@@ -312,7 +316,10 @@
           }
         }
       } catch (e) {
-        problem = { kind: 'failed', detail: e instanceof Error ? e.message : String(e) };
+        // The listing itself, or something read after it: saying the listing could not be
+        // loaded when it was would send the member looking for the wrong fault.
+        const detail = e instanceof Error ? e.message : String(e);
+        problem = { kind: listingRead ? 'unprepared' : 'failed', detail };
       }
     })();
   }
@@ -364,7 +371,14 @@
 </svelte:head>
 
 <section class="container mx-auto max-w-reading space-y-6 p-4">
-  <button class="variant-soft btn btn-sm" onclick={() => history.back()}>Back</button>
+  <!-- Opened directly (a bare or shared address), there is no history to go back to: the
+       listing, unless there is none or it was not found. -->
+  <BackButton
+    fallback={params.listing && params.listingType && problem?.kind !== 'not-found'
+      ? paths.listingDetail(params.listing, params.listingType)
+      : paths.exchanges()}
+    class="variant-soft btn btn-sm"
+  />
 
   {#if unavailable}
     <ErrorState

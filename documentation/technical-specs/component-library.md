@@ -134,6 +134,22 @@ Components are organized by domain with a feature-based approach, located in `ui
 - `error`: any - Error object to display
 - `retry`: () => void - Optional retry function
 
+For an operation that failed inside a page that did open. A page that cannot show what it was opened for uses `ErrorState` instead.
+
+#### ErrorState.svelte
+
+**Purpose**: A page that cannot show what it was opened for, said calmly and with a way on: the app's port of the design system's `ErrorView`. A card on the surface colour with the brand band along its top, an icon, an eyebrow, a title, one sentence of what happened, an optional quieter detail line, and actions. Theme colours only, so it reads the same in light and dark; no error-red block.
+
+**Props**:
+
+- `title`, `body`: string - What cannot be shown, and why, in one sentence
+- `icon`, `eyebrow`: string - Optional
+- `detail`, `detailLabel`: string - What the app reported, kept apart from the explanation
+- `actions`: `{ label, href, primary? }[]` - Ways on, at most one primary
+- `retryLabel`: string, `onretry`: () => void - A Try again button, when retrying can help
+
+Used by the proposal page (`utils/propose-unavailable.ts` maps each reason it cannot open to its wording and ways on).
+
 ## Styling and Theming
 
 The application uses a combination of TailwindCSS and SkeletonUI for styling, with a custom theme defined in
@@ -193,7 +209,7 @@ In addition to Tailwind's utility classes, the application defines several custo
 
 1. **Component Composition**: Prefer composition over complex, monolithic components
 2. **Props Typing**: Always define proper TypeScript interfaces for component props
-3. **Error Handling**: Use ErrorDisplay component for consistent error presentation
+3. **Error Handling**: Use ErrorDisplay for an operation that failed inside a page, and ErrorState for a page that cannot show what it was opened for
 4. **Loading States**: Use LoadingSpinner for all asynchronous operations
 5. **Accessibility**: Ensure all components meet WCAG AA standards
 

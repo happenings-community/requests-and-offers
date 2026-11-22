@@ -54,12 +54,23 @@ describe('proposeUnavailable', () => {
     expect(state.detail).toBe('Connection closed');
   });
 
+  it('says the proposal could not be prepared, not the listing loaded, when a later read failed', () => {
+    const problem: ProposeProblem = { kind: 'unprepared', detail: 'Connection closed' };
+    const state = proposeUnavailable(problem, { listing: LISTING, type: 'Offer' });
+    expect(state.title).toBe(S.unprepared.title);
+    expect(state.title).not.toBe(S.failed.title);
+    expect(state.actions[0]).toMatchObject({ href: paths.offerDetail(LISTING), primary: true });
+    expect(state.retry).toBe(true);
+    expect(state.detail).toBe('Connection closed');
+  });
+
   it('never makes more than one action primary', () => {
     const problems: ProposeProblem[] = [
       { kind: 'no-listing' },
       { kind: 'no-type' },
       { kind: 'not-found' },
-      { kind: 'failed', detail: 'x' }
+      { kind: 'failed', detail: 'x' },
+      { kind: 'unprepared', detail: 'x' }
     ];
     for (const p of problems) {
       const state = proposeUnavailable(p, { listing: LISTING, type: 'Offer' });

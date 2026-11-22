@@ -148,7 +148,7 @@
 {:else if mediumError}
   <span
     class="variant-soft-error chip max-w-full whitespace-nowrap"
-    title="Error loading medium of exchange"
+    title={`Error loading medium of exchange: ${mediumError}`}
   >
     <span class="truncate">{mediumError}</span>
   </span>

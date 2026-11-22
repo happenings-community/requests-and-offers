@@ -136,7 +136,7 @@
 {:else if error}
   <span
     class="variant-soft-error chip max-w-full whitespace-nowrap"
-    title="Error loading service type"
+    title={`Error loading service type: ${error}`}
   >
     <span class="truncate">{error}</span>
   </span>

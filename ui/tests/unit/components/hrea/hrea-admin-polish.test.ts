@@ -45,6 +45,34 @@ describe('the economic-flow graph', () => {
   });
 });
 
+describe('the graph legend', () => {
+  const src = read('src/lib/components/hrea/HreaDashboard.svelte');
+  const states = [
+    ...read('src/lib/utils/hrea-dashboard.ts').match(/export type FlowState = ([^;]+);/)![1].matchAll(/'([a-z-]+)'/g)
+  ].map((m) => m[1]);
+  const legend = src.slice(src.indexOf('const LEGEND'), src.indexOf('];', src.indexOf('const LEGEND')));
+
+  it('explains every node state, once, in the order a reader meets them', () => {
+    expect(states.length).toBeGreaterThan(0);
+    const entries = [...legend.matchAll(/state: '([a-z-]+)'/g)].map((m) => m[1]);
+    expect([...entries].sort()).toEqual([...states].sort());
+    expect(entries[0]).toBe('present');
+  });
+
+  it('does not blame the mirror for a listing that was archived or deleted', () => {
+    expect(legend).toMatch(/archived or deleted/);
+  });
+
+  it('says the medium specification is drawn with nothing conforming to it, as the graph draws it', () => {
+    expect(legend).not.toMatch(/no resource specification is drawn/);
+    expect(legend).toMatch(/nothing conforms to it/);
+  });
+
+  it('never makes a legend row wider than a phone screen', () => {
+    expect(src).toMatch(/minmax\(min\(340px, 100%\), 1fr\)/);
+  });
+});
+
 describe('the Test managers', () => {
   const files = readdirSync(resolve(process.cwd(), TEST_PAGE)).filter((f) => f.endsWith('.svelte'));
 

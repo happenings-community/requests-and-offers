@@ -129,7 +129,7 @@ describe('countVfTypes', () => {
 });
 
 describe('expectedFromExchanges', () => {
-  it('expects one agreement per accepted exchange, two commitments for a paid one, one per completed side', () => {
+  it('expects one agreement per accepted exchange, both commitments on every one (a gift included), one event per completed side', () => {
     const accepted = exchange({ provider_done: { created_at: 3 } });
     const gift = exchange(
       { agreement_hash: hash(10) },
@@ -150,19 +150,19 @@ describe('expectedFromExchanges', () => {
     const tbd = exchange({ agreement_hash: hash(13) }, { primary: term({ resource_kind: 'Tbd' }) });
     expect(expectedFromExchanges([accepted, gift, proposed, declined, tbd])).toEqual({
       agreements: 2,
-      commitments: 3,
+      commitments: 4,
       events: 1
     });
   });
 
-  it('does not expect a receiver event for a gift', () => {
+  it("expects the receiver's event of a gift too: the side done fulfils its clause, moving nothing", () => {
     const gift = exchange(
       { receiver_done: { created_at: 4 } },
       {
         reciprocal: term({ direction: 'Receive', resource_conforms_to: '', resource_kind: 'Gift' })
       }
     );
-    expect(expectedFromExchanges([gift]).events).toBe(0);
+    expect(expectedFromExchanges([gift]).events).toBe(1);
   });
 });
 
@@ -308,7 +308,7 @@ describe('buildExchangeFlow', () => {
     expect(state.eventR).toBe('not-yet');
   });
 
-  it('does not expect agreement nodes before acceptance, nor reciprocal nodes for a gift', () => {
+  it('does not expect agreement nodes before acceptance; a gift draws both clauses and no reciprocal spec', () => {
     const proposed = exchange({ status: 'Proposed', response: undefined });
     const p = Object.fromEntries(
       buildExchangeFlow(proposed, ctx, emptySnapshot()).map((n) => [n.id, n.state])
@@ -326,9 +326,63 @@ describe('buildExchangeFlow', () => {
     const g = Object.fromEntries(
       buildExchangeFlow(gift, ctx, emptySnapshot()).map((n) => [n.id, n.state])
     );
-    expect(g.commitR).toBe('not-mapped');
-    expect(g.specM).toBe('not-mapped');
-    expect(g.eventR).toBe('not-mapped');
+    expect(g.commitR).toBe('missing');
+    expect(g.intentR).toBe('missing');
+    expect(g.specM).toBe('no-resource');
+    expect(g.eventR).toBe('not-yet');
+    expect(Object.values(g)).not.toContain('not-mapped');
+  });
+
+  it('draws the same node set for a reviewed gift and a cancelled one, in the DS model', () => {
+    const giftTerm = {
+      reciprocal: term({ direction: 'Receive', resource_conforms_to: '', resource_kind: 'Gift' })
+    };
+    const reviewed = exchange(
+      { status: 'Reviewed', provider_done: { created_at: 3 }, receiver_done: { created_at: 4 } },
+      giftTerm
+    );
+    const cancelled = exchange(
+      { status: 'Cancelled', cancellation: { created_at: 5 } } as Partial<UIExchange>,
+      giftTerm
+    );
+    const ids = (ex: UIExchange) => buildExchangeFlow(ex, ctx, emptySnapshot()).map((n) => n.id);
+    expect(ids(reviewed)).toEqual(ids(cancelled));
+    const r = Object.fromEntries(
+      buildExchangeFlow(reviewed, ctx, emptySnapshot()).map((n) => [n.id, n.state])
+    );
+    expect(r.commitR).toBe('missing');
+    expect(r.eventR).toBe('missing');
+  });
+
+  it("says a cancelled exchange's undelivered events will not happen, rather than not yet", () => {
+    const cancelled = exchange({
+      status: 'Cancelled',
+      cancellation: { created_at: 5 }
+    } as Partial<UIExchange>);
+    const c = Object.fromEntries(
+      buildExchangeFlow(cancelled, ctx, fullSnapshot(cancelled)).map((n) => [n.id, n.state])
+    );
+    expect(c.eventP).toBe('present'); // the full snapshot holds the provider event
+    const none = Object.fromEntries(
+      buildExchangeFlow(cancelled, ctx, { ...fullSnapshot(cancelled), events: [] }).map((n) => [
+        n.id,
+        n.state
+      ])
+    );
+    expect(none.eventP).toBe('ended');
+    expect(none.eventR).toBe('ended');
+    expect(none.agreement).toBe('present');
+
+    const declined = exchange({
+      status: 'Declined',
+      response: { agreement: hash(9), accepted: false, note: '', created_at: 2 }
+    });
+    const d = Object.fromEntries(
+      buildExchangeFlow(declined, ctx, emptySnapshot()).map((n) => [n.id, n.state])
+    );
+    expect(d.agreement).toBe('ended');
+    expect(d.commitP).toBe('ended');
+    expect(d.eventR).toBe('ended');
   });
 
   it('matches intents only among the ones the listing proposal publishes', () => {
@@ -372,12 +426,19 @@ describe('KNOWN_MAPPING_GAPS', () => {
     const text = KNOWN_MAPPING_GAPS.map((g) => `${g.title} ${g.detail}`).join(' ');
     expect(text).not.toMatch(/Fulfillment/);
     expect(text).not.toMatch(/agreementMappings/);
-    expect(KNOWN_MAPPING_GAPS).toHaveLength(2);
+    expect(KNOWN_MAPPING_GAPS).toHaveLength(3);
   });
 
   it('names what the repair of a failed mirror leaves', () => {
     const text = KNOWN_MAPPING_GAPS.map((g) => `${g.title} ${g.detail}`).join(' ');
     expect(text).toMatch(/marked it done/);
     expect(text).toMatch(/not its reciprocal/);
+  });
+
+  it('names what was mirrored before alpha 2: one-clause gifts, leftover proposals, byte-list notes', () => {
+    const text = KNOWN_MAPPING_GAPS.map((g) => `${g.title} ${g.detail}`).join(' ');
+    expect(text).toMatch(/one Commitment/);
+    expect(text).toMatch(/left behind/);
+    expect(text).toMatch(/byte values/);
   });
 });

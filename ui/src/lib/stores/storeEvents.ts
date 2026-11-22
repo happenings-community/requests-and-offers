@@ -29,12 +29,17 @@ export type StoreEvents = {
   // Requests
   'request:created': { request: UIRequest };
   'request:updated': { request: UIRequest };
-  'request:deleted': { requestHash: ActionHash };
+  /**
+   * `chainHashes`: every hash of the deleted request's chain, read before the delete ran
+   * (listingChain), so the hREA store can still tell which proposals were its.
+   */
+  'request:deleted': { requestHash: ActionHash; chainHashes?: ActionHash[] };
 
   // Offers
   'offer:created': { offer: UIOffer };
   'offer:updated': { offer: UIOffer };
-  'offer:deleted': { offerHash: ActionHash };
+  /** `chainHashes`: as for `request:deleted`. */
+  'offer:deleted': { offerHash: ActionHash; chainHashes?: ActionHash[] };
 
   // Exchanges
   'exchange:accepted': { exchange: UIExchange };

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { hashLabel } from '$lib/utils/hash-label';
+  import { refHashFromNote } from '$lib/utils/hrea-ref';
   import { findByRoot } from '$lib/utils/medium-by-root';
   import { useMediumRoots } from '$lib/composables/domain/hrea/useMediumRoots.svelte';
   import { onMount, onDestroy } from 'svelte';
@@ -167,15 +168,12 @@
     }
   }
 
+  /** The hash a note names, read in either form it was written in (hrea-ref.ts). */
   function extractActionHashFromNote(
     note: string,
     entityType: 'user' | 'organization' | 'serviceType' | 'mediumOfExchange'
   ): string | null {
-    const prefix = `ref:${entityType}:`;
-    if (note.startsWith(prefix)) {
-      return note.substring(prefix.length);
-    }
-    return null;
+    return refHashFromNote(note, entityType);
   }
 
   /**

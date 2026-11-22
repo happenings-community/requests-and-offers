@@ -72,9 +72,35 @@
   const STATE_LABEL: Record<FlowState, string> = {
     present: 'in hREA',
     missing: 'missing',
-    'not-yet': 'not yet',
+    'not-yet': 'not yet created',
+    ended: 'will not happen',
+    'no-resource': 'no resource',
     'not-mapped': 'not mapped'
   };
+
+  /** What each node state means, in the order a reader meets them; one entry per FlowState. */
+  const LEGEND: readonly { state: FlowState; meaning: string }[] = [
+    { state: 'present', meaning: 'hREA holds this record.' },
+    {
+      state: 'missing',
+      meaning:
+        'The exchange has reached the stage that needs this record, and hREA does not hold it. Usually the mirror is incomplete; for a listing that was archived or deleted, its Proposal and Intents were retired on purpose (see Known mapping gaps).'
+    },
+    { state: 'not-yet', meaning: 'The exchange has not reached the stage that creates it.' },
+    {
+      state: 'ended',
+      meaning: 'The exchange was cancelled, declined or withdrawn before that stage.'
+    },
+    {
+      state: 'no-resource',
+      meaning:
+        'The reciprocal moves nothing (a gift, or a term still to be discussed): the medium\'s specification is drawn, and nothing conforms to it.'
+    },
+    {
+      state: 'not-mapped',
+      meaning: 'The service is still to be discussed, so R&O writes no mirror for it.'
+    }
+  ];
 
   const CANVAS = { w: 900, h: 500 };
   const LAYOUT: Record<string, { x: number; y: number; w: number; h: number }> = {
@@ -506,11 +532,25 @@
             {/each}
           </dl>
         {:else}
-          <p class="hrea-sub">
-            Missing: the exchange's stage expects it and hREA does not hold it. Not yet: the stage
-            does not call for it. Not mapped: R&amp;O never mirrors it for this kind of term.
-          </p>
+          <p class="hrea-sub">Hover, tap or tab to a node to read its fields here.</p>
         {/if}
+      </div>
+
+      <div class="hrea-legend">
+        <h3 class="hrea-legend-title">Reading a node</h3>
+        <ul class="hrea-legend-list">
+          {#each LEGEND as l (l.state)}
+            <li class="hrea-legend-item">
+              <span
+                class="hrea-node hrea-k--spec hrea-node--{l.state} hrea-legend-swatch"
+                aria-hidden="true"
+              >
+                <span class="hrea-node-title">{STATE_LABEL[l.state]}</span>
+              </span>
+              <span><strong>{STATE_LABEL[l.state]}</strong>: {l.meaning}</span>
+            </li>
+          {/each}
+        </ul>
       </div>
     {/if}
   </section>
@@ -803,6 +843,8 @@
     outline-offset: 2px;
   }
   .hrea-node--not-yet,
+  .hrea-node--ended,
+  .hrea-node--no-resource,
   .hrea-node--not-mapped {
     background: rgb(var(--color-surface-500) / 0.08);
     color: inherit;
@@ -811,11 +853,15 @@
     box-shadow: none;
   }
   :global(.dark) .hrea-node--not-yet,
+  :global(.dark) .hrea-node--ended,
+  :global(.dark) .hrea-node--no-resource,
   :global(.dark) .hrea-node--not-mapped {
     border-color: rgb(var(--color-surface-300));
     border-left-color: rgb(var(--kl));
   }
   :global(.dark) .hrea-node--not-yet .hrea-node-kind,
+  :global(.dark) .hrea-node--ended .hrea-node-kind,
+  :global(.dark) .hrea-node--no-resource .hrea-node-kind,
   :global(.dark) .hrea-node--not-mapped .hrea-node-kind {
     color: rgb(var(--kl));
   }
@@ -846,6 +892,37 @@
     /* error-700 on the node's surface-50: 6.6:1 (error-500 was 4.3:1) */
     color: rgb(var(--color-error-700));
     opacity: 1;
+  }
+
+  .hrea-legend {
+    border-top: 1px solid rgb(var(--color-surface-500) / 0.25);
+    padding-top: 14px;
+  }
+  .hrea-legend-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin: 0 0 10px;
+  }
+  .hrea-legend-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+    gap: 10px 24px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .hrea-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    line-height: 18px;
+  }
+  .hrea-legend-swatch {
+    position: static;
+    flex: none;
+    width: 132px;
+    padding: 6px 10px;
   }
 
   .hrea-inspector {

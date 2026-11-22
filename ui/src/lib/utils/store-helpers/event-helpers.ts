@@ -52,9 +52,13 @@ export const createEventEmitterFactory = <TEntity extends CacheableEntity>(
     }
   };
 
-  const emitDeleted = (entityHash: ActionHash): void => {
+  /** `extra` joins the payload, for an event that carries more than the hash. */
+  const emitDeleted = (entityHash: ActionHash, extra?: object): void => {
     try {
-      storeEventBus.emit(`${entityName}:deleted` as keyof StoreEvents, { [`${entityName}Hash`]: entityHash } as never);
+      storeEventBus.emit(
+        `${entityName}:deleted` as keyof StoreEvents,
+        { [`${entityName}Hash`]: entityHash, ...extra } as never
+      );
     } catch (error) {
       console.error(`Failed to emit ${entityName}:deleted event:`, error);
     }

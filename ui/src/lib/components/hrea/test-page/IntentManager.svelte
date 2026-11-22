@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import hreaStore from '$lib/stores/hrea.store.svelte';
+  import { unitLabelOf } from '$lib/services/mappers/agreement-commitment.mapper';
   import { storeEventBus } from '$lib/stores/storeEvents';
   import type { Intent, Agent, ResourceSpecification } from '$lib/types/hrea';
   import { runEffect } from '$lib/utils/effect';
@@ -333,7 +334,7 @@
                         ? 'variant-soft-primary'
                         : 'variant-soft-secondary'}"
                     >
-                      {resourceType === 'service' ? 'Service' : 'Currency'}
+                      {resourceType === 'service' ? 'Service' : 'Medium of exchange'}
                     </span>
                   {/if}
                 </div>
@@ -362,6 +363,13 @@
                 </div>
                 <div class="text-xs text-warning-800 dark:text-warning-400">
                   ID: {intent.resourceSpecifiedBy.slice(-8)}
+                </div>
+              </div>
+            {:else}
+              <div class="bg-surface-100-800-token rounded p-2 text-sm">
+                <div class="font-medium text-surface-700 dark:text-surface-300">Resource:</div>
+                <div class="text-surface-600 dark:text-surface-300">
+                  none, framed by the listing's medium of exchange
                 </div>
               </div>
             {/if}
@@ -398,7 +406,7 @@
               <div class="rounded bg-tertiary-500/10 p-2 text-sm">
                 <div class="text-tertiary-800 dark:text-tertiary-400">
                   Quantity: {intent.resourceQuantity.hasNumericalValue}
-                  {intent.resourceQuantity.hasUnit || 'units'}
+                  {unitLabelOf(intent.resourceQuantity.hasUnit) ?? 'units'}
                 </div>
               </div>
             {/if}

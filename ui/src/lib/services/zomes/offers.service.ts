@@ -21,6 +21,8 @@ export interface OffersService {
   readonly getLatestOfferRecord: (
     originalActionHash: ActionHash
   ) => E.Effect<Record | null, OfferError>;
+  /** The record one action hash names, any revision; null once the offer is deleted. */
+  readonly getOfferRecord: (actionHash: ActionHash) => E.Effect<Record | null, OfferError>;
   readonly getLatestOffer: (
     originalActionHash: ActionHash
   ) => E.Effect<OfferInDHT | null, OfferError>;
@@ -102,6 +104,9 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
         originalActionHash: ActionHash
       ): E.Effect<Record | null, OfferError> =>
         wrapZomeCall('offers', 'get_latest_offer_record', originalActionHash);
+
+      const getOfferRecord = (actionHash: ActionHash): E.Effect<Record | null, OfferError> =>
+        wrapZomeCall('offers', 'get_offer', actionHash);
 
       const getLatestOffer = (
         originalActionHash: ActionHash
@@ -189,6 +194,7 @@ export const OffersServiceLive: Layer.Layer<OffersServiceTag, never, HolochainCl
       return OffersServiceTag.of({
         createOffer,
         getLatestOfferRecord,
+        getOfferRecord,
         getLatestOffer,
         updateOffer,
         getActiveOffersRecords,

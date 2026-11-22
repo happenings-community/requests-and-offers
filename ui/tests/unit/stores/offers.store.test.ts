@@ -113,6 +113,44 @@ describe('Offers Store', () => {
     expect(mockOffersService.deleteOffer).toHaveBeenCalledWith(mockHash);
   });
 
+  /**
+   * Alpha 2 final dogfooding: once a offer is deleted, no revision of it can be read, so the
+   * hREA store could not tell which proposals an edit had noted under another hash. The
+   * chain is read before the delete and travels with the event.
+   */
+  it('reads the offer chain before deleting it and hands it to the deleted event', async () => {
+    const { storeEventBus } = await import('$lib/stores/storeEvents');
+    const root = (await createMockRecord()).signed_action.hashed.hash;
+    const latest = await createMockRecord();
+    const latestHash = latest.signed_action.hashed.hash;
+    // The latest revision updates the root.
+    (latest.signed_action.hashed.content as unknown as { data: unknown }).data = {
+      type: 'Update',
+      original_action_address: root
+    };
+    const order: string[] = [];
+    vi.spyOn(mockOffersService, 'getLatestOfferRecord').mockImplementation(() =>
+      Effect.sync(() => {
+        order.push('read');
+        return latest;
+      })
+    );
+    vi.spyOn(mockOffersService, 'deleteOffer').mockImplementation(() =>
+      Effect.sync(() => {
+        order.push('delete');
+        return true;
+      })
+    );
+    const seen: unknown[] = [];
+    const off = storeEventBus.on('offer:deleted', (payload) => seen.push(payload));
+
+    await runEffect(store.deleteOffer(latestHash));
+    off();
+
+    expect(order).toEqual(['read', 'delete']);
+    expect(seen).toEqual([{ offerHash: latestHash, chainHashes: [latestHash, root] }]);
+  });
+
   it('should get all offers and update the store state', async () => {
     await runEffect(store.getActiveOffers());
 

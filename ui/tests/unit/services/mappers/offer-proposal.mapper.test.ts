@@ -96,6 +96,23 @@ describe('Offer to Proposal Mapper', () => {
       expect(result.paymentIntent.resourceSpecifiedBy).toBe('rs-moe');
     });
 
+    it('gives the reciprocal intent no resource when the medium is a base category (framed, not owed)', async () => {
+      const params: OfferProposalMappingParams = {
+        offer: createMockOffer(),
+        offererAgent: createMockAgent(),
+        serviceTypeResourceSpecs: [createMockResourceSpec('rs-1', 'Garden help')],
+        mediumOfExchangeResourceSpec: createMockResourceSpec('rs-moe', 'Time Banking'),
+        mediumIsBaseCategory: true
+      };
+
+      const result = await E.runPromise(createProposalFromOffer(params));
+
+      expect(result.paymentIntent.isReciprocal).toBe(true);
+      expect(result.paymentIntent.action).toBe('transfer');
+      expect(result.paymentIntent.resourceSpecifiedBy).toBeUndefined();
+      expect(result.serviceIntents[0].resourceSpecifiedBy).toBe('rs-1');
+    });
+
     it('should have opposite role assignment compared to request mapper', async () => {
       // Offer: provider=offerer (provides service), receiver=offerer (receives payment)
       // Request: receiver=requester (receives service), provider=requester (provides payment)

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
+import { safeHtml } from '$lib/utils/safe-html';
 
 /**
  * **Decline, Withdraw proposal and Cancel agreement ask first** (dogfooding 21 November).
@@ -13,7 +14,7 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
  */
 
 const { view, actions, trigger } = vi.hoisted(() => ({
-  view: { state: 'proposed', iWroteIt: false },
+  view: { state: 'proposed', iWroteIt: false, otherName: 'Bob' },
   actions: {
     decline: vi.fn(async () => true),
     withdraw: vi.fn(async () => true),
@@ -43,7 +44,9 @@ vi.mock('$lib/composables/domain/exchanges/useExchangeDetails.svelte', () => ({
       status: 'Proposed',
       created_at: 0
     },
-    other: { name: 'Bob' },
+    get other() {
+      return { name: view.otherName };
+    },
     listingTitle: 'Garden help',
     listingHref: '/offers/x',
     loadError: null,
@@ -95,6 +98,7 @@ beforeEach(() => {
   cleanup();
   trigger.mockReset();
   for (const fn of Object.values(actions)) fn.mockClear();
+  view.otherName = 'Bob';
 });
 
 /** The dialog the click opened, answered as the member would. */
@@ -123,6 +127,24 @@ describe('irreversible exchange actions', () => {
       expect(actions[action]).toHaveBeenCalledTimes(1);
     }
   );
+
+  /**
+   * The dialog renders its message as HTML, and the name is the other member's own text.
+   * A name written as a link must reach the dialog as text, not as a link that looks like
+   * the dialog's own button. **To make this go red:** put the name in unescaped.
+   */
+  it('puts the other member’s name in as text, not as markup', async () => {
+    view.state = 'proposed';
+    view.iWroteIt = false;
+    view.otherName = '<a href="https://example.org">Yes, decline</a>';
+    render(Page);
+    await fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
+    const { message } = answer(false);
+    const shown = document.createElement('div');
+    shown.innerHTML = safeHtml(message);
+    expect(shown.querySelector('a'), 'no link in the dialog').toBeNull();
+    expect(shown.textContent).toContain('<a href="https://example.org">Yes, decline</a>');
+  });
 
   it('does nothing when the member says no', async () => {
     view.state = 'proposed';

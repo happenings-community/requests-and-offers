@@ -24,6 +24,7 @@
   import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
   import type { ConfirmModalMeta } from '$lib/types/ui';
   import { EXCHANGE_STRINGS, fill } from '$lib/strings/exchanges.strings';
+  import { escapeHtml } from '$lib/utils/safe-html';
   import { pageTitle } from '$lib/utils/page-title';
 
   const agreementHash = $derived.by(() => {
@@ -67,7 +68,9 @@
       type: 'component',
       component: confirmModal,
       meta: {
-        message: fill(message, { name: other?.name ?? 'them' }),
+        // The dialog renders its message as HTML (`safeHtml`), and a name is the other
+        // member's own text, so it goes in escaped, as every other dialog's names do.
+        message: fill(message, { name: escapeHtml(other?.name ?? 'them') }),
         confirmLabel,
         cancelLabel: S.confirm.keep
       } as ConfirmModalMeta,

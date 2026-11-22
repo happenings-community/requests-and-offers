@@ -31,9 +31,7 @@ describe('pageTitle', () => {
  * title written by hand.
  */
 describe('every route', () => {
-  // Owned by other pull requests open at the same time; they move to the helper after.
-  const OWNED_ELSEWHERE = new Set(['src/routes/admin/hrea/+page.svelte']);
-  const routes = globSync('src/routes/**/+page.svelte').filter((f) => !OWNED_ELSEWHERE.has(f));
+  const routes = globSync('src/routes/**/+page.svelte');
 
   it('finds the routes', () => {
     expect(routes.length).toBeGreaterThan(40);

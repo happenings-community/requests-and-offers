@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { TabGroup, Tab } from '@skeletonlabs/skeleton';
@@ -21,7 +22,7 @@
 </script>
 
 <svelte:head>
-  <title>hREA · ValueFlows - Admin</title>
+  <title>{pageTitle('hREA', 'Admin')}</title>
   <meta
     name="description"
     content="The hREA mirror of this network, read from hREA, and its audit against R&O"

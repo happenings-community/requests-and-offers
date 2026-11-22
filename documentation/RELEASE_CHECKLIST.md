@@ -143,6 +143,7 @@ git push origin v0.2.3
 ### ✅ **Version Planning**
 - [ ] **Version Number**: Determine the next version with the rule in [Versioning](guides/versioning.md): before 1.0, minor for a release that changes the DNA hash, patch otherwise
 - [ ] **Change Documentation**: Update CHANGELOG.md with new version details
+- [ ] **README**: The README describes the project as this release leaves it: the tagline, Where the Project Stands (shipped, known gaps, next, following the milestones) and the commands it names
 - [ ] **Breaking Changes**: Compare the DNA hash with the previous release's; a new hash means a network reset, announced to testers before the release (alpha 2: `documentation/releases/v0.6.0-alpha.2-network-reset.md`)
 - [ ] **Feature Scope**: Confirm all intended features are complete and tested
 - [ ] **Release Day**: Not a Friday, and nobody works the weekend to rescue it (see [Production Checks](#-production-checks-blocking))

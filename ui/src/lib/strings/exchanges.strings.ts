@@ -228,6 +228,15 @@ export const EXCHANGE_STRINGS = {
       title: 'The listing could not be loaded',
       body: 'Something went wrong while reading it. Try again, or go back to the listing and start the proposal from there.'
     },
+    /**
+     * The listing was read; a later read failed: who is involved (its author, the interest,
+     * the interested member), its terms, or the offers to exchange in return.
+     */
+    unprepared: {
+      eyebrow: 'Could not prepare',
+      title: 'The proposal could not be prepared',
+      body: 'The listing was read, but something else the proposal needs could not be: who is involved, the terms, or the offers to exchange in return. Try again, or go back to the listing and start the proposal from there.'
+    },
     detail: 'The app said:',
     backToListing: 'Back to the listing',
     retry: 'Try again',

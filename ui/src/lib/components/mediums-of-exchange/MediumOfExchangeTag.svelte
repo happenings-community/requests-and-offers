@@ -3,6 +3,8 @@
   import { encodeHashToBase64, decodeHashFromBase64 } from '@holochain/client';
   import mediumsOfExchangeStore from '$lib/stores/mediums_of_exchange.store.svelte';
   import { waitForHolochainConnection } from '$lib/utils/holochain-client.utils';
+  import ChipTip from '$lib/components/shared/ChipTip.svelte';
+  import { isCut, measureOnHover } from '$lib/utils/truncation';
   import { Effect as E } from 'effect';
 
   type Props = {
@@ -120,8 +122,17 @@
   // Simplified display text calculation
   let displayText = $state('Loading...');
 
+  // Whether the text is cut short in its cell, measured on hover: only then is it drawn in
+  // full above the chip (ChipTip), since Electron on macOS shows no `title`. An error chip
+  // gets the same, with the whole error.
+  let nameEl = $state<HTMLSpanElement>();
+  let cut = $state(false);
+  const measure = () => (cut = isCut(nameEl));
+
   // Update display text when state changes
   $effect(() => {
+    // A new text is measured afresh on the next hover.
+    cut = false;
     if (isLoadingMedium) {
       displayText = 'Loading...';
     } else if (mediumError) {
@@ -147,10 +158,12 @@
   </span>
 {:else if mediumError}
   <span
-    class="variant-soft-error chip max-w-full whitespace-nowrap"
-    title="Error loading medium of exchange"
+    class="group variant-soft-error chip relative max-w-full whitespace-nowrap"
+    title={`Error loading medium of exchange: ${mediumError}`}
+    use:measureOnHover={measure}
   >
-    <span class="truncate">{mediumError}</span>
+    <span class="truncate" bind:this={nameEl}>{mediumError}</span>
+    {#if cut}<ChipTip text={`Error loading medium of exchange: ${mediumError}`} />{/if}
   </span>
 {:else if !mediumOfExchangeActionHash}
   <span class="variant-soft-surface chip max-w-full whitespace-nowrap">
@@ -158,13 +171,15 @@
   </span>
 {:else}
   <span
-    class="chip max-w-full whitespace-nowrap {exchangeType === 'base'
+    class="group chip relative max-w-full whitespace-nowrap {exchangeType === 'base'
       ? 'variant-soft-primary'
       : 'variant-soft-secondary'}"
     title={mediumName
       ? `${exchangeType === 'base' ? 'Base Category' : 'Currency'}: ${mediumName}`
       : 'Medium of Exchange'}
+    use:measureOnHover={measure}
   >
-    <span class="truncate">{displayText}</span>
+    <span class="truncate" bind:this={nameEl}>{displayText}</span>
+    {#if cut}<ChipTip text={displayText} />{/if}
   </span>
 {/if}

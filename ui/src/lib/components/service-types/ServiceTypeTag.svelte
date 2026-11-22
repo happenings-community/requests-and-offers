@@ -3,6 +3,8 @@
   import { encodeHashToBase64, decodeHashFromBase64 } from '@holochain/client';
   import serviceTypesStore from '$lib/stores/serviceTypes.store.svelte';
   import { waitForHolochainConnection } from '$lib/utils/holochain-client.utils';
+  import ChipTip from '$lib/components/shared/ChipTip.svelte';
+  import { isCut, measureOnHover } from '$lib/utils/truncation';
   import { Effect as E } from 'effect';
   import { paths } from '$lib/paths';
 
@@ -105,7 +107,16 @@
   // Computed display text
   let displayText = $state('Loading...');
 
+  // Whether the text is cut short in its cell, measured on hover (and on focus where the tag
+  // is a link): only then is it drawn in full above the chip (ChipTip), since Electron on
+  // macOS shows no `title`. An error chip gets the same, with the whole error.
+  let nameEl = $state<HTMLSpanElement>();
+  let cut = $state(false);
+  const measure = () => (cut = isCut(nameEl));
+
   $effect(() => {
+    // A new text is measured afresh on the next hover.
+    cut = false;
     if (isLoading) {
       displayText = 'Loading...';
     } else if (error) {
@@ -128,17 +139,20 @@
 <!-- One line, whatever the name's length: a cell narrower than the name cuts it with an
      ellipsis (dogfooding, 21 November: "Holochain Zome Development (Rust)" wrapped onto four
      lines and made every listing row about 130px high). The whole name stays in the markup
-     for a screen reader, and in the title on hover. -->
+     for a screen reader and in the title, and is drawn above the chip on hover when it is
+     cut (ChipTip), since Electron on macOS does not show the title. -->
 {#if isLoading}
   <span class="variant-soft-surface chip max-w-full animate-pulse whitespace-nowrap">
     <span class="truncate">Loading...</span>
   </span>
 {:else if error}
   <span
-    class="variant-soft-error chip max-w-full whitespace-nowrap"
+    class="group variant-soft-error chip relative max-w-full whitespace-nowrap"
     title={`Error loading service type: ${error}`}
+    use:measureOnHover={measure}
   >
-    <span class="truncate">{error}</span>
+    <span class="truncate" bind:this={nameEl}>{error}</span>
+    {#if cut}<ChipTip text={`Error loading service type: ${error}`} />{/if}
   </span>
 {:else if !serviceTypeActionHash}
   <span class="variant-soft-surface chip max-w-full whitespace-nowrap">
@@ -147,20 +161,24 @@
 {:else if showLink && linkUrl()}
   <a
     href={linkUrl()}
-    class="variant-soft-primary chip max-w-full whitespace-nowrap transition-colors hover:variant-soft-secondary"
+    class="group variant-soft-primary chip relative max-w-full whitespace-nowrap transition-colors hover:variant-soft-secondary"
     title={serviceTypeDescription
       ? `${serviceTypeName}: ${serviceTypeDescription}`
       : serviceTypeName || 'Service Type'}
+    use:measureOnHover={measure}
   >
-    <span class="truncate">🏷️ {displayText}</span>
+    <span class="truncate" bind:this={nameEl}>🏷️ {displayText}</span>
+    {#if cut}<ChipTip text={displayText} />{/if}
   </a>
 {:else}
   <span
-    class="variant-soft-primary chip max-w-full whitespace-nowrap"
+    class="group variant-soft-primary chip relative max-w-full whitespace-nowrap"
     title={serviceTypeDescription
       ? `${serviceTypeName}: ${serviceTypeDescription}`
       : serviceTypeName || 'Service Type'}
+    use:measureOnHover={measure}
   >
-    <span class="truncate">🏷️ {displayText}</span>
+    <span class="truncate" bind:this={nameEl}>🏷️ {displayText}</span>
+    {#if cut}<ChipTip text={displayText} />{/if}
   </span>
 {/if}

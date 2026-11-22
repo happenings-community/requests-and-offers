@@ -152,7 +152,7 @@ Member pages use two content widths, both defined in `ui/tailwind.config.ts`. Mo
 
 A page or component does not set a column width of its own beside `container` (`max-w-2xl`, `lg:max-w-4xl`, `max-w-prose`, `max-w-[60rem]`, ...); `tests/unit/theme/page-width.test.ts` reads the class attributes in `src/routes` and `src/lib` (quoted, or in braces with no braces inside) and fails when one does. The home page keeps its own landing layout.
 
-Service type and medium tags (`ServiceTypeTag`, `MediumOfExchangeTag`) stay on one line wherever they are drawn (tables, cards, modals, detail pages) and cut a long name with an ellipsis; the full name stays in the markup and in the chip's `title`, and an error chip's `title` carries the whole error. Every other chip still wraps between words (`app.postcss`).
+Service type and medium tags (`ServiceTypeTag`, `MediumOfExchangeTag`) stay on one line wherever they are drawn (tables, cards, modals, detail pages) and cut a long name with an ellipsis; the full name stays in the markup and in the chip's `title`, and an error chip's `title` carries the whole error. Electron on macOS does not show `title` reliably, so when a name (or an error) is actually cut the chip draws it in full above itself on hover, and on keyboard focus where the tag is a link (`ChipTip`, measured by `isCut` in `utils/truncation.ts`). The chip keeps its `title`, which also carries a service type's description, so where `title` does show, both can appear. On a touch screen a tap stands in for hover in a mobile browser; the desktop app has no touch case. Every other chip still wraps between words (`app.postcss`).
 
 ## Services - **EFFECT TS ARCHITECTURE**
 

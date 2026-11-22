@@ -139,21 +139,32 @@
   });
 </script>
 
+<!-- One line, cut with an ellipsis in a narrow cell; the whole name stays in the markup
+     and in the title (see ServiceTypeTag). -->
 {#if isLoadingMedium}
-  <span class="variant-soft-surface chip animate-pulse"> Loading medium... </span>
+  <span class="variant-soft-surface chip max-w-full animate-pulse whitespace-nowrap">
+    <span class="truncate">Loading medium...</span>
+  </span>
 {:else if mediumError}
-  <span class="variant-soft-error chip" title="Error loading medium of exchange">
-    {mediumError}
+  <span
+    class="variant-soft-error chip max-w-full whitespace-nowrap"
+    title="Error loading medium of exchange"
+  >
+    <span class="truncate">{mediumError}</span>
   </span>
 {:else if !mediumOfExchangeActionHash}
-  <span class="variant-soft-surface chip"> No medium specified </span>
+  <span class="variant-soft-surface chip max-w-full whitespace-nowrap">
+    <span class="truncate">No medium specified</span>
+  </span>
 {:else}
   <span
-    class="chip {exchangeType === 'base' ? 'variant-soft-primary' : 'variant-soft-secondary'}"
+    class="chip max-w-full whitespace-nowrap {exchangeType === 'base'
+      ? 'variant-soft-primary'
+      : 'variant-soft-secondary'}"
     title={mediumName
       ? `${exchangeType === 'base' ? 'Base Category' : 'Currency'}: ${mediumName}`
       : 'Medium of Exchange'}
   >
-    {displayText}
+    <span class="truncate">{displayText}</span>
   </span>
 {/if}

@@ -143,6 +143,17 @@ Layout:
 - `+layout.ts`: Layout load function for initialization
 - `+error.svelte`: Global error handling component
 
+### Page Widths
+
+Member pages use two content widths, both defined in `ui/tailwind.config.ts`:
+
+- **Page width**: `container mx-auto`. The container stops at 1280px and is centred, so listings and tables do not stretch across a wide screen. Below 1280px it follows Tailwind's own steps.
+- **Reading column**: `container mx-auto max-w-reading` (48rem, 768px), for a page read top to bottom: an exchange, a proposal or counter proposal, a conversation, an edit form.
+
+A page does not set a raw column width (`max-w-2xl`, `max-w-4xl`, ...) beside `container`; `tests/unit/theme/page-width.test.ts` fails when one does. The home page keeps its own landing layout.
+
+Tags drawn in listing tables (`ServiceTypeTag`, `MediumOfExchangeTag`) stay on one line and cut a long name with an ellipsis; the full name stays in the markup and in the chip's `title`.
+
 ## Services - **EFFECT TS ARCHITECTURE**
 
 Located in `/src/services`, handling **all** communication with the Holochain backend using **unified Effect TS patterns

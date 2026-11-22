@@ -19,7 +19,7 @@
   let error = $state<string | null>(null);
 
   // Helper function to normalize ActionHash format
-  function normalizeActionHash(hash: any): ActionHash | null {
+  function normalizeActionHash(hash: unknown): ActionHash | null {
     if (!hash) return null;
 
     // If it's already a Uint8Array, return it
@@ -41,7 +41,7 @@
   }
 
   // Helper function to safely encode hash for URLs
-  function safeEncodeHash(hash: any): string {
+  function safeEncodeHash(hash: unknown): string {
     try {
       const normalizedHash = normalizeActionHash(hash);
       if (!normalizedHash) return '';
@@ -125,31 +125,42 @@
   });
 </script>
 
+<!-- One line, whatever the name's length: a cell narrower than the name cuts it with an
+     ellipsis (dogfooding, 21 November: "Holochain Zome Development (Rust)" wrapped onto four
+     lines and made every listing row about 130px high). The whole name stays in the markup
+     for a screen reader, and in the title on hover. -->
 {#if isLoading}
-  <span class="variant-soft-surface chip animate-pulse"> Loading... </span>
+  <span class="variant-soft-surface chip max-w-full animate-pulse whitespace-nowrap">
+    <span class="truncate">Loading...</span>
+  </span>
 {:else if error}
-  <span class="variant-soft-error chip" title="Error loading service type">
-    {error}
+  <span
+    class="variant-soft-error chip max-w-full whitespace-nowrap"
+    title="Error loading service type"
+  >
+    <span class="truncate">{error}</span>
   </span>
 {:else if !serviceTypeActionHash}
-  <span class="variant-soft-surface chip"> No service type specified </span>
+  <span class="variant-soft-surface chip max-w-full whitespace-nowrap">
+    <span class="truncate">No service type specified</span>
+  </span>
 {:else if showLink && linkUrl()}
   <a
     href={linkUrl()}
-    class="variant-soft-primary chip transition-colors hover:variant-soft-secondary"
+    class="variant-soft-primary chip max-w-full whitespace-nowrap transition-colors hover:variant-soft-secondary"
     title={serviceTypeDescription
       ? `${serviceTypeName}: ${serviceTypeDescription}`
       : serviceTypeName || 'Service Type'}
   >
-    🏷️ {displayText}
+    <span class="truncate">🏷️ {displayText}</span>
   </a>
 {:else}
   <span
-    class="variant-soft-primary chip"
+    class="variant-soft-primary chip max-w-full whitespace-nowrap"
     title={serviceTypeDescription
       ? `${serviceTypeName}: ${serviceTypeDescription}`
       : serviceTypeName || 'Service Type'}
   >
-    🏷️ {displayText}
+    <span class="truncate">🏷️ {displayText}</span>
   </span>
 {/if}

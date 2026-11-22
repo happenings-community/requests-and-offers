@@ -11,7 +11,7 @@
 [![Effect](https://img.shields.io/badge/Effect--TS-3-black)](https://effect.website/)
 [![Ask DeepWiki](https://img.shields.io/badge/DeepWiki-Ask-blue)](https://deepwiki.com/happenings-community/requests-and-offers)
 
-A **simple peer-to-peer bulletin board** for the Holochain community, enabling creators, developers, and organizations to post requests and offers for services, skills, and resources with direct contact facilitation.
+A **peer-to-peer exchange network** for the Holochain community. Creators, developers and organizations post requests and offers for services, skills and resources, then carry an exchange through in the app: interest, proposals and counter-proposals, an agreement, completion and reviews, with encrypted messaging along the way. Every exchange is recorded in hREA as Valueflows commitments and economic events.
 
 > [!WARNING]
 > **This project is in alpha and is not production ready.** Expect breaking changes, incomplete features, and potential instability. Use at your own risk.

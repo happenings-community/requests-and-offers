@@ -53,6 +53,7 @@
   import ApprovalWatcher from '$lib/components/users/ApprovalWatcher.svelte';
   import { Effect as E, pipe, Schedule, Duration } from 'effect';
   import { paths } from '$lib/paths';
+  import { startupProgress, type StartupStepStatus } from '$lib/utils/startup-progress';
 
   type Props = {
     children: Snippet;
@@ -82,23 +83,20 @@
   let networkSeed = $state<string | null>(null);
   let networkInfo = $state<{ dnaHash: string; roleName: string } | null>(null);
 
-  // Progress tracking
-  let initializationSteps = $state([
+  // Progress tracking. Every read the start-up waits on belongs to a step that shows as
+  // running while it happens, so the screen never sits still: the hREA step covers its
+  // agents and specifications as well as the service, and the member's profile has its own
+  // step (dogfooding, 22 November: a still spinner at 67% for 10 to 15 s read as a hang).
+  let initializationSteps = $state<{ name: string; status: StartupStepStatus; message: string }[]>([
     { name: 'Client Connection', status: 'pending', message: 'Waiting to start...' },
     { name: 'hREA Service', status: 'pending', message: 'Waiting to start...' },
-    { name: 'Network Verification', status: 'pending', message: 'Waiting to start...' }
+    { name: 'Network Verification', status: 'pending', message: 'Waiting to start...' },
+    { name: 'Your Profile', status: 'pending', message: 'Waiting to start...' }
   ]);
 
-  let progressPercentage = $derived.by(() => {
-    const completedSteps = initializationSteps.filter((step) => step.status === 'completed').length;
-    return Math.round((completedSteps / initializationSteps.length) * 100);
-  });
+  let progressPercentage = $derived(startupProgress(initializationSteps));
 
-  function updateStep(
-    stepName: string,
-    status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped',
-    message: string
-  ) {
+  function updateStep(stepName: string, status: StartupStepStatus, message: string) {
     const step = initializationSteps.find((s) =>
       s.name.toLowerCase().includes(stepName.toLowerCase())
     );
@@ -242,33 +240,35 @@
   // Step 2: Initialize hREA GraphQL with 15s timeout (non-critical)
   const initializeHreaStep = E.gen(function* () {
     yield* E.sync(() => updateStep('hrea', 'running', 'Initializing hREA GraphQL...'));
-    yield* E.logInfo('🔄 [2/3] Starting hREA GraphQL service initialization...');
+    yield* E.logInfo('🔄 [2/4] Starting hREA GraphQL service initialization...');
 
+    // initializeWithRetry swallows its own failures, so whether the service came up is read
+    // from the client it leaves behind, not from how the effect ended.
     yield* pipe(
       hreaStore.initializeWithRetry(),
       E.timeout(Duration.seconds(15)),
-      E.tap(() => {
-        E.logInfo('✅ [2/4] hREA service initialized successfully');
-        updateStep('hrea', 'completed', 'hREA service ready');
-      }),
       E.tapError((error) => E.logWarning(`⚠️ [2/4] hREA initialization retry failed: ${error}`)),
-      E.catchAll((error) =>
-        pipe(
-          E.logError(`❌ [2/4] hREA initialization failed: ${error}`),
-          E.map(() => {
-            updateStep('hrea', 'skipped', 'Skipped due to error (non-critical)');
-            return null;
-          })
-        )
-      )
+      E.catchAll((error) => E.logError(`❌ [2/4] hREA initialization failed: ${error}`))
     );
 
     // Bootstrap hREA lookup state at boot so member flows do not depend on an
-    // admin screen visit to populate agents and resource specifications
+    // admin screen visit to populate agents and resource specifications. On a new
+    // network this read takes seconds, so the step stays running until it is done.
+    yield* E.sync(() => updateStep('hrea', 'running', 'Loading members and categories...'));
     yield* pipe(
       E.all([hreaStore.getAllAgents(), hreaStore.getAllResourceSpecifications()]),
       E.tap(() => E.logInfo('hREA bootstrap: agents and resource specifications loaded')),
       E.catchAll((error) => E.logWarning(`hREA bootstrap load failed: ${error}`))
+    );
+    // Read after the bootstrap, which starts the service again if it is not up yet.
+    const ready = hreaStore.apolloClient !== null;
+    yield* ready
+      ? E.logInfo('✅ [2/4] hREA service initialized successfully')
+      : E.logWarning('⚠️ [2/4] hREA service did not start');
+    yield* E.sync(() =>
+      ready
+        ? updateStep('hrea', 'completed', 'hREA service ready')
+        : updateStep('hrea', 'skipped', 'Skipped due to error (non-critical)')
     );
   });
 
@@ -312,24 +312,25 @@
       updateStep('network', 'completed', 'Network verified');
     }),
     E.catchAll((error) => {
-      E.logWarning(`⚠️ [3/4] Network seed verification failed: ${error}`);
       console.warn(`⚠️ Could not verify network seed: ${error}`);
       updateStep('network', 'skipped', 'Network verification failed (non-critical)');
-      return E.void;
+      return E.logWarning(`⚠️ [3/4] Network seed verification failed: ${error}`);
     })
   );
 
   // Step 4: Load user data (non-critical)
   const loadUserDataStep = pipe(
     E.gen(function* () {
+      yield* E.sync(() => updateStep('profile', 'running', 'Loading your profile...'));
       yield* E.logInfo('🔄 [4/4] Loading user data...');
       const user = yield* usersStore.refreshCurrentUser();
       yield* E.logInfo(`✅ [4/4] User data loaded successfully: ${user?.nickname || 'null'}`);
+      return user ? 'Profile loaded' : 'No profile yet';
     }),
     E.catchAll((error) => {
-      E.logWarning(`⚠️ [4/4] User data loading failed: ${error}`);
+      updateStep('profile', 'skipped', 'Profile not loaded (non-critical)');
       // Don't fail the entire initialization, but ensure user store is in a consistent state
-      return E.void;
+      return pipe(E.logWarning(`⚠️ [4/4] User data loading failed: ${error}`), E.as(null));
     })
   );
 
@@ -354,10 +355,12 @@
 
       yield* initializeHreaStep;
       yield* verifyNetworkStep;
-      yield* loadUserDataStep;
+      const profileLoaded = yield* loadUserDataStep;
 
-      // Initialize Weave store (fetch Moss profile, convert avatar, etc.)
+      // Initialize Weave store (fetch Moss profile, convert avatar, etc.). Part of the
+      // profile step, which stays running through it: in Moss it is one more network read.
       if (weaveStore.isWeaveContext) {
+        yield* E.sync(() => updateStep('profile', 'running', 'Loading your Moss profile...'));
         yield* pipe(
           E.tryPromise({
             try: async () => {
@@ -375,6 +378,12 @@
           })
         );
       }
+
+      yield* E.sync(() =>
+        profileLoaded
+          ? updateStep('profile', 'completed', profileLoaded)
+          : updateStep('profile', 'skipped', 'Profile not loaded (non-critical)')
+      );
 
       // Set loading to false after progress display
       yield* E.sleep('500 millis');
@@ -505,7 +514,7 @@
       {#if initializationStatus === 'initializing'}
         <h2 class="mb-2 text-2xl font-semibold">Initializing Application Runtime</h2>
         <p class="text-surface-600 dark:text-surface-400">
-          Setting up core services... User data and admin features will load in background.
+          Setting up core services and your profile. Admin features load in the background.
         </p>
       {:else}
         <h2 class="mb-2 text-2xl font-semibold">Connecting to Holochain Network</h2>

@@ -18,6 +18,11 @@ A **simple peer-to-peer bulletin board** for the Holochain community, enabling c
 
 ![Requests and Offers home page](home-page.png)
 
+## 📦 Install
+
+Desktop builds for Windows, macOS (also through Homebrew) and Linux are on the [latest release](https://github.com/happenings-community/requests-and-offers/releases/latest); [INSTALL.md](INSTALL.md) walks through each one.
+The hApp also runs as a Moss (Weave) tool: `bun applet-dev` starts it in a local Moss.
+
 ## 🚀 Quick Start
 
 ```bash
@@ -135,6 +140,9 @@ requests-and-offers/
 ├── dnas/requests_and_offers/    # Holochain DNA with coordinator/integrity zomes
 ├── ui/                          # SvelteKit frontend with 7-layer Effect-TS architecture
 ├── tests/sweettest/             # Sweettest integration tests (Rust)
+├── deployment/                  # Desktop packaging (Kangaroo Electron) and the Homebrew cask
+├── weave/                       # Moss (Weave) applet configuration
+├── scripts/                     # Development, conductor inspector, hREA download and release scripts
 └── documentation/               # Comprehensive project documentation
 ```
 
@@ -143,23 +151,29 @@ See [Architecture Overview](documentation/architecture.md) for detailed system d
 ## 🗺️ Where the Project Stands
 
 The bulletin board MVP is done, and the 0.6.0 alphas build the exchange process on top of it.
-[CHANGELOG.md](CHANGELOG.md) records each change as it lands.
+The code on `dev` is **0.6.0-alpha.2**: Holochain 0.7 and hREA `happ-0.5.0-beta.1`, on a new, empty network, because the DNA changed and alpha 1 data does not carry over ([notice to testers](documentation/releases/v0.6.0-alpha.2-network-reset.md)).
+[CHANGELOG.md](CHANGELOG.md) records each change as it lands, and [status.md](documentation/status.md) holds the measured counts.
 
 ### Shipped
 
-- **Bulletin Board**: Requests and offers, each with one approved service type
+- **Bulletin Board**: Requests and offers, each with one approved service type, a typed timeframe, and an optional estimate in hours and amount
 - **Members and Organizations**: Profiles, organizations, and an administration that reviews applications with reasons
+- **Roles as grants**: Administrator and member roles are `RoleGrant` entries the network validates
 - **Search & Browse**: Find requests and offers by title or description, and browse them by service type
-- **Exchange Process**: Interest, proposals and counter-proposals, agreements, and completion by each party, mirrored into hREA as Valueflows commitments and events
+- **Exchange Process**: Interest, proposals and counter-proposals, agreements, completion by each party, and a review from each party, mirrored into hREA as Valueflows commitments and events
+- **In-App Messaging**: An encrypted inbox, one conversation per person, with listings, interests and proposals shared as cards in it
 
-### In Progress
+### Known gaps
 
-- **In-App Messaging**: Encrypted conversations between members, and proposals started from a listing
+Alpha 2 runs without a progenitor key, so the first profile on a new network becomes its admin, and a member running a modified client can still give itself a role.
+The CHANGELOG's *Known gaps* and [validation.md](documentation/architecture/validation.md) list every limit and the work that closes it.
 
-### Later
+### Next
 
-- **Reputation System**: Reviews and ratings after an exchange
-- **Advanced Matching**: Algorithmic request and offer matching
+- **0.6.0-alpha.3, Membrane & Stewarding**: Creating and joining a network with the creator's key bound as progenitor ([#95](https://github.com/happenings-community/requests-and-offers/issues/95)), onboarding, and stewarding
+- **0.6.0, Stabilization**: Breaking-version migration, so data survives a DNA upgrade ([#144](https://github.com/happenings-community/requests-and-offers/issues/144))
+- **0.7.0**: Holo hosting, reputation built from exchange reviews, chat attachments, and an admin inbox with an audit trail
+- **Later**: Algorithmic request and offer matching
 
 The original scope is in [MVP Documentation](documentation/requirements/mvp.md), and the designs for the later features are in [post-MVP requirements](documentation/requirements/post-mvp/README.md).
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatTime } from '$lib/utils/dates';
   import { onMount } from 'svelte';
   import {
     getConnectionStatusContext,
@@ -152,7 +153,7 @@
 
     if (status === 'connected' && finalLastPingTime) {
       return [
-        `${baseText} (verified at ${finalLastPingTime.toLocaleTimeString()})`,
+        `${baseText} (verified at ${formatTime(finalLastPingTime)})`,
         peersKnown === null
           ? `Peers: ${peersReachable} reachable`
           : `Peers: ${peersReachable} of ${peersKnown} reachable`,

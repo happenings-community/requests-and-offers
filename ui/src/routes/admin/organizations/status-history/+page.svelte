@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import StatusTable from '$lib/components/shared/status/StatusTable.svelte';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { storeEventBus } from '$lib/stores/storeEvents';
@@ -36,6 +37,10 @@
     if (unsubscribeOrgStatus) unsubscribeOrgStatus();
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Organization status history', 'Admin')}</title>
+</svelte:head>
 
 <section class="space-y-10">
   <h1 class="h1 text-center">Organizations Status History</h1>

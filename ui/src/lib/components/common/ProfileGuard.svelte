@@ -9,6 +9,7 @@
   import { headingFor, isBlockedState, lineFor, statusLabel } from '$lib/utils/profile-status';
   import administrationStore from '$lib/stores/administration.store.svelte';
   import { pendingWall } from '$lib/utils/progenitor-hint';
+  import { pageTitle } from '$lib/utils/page-title';
 
   type Props = {
     children: Snippet;
@@ -280,6 +281,14 @@
     }
   });
 </script>
+
+<!-- The wall stands in for the page, so the page's own title never renders: without this
+     the tab kept the previous page's (final alpha 2 dogfooding, F5). -->
+<svelte:head>
+  {#if profileState().state !== 'loading' && !canCreate() && !canBrowse()}
+    <title>{pageTitle(blockedState() ? headingFor(blockedState()!) : title)}</title>
+  {/if}
+</svelte:head>
 
 {#if profileState().state === 'loading'}
   <div class="flex h-64 items-center justify-center">

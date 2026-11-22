@@ -81,9 +81,9 @@
     <div class="rounded-lg border-l-4 border-blue-500 p-4">
       <h3 class="text-tertiary-500 text-lg font-bold">Important Next Steps:</h3>
       <ul class="mt-2 list-disc space-y-2 pl-5 text-left">
-        <li>A network administrator will contact you via email and platform message shortly.</li>
-        <li>You'll be invited to schedule a meeting for identity verification.</li>
-        <li>After successful verification, your status will update to "accepted".</li>
+        <li>A network administrator will review your profile.</li>
+        <li>If they need to know more about you, they will ask you here, in the app.</li>
+        <li>Once they accept your profile, the app tells you, and your status reads "accepted".</li>
       </ul>
     </div>
     <p class="text-sm">
@@ -117,7 +117,7 @@
     return alertModal({
       id: 'welcome-and-next-steps',
       message: welcomeAndNextStepsMessage(escapeHtml(name)),
-      confirmLabel: 'Ok !'
+      confirmLabel: 'Got it'
     });
   }
 

@@ -1,9 +1,12 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import BackButton from '$lib/components/shared/BackButton.svelte';
   import { termsState, TERMS_LOADING, TERMS_FAILED } from '$lib/utils/listing-terms';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { getToastStore } from '@skeletonlabs/skeleton';
+  import { getModalStore, getToastStore, type ModalComponent } from '@skeletonlabs/skeleton';
+  import ConfirmModal from '$lib/components/shared/dialogs/ConfirmModal.svelte';
+  import type { ConfirmModalMeta } from '$lib/types/ui';
   import ExternalLink from '$lib/components/shared/ExternalLink.svelte';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import { formatDate, getUserPictureUrl, getOrganizationLogoUrl } from '$lib/utils';
@@ -24,6 +27,8 @@
   import { paths } from '$lib/paths';
 
   const toastStore = getToastStore();
+  const modalStore = getModalStore();
+  const confirmModal: ModalComponent = { ref: ConfirmModal };
 
   // Get offer ID from route params
   const offerId = $derived(page.params.id);
@@ -132,11 +137,29 @@
     }
   }
 
-  async function handleDelete() {
+  /**
+   * A delete cannot be undone, so it asks first through the app's ConfirmModal, as My
+   * Listings does and as the exchange page's final steps do. The browser's own confirm()
+   * blocked the tab and looked like no other dialog in the app (final alpha 2 dogfooding).
+   */
+  function handleDelete() {
     if (!offer?.original_action_hash) return;
+    modalStore.trigger({
+      type: 'component',
+      component: confirmModal,
+      meta: {
+        message: 'Are you sure you want to delete this offer? This action cannot be undone.',
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel'
+      } as ConfirmModalMeta,
+      response: (confirmed: boolean) => {
+        if (confirmed) void deleteNow();
+      }
+    });
+  }
 
-    if (!confirm('Are you sure you want to delete this offer?')) return;
-
+  async function deleteNow() {
+    if (!offer?.original_action_hash) return;
     try {
       await runEffect(offersStore.deleteOffer(offer.original_action_hash));
 
@@ -252,9 +275,7 @@
 </script>
 
 <svelte:head>
-  <title>
-    {offer ? `${offer.title} Offer` : 'Offer'} - Requests & Offers
-  </title>
+  <title>{pageTitle(offer?.title ?? 'Offer')}</title>
   <meta
     name="description"
     content={offer ? `Offer details for ${offer.title} - ${offer.description}` : 'Offer details'}

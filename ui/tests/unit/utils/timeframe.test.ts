@@ -8,6 +8,7 @@ import {
   timeframeOptions
 } from '$lib/utils/timeframe';
 import type { Timeframe } from '$lib/types/holochain';
+import { formatDay } from '$lib/utils/dates';
 
 /**
  * **Timeframes are typed** (#380): a preset, or a window of dates in microseconds.
@@ -32,16 +33,16 @@ describe('timeframeLabel', () => {
   });
 
   it('reads a window by its due date, and by both dates when it has a start', () => {
-    const end = new Date(END).toLocaleDateString('en-GB');
-    const start = new Date(START).toLocaleDateString('en-GB');
-    expect(timeframeLabel(window(null, END), 'en-GB')).toBe(`by ${end}`);
-    expect(timeframeLabel(window(START, END), 'en-GB')).toBe(`${start} to ${end}`);
+    const end = formatDay(END);
+    const start = formatDay(START);
+    expect(timeframeLabel(window(null, END))).toBe(`by ${end}`);
+    expect(timeframeLabel(window(START, END))).toBe(`${start} to ${end}`);
   });
 
   it('reads microseconds, not milliseconds', () => {
     // The date range this replaces read microseconds as milliseconds, which put
     // every date some fifty thousand years ahead.
-    expect(timeframeLabel(window(null, END), 'en-GB')).toContain('2026');
+    expect(timeframeLabel(window(null, END))).toContain('2026');
   });
 });
 

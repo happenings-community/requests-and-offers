@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatDateTime } from '$lib/utils/dates';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import type { UIThread } from '$lib/utils/messaging-threads';
   import { paths } from '$lib/paths';
@@ -19,13 +20,7 @@
   const last = $derived(thread.messages.at(-1));
   const when = $derived(
     thread.lastAt
-      ? new Date(thread.lastAt).toLocaleString('en-GB', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
+      ? formatDateTime(thread.lastAt)
       : ''
   );
 

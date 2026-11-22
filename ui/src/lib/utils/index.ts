@@ -3,6 +3,7 @@ import type { UIOrganization, UIUser, UIStatus, Revision } from '$lib/types/ui';
 import type { Record } from '@holochain/client';
 import { decode } from '@msgpack/msgpack';
 import { type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';
+import { formatDateTime } from './dates';
 
 export { showToast } from './toast';
 export * from './userAccessGuard'; // Export user access guard utilities
@@ -193,45 +194,30 @@ export function safeTimestampToDate(timestamp: number | string | undefined): Dat
 }
 
 /**
- * Formats a date object into a readable string format.
+ * A date as the app writes a moment: "21 Nov 2026, 16:38" (`utils/dates.ts`).
  *
  * @param {Date} date - The date to format.
- * @param {Intl.DateTimeFormatOptions} options - Optional formatting options.
  * @returns {string} The formatted date string.
  */
-export function formatDate(
-  date: Date,
-  options: Intl.DateTimeFormatOptions = {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }
-): string {
-  // Check if date is valid
+export function formatDate(date: Date): string {
   if (!date || isNaN(date.getTime())) {
     return 'Invalid Date';
   }
-  return new Intl.DateTimeFormat('en-US', options).format(date);
+  return formatDateTime(date);
 }
 
 /**
  * Safely formats a timestamp into a readable string format.
  *
  * @param {number | string | undefined} timestamp - The timestamp to format.
- * @param {Intl.DateTimeFormatOptions} options - Optional formatting options.
  * @returns {string} The formatted date string or 'Unknown' if invalid.
  */
-export function formatTimestamp(
-  timestamp: number | string | undefined,
-  options?: Intl.DateTimeFormatOptions
-): string {
+export function formatTimestamp(timestamp: number | string | undefined): string {
   const date = safeTimestampToDate(timestamp);
   if (!date) {
     return 'Unknown';
   }
-  return formatDate(date, options);
+  return formatDate(date);
 }
 
 /**

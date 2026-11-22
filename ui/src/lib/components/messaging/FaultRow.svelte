@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatDateTime } from '$lib/utils/dates';
   import { MESSAGING_STRINGS as S, fill } from '$lib/strings/messaging.strings';
   import { encodeHashToBase64 } from '@holochain/client';
   import type { Fault } from '$lib/utils/messaging-threads';
@@ -7,13 +8,7 @@
   const { fault, name }: Props = $props();
 
   const when = $derived(
-    new Date(fault.at).toLocaleString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+    formatDateTime(fault.at)
   );
 
   let copied = $state(false);

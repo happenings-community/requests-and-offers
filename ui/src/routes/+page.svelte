@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { onMount } from 'svelte';
   import usersStore from '$lib/stores/users.store.svelte';
   import { isHolochainConnected } from '$lib/utils/holochain-client.utils';
@@ -69,6 +70,10 @@
   );
 </script>
 
+<svelte:head>
+  <title>{pageTitle('Home')}</title>
+</svelte:head>
+
 <section class="mx-auto w-full max-w-6xl px-4 py-8">
   {#if error}
     <div class="alert variant-filled-error mb-6">
@@ -111,7 +116,7 @@
             </p>
             <a
               href={paths.myProfileCreate()}
-              class="variant-filled-surface btn px-8 py-3 text-lg font-semibold text-primary-700 shadow-md transition-all hover:variant-filled-primary hover:text-white hover:shadow-lg"
+              class="variant-filled-secondary btn px-8 py-3 text-lg font-semibold shadow-md transition-all hover:shadow-lg"
             >
               👤 Create Profile
             </a>
@@ -231,7 +236,7 @@
         <p class="text-xs leading-relaxed text-primary-700">
           Our community operates on <strong>mutual aid principles</strong>. Members exchange skills,
           time, and resources based on trust and reciprocity. Create requests for help, offer your
-          services, and connect directly with community members to arrange arrangements that work
+          services, and connect directly with community members to agree on exchanges that work
           for everyone involved.
         </p>
       </div>

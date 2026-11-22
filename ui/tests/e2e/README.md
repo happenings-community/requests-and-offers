@@ -19,7 +19,7 @@ The infrastructure shares **one conductor and one agent identity across the whol
 | `02-service-types` | admin create/edit, public suggestion, moderation approve + reject, visibility rules, tags redirect |
 | `03-mediums-of-exchange` | admin create→approve→edit, user suggestion from the offer form |
 | `04-offers` | create → detail → edit → my-listings → admin list → archive → delete (Skeleton modal path) |
-| `05-requests` | create → detail → edit → lists → delete from detail (native `window.confirm` path) |
+| `05-requests` | create → detail → edit → lists → delete from detail (ConfirmModal) |
 | `06-organizations` | create via form, pending-visibility rule, dashboard approval, coordinator edit, status history |
 | `07-users-directory` | public directory and profile page |
 | `08-hrea` | hREA test interface smoke (the hApp bundles the hREA role) |
@@ -49,7 +49,7 @@ There is currently **no CI workflow running this suite** (`.github/workflows/` h
 ## Selector gotchas (hard-won)
 
 - **Skeleton `TabGroup` tabs are `role="tab"`, not buttons.** My Listings' view switcher (the three count cards), by contrast, is toggle buttons with `aria-pressed`: select a view with `getByRole('button', { name: /Active offers/ })`. On My Exchanges, Exchanges and Interested in are tabs, and the four exchange groups under them are toggle buttons (`aria-pressed`) in a group named `Exchange groups`.
-- **Two confirm mechanisms coexist**: native `window.confirm` (detail-page deletes and the service-type table deletes — use `page.once('dialog', …)`), and the custom `ConfirmModal` component (ActionBar moderation, cards, and the MoE delete). Skeleton's built-in `type: 'confirm'` is no longer used anywhere in `ui/src`, and `ui/tests/unit/utils/no-raw-html.test.ts` keeps it that way.
+- **Two confirm mechanisms coexist**: native `window.confirm` (the service-type table deletes — use `page.once('dialog', …)`), and the custom `ConfirmModal` component (ActionBar moderation, cards, listing detail-page deletes, and the MoE delete). Skeleton's built-in `type: 'confirm'` is no longer used anywhere in `ui/src`, and `ui/tests/unit/utils/no-raw-html.test.ts` keeps it that way.
 - **`ServiceTypeSelector` renders an unkeyed `{#each}` over a list that re-sorts after async loads** — a click can race the re-render and toggle the wrong item. Always filter via its search box down to one option first, then check, then assert the selection chip.
 - **`TimeZoneSelect` is a Skeleton popup combobox** on every form (user, offer, request) — drive it with the keyboard-based `selectTimezone()` helper.
 - **Original vs latest records**: detail pages and `get_active_*` zome calls resolve the LATEST record; my-listings, admin lists, MoE list/edit page load the ORIGINAL. After an edit, list surfaces keep the pre-edit content — several tests assert this documented behavior on purpose.

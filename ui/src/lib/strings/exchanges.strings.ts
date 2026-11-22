@@ -105,6 +105,41 @@ export const EXCHANGE_STRINGS = {
   },
 
   /**
+   * **One exchange's page.** DRAFT copy for Anita.
+   *
+   * `confirm`: Decline, Withdraw and Cancel are final, so each asks first through the
+   * app's ConfirmModal, as archiving a listing does.
+   *
+   * `movedOn`: the exchange changed while the page was open (the other member withdrew,
+   * declined or cancelled) and this member's action met it. Nothing was written; the
+   * page now shows the exchange as it is, and says why the click did nothing.
+   */
+  detail: {
+    confirm: {
+      decline: "Decline {name}'s proposal? This cannot be undone.",
+      declineLabel: 'Yes, decline',
+      withdraw: 'Withdraw your proposal to {name}? This cannot be undone.',
+      withdrawLabel: 'Yes, withdraw',
+      cancel: 'Cancel your agreement with {name}? This cannot be undone.',
+      cancelLabel: 'Yes, cancel it',
+      keep: 'Keep it'
+    },
+    movedOn: {
+      withdrawn:
+        '{name} withdrew this proposal before your answer reached it. Nothing was changed.',
+      declined: '{name} declined this proposal before your action reached it. Nothing was changed.',
+      cancelled:
+        '{name} cancelled this agreement before your action reached it. Nothing was changed.',
+      other:
+        'This exchange changed before your action reached it: it is now {state}. Nothing was changed.'
+    },
+    /** The comment box under a review: the limit is said once, by the counter. */
+    commentLabel: 'Comment',
+    commentCount: '{count}/200 characters',
+    review: "{name}'s review"
+  },
+
+  /**
    * **When** (#380): a timeframe as a member reads it. The four presets the propose and
    * counter pages offer, and the two forms a window of dates takes. A preset is a
    * turnaround counted from agreeing, so its label says so; a window is calendar dates.

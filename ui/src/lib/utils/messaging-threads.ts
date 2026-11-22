@@ -9,6 +9,7 @@ import { exchangeState, type ExchangeState } from '$lib/utils/exchange-ui';
 import { paths } from '$lib/paths';
 import { errorShape, guestReason } from '$lib/utils/error-shape';
 import { MESSAGING_STRINGS } from '$lib/strings/messaging.strings';
+import { formatDay, formatTime } from '$lib/utils/dates';
 
 /**
  * Turning what the zome returns into the conversations a member sees.
@@ -839,12 +840,8 @@ export function buildTimeline(thread: UIThread): TimelineItem[] {
 export function formatMessageTime(at: number, now: number = Date.now()): string {
   const sent = new Date(at);
   const today = new Date(now);
-  const time = sent.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const time = formatTime(sent);
   if (sent.toDateString() === today.toDateString()) return time;
-  const date = sent.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    ...(sent.getFullYear() === today.getFullYear() ? {} : { year: 'numeric' })
-  });
+  const date = formatDay(sent, { withYear: sent.getFullYear() !== today.getFullYear() });
   return `${date}, ${time}`;
 }

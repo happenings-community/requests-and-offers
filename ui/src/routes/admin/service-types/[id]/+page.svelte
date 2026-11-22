@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { decodeHashFromBase64, encodeHashToBase64, type ActionHash } from '@holochain/client';
@@ -276,9 +277,7 @@
 </script>
 
 <svelte:head>
-  <title>
-    {serviceType ? `Admin: ${serviceType.name} Service Type` : 'Admin: Service Type'} - Requests & Offers
-  </title>
+  <title>{pageTitle(serviceType?.name ?? 'Service type', 'Admin')}</title>
   <meta
     name="description"
     content={serviceType

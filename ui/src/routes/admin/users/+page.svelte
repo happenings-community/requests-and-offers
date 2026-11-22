@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import { onMount } from 'svelte';
   import { useUsersManagement } from '$lib/composables';
   import UserFilterControls from '$lib/components/users/UserFilterControls.svelte';
@@ -66,6 +67,10 @@
     };
   });
 </script>
+
+<svelte:head>
+  <title>{pageTitle('Users', 'Admin')}</title>
+</svelte:head>
 
 <section class="flex flex-col gap-10">
   <h1 class="h1 text-center">Users Management</h1>

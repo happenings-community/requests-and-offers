@@ -21,6 +21,13 @@ A **peer-to-peer exchange network** for the Holochain community. Creators, devel
 
 ![Requests and Offers home page](home-page.png)
 
+### A look inside
+
+| Browse what members ask for | Carry an exchange through | See it in Valueflows |
+|---|---|---|
+| [![Requests list, each with its service type and medium of exchange](documentation/assets/screenshots/requests.png)](documentation/assets/screenshots/requests.png) | [![An exchange where both parts are done, waiting for each member's review](documentation/assets/screenshots/exchange-review.png)](documentation/assets/screenshots/exchange-review.png) | [![The admin's economic-flow graph of one exchange in hREA: agents, proposal, intents, agreement, commitments and the events that fulfil them](documentation/assets/screenshots/hrea-economic-flow.png)](documentation/assets/screenshots/hrea-economic-flow.png) |
+| Requests and offers, each with one service type and the medium of exchange it accepts. | Interest, proposal, agreement, each side's completion, then a review from each member. | The same exchange mirrored into hREA: commitments fulfilled by economic events. |
+
 ## 📦 Install
 
 Desktop builds for Windows, macOS (also through Homebrew) and Linux are on the [latest release](https://github.com/happenings-community/requests-and-offers/releases/latest); [INSTALL.md](INSTALL.md) walks through each one.

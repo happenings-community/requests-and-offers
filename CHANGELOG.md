@@ -134,7 +134,7 @@ What alpha 2 does not yet enforce, most of it reachable only by a member running
 - **Mediums of Exchange**: The store keeps the type the DHT holds, so a currency is no longer shown as Base (`109b7aa0`, #453)
 - **Mediums of Exchange**: The wording says a base is a kind of exchange and a currency a unit people pay in, with no payment methods (`a5a9f15d`, #467); the listing forms always call the section Medium of Exchange (`8e950b8d`, #471)
 - **Users**: A blocked member is told about their status, not about a missing profile (`a47b8d8d`, #392)
-- **UI**: The loading screen gives an honest first-start wait (`9b2f5946`, #469)
+- **UI**: The loading screen gives an honest first-start wait (`9b2f5946`, #469); a spinner turns on one step through every wait, including the member's profile, the bar reaches 100% when a non-critical step is skipped, and Network Verification tries once more when a new install's first start-up keeps it waiting past 30 seconds (`ceb7f6cd`, #597)
 - **Zomes**: Given a revision's hash, the seven latest-record reads return the latest version, and deleting an edited listing removes the whole listing, from the active and archived lists too (`dbd42041`, #487, closes #229)
 - **Exchanges**: A member holds one live interest per listing, enforced by validation; a withdrawn interest does not count (`ed628e2e`, #362 with #492, closes #354)
 - **Messaging**: A message is limited to 3 KiB, what the keystore can encrypt, and under Holochain 0.7 a refusal from the zome is shown as a refusal again, rather than waiting in the outbox (`20c05eee`, #488)

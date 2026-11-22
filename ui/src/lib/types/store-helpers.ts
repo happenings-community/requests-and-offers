@@ -97,7 +97,7 @@ export interface CacheOperationHelpers<TEntity extends CacheableEntity> {
 export interface EventEmitter<TEntity, THash = ActionHash> {
   readonly emitCreated: (entity: TEntity) => void;
   readonly emitUpdated: (entity: TEntity) => void;
-  readonly emitDeleted: (entityHash: THash) => void;
+  readonly emitDeleted: (entityHash: THash, extra?: object) => void;
   readonly emitStatusChanged?: (entity: TEntity) => void;
 }
 

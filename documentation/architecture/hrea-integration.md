@@ -327,6 +327,7 @@ What is implemented:
   A listing whose medium is a base category (Time Banking) publishes its reciprocal Intent with no resource either; the medium keeps its ResourceSpecification.
 - An edit, an archive or a delete retires every Proposal hREA holds for the listing, with its Intents, then an edit mirrors it afresh (`retireListingProposals`).
   Proposals are found by the `Original <kind> hash` line of their note and matched by chain root, so one written before a reload, or under a revision's hash (My Listings names a listing by its latest revision), is found too.
+  A deleted listing's chain can no longer be walked (the zome reads a deleted action as null), so the requests and offers stores read the chain before the delete (`listingChain`) and send it on the `request:deleted` and `offer:deleted` events; a Proposal whose noted hash is in it is retired.
 - `ref:` notes carry the hash in base64 (`ref:serviceType:uhCkk…`); every reader still matches the byte list older notes carry (`utils/hrea-ref.ts`).
 - A mirror that fails when an exchange is accepted (the conductor away, a
   refusal) is repaired, not lost. Each read of a member's own exchanges

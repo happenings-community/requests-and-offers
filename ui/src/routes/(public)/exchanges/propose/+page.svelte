@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pageTitle } from '$lib/utils/page-title';
   import {
     DEFAULT_TIMEFRAME,
     hasEnded,
@@ -360,7 +361,7 @@
 </script>
 
 <svelte:head>
-  <title>Make a proposal</title>
+  <title>{pageTitle('Make a proposal')}</title>
 </svelte:head>
 
 <section class="container mx-auto max-w-reading space-y-6 p-4">

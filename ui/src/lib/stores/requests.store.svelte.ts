@@ -1,5 +1,6 @@
 import type { ActionHash, Record } from '@holochain/client';
 import { isListingOfType } from '$lib/utils/listing-record';
+import { listingChain } from '$lib/services/mappers/proposal-links';
 import { type RequestsService } from '$lib/services/zomes/requests.service';
 import type { UIRequest } from '$lib/types/ui';
 import type { RequestInDHT, RequestInput } from '$lib/types/holochain';
@@ -570,7 +571,16 @@ export const createRequestsStore = (): E.Effect<
     const deleteRequest = (requestHash: ActionHash): E.Effect<void, RequestError, never> =>
       withLoadingState(() =>
         pipe(
-          requestsService.deleteRequest(requestHash),
+          // The chain is read first: once deleted, no revision of it can be read, and the
+          // hREA store needs it to find the proposals an edit noted under another hash.
+          E.promise(() =>
+            listingChain(
+              requestHash,
+              (h) => E.runPromise(requestsService.getLatestRequestRecord(h)),
+              (h) => E.runPromise(requestsService.getRequestRecord(h))
+            )
+          ),
+          E.tap(() => requestsService.deleteRequest(requestHash)),
           E.tap(() =>
             E.sync(() => {
               E.runSync(cache.invalidate(requestHash.toString()));
@@ -578,7 +588,9 @@ export const createRequestsStore = (): E.Effect<
               syncCacheToState(dummyRequest, 'remove');
             })
           ),
-          E.tap(() => E.sync(() => eventEmitters.emitDeleted(requestHash))),
+          E.tap((chainHashes) =>
+            E.sync(() => eventEmitters.emitDeleted(requestHash, { chainHashes }))
+          ),
           E.asVoid,
           E.catchAll((error) =>
             E.fail(RequestError.fromError(error, REQUEST_CONTEXTS.DELETE_REQUEST))

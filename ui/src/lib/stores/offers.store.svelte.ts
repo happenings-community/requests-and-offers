@@ -1,5 +1,6 @@
 import type { ActionHash, Record } from '@holochain/client';
 import { isListingOfType, listingTypeOf } from '$lib/utils/listing-record';
+import { listingChain } from '$lib/services/mappers/proposal-links';
 import type { ListingType } from '$lib/types/holochain';
 import {
   OffersServiceTag,
@@ -559,7 +560,16 @@ export const createOffersStore = (): E.Effect<
     const deleteOffer = (offerHash: ActionHash): E.Effect<void, OfferError> =>
       withLoadingState(() =>
         pipe(
-          offersService.deleteOffer(offerHash),
+          // The chain is read first: once deleted, no revision of it can be read, and the
+          // hREA store needs it to find the proposals an edit noted under another hash.
+          E.promise(() =>
+            listingChain(
+              offerHash,
+              (h) => E.runPromise(offersService.getLatestOfferRecord(h)),
+              (h) => E.runPromise(offersService.getOfferRecord(h))
+            )
+          ),
+          E.tap(() => offersService.deleteOffer(offerHash)),
           E.tap(() => {
             E.runSync(cache.invalidate(offerHash.toString()));
             const existing = offers.find(
@@ -570,7 +580,9 @@ export const createOffersStore = (): E.Effect<
               syncCacheToState(existing, 'remove');
             }
           }),
-          E.tap(() => E.sync(() => eventEmitters.emitDeleted(offerHash))),
+          E.tap((chainHashes) =>
+            E.sync(() => eventEmitters.emitDeleted(offerHash, { chainHashes }))
+          ),
           E.asVoid,
           E.catchAll((error) => E.fail(OfferError.fromError(error, OFFER_CONTEXTS.DELETE_OFFER)))
         )

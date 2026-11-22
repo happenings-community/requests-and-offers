@@ -164,7 +164,7 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
     });
   });
 
-  test('user deletes the request from its detail page (native confirm)', async ({ page }) => {
+  test('user deletes the request from its detail page (ConfirmModal)', async ({ page }) => {
     // Post-edit, the active list resolves latest records — look up by the
     // edited title.
     const hash = await requestHashByTitle(client, REQUEST_TITLE_EDITED);
@@ -174,9 +174,13 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
       timeout: 15_000
     });
 
-    // The detail page uses window.confirm — accept it via the dialog event.
-    page.once('dialog', (dialog) => dialog.accept());
+    // The detail page asks through the app's ConfirmModal, as My Listings does.
     await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(
+      page.locator('text=Are you sure you want to delete this request?').first()
+    ).toBeVisible({ timeout: 10_000 });
+    // The modal's confirm button comes after the page's in the DOM.
+    await page.getByRole('button', { name: 'Delete', exact: true }).last().click();
 
     await expect(page).toHaveURL(/\/requests(\?|$)/, { timeout: 15_000 });
     await expect(page.locator(`text=${REQUEST_TITLE}`)).toBeHidden({ timeout: 15_000 });

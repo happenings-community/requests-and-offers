@@ -182,8 +182,19 @@ export type HreaStore = {
   readonly loadAuditSnapshot: () => E.Effect<HreaSnapshot, HreaError>;
   /** Marks an accepted exchange's still-open Commitments finished when it is cancelled; returns how many. */
   readonly mirrorCancellation: (exchange: UIExchange) => E.Effect<number, HreaError>;
-  readonly deleteProposalForRequest: (requestHash: string) => E.Effect<boolean, HreaError>;
-  readonly deleteProposalForOffer: (offerHash: string) => E.Effect<boolean, HreaError>;
+  /**
+   * `chainHashes`: every hash of the listing's chain, read before a delete (listingChain). A
+   * deleted listing's chain can no longer be walked, so without it only a proposal noted
+   * under the very hash deleted is found.
+   */
+  readonly deleteProposalForRequest: (
+    requestHash: string,
+    chainHashes?: readonly string[]
+  ) => E.Effect<boolean, HreaError>;
+  readonly deleteProposalForOffer: (
+    offerHash: string,
+    chainHashes?: readonly string[]
+  ) => E.Effect<boolean, HreaError>;
   readonly createRetroactiveProposalMappings: (
     requests: UIRequest[],
     offers: UIOffer[]
@@ -362,8 +373,14 @@ const createEventHandlers = (
   createAgreementFromExchange: (exchange: UIExchange) => E.Effect<HreaAgreementRefs | null, HreaError>,
   recordCompletionEvent: (exchange: UIExchange) => E.Effect<EconomicEvent | null, HreaError>,
   mirrorCancellation: (exchange: UIExchange) => E.Effect<number, HreaError>,
-  deleteProposalForRequest: (requestHash: string) => E.Effect<boolean, HreaError>,
-  deleteProposalForOffer: (offerHash: string) => E.Effect<boolean, HreaError>,
+  deleteProposalForRequest: (
+    requestHash: string,
+    chainHashes?: readonly string[]
+  ) => E.Effect<boolean, HreaError>,
+  deleteProposalForOffer: (
+    offerHash: string,
+    chainHashes?: readonly string[]
+  ) => E.Effect<boolean, HreaError>,
   handleRequestUpdatedFn: (request: UIRequest) => E.Effect<Proposal | null, HreaError>,
   handleOfferUpdatedFn: (offer: UIOffer) => E.Effect<Proposal | null, HreaError>,
   retryPendingProposals: () => void
@@ -545,16 +562,16 @@ const createEventHandlers = (
     );
   };
 
-  const handleRequestDeleted = (requestHash: string) => {
+  const handleRequestDeleted = (requestHash: string, chainHashes?: readonly string[]) => {
     console.log('hREA Store: Request deleted, cleaning up proposal:', requestHash);
-    pipe(deleteProposalForRequest(requestHash), E.runPromise).catch((err) =>
+    pipe(deleteProposalForRequest(requestHash, chainHashes), E.runPromise).catch((err) =>
       console.error('hREA Store: Failed to delete proposal for request:', err)
     );
   };
 
-  const handleOfferDeleted = (offerHash: string) => {
+  const handleOfferDeleted = (offerHash: string, chainHashes?: readonly string[]) => {
     console.log('hREA Store: Offer deleted, cleaning up proposal:', offerHash);
-    pipe(deleteProposalForOffer(offerHash), E.runPromise).catch((err) =>
+    pipe(deleteProposalForOffer(offerHash, chainHashes), E.runPromise).catch((err) =>
       console.error('hREA Store: Failed to delete proposal for offer:', err)
     );
   };
@@ -610,8 +627,8 @@ const createEventSubscriptions = (
   handleMediumOfExchangeDeleted: (mediumOfExchangeHash: string) => void,
   handleRequestCreated: (request: UIRequest) => void,
   handleOfferCreated: (offer: UIOffer) => void,
-  handleRequestDeleted: (requestHash: string) => void,
-  handleOfferDeleted: (offerHash: string) => void,
+  handleRequestDeleted: (requestHash: string, chainHashes?: readonly string[]) => void,
+  handleOfferDeleted: (offerHash: string, chainHashes?: readonly string[]) => void,
   handleRequestUpdated: (request: UIRequest) => void,
   handleOfferUpdated: (offer: UIOffer) => void,
   handleExchangeAccepted: (exchange: UIExchange) => void,
@@ -700,13 +717,19 @@ const createEventSubscriptions = (
 
   // Subscribe to request and offer deletion events to clean up proposals
   const unsubscribeRequestDeleted = storeEventBus.on('request:deleted', (payload) => {
-    const { requestHash } = payload;
-    handleRequestDeleted(requestHash.toString());
+    const { requestHash, chainHashes } = payload;
+    handleRequestDeleted(
+      requestHash.toString(),
+      chainHashes?.map((h) => h.toString())
+    );
   });
 
   const unsubscribeOfferDeleted = storeEventBus.on('offer:deleted', (payload) => {
-    const { offerHash } = payload;
-    handleOfferDeleted(offerHash.toString());
+    const { offerHash, chainHashes } = payload;
+    handleOfferDeleted(
+      offerHash.toString(),
+      chainHashes?.map((h) => h.toString())
+    );
   });
 
   // Subscribe to request and offer update events to recreate proposals
@@ -2578,7 +2601,8 @@ export const createHreaStore = (): E.Effect<
 
     const retireListingProposals = (
       kind: 'request' | 'offer',
-      listingHash: string
+      listingHash: string,
+      chainHashes: readonly string[] = []
     ): E.Effect<boolean, HreaError> => {
       const proposalMap =
         kind === 'request' ? state.requestProposalMappings : state.offerProposalMappings;
@@ -2602,11 +2626,15 @@ export const createHreaStore = (): E.Effect<
             if (!roots.has(key)) roots.set(key, listingRootKey(kind, key));
             return roots.get(key)!;
           };
+          // A deleted listing's chain cannot be walked any more (the zome reads a deleted
+          // action as null), so the delete hands over the chain it read beforehand.
+          const chain = new Set([listingHash, ...chainHashes]);
           const ownRoot = yield* E.promise(() => rootOf(listingHash));
           for (const p of listed) {
             const noted = listingHashOfProposal(p.note, kind);
             if (noted === null) continue;
-            const same = noted === listingHash || (yield* E.promise(() => rootOf(noted))) === ownRoot;
+            const same =
+              chain.has(noted) || (yield* E.promise(() => rootOf(noted))) === ownRoot;
             if (same) targets.set(p.id, { revisionId: p.revisionId || p.id, intentIds: p.intentIds });
           }
           const mappedId = proposalMap.get(listingHash);
@@ -2653,11 +2681,15 @@ export const createHreaStore = (): E.Effect<
       );
     };
 
-    const deleteProposalForRequest = (requestHash: string): E.Effect<boolean, HreaError> =>
-      retireListingProposals('request', requestHash);
+    const deleteProposalForRequest = (
+      requestHash: string,
+      chainHashes?: readonly string[]
+    ): E.Effect<boolean, HreaError> => retireListingProposals('request', requestHash, chainHashes);
 
-    const deleteProposalForOffer = (offerHash: string): E.Effect<boolean, HreaError> =>
-      retireListingProposals('offer', offerHash);
+    const deleteProposalForOffer = (
+      offerHash: string,
+      chainHashes?: readonly string[]
+    ): E.Effect<boolean, HreaError> => retireListingProposals('offer', offerHash, chainHashes);
 
     // ========================================================================
     // PROPOSAL UPDATE METHODS (delete + recreate)

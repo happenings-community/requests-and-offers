@@ -15,7 +15,9 @@ export type ProposeProblem =
   | { kind: 'no-listing' }
   | { kind: 'no-type' }
   | { kind: 'not-found' }
-  | { kind: 'failed'; detail: string };
+  | { kind: 'failed'; detail: string }
+  /** The listing was read, but something the form needs after it was not. */
+  | { kind: 'unprepared'; detail: string };
 
 export type ProposeUnavailable = {
   icon: string;
@@ -60,7 +62,8 @@ export function proposeUnavailable(
         actions: waysOn(where.type ?? 'exchanges'),
         retry: false
       };
-    case 'failed': {
+    case 'failed':
+    case 'unprepared': {
       const { listing, type } = where;
       const actions: ErrorStateAction[] =
         listing && type
@@ -69,7 +72,8 @@ export function proposeUnavailable(
               { label: S.myExchanges, href: paths.exchanges() }
             ]
           : waysOn();
-      return { icon: '🛠️', ...S.failed, detail: problem.detail, actions, retry: true };
+      const words = problem.kind === 'failed' ? S.failed : S.unprepared;
+      return { icon: '🛠️', ...words, detail: problem.detail, actions, retry: true };
     }
   }
 }

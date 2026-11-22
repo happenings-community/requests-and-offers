@@ -10,3 +10,6 @@ export const goto = vi.fn((href: string) => Promise.resolve(void href));
 
 /** Spied for the same reason: a test can say which address a page wrote, and with what. */
 export const replaceState = vi.fn((url: string, state: unknown) => void [url, state]);
+
+/** `BackButton` registers one to learn where the member came from; nothing navigates here. */
+export const afterNavigate = vi.fn();

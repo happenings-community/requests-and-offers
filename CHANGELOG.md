@@ -138,6 +138,7 @@ What alpha 2 does not yet enforce, most of it reachable only by a member running
 - **UI**: Each nav bar's status dot opens its own network details, on the admin pages too (`7db2b546`, #522)
 - **Administration**: The admin Users page moves a member between its lists as soon as a status is written, without a reload, and Retry Loading loads again after a failed load (`960e289e`, #524)
 - **Exchanges**: A proposal its author has withdrawn can no longer be accepted or declined (`fc50275f`, #485, closes #484)
+- **Exchanges**: The proposal page says calmly why it cannot open (no listing chosen, a link missing its type, a listing not found, or a read that failed) and offers ways on, instead of a red bar (`65ddd3ef`, #577)
 - **UI**: The nav bar's menus work from the keyboard (Enter, Space and the arrows open them; arrows, Home and End move; Escape closes) and announce themselves to a screen reader, and their items are links the router follows (`8ad643f9`, #352, closes #204)
 - **Administration**: The admin lists hold accepted members and organisations only, and a status an administrator writes stands until a read at least as new returns, so the minute re-read no longer moves a member back (`881b955c`, #411)
 - **UI**: The drawer's counts read "9+" past nine, as the bar's do, with the full number in words (`9c8c3327`, #533)

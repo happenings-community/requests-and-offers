@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/svelte';
 import { paths, readOrigin, routeAfterPublish, readProposeParams, routeAfter } from '$lib/paths';
 import { visit } from '../../mocks/app-state';
+import { goto } from '../../mocks/app-navigation';
 import { EXCHANGE_STRINGS } from '$lib/strings/exchanges.strings';
 import ProposePage from '../../../src/routes/(public)/exchanges/propose/+page.svelte';
 
@@ -359,7 +360,7 @@ describe('the propose page when it cannot open', () => {
     expect(href(EXCHANGE_STRINGS.unavailable.myExchanges)).toBe(paths.exchanges());
     expect(href(EXCHANGE_STRINGS.unavailable.browseRequests)).toBe(paths.requests());
     expect(href(EXCHANGE_STRINGS.unavailable.browseOffers)).toBe(paths.offers());
-    expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Back/ })).toBeTruthy();
     expect(container.querySelector('.variant-filled-error'), 'no alarm block').toBeNull();
     expect(getOffer, 'nothing to look up').not.toHaveBeenCalled();
   });
@@ -379,5 +380,89 @@ describe('the propose page when it cannot open', () => {
 
     await fireEvent.click(screen.getByRole('button', { name: EXCHANGE_STRINGS.unavailable.retry }));
     expect((await screen.findAllByText('CAD')).length, 'the retry loaded it').toBeGreaterThan(0);
+  });
+
+  /**
+   * The page, not only `proposeUnavailable`, has to pick the right reason. **To make these
+   * go red:** send a link without its type to `no-listing`, or a listing that was not
+   * found to `failed` (#577 review).
+   */
+  it('names the missing part when the link has a listing but not its type', async () => {
+    const url = new URL(
+      paths.exchangePropose({ listing: LISTING, type: 'Offer', interest: INTEREST }),
+      'http://localhost'
+    );
+    url.searchParams.delete('type');
+    visit(url.pathname + url.search);
+    render(ProposePage);
+
+    await screen.findByRole('heading', { name: EXCHANGE_STRINGS.unavailable.noType.title });
+    expect(getOffer, 'nothing it could look up').not.toHaveBeenCalled();
+  });
+
+  it('points a listing that is not there at the list of its own kind', async () => {
+    getOffer.mockResolvedValueOnce(null);
+    openWith(INTEREST);
+    render(ProposePage);
+
+    await screen.findByRole('heading', { name: EXCHANGE_STRINGS.unavailable.notFound.title });
+    const browse = screen.getByRole('link', { name: EXCHANGE_STRINGS.unavailable.browseOffers });
+    expect(browse.getAttribute('href')).toBe(paths.offers());
+    expect(screen.getAllByRole('link')[0], 'the primary way on').toBe(browse);
+    expect(screen.queryByRole('button', { name: EXCHANGE_STRINGS.unavailable.retry })).toBeNull();
+  });
+
+  /**
+   * The listing was read and a later read failed: the page must not say the listing could
+   * not be loaded. **To make this go red:** report every failure as `failed` again.
+   */
+  it('says the proposal could not be prepared when a read after the listing failed', async () => {
+    getInterestsForListing.mockRejectedValueOnce(new Error('Interests unreadable'));
+    openWith(INTEREST);
+    render(ProposePage);
+
+    await screen.findByRole('heading', { name: EXCHANGE_STRINGS.unavailable.unprepared.title });
+    expect(
+      screen.queryByRole('heading', { name: EXCHANGE_STRINGS.unavailable.failed.title })
+    ).toBeNull();
+    expect(screen.getByText('Interests unreadable')).toBeTruthy();
+    expect(
+      screen
+        .getByRole('link', { name: EXCHANGE_STRINGS.unavailable.backToListing })
+        .getAttribute('href')
+    ).toBe(paths.offerDetail(LISTING));
+  });
+
+  /**
+   * A bare address opened directly has no history to go back to, which is the case this
+   * error state is for. **To make this go red:** put `history.back()` back on the button.
+   */
+  it('goes back somewhere real when the page was opened directly', async () => {
+    visit('/exchanges/propose');
+    render(ProposePage);
+
+    await screen.findByRole('heading', { name: EXCHANGE_STRINGS.unavailable.noListing.title });
+    await fireEvent.click(screen.getByRole('button', { name: /Back/ }));
+    expect(goto).toHaveBeenCalledWith(paths.exchanges());
+  });
+
+  it('goes back to the listing when the page was opened directly for one', async () => {
+    getOffer.mockRejectedValueOnce(new Error('Connection closed'));
+    openWith(INTEREST);
+    render(ProposePage);
+
+    await screen.findByRole('heading', { name: EXCHANGE_STRINGS.unavailable.failed.title });
+    await fireEvent.click(screen.getByRole('button', { name: /Back/ }));
+    expect(goto).toHaveBeenCalledWith(paths.offerDetail(LISTING));
+  });
+
+  it('does not go back to a listing that was not found', async () => {
+    getOffer.mockResolvedValueOnce(null);
+    openWith(INTEREST);
+    render(ProposePage);
+
+    await screen.findByRole('heading', { name: EXCHANGE_STRINGS.unavailable.notFound.title });
+    await fireEvent.click(screen.getByRole('button', { name: /Back/ }));
+    expect(goto).toHaveBeenCalledWith(paths.exchanges());
   });
 });

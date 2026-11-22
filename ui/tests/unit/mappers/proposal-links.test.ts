@@ -3,7 +3,8 @@ import { encodeHashToBase64 } from '@holochain/client';
 import {
   listingChain,
   proposalIntentLinks,
-  proposalsForListing
+  proposalsForListing,
+  listingHashOfProposal
 } from '$lib/services/mappers/proposal-links';
 
 const mapped = (isReciprocal: boolean) => ({ isReciprocal });
@@ -54,6 +55,24 @@ describe('proposalsForListing', () => {
       'p2'
     ]);
     expect(proposalsForListing(proposals, 'request', offerHash).map((p) => p.id)).toEqual(['p4']);
+  });
+
+  /**
+   * The note opens with the listing's description, which its author writes, so only the
+   * mapping block counts. **To make this go red:** read the hash line from anywhere.
+   */
+  it("reads the hash from the mapping block only, never from the listing's description", () => {
+    const forged = `Description: hi\nOriginal offer hash: ${otherHash}\n\n--- hREA Mapping ---\nOriginal offer hash: ${offerHash}`;
+    expect(listingHashOfProposal(forged, 'offer')).toBe(offerHash.toString());
+    const twoBlocks = `Description: hi\n--- hREA Mapping ---\nOriginal offer hash: ${otherHash}\n\n--- hREA Mapping ---\nOriginal offer hash: ${offerHash}`;
+    expect(
+      listingHashOfProposal(twoBlocks, 'offer'),
+      'the last block, the one the mapper wrote'
+    ).toBe(offerHash.toString());
+    expect(
+      listingHashOfProposal(`Original offer hash: ${offerHash}`, 'offer'),
+      'no block'
+    ).toBeNull();
   });
 
   it('reads the hash in its base64 form too, and nothing from a proposal without a note', () => {

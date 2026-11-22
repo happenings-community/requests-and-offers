@@ -195,6 +195,12 @@ export type HreaStore = {
     offerHash: string,
     chainHashes?: readonly string[]
   ) => E.Effect<boolean, HreaError>;
+  /**
+   * What an edit does to the listing's proposal (`request:updated`, `offer:updated`): the
+   * old ones retired, then a new one written, or nothing written when they could not be.
+   */
+  readonly handleRequestUpdatedEffect: (request: UIRequest) => E.Effect<Proposal | null, HreaError>;
+  readonly handleOfferUpdatedEffect: (offer: UIOffer) => E.Effect<Proposal | null, HreaError>;
   readonly createRetroactiveProposalMappings: (
     requests: UIRequest[],
     offers: UIOffer[]
@@ -2561,15 +2567,6 @@ export const createHreaStore = (): E.Effect<
     // ========================================================================
 
     /**
-     * Retires every proposal hREA holds for one listing, with the intents each publishes.
-     *
-     * The in-memory map knows the proposal written in this session; hREA's own records,
-     * read by the hash line every proposal note carries (`proposalsForListing`), know the
-     * rest: the one written before a reload, and the copies earlier edits left behind. A
-     * delete, an archive and an edit all come through here, so none of them leaves a
-     * proposal in hREA for a listing that no longer offers it.
-     */
-    /**
      * A listing hash's chain root, as a map key. Reads each record through the R&O zome;
      * without a client in the context (unit tests) a hash is its own root.
      */
@@ -2599,26 +2596,70 @@ export const createHreaStore = (): E.Effect<
         E.catchAllCause(() => E.succeed(false))
       );
 
-    const retireListingProposals = (
+    /**
+     * Retires every proposal hREA holds for one listing, with the intents each publishes:
+     * `removed`, `none` when it holds none, or `failed` when hREA could not be read or a
+     * proposal would not delete.
+     *
+     * The in-memory map knows the proposal written in this session; hREA's own records,
+     * read by the hash line every proposal note carries (`listingHashOfProposal`), know the
+     * rest: the one written before a reload, and the copies earlier edits left behind. A
+     * delete, an archive and an edit all come through here, so none of them leaves a
+     * proposal in hREA for a listing that no longer offers it.
+     *
+     * An edit writes its new proposal only after `removed` or `none`: hREA keeps every
+     * record, so a second proposal beside an old one could not be taken back. An edit
+     * retires nothing when hREA cannot be read (`whenUnreadable: 'nothing'`), so the
+     * listing keeps its proposal until a later edit; a delete or an archive still retires
+     * the mapped one then, since the listing is going anyway.
+     *
+     * Each proposal goes before its intents: once it is gone the listing no longer offers
+     * it, whatever happens to them. An intent that will not delete is left unpublished and
+     * logged, since a retry would only fail on it again and must not hold the listing back.
+     * A retired proposal leaves the map at once, under every hash it was mapped by, so a
+     * later failure in the same pass, or a later edit under another of the listing's hashes,
+     * does not find it there again. A proposal known only from the map that will not delete,
+     * when hREA's list was read and does not show it, is taken as already gone. The cost: a
+     * proposal written moments ago that the list has not caught up with, whose delete then
+     * fails for another reason, is missed, and the edit writes a second one; its note still
+     * names the listing, so the next edit or delete retires both.
+     */
+    const retireListingProposalsOutcome = (
       kind: 'request' | 'offer',
       listingHash: string,
-      chainHashes: readonly string[] = []
-    ): E.Effect<boolean, HreaError> => {
+      chainHashes: readonly string[] = [],
+      // A delete or an archive retires the mapped proposal even when hREA cannot be read;
+      // an edit retires nothing then, since it would write nothing new and leave none.
+      whenUnreadable: 'map-only' | 'nothing' = 'map-only'
+    ): E.Effect<'removed' | 'none' | 'failed'> => {
       const proposalMap =
         kind === 'request' ? state.requestProposalMappings : state.offerProposalMappings;
       const intentMap =
-        kind === 'request' ? state.requestProposalIntentMappings : state.offerProposalIntentMappings;
+        kind === 'request'
+          ? state.requestProposalIntentMappings
+          : state.offerProposalIntentMappings;
 
       return pipe(
         E.gen(function* () {
+          let readFailed = false;
           const listed = yield* pipe(
             hreaService.getProposalsWithIntents(),
             E.catchAll((error) => {
-              console.warn('hREA Store: could not read proposals to retire, using the map only', error);
+              if (whenUnreadable === 'nothing') return E.fail(error);
+              // The mapped proposal can still go; but what else hREA holds is unknown, so
+              // the outcome is `failed` and an edit writes nothing new.
+              console.warn(
+                'hREA Store: could not read proposals to retire, using the map only',
+                error
+              );
+              readFailed = true;
               return E.succeed([] as ProposalWithIntents[]);
             })
           );
-          const targets = new Map<string, { revisionId: string; intentIds: readonly string[] }>();
+          const targets = new Map<
+            string,
+            { revisionId: string; intentIds: readonly string[]; listedByHrea: boolean }
+          >();
           // The same listing can be noted under any hash of its chain (see chainRoot), so a
           // proposal is this listing's when its noted hash has the same root.
           const roots = new Map<string, Promise<string>>();
@@ -2633,53 +2674,125 @@ export const createHreaStore = (): E.Effect<
           for (const p of listed) {
             const noted = listingHashOfProposal(p.note, kind);
             if (noted === null) continue;
-            const same =
-              chain.has(noted) || (yield* E.promise(() => rootOf(noted))) === ownRoot;
-            if (same) targets.set(p.id, { revisionId: p.revisionId || p.id, intentIds: p.intentIds });
+            const same = chain.has(noted) || (yield* E.promise(() => rootOf(noted))) === ownRoot;
+            if (same)
+              targets.set(p.id, {
+                revisionId: p.revisionId || p.id,
+                intentIds: p.intentIds,
+                listedByHrea: true
+              });
           }
+          // A proposal this session wrote, which hREA's list may not show yet.
           const mappedId = proposalMap.get(listingHash);
           if (mappedId && !targets.has(mappedId)) {
             const known = state.proposals.find((p) => p.id === mappedId);
             targets.set(mappedId, {
               revisionId: known?.revisionId || mappedId,
-              intentIds: intentMap.get(listingHash) || []
+              intentIds: intentMap.get(listingHash) || [],
+              listedByHrea: false
             });
           }
           if (targets.size === 0) {
             console.log(`hREA Store: No proposal found for ${kind}:`, listingHash);
-            return false;
+            return readFailed ? ('failed' as const) : ('none' as const);
           }
 
+          let failed = readFailed;
           for (const [proposalId, target] of targets) {
-            for (const intentId of target.intentIds) {
-              const intent = state.intents.find((i) => i.id === intentId);
-              yield* withInitialization(
-                () => hreaService.deleteIntent({ revisionId: intent?.revisionId || intentId }),
+            const deleted = yield* pipe(
+              withInitialization(
+                () => hreaService.deleteProposal({ revisionId: target.revisionId }),
                 state.apolloClient,
                 initialize
+              ),
+              E.as(true),
+              E.catchAll((error) => {
+                console.error(`hREA Store: proposal "${proposalId}" would not delete:`, error);
+                return E.succeed(false);
+              })
+            );
+            if (!deleted) {
+              if (target.listedByHrea || readFailed) {
+                failed = true;
+                continue;
+              }
+              // Known only from the map, absent from a list that was read: retired already,
+              // under another of the listing's hashes (an edit from My Listings names a
+              // revision). Taken as gone, so a stale map entry cannot hold every later edit.
+              console.warn(`hREA Store: proposal "${proposalId}" is not in hREA; taken as gone`);
+            }
+            // A proposal taken as gone took its intents with it.
+            for (const intentId of deleted ? target.intentIds : []) {
+              const intent = state.intents.find((i) => i.id === intentId);
+              yield* pipe(
+                withInitialization(
+                  () => hreaService.deleteIntent({ revisionId: intent?.revisionId || intentId }),
+                  state.apolloClient,
+                  initialize
+                ),
+                E.catchAll((error) => {
+                  console.warn(`hREA Store: intent "${intentId}" left unpublished:`, error);
+                  return E.void;
+                })
               );
             }
-            yield* withInitialization(
-              () => hreaService.deleteProposal({ revisionId: target.revisionId }),
-              state.apolloClient,
-              initialize
-            );
             state.proposals = state.proposals.filter((p) => p.id !== proposalId);
             state.intents = state.intents.filter((i) => !target.intentIds.includes(i.id));
+            // Every entry naming it, under whichever of the listing's hashes it was mapped.
+            for (const [key, id] of [...proposalMap]) {
+              if (id === proposalId) {
+                proposalMap.delete(key);
+                intentMap.delete(key);
+              }
+            }
+            if (!deleted) continue;
             console.log(
-              `hREA Store: Deleted proposal "${proposalId}" and ${target.intentIds.length} intents for ${kind} "${listingHash}"`
+              `hREA Store: Deleted proposal "${proposalId}" and its ${target.intentIds.length} intents for ${kind} "${listingHash}"`
             );
           }
-          proposalMap.delete(listingHash);
-          intentMap.delete(listingHash);
-          return true;
+          return failed ? ('failed' as const) : ('removed' as const);
         }),
-        E.catchAll((error) => {
-          console.error(`hREA Store: Failed to delete proposal for ${kind}:`, error);
-          return E.succeed(false);
+        E.catchAllCause((cause) => {
+          console.error(`hREA Store: Failed to retire the proposals for ${kind}:`, cause);
+          return E.succeed('failed' as const);
         })
       );
     };
+
+    /**
+     * One retirement or replacement at a time, per kind of listing. Two quick edits, or an
+     * edit and a delete, would otherwise both read hREA before either wrote, and so leave a
+     * duplicate (from #564). Per kind rather than per hash: the same listing reaches the
+     * store under its original hash from its own page and under a revision's hash from My
+     * Listings, and a lock keyed by hash would not hold those apart. Each pass is a few
+     * hREA calls, so making the rest of the kind wait costs little; a hung call holds the
+     * kind until it times out. Creating a listing's first proposal (on create, a pending
+     * retry, the retroactive mapping) does not take the lock, so a create still in flight
+     * can race a quick edit, as before.
+     */
+    const kindLocks = new Map<string, E.Semaphore>();
+    const oneAtATime = <A, Err>(
+      kind: 'request' | 'offer',
+      run: E.Effect<A, Err>
+    ): E.Effect<A, Err> => {
+      let lock = kindLocks.get(kind);
+      if (!lock) {
+        lock = E.unsafeMakeSemaphore(1);
+        kindLocks.set(kind, lock);
+      }
+      return lock.withPermits(1)(run);
+    };
+
+    /** `true` when a proposal was retired, as the delete and archive paths expect. */
+    const retireListingProposals = (
+      kind: 'request' | 'offer',
+      listingHash: string,
+      chainHashes: readonly string[] = []
+    ): E.Effect<boolean, HreaError> =>
+      oneAtATime(
+        kind,
+        E.map(retireListingProposalsOutcome(kind, listingHash, chainHashes), (r) => r === 'removed')
+      );
 
     const deleteProposalForRequest = (
       requestHash: string,
@@ -2695,31 +2808,37 @@ export const createHreaStore = (): E.Effect<
     // PROPOSAL UPDATE METHODS (delete + recreate)
     // ========================================================================
 
-    const handleRequestUpdatedEffect = (
-      request: UIRequest
+    /**
+     * An edited listing's proposal is replaced: the old ones retired, then a new one
+     * written, one listing at a time. If the old ones could not be retired nothing new is
+     * written, so a listing never ends up with two proposals.
+     */
+    const replaceListingProposal = (
+      kind: 'request' | 'offer',
+      listing: { original_action_hash?: ActionHash },
+      create: () => E.Effect<Proposal | null, HreaError>
     ): E.Effect<Proposal | null, HreaError> => {
-      const requestHash = request.original_action_hash?.toString();
-      if (!requestHash) return E.succeed(null);
-
-      // Retire whatever hREA holds for it, mapped in this session or not, then mirror
-      // the edited listing afresh.
-      return pipe(
-        deleteProposalForRequest(requestHash),
-        E.flatMap(() => createProposalFromRequest(request))
+      const hash = listing.original_action_hash?.toString();
+      if (!hash) return E.succeed(null);
+      return oneAtATime(
+        kind,
+        E.flatMap(retireListingProposalsOutcome(kind, hash, [], 'nothing'), (outcome) => {
+          if (outcome === 'failed') {
+            console.warn(
+              `hREA Store: ${kind} "${hash}" keeps its old proposal; not writing a second`
+            );
+            return E.succeed(null);
+          }
+          return create();
+        })
       );
     };
 
-    const handleOfferUpdatedEffect = (offer: UIOffer): E.Effect<Proposal | null, HreaError> => {
-      const offerHash = offer.original_action_hash?.toString();
-      if (!offerHash) return E.succeed(null);
+    const handleRequestUpdatedEffect = (request: UIRequest): E.Effect<Proposal | null, HreaError> =>
+      replaceListingProposal('request', request, () => createProposalFromRequest(request));
 
-      // Retire whatever hREA holds for it, mapped in this session or not, then mirror
-      // the edited listing afresh.
-      return pipe(
-        deleteProposalForOffer(offerHash),
-        E.flatMap(() => createProposalFromOffer(offer))
-      );
-    };
+    const handleOfferUpdatedEffect = (offer: UIOffer): E.Effect<Proposal | null, HreaError> =>
+      replaceListingProposal('offer', offer, () => createProposalFromOffer(offer));
 
     // ========================================================================
     // RETROACTIVE PROPOSAL CREATION
@@ -3087,6 +3206,8 @@ export const createHreaStore = (): E.Effect<
       mirrorCancellation,
       deleteProposalForRequest,
       deleteProposalForOffer,
+      handleRequestUpdatedEffect,
+      handleOfferUpdatedEffect,
       createRetroactiveProposalMappings,
       // Manual sync methods for independent updates
       syncUserToAgent,

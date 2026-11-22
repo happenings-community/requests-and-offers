@@ -41,16 +41,27 @@ export function proposalsForListing<P extends { note?: string | null }>(
   return proposals.filter((p) => listingHashOfProposal(p.note, kind) === key);
 }
 
+/** The line every mapper writes above a proposal note's mapping block. */
+const MAPPING_BLOCK = '--- hREA Mapping ---';
+
 /**
  * The listing hash a proposal note names on its `Original <kind> hash:` line, as the store's
  * map key (`Uint8Array.toString()`), whichever form it was written in; null when none.
+ *
+ * Read from the mapping block only: the note opens with the listing's own description,
+ * which its author writes, so a line there that looks like the hash line must not count.
+ * After the last block marker, since the description could hold a marker line too. Every
+ * mapper since the first has written the block (`--- hREA Mapping ---`).
  */
 export function listingHashOfProposal(
   note: string | null | undefined,
   kind: 'request' | 'offer'
 ): string | null {
   const marker = `Original ${kind} hash: `;
-  const line = (note ?? '').split('\n').find((l) => l.startsWith(marker));
+  const lines = (note ?? '').split('\n');
+  const block = lines.lastIndexOf(MAPPING_BLOCK);
+  if (block === -1) return null;
+  const line = lines.slice(block + 1).find((l) => l.startsWith(marker));
   if (!line) return null;
   const raw = line.slice(marker.length).trim();
   return raw && raw !== 'N/A' ? hashKey(raw) : null;

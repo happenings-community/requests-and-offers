@@ -77,8 +77,13 @@ export const TimePreferenceHelpers = {
   getValue: (pref: TimePreference): string =>
     typeof pref === 'object' && 'Other' in pref ? pref.Other : (pref as string),
 
+  // The label the forms offer, never the enum: pages read "NoPreference" before (F4).
   getDisplayValue: (pref: TimePreference): string =>
-    typeof pref === 'object' && 'Other' in pref ? pref.Other || 'Other' : (pref as string)
+    typeof pref === 'object' && 'Other' in pref
+      ? pref.Other || 'Other'
+      : pref === 'NoPreference'
+        ? 'No Preference'
+        : (pref as string)
 };
 
 export enum InteractionType {
@@ -106,7 +111,7 @@ export type Timeframe =
 
 /**
  * A listing's figures (#380). `time_estimate_hours` is an **estimate** of the time the
- * task takes, an exact decimal string, zero allowed: it describes the task and is never
+ * task takes, an exact decimal string; zero is no estimate (F19): it describes the task and is never
  * exchanged. The hours an agreement's service is measured in start from it. `amount` is
  * what the listing asks or offers in **payment**, in a unit: the name of a medium of
  * exchange, as on an agreement (a currency, or a time-bank medium). Hours as payment are

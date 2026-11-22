@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### CI and Testing
+
+- **Release**: A tag is refused unless the README's `release-ready` marker names its version, checked before the heavy suites, and the script tests fail while the marker and `package.json` disagree
+
 ## [0.6.0-alpha.2] - 2026-11-23
 
 ### 🚀 Exchange on hREA and Platform 0.7

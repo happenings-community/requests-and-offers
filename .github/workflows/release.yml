@@ -43,9 +43,29 @@ permissions:
   contents: read
 
 jobs:
+  # Seconds, before the heavy suites spend half an hour: a README nobody
+  # re-read for this version refuses the release (scripts/release-readme.ts).
+  readme:
+    name: README is marked ready for this version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      # Through env, never interpolated into the script (see Resolve the tag).
+      - name: Check the release-ready marker
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: bun scripts/release-readme.ts --version "$TAG"
+
   # The gate. `inputs.skip_tests` is only settable from the Actions tab, so a
   # tag push always pays for it.
   heavy-tests:
+    needs: readme
     if: ${{ !inputs.skip_tests }}
     # A called workflow can only narrow what its caller grants. tests-manual.yml
     # declares pull-requests: write (to drop its trigger label, a step that never
@@ -60,10 +80,10 @@ jobs:
 
   build:
     name: Build and describe the release
-    needs: heavy-tests
+    needs: [readme, heavy-tests]
     # `needs` on a skipped job would skip this one too, and the dispatch path is
-    # allowed to skip the gate.
-    if: ${{ always() && (needs.heavy-tests.result == 'success' || needs.heavy-tests.result == 'skipped') }}
+    # allowed to skip the gate. The README check is never skipped.
+    if: ${{ always() && needs.readme.result == 'success' && (needs.heavy-tests.result == 'success' || needs.heavy-tests.result == 'skipped') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     outputs:

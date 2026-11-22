@@ -25,6 +25,10 @@ The enforcement limits are listed under Known gaps in 0.6.0-alpha.2 below.
 - **hREA, upstream, tracked for alpha 3**: updating a Commitment leaves the `all_commitments` index on its first revision; the app reads each Commitment's latest revision itself until it is fixed.
 - **hREA, upstream, tracked for alpha 3**: there is no way to find a Proposal by an external reference, so the app finds a listing's Proposals by the hash line in their note.
 
+### CI and Testing
+
+- **Release**: A tag is refused unless the README's `release-ready` marker names its version, checked before the heavy suites, and the script tests fail while the marker and `package.json` disagree
+
 ## [0.6.0-alpha.2] - 2026-11-23
 
 ### 🚀 Exchange on hREA and Platform 0.7
@@ -148,7 +152,7 @@ What alpha 2 does not yet enforce, most of it reachable only by a member running
 - **Mediums of Exchange**: The store keeps the type the DHT holds, so a currency is no longer shown as Base (`109b7aa0`, #453)
 - **Mediums of Exchange**: The wording says a base is a kind of exchange and a currency a unit people pay in, with no payment methods (`a5a9f15d`, #467); the listing forms always call the section Medium of Exchange (`8e950b8d`, #471)
 - **Users**: A blocked member is told about their status, not about a missing profile (`a47b8d8d`, #392)
-- **UI**: The loading screen gives an honest first-start wait (`9b2f5946`, #469)
+- **UI**: The loading screen gives an honest first-start wait (`9b2f5946`, #469); a spinner turns on one step through every wait, including the member's profile, the bar reaches 100% when a non-critical step is skipped, and Network Verification tries once more when a new install's first start-up keeps it waiting past 30 seconds (`ceb7f6cd`, #597)
 - **Zomes**: Given a revision's hash, the seven latest-record reads return the latest version, and deleting an edited listing removes the whole listing, from the active and archived lists too (`dbd42041`, #487, closes #229)
 - **Exchanges**: A member holds one live interest per listing, enforced by validation; a withdrawn interest does not count (`ed628e2e`, #362 with #492, closes #354)
 - **Messaging**: A message is limited to 3 KiB, what the keystore can encrypt, and under Holochain 0.7 a refusal from the zome is shown as a refusal again, rather than waiting in the outbox (`20c05eee`, #488)
@@ -156,7 +160,10 @@ What alpha 2 does not yet enforce, most of it reachable only by a member running
 - **UI**: Each nav bar's status dot opens its own network details, on the admin pages too (`7db2b546`, #522)
 - **Administration**: The admin Users page moves a member between its lists as soon as a status is written, without a reload, and Retry Loading loads again after a failed load (`960e289e`, #524)
 - **Exchanges**: A proposal its author has withdrawn can no longer be accepted or declined (`fc50275f`, #485, closes #484)
-- **Exchanges**: The proposal page says calmly why it cannot open (no listing chosen, a link missing its type, a listing not found, or a read that failed) and offers ways on, instead of a red bar (`65ddd3ef`, #577)
+- **Exchanges**: The proposal page says calmly why it cannot open (no listing chosen, a link missing its type, a listing not found, or a read that failed) and offers ways on, instead of a red bar (`65ddd3ef`, #577); it says the proposal could not be prepared when a read after the listing fails, and Back leads to the listing or My exchanges when the page was opened directly (`9b161a45`, #590)
+- **Exchanges**: Accept, Decline, Withdraw and Cancel read the exchange before they write, and say so when the other member has moved it on first, instead of showing a refusal; Decline, Withdraw and Cancel ask before they run, with the other member's name shown as text, and Delete on an offer or request page asks in the app rather than through the browser (`10addd93`, #579 with #591)
+- **Users**: The approval is no longer queued behind the welcome dialog, which acceptance now closes, and the welcome dialogs say an administrator reviews the profile instead of promising an email and a meeting (`10addd93`, #579)
+- **UI**: Dates read in one format, such as "21 Nov 2026, 16:38", the hREA test page aside, and every page titles itself through one helper (`10addd93`, #579)
 - **UI**: The nav bar's menus work from the keyboard (Enter, Space and the arrows open them; arrows, Home and End move; Escape closes) and announce themselves to a screen reader, and their items are links the router follows (`8ad643f9`, #352, closes #204)
 - **Administration**: The admin lists hold accepted members and organisations only, and a status an administrator writes stands until a read at least as new returns, so the minute re-read no longer moves a member back (`881b955c`, #411)
 - **UI**: The drawer's counts read "9+" past nine, as the bar's do, with the full number in words (`9c8c3327`, #533)
@@ -166,7 +173,9 @@ What alpha 2 does not yet enforce, most of it reachable only by a member running
 - **UI**: Labels are drawn as the design system's pills (`19ba0c07`, #553)
 - **UI**: Every page starts at the top of the window (`071f64e6`, #554)
 - **UI**: Every list page has one header, and Requests and Offers follow the same layout as the other lists (`1043621e`, #555, part of #350)
-- **UI**: Listings and most other pages sit in one centred column capped at 1280px; the exchange, proposal, conversation and organisation edit pages share a 768px reading column; service type and medium tags stay on one line, cut with an ellipsis when too long (`7fd6ffec`, #576)
+- **UI**: Listings and most other pages sit in one centred column capped at 1280px; the exchange, proposal, conversation and organisation edit pages share a 768px reading column; service type and medium tags stay on one line, cut with an ellipsis when too long (`7fd6ffec`, #576); a tag name cut short shows in full above it on hover, and on keyboard focus where the tag is a link (`15ae19fa`, #589)
+- **Administration**: Add administrator lists the members when the page is opened directly, and the administrators table takes a member in or out as soon as they are added or removed; the prerequisite wall names what is actually missing; a time preference reads "No Preference"; a pending first administrator is told to accept their own membership rather than wait; a zero time estimate is refused at the form, and one already stored reads as no estimate and opens blank (`1842751d`, #578)
+- **hREA**: The admin hREA dashboard tells the truth about every exchange: each accepted exchange carries both Commitments (one that moves no resource names no resource specification), what a cancelled, declined or withdrawn exchange never reached reads "will not happen", Units are named, `ref:` notes carry base64 hashes, and an edit, archive or delete retires the listing's Proposals after a reload too (`fff8f33d`, #580); an edit writes no second Proposal when the old one could not be retired, the listing's hash is read from the note's mapping block only, and retirement runs one at a time (`58bdd91a`, #595)
 
 ### Performance
 

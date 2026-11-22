@@ -12,6 +12,7 @@ import type { Agent, Commitment } from '$lib/types/hrea';
 import type { UIOrganization, UIUser, UIServiceType } from '$lib/types/ui';
 import { HreaError } from '$lib/errors';
 import { encodeHashToBase64, fakeActionHash } from '@holochain/client';
+import { storeEventBus } from '$lib/stores/storeEvents';
 
 describe('HreaStore', () => {
   let store: HreaStore;
@@ -614,6 +615,73 @@ describe('HreaStore', () => {
       const deletedIntents = vi.mocked(service.deleteIntent).mock.calls.map((c) => c[0].revisionId);
       expect(deletedProposals).toEqual(['p-old', 'p-edit']);
       expect(deletedIntents).toEqual(['i1', 'i2', 'i3', 'i4']);
+    });
+  });
+
+  /**
+   * Alpha 2 final dogfooding, 21 November 2026: an offer edited then deleted left its
+   * proposal in hREA. The edit, started from My Listings, mirrored the proposal under a
+   * revision's hash; the delete came under the latest revision's hash, and once it had run
+   * neither could be walked back to their common root, because the zome reads a deleted
+   * action as null. That is what this store sees here, where every hash is its own root.
+   * The delete now hands over the chain it read beforehand.
+   */
+  describe('Deleting a listing that was edited', () => {
+    const bytes = (n: number) => new Uint8Array([132, 41, 36, n, n, n]);
+    const [root, firstEdit, secondEdit] = [bytes(1), bytes(2), bytes(3)];
+    const noteFor = (kind: 'offer' | 'request', hash: Uint8Array) =>
+      `Description: x\n--- hREA Mapping ---\nOriginal ${kind} hash: ${hash.toString()}`;
+
+    const storeHolding = async (kind: 'offer' | 'request') => {
+      const service = createMockService({
+        getProposalsWithIntents: vi.fn().mockReturnValue(
+          E.succeed([
+            { id: 'p-edited', revisionId: 'p-edited', name: 'Edited', note: noteFor(kind, firstEdit), intentIds: ['i1', 'i2'] },
+            { id: 'p-other', revisionId: 'p-other', name: 'Other', note: noteFor(kind, bytes(9)), intentIds: ['i5'] }
+          ])
+        )
+      });
+      const reloaded = await createStoreWithService(service);
+      await runEffect(reloaded.initialize());
+      return { service, reloaded };
+    };
+
+    const retired = (service: HreaService) =>
+      vi.mocked(service.deleteProposal).mock.calls.map((c) => c[0].revisionId);
+
+    it('retires the proposal of an offer edited then deleted, noted under an earlier revision', async () => {
+      const { service } = await storeHolding('offer');
+
+      storeEventBus.emit('offer:deleted', {
+        offerHash: secondEdit,
+        chainHashes: [secondEdit, firstEdit, root]
+      });
+
+      await vi.waitFor(() => expect(retired(service)).toEqual(['p-edited']));
+      const intents = vi.mocked(service.deleteIntent).mock.calls.map((c) => c[0].revisionId);
+      expect(intents).toEqual(['i1', 'i2']);
+    });
+
+    it('retires the proposal of a request edited then deleted, noted under an earlier revision', async () => {
+      const { service } = await storeHolding('request');
+
+      storeEventBus.emit('request:deleted', {
+        requestHash: secondEdit,
+        chainHashes: [secondEdit, firstEdit, root]
+      });
+
+      await vi.waitFor(() => expect(retired(service)).toEqual(['p-edited']));
+    });
+
+    it('leaves the proposal of another listing alone', async () => {
+      const { service, reloaded } = await storeHolding('offer');
+
+      const result = await runEffect(
+        reloaded.deleteProposalForOffer(bytes(7).toString(), [bytes(7).toString()])
+      );
+
+      expect(result).toBe(false);
+      expect(retired(service)).toEqual([]);
     });
   });
 

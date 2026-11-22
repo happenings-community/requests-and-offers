@@ -138,6 +138,44 @@ describe('Requests Store', () => {
     expect(mockRequestsService.deleteRequest).toHaveBeenCalledWith(mockHash);
   });
 
+  /**
+   * Alpha 2 final dogfooding: once a request is deleted, no revision of it can be read, so the
+   * hREA store could not tell which proposals an edit had noted under another hash. The
+   * chain is read before the delete and travels with the event.
+   */
+  it('reads the request chain before deleting it and hands it to the deleted event', async () => {
+    const { storeEventBus } = await import('$lib/stores/storeEvents');
+    const root = (await createMockRecord()).signed_action.hashed.hash;
+    const latest = await createMockRecord();
+    const latestHash = latest.signed_action.hashed.hash;
+    // The latest revision updates the root.
+    (latest.signed_action.hashed.content as unknown as { data: unknown }).data = {
+      type: 'Update',
+      original_action_address: root
+    };
+    const order: string[] = [];
+    vi.spyOn(mockRequestsService, 'getLatestRequestRecord').mockImplementation(() =>
+      Effect.sync(() => {
+        order.push('read');
+        return latest;
+      })
+    );
+    vi.spyOn(mockRequestsService, 'deleteRequest').mockImplementation(() =>
+      Effect.sync(() => {
+        order.push('delete');
+        return true;
+      })
+    );
+    const seen: unknown[] = [];
+    const off = storeEventBus.on('request:deleted', (payload) => seen.push(payload));
+
+    await runEffect(store.deleteRequest(latestHash));
+    off();
+
+    expect(order).toEqual(['read', 'delete']);
+    expect(seen).toEqual([{ requestHash: latestHash, chainHashes: [latestHash, root] }]);
+  });
+
   it('should get all requests and update the store state', async () => {
     await runEffect(store.getActiveRequests());
 

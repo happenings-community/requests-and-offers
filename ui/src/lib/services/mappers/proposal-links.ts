@@ -102,3 +102,59 @@ export async function chainRoot(
   }
   return current;
 }
+
+/**
+ * Every action hash a listing's chain holds, read before the listing is deleted: the latest
+ * revision first, then each Update back to the Create. A proposal note can name any of them
+ * (see chainRoot), and once the delete has run none can be walked: the zome's `get` answers
+ * null for a deleted action. So a delete reads the chain first and hands it to the hREA
+ * store, which retires a proposal whose noted hash is in it (alpha 2 final dogfooding,
+ * 21 November 2026: an offer edited then deleted left its proposal in hREA).
+ *
+ * `readLatest` returns the latest record of the chain `hash` is part of, `readRecord` the
+ * record an action hash names; each returns null or throws when it cannot. The result
+ * always holds `hash` itself, so a read that fails still leaves the direct match.
+ */
+export async function listingChain(
+  hash: Uint8Array,
+  readLatest: (hash: Uint8Array) => Promise<unknown>,
+  readRecord: (hash: Uint8Array) => Promise<unknown>,
+  maxSteps = 64
+): Promise<Uint8Array[]> {
+  const chain: Uint8Array[] = [hash];
+  const seen = new Set<string>([hash.toString()]);
+  const add = (h: Uint8Array) => {
+    if (seen.has(h.toString())) return;
+    seen.add(h.toString());
+    chain.push(h);
+  };
+
+  let record: unknown;
+  try {
+    record = await readLatest(hash);
+  } catch {
+    return chain;
+  }
+  for (let step = 0; step < maxSteps && record; step++) {
+    const hashed = (
+      record as {
+        signed_action?: {
+          hashed?: {
+            hash?: Uint8Array;
+            content?: { data?: { type?: string; original_action_address?: Uint8Array } };
+          };
+        };
+      }
+    ).signed_action?.hashed;
+    if (hashed?.hash) add(hashed.hash);
+    const data = hashed?.content?.data;
+    if (data?.type !== 'Update' || !data.original_action_address) break;
+    add(data.original_action_address);
+    try {
+      record = await readRecord(data.original_action_address);
+    } catch {
+      break;
+    }
+  }
+  return chain;
+}

@@ -22,6 +22,8 @@ export interface RequestsService {
   readonly getLatestRequestRecord: (
     originalActionHash: ActionHash
   ) => E.Effect<Record | null, RequestError>;
+  /** The record one action hash names, any revision; null once the request is deleted. */
+  readonly getRequestRecord: (actionHash: ActionHash) => E.Effect<Record | null, RequestError>;
   readonly getLatestRequest: (
     originalActionHash: ActionHash
   ) => E.Effect<RequestInDHT | null, RequestError>;
@@ -114,6 +116,9 @@ export const RequestsServiceLive: Layer.Layer<
     ): E.Effect<Record | null, RequestError> =>
       wrapZomeCall('requests', 'get_latest_request_record', originalActionHash);
 
+    const getRequestRecord = (actionHash: ActionHash): E.Effect<Record | null, RequestError> =>
+      wrapZomeCall('requests', 'get_request', actionHash);
+
     const getLatestRequest = (
       originalActionHash: ActionHash
     ): E.Effect<RequestInDHT | null, RequestError> =>
@@ -203,6 +208,7 @@ export const RequestsServiceLive: Layer.Layer<
     return RequestsServiceTag.of({
       createRequest,
       getLatestRequestRecord,
+      getRequestRecord,
       getLatestRequest,
       updateRequest,
       getActiveRequestsRecords,

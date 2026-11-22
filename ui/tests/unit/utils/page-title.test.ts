@@ -32,10 +32,7 @@ describe('pageTitle', () => {
  */
 describe('every route', () => {
   // Owned by other pull requests open at the same time; they move to the helper after.
-  const OWNED_ELSEWHERE = new Set([
-    'src/routes/admin/hrea/+page.svelte',
-    'src/routes/(public)/exchanges/propose/+page.svelte'
-  ]);
+  const OWNED_ELSEWHERE = new Set(['src/routes/admin/hrea/+page.svelte']);
   const routes = globSync('src/routes/**/+page.svelte').filter((f) => !OWNED_ELSEWHERE.has(f));
 
   it('finds the routes', () => {
@@ -47,5 +44,17 @@ describe('every route', () => {
       (file) => !/<title>\{pageTitle\(/.test(readFileSync(file, 'utf8'))
     );
     expect(offenders).toEqual([]);
+  });
+});
+
+/**
+ * **The membership wall names itself** (final alpha 2 dogfooding). ProfileGuard renders
+ * the wall instead of the page, so the page's own title never rendered and the tab kept
+ * the previous page's ("My profile · Requests & Offers" on /offers).
+ */
+describe('the membership wall', () => {
+  it('sets its title through pageTitle', () => {
+    const guard = readFileSync('src/lib/components/common/ProfileGuard.svelte', 'utf8');
+    expect(guard).toMatch(/<svelte:head>[\s\S]*<title>\{pageTitle\(/);
   });
 });

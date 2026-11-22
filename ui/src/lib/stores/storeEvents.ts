@@ -95,9 +95,9 @@ class StoreEventBus {
   /**
    * Emit an event to all subscribers
    */
-  emit<K extends keyof StoreEvents>(event: K, payload: StoreEvents[K]): void {
+  emit<K extends keyof StoreEvents>(event: K, payload: StoreEvents[K], source?: string): void {
     // Dev builds only: the log records and a production build drops the call's work.
-    eventLog.record(event, payload, 'local');
+    eventLog.record(event, payload, 'local', source);
     const eventHandlers = this.handlers.get(event);
     if (eventHandlers) {
       eventHandlers.forEach((handler) => {
@@ -146,18 +146,6 @@ class StoreEventBus {
       info[String(event)] = handlers.size;
     });
     return info;
-  }
-
-  /**
-   * Emit an event with enhanced debugging for status updates
-   */
-  emitStatusUpdate<K extends 'user:status:updated' | 'organization:status:updated'>(
-    event: K,
-    payload: StoreEvents[K],
-    source: string = 'unknown'
-  ): void {
-    console.log(`🚀 Emitting status update event: ${String(event)} from ${source}`, payload);
-    this.emit(event, payload);
   }
 }
 

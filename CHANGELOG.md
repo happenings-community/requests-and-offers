@@ -147,6 +147,7 @@ What alpha 2 does not yet enforce, most of it reachable only by a member running
 - **UI**: Labels are drawn as the design system's pills (`19ba0c07`, #553)
 - **UI**: Every page starts at the top of the window (`071f64e6`, #554)
 - **UI**: Every list page has one header, and Requests and Offers follow the same layout as the other lists (`1043621e`, #555, part of #350)
+- **UI**: Listings and most other pages sit in one centred column capped at 1280px; the exchange, proposal, conversation and organisation edit pages share a 768px reading column; service type and medium tags stay on one line, cut with an ellipsis when too long (`7fd6ffec`, #576)
 
 ### Performance
 

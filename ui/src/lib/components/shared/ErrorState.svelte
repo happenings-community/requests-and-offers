@@ -38,11 +38,15 @@
     retryLabel = 'Try again',
     onretry
   }: Props = $props();
+
+  // One per instance, so two error states on a page do not share a title id.
+  const uid = $props.id();
+  const titleId = `error-state-title-${uid}`;
 </script>
 
 <section
   class="card relative overflow-hidden border border-surface-200 p-6 pt-8 shadow-md dark:border-surface-600 sm:p-8 sm:pt-10"
-  aria-labelledby="error-state-title"
+  aria-labelledby={titleId}
   data-testid="error-state"
 >
   <div
@@ -68,7 +72,7 @@
     </div>
   {/if}
 
-  <h1 id="error-state-title" class="h3 mb-2 font-bold">{title}</h1>
+  <h1 id={titleId} class="h3 mb-2 font-bold">{title}</h1>
   <p class="max-w-prose text-surface-700 dark:text-surface-200">{body}</p>
 
   {#if detail}

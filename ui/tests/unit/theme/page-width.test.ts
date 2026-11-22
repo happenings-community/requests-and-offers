@@ -18,8 +18,9 @@ const { default: config } = (await import(/* @vite-ignore */ configUrl)) as {
  * - `max-w-reading` (48rem, 768px) is the reading column: a conversation, an
  *   exchange, a form read top to bottom. It sits inside a `container`.
  *
- * A page that caps its own column with a raw size (`max-w-2xl`, `max-w-3xl`)
- * beside `container` is a third width, and this test turns red on it.
+ * A page or component that caps its own column beside `container` (`max-w-2xl`,
+ * `lg:max-w-4xl`, `max-w-prose`, `max-w-[60rem]`) is a third width, and this test turns
+ * red on it, in `src/routes` and `src/lib` alike.
  */
 
 type ContainerTheme = { screens?: Record<string, string> };
@@ -50,21 +51,69 @@ describe('page widths', () => {
   });
 
   it('gives no page a column width of its own beside container', () => {
-    const files = globSync('src/routes/**/*.svelte', { cwd: process.cwd() });
+    const files = ['src/routes/**/*.svelte', 'src/lib/**/*.svelte'].flatMap((pattern) =>
+      globSync(pattern, { cwd: process.cwd() })
+    );
     expect(files.length).toBeGreaterThan(0);
-    const offenders: string[] = [];
-    for (const file of files) {
-      readFileSync(file, 'utf8')
-        .split('\n')
-        .forEach((line, i) => {
-          const cls = line.match(/class="([^"]*)"/)?.[1];
-          if (!cls) return;
-          const tokens = cls.split(/\s+/);
-          if (!tokens.includes('container')) return;
-          const raw = tokens.find((t) => /^max-w-(\d?xl|lg|md|sm|xs|screen-\w+)$/.test(t));
-          if (raw) offenders.push(`${file}:${i + 1} ${raw}`);
-        });
-    }
+    const offenders = files.flatMap((file) =>
+      columnWidthsBesideContainer(file, readFileSync(file, 'utf8'))
+    );
     expect(offenders).toEqual([]);
   });
+
+  it('catches a width however a class attribute writes it', () => {
+    const found = (markup: string) => columnWidthsBesideContainer('x.svelte', markup).length;
+    expect(found('<div class="container mx-auto max-w-2xl">')).toBe(1);
+    expect(found('<div class="container lg:max-w-4xl">'), 'a breakpoint prefix').toBe(1);
+    expect(found('<div class="container mx-auto max-w-prose">')).toBe(1);
+    expect(found('<div class="container max-w-[60rem]">'), 'an arbitrary value').toBe(1);
+    expect(found('<div class="container !max-w-3xl">'), 'important').toBe(1);
+    expect(
+      found('<section\n  class="container mx-auto\n    max-w-4xl p-4"\n>'),
+      'a class split over lines'
+    ).toBe(1);
+    expect(found(`<div class="container {wide ? 'max-w-4xl' : ''}">`), 'in a ternary').toBe(1);
+    expect(found("<div class='container max-w-2xl'>"), 'single quotes').toBe(1);
+    expect(found('<div class={`container max-w-2xl`}>'), 'a template string').toBe(1);
+    expect(found('<div class={"container max-w-2xl"}>'), 'a braced string').toBe(1);
+    expect(found('<div class="container mx-auto max-w-reading">')).toBe(0);
+    expect(found('<div class="container mx-auto max-w-full">')).toBe(0);
+    expect(found('<div class="mx-auto max-w-2xl">'), 'no container, no rule').toBe(0);
+    expect(
+      found('<div class="table-container max-w-2xl">'),
+      'another class that ends in container'
+    ).toBe(0);
+  });
 });
+
+/**
+ * Every `max-w-*` that sits in a class attribute beside `container`, other than the named
+ * reading column and the two that set no width (`full`, `none`). Reads the whole attribute,
+ * however many lines it spans, in double or single quotes or in braces (`class={...}` with no
+ * braces inside, such as a template string without interpolation), strips the quotes, braces
+ * and backticks of a simple expression inside it (`{wide ? 'max-w-4xl' : ''}`),
+ * and drops variant prefixes (`lg:`, `dark:`) and `!`, so `lg:max-w-4xl` counts as
+ * `max-w-4xl`. A `class:` directive is not read.
+ */
+function columnWidthsBesideContainer(file: string, source: string): string[] {
+  const found: string[] = [];
+  for (const m of source.matchAll(/\bclass=(?:"([^"]*)"|'([^']*)'|\{([^}]*)\})/g)) {
+    const value = m[1] ?? m[2] ?? m[3];
+    const tokens = value
+      .split(/\s+/)
+      .map((t) => t.replace(/[{}'"`]/g, ''))
+      .filter(Boolean);
+    if (!tokens.includes('container')) continue;
+    for (const token of tokens) {
+      const utility = token.split(':').pop()!.replace(/^!/, '');
+      if (
+        /^max-w-/.test(utility) &&
+        !['max-w-full', 'max-w-none', 'max-w-reading'].includes(utility)
+      ) {
+        const line = source.slice(0, m.index).split('\n').length;
+        found.push(`${file}:${line} ${token}`);
+      }
+    }
+  }
+  return found;
+}

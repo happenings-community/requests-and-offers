@@ -66,6 +66,8 @@ A `workflow_dispatch` workflow only appears in the Actions tab once its file is 
 
 `release.yml` calls **Heavy tests (manual)** through `workflow_call` with `suite: both` before it builds anything, so pushing a `v*` tag runs both suites and a red one stops the release. Dispatching **Release** by hand does the same unless `skip_tests` is ticked. See the [release checklist](../RELEASE_CHECKLIST.md).
 
+Before the suites, a job of a few seconds reads the README's `<!-- release-ready: X.Y.Z -->` marker with `scripts/release-readme.ts` and refuses a tag it does not name, `skip_tests` or not. The marker is raised by hand, by whoever re-read the README for that version; on every pull request, `bun test scripts/tests` also fails while the marker and the `package.json` version disagree, so the version bump pull request is where it moves.
+
 ### Sweettest and contention
 
 The sweettest job runs each test case in its own `cargo test` process and passes no thread count at all; see the leak note below for why. Nothing passes `--no-fail-fast` any more either: the per-case loop runs every case whatever the last one did, collects the names of those that failed, and exits non-zero at the end with the list. `fail-fast: false` on the matrix is separate and still live, and is what stops one red binary cancelling the others. These tests wait on real DHT gossip with a 15 second ceiling, so on a loaded machine they fail on the wait rather than on the code. During the v0.6.0-alpha.1 release the same suite went red under contention and green on a quiet machine at 57 passed, 0 failed.

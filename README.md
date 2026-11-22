@@ -1,5 +1,8 @@
 # Requests and Offers
 
+<!-- release-ready: 0.6.0-alpha.2 -->
+<!-- Raise this marker to the version being released once the README describes it; the release refuses a tag it does not name (scripts/release-readme.ts). -->
+
 [![CI](https://github.com/happenings-community/requests-and-offers/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/happenings-community/requests-and-offers/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/happenings-community/requests-and-offers?include_prereleases&label=release)](https://github.com/happenings-community/requests-and-offers/releases/latest)
 [![Docs](https://img.shields.io/badge/docs-mdBook-blue)](https://happenings-community.github.io/requests-and-offers/)

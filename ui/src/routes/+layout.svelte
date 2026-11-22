@@ -54,6 +54,7 @@
   import { Effect as E, pipe, Schedule, Duration } from 'effect';
   import { paths } from '$lib/paths';
   import { startupProgress, type StartupStepStatus } from '$lib/utils/startup-progress';
+  import { retryOnceAfterInitWait } from '$lib/utils/init-wait';
 
   type Props = {
     children: Snippet;
@@ -278,14 +279,19 @@
       yield* E.sync(() => updateStep('network', 'running', 'Verifying network configuration...'));
       yield* E.logInfo('🔄 [3/4] Verifying network configuration...');
 
+      // On a new install the DNA's first `init()` can keep these reads waiting past the
+      // conductor's 30 seconds; it is nearly done by then, so each read tries once more.
+      const stillStarting = () =>
+        updateStep('network', 'running', 'Still starting up, checking again...');
+
       const seed = yield* E.tryPromise({
-        try: () => hc.getNetworkSeed(),
+        try: () => retryOnceAfterInitWait(() => hc.getNetworkSeed(), stillStarting),
         catch: (error) => new Error(`Failed to get network seed: ${error}`)
       });
       networkSeed = seed;
 
       const info = yield* E.tryPromise({
-        try: () => hc.getNetworkInfo(),
+        try: () => retryOnceAfterInitWait(() => hc.getNetworkInfo(), stillStarting),
         catch: (error) => new Error(`Failed to get network info: ${error}`)
       });
       networkInfo = info;

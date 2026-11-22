@@ -84,7 +84,7 @@
     {
       state: 'missing',
       meaning:
-        'The exchange has reached the stage that needs this record, and hREA does not hold it: the mirror is incomplete.'
+        'The exchange has reached the stage that needs this record, and hREA does not hold it. Usually the mirror is incomplete; for a listing that was archived or deleted, its Proposal and Intents were retired on purpose (see Known mapping gaps).'
     },
     { state: 'not-yet', meaning: 'The exchange has not reached the stage that creates it.' },
     {
@@ -94,7 +94,7 @@
     {
       state: 'no-resource',
       meaning:
-        'The reciprocal moves nothing (a gift, or a term still to be discussed), so no resource specification is drawn.'
+        'The reciprocal moves nothing (a gift, or a term still to be discussed): the medium\'s specification is drawn, and nothing conforms to it.'
     },
     {
       state: 'not-mapped',
@@ -905,7 +905,7 @@
   }
   .hrea-legend-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
     gap: 10px 24px;
     list-style: none;
     margin: 0;

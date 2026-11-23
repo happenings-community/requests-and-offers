@@ -86,7 +86,7 @@
   const claimRefusedModal = (): ModalSettings =>
     alertModal({
       id: 'first-administrator-refused',
-      message: `<p>Your profile was created, but you were not made the first administrator: an administrator already exists on this network, or the network names its own progenitor. An administrator will accept your membership.</p>`,
+      message: `<p>Your profile was created, but you were not made the first administrator: this network already has an administrator. They will accept your membership.</p>`,
       confirmLabel: 'Got it'
     });
 

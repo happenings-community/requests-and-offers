@@ -30,7 +30,7 @@ on:
         type: boolean
         default: false
       allow_dev_mode:
-        description: Build without a progenitor key (dispatch only, never for a published release). For dry runs before the steward key exists.
+        description: Allow a build with no progenitor key while PROGENITOR_PUBKEY is empty (dispatch only, never for a published release). With the variable set, the build is keyed anyway.
         type: boolean
         default: false
 

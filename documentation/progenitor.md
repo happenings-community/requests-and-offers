@@ -199,7 +199,7 @@ The steward's `install` also reads the bundle itself and refuses one whose `prog
 4. **The steward** runs `status` to read each member's agent key, then `grant --agent <key>` for each member who is to be an administrator.
 5. **Then** the link goes out. Two or three administrators on separate devices before it does, as for any network.
 
-The tag's build uses the same key, so its DNA hash should equal the dry run's; release checklist step 4 compares them. If they differ, the steward runs `install` again with the tag's `.happ` and `grant` again for each team member: no desktop install can take the seat on a keyed network.
+The tag's build uses the same key, so its DNA hash should equal the dry run's; release checklist step 4 compares them. If they differ, the steward installs the tag's `.happ` as a second app, `install --app-id requests_and_offers_<version>` (the dry run's app holds the default id; the DNA differs, so the same key can hold both), and runs `grant` again for each team member with the same `--app-id`, as `status` needs it too: no desktop install can take the seat on a keyed network.
 A grant counts once the member's own app shows them as administrator, not when the steward's `status` does: the steward stays online until each member sees it, since peers need the steward's grant to validate the member's acts.
 
 **Moss is out of scope for this release.** Moss installs the same webhapp once per group, with its own network seed; a seed override keeps the properties, so every Moss group would be keyed to the steward, whom no group contains, and the first-administrator box is hidden on a keyed network. A Moss group would get no administrator. Moss builds stay unkeyed until the group's own progenitor can be bound (#95).

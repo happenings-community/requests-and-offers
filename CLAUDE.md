@@ -8,6 +8,7 @@ Before exploring the codebase for implementation tasks, **always check if a skil
 
 - **Stores, services, or domain layers** → invoke `effect-ts-7layer-architecture`
 - **hREA, proposals, intents, or GraphQL** → invoke `hrea-integration`
+- **Dogfood builds on a throwaway network, the dogfood pre-release, the joiner check** → invoke `dogfood-network`
 
 Skills contain verified patterns from this codebase. Load them BEFORE launching explore agents or reading reference files manually.
 

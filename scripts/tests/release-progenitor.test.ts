@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { dhtLocationFrom32, encodeHashToBase64 } from '@holochain/client';
 import {
   isAgentPubKey,
   keyRelease,
@@ -12,8 +13,14 @@ import {
 const root = join(import.meta.dir, '..', '..');
 const script = join(root, 'scripts', 'release-progenitor.ts');
 
-// 53 characters, `uhCAk` first: the shape of a real AgentPubKey, not a real key.
-const KEY = 'uhCAkAbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_AbCdEfGhIj';
+// A real AgentPubKey: the agent prefix, a 32-byte core and its DHT location, as the zome
+// decodes it. A key of the right shape with a wrong checksum must be refused (#601 review).
+const core = Uint8Array.from({ length: 32 }, (_, i) => (i * 7 + 3) % 256);
+const KEY = encodeHashToBase64(
+  Uint8Array.from([0x84, 0x20, 0x24, ...core, ...dhtLocationFrom32(core)])
+);
+// Same shape, last character changed: the checksum no longer matches.
+const BAD_CHECKSUM = KEY.slice(0, -1) + (KEY.endsWith('A') ? 'B' : 'A');
 
 const manifest = (progenitorLines: string[]) => `---
 manifest_version: "0"
@@ -37,6 +44,22 @@ ${progenitorLines.join('\n')}
 `;
 
 const dev = manifest(['          progenitor_pubkey: ~']);
+
+describe('isAgentPubKey checks the checksum, not only the shape', () => {
+  it('accepts a real key', () => {
+    expect(KEY).toHaveLength(53);
+    expect(isAgentPubKey(KEY)).toBe(true);
+  });
+
+  it('refuses a key of the right shape whose checksum does not match', () => {
+    expect(BAD_CHECKSUM).toMatch(/^uhCAk[A-Za-z0-9_-]{48}$/);
+    expect(isAgentPubKey(BAD_CHECKSUM)).toBe(false);
+  });
+
+  it('refuses the old shape-only test key', () => {
+    expect(isAgentPubKey('uhCAkAbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_AbCdEfGhIj')).toBe(false);
+  });
+});
 
 describe('isAgentPubKey', () => {
   it('accepts the shape of an AgentPubKey', () => {

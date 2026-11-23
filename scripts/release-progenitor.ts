@@ -2,8 +2,8 @@
  * release-progenitor.ts: key a release build with its progenitor.
  *
  * `workdir/happ.yaml` carries `progenitor_pubkey: ~` for local development: with
- * no key, the first member to create a profile on a fresh network becomes its
- * administrator. A desktop install generates its own agent key at install time,
+ * no key, nobody is administrator until someone claims the seat on the profile
+ * form, and validation accepts a root grant from anyone. A desktop install generates its own agent key at install time,
  * so no desktop install can be the progenitor, and a release built with `~`
  * lets a joining member take the network (#600).
  *
@@ -17,6 +17,7 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
+import { decodeHashFromBase64, dhtLocationFrom32 } from '@holochain/client';
 
 /** The role whose properties carry the key. */
 export const ROLE = 'requests_and_offers';
@@ -24,7 +25,28 @@ export const ROLE = 'requests_and_offers';
 /** A Holochain AgentPubKey in base64: `uhCAk` and 48 more URL-safe characters, 53 in all. */
 const AGENT_PUBKEY = /^uhCAk[A-Za-z0-9_-]{48}$/;
 
-export const isAgentPubKey = (key: string): boolean => AGENT_PUBKEY.test(key);
+/** The three bytes every AgentPubKey starts with, which `uhCAk` encodes. */
+const AGENT_PREFIX = [0x84, 0x20, 0x24];
+
+/**
+ * True for a key the zome can read. The shape is not enough: the zome decodes the key with
+ * `AgentPubKey::try_from`, which refuses one whose last four bytes are not the DHT location
+ * of the 32-byte core, and then every `create_user` and every grant validation on the
+ * network fails. A typo in `PROGENITOR_PUBKEY` would ship a network nobody can join (#601
+ * review), so the checksum is checked here, before anything is packed.
+ */
+export const isAgentPubKey = (key: string): boolean => {
+  if (!AGENT_PUBKEY.test(key)) return false;
+  let bytes: Uint8Array;
+  try {
+    bytes = decodeHashFromBase64(key);
+  } catch {
+    return false;
+  }
+  if (bytes.length !== 39 || AGENT_PREFIX.some((b, i) => bytes[i] !== b)) return false;
+  const location = dhtLocationFrom32(bytes.slice(3, 35));
+  return location.every((b, i) => b === bytes[35 + i]);
+};
 
 const LINE = /^(\s*progenitor_pubkey:[ \t]*)(\S*)([ \t]*(?:#.*)?)$/gm;
 
@@ -47,7 +69,7 @@ export const readProgenitorKey = (happYaml: string): string | null => {
 };
 
 const malformed = (key: string): string =>
-  `the progenitor key is not a Holochain AgentPubKey: it must start with 'uhCAk' and be 53 characters, this one is ${key.length} long and starts ${JSON.stringify(key.slice(0, 5))}.`;
+  `the progenitor key is not a Holochain AgentPubKey: it must start with 'uhCAk', be 53 characters and end with the location checksum of its core; this one is ${key.length} long and starts ${JSON.stringify(key.slice(0, 5))}. Copy it again from \`progenitor-steward.ts keygen\`.`;
 
 /** Write `key` into the manifest text. Refuses unless the line is found exactly once. */
 export const setProgenitorKey = (happYaml: string, key: string): ProgenitorVerdict => {

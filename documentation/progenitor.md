@@ -80,7 +80,7 @@ So the progenitor can make themselves the first administrator before any adminis
 
 ## Key Properties
 
-- **Revocable**: The progenitor is a regular administrator. Any other administrator can call `remove_administrator` to remove them. They have no permanent super-admin privilege.
+- **Removable as an administrator, not as the root**: any other administrator can call `remove_administrator` to remove the progenitor's administrator grant. The key itself keeps its power: `authority_for` lets the progenitor key sign a root admin grant whenever it holds none, and validation checks only the signature and the author, so a removed progenitor can grant itself, or anyone, administrator again. On a keyed network the key is the network's root for good, which is why the steward's lair keystore must be guarded like a root credential (#601 review).
 - **Idempotent**: Calling `add_administrator` for an agent who is already an admin returns `false` without error and creates no duplicate links.
 - **Last-admin protection**: `remove_administrator` rejects the call if it would remove the final administrator from the network (`LastAdminError`).
 - **Network-enforced from #377**: Every administrator act carries the grant it rests on, and validation checks that grant one step up through `must_get_valid_record`.
@@ -139,7 +139,7 @@ It is public by nature: it is written into the DNA properties of every build, so
 
 The release workflow runs `scripts/release-progenitor.ts` before it packs the hApp.
 It writes `$PROGENITOR_PUBKEY` into the `requests_and_offers` role's `modifiers.properties.progenitor_pubkey` of `workdir/happ.yaml`, and changes nothing else in the file.
-The key must be an AgentPubKey in base64: `uhCAk` and 53 characters.
+The key must be an AgentPubKey in base64: 53 characters, `uhCAk` and 48 more, ending with the location checksum of its core, which the script checks: a key with a typo would ship a network on which every profile and every grant fails.
 A tag push fails at that step when the variable is empty or malformed.
 A manual dispatch fails the same way unless **allow_dev_mode** is ticked, which keeps `~` and prints a warning: it exists for dry runs before the key does, and a build made that way is never published.
 The file in the repository keeps `~`, so local development is unchanged.
@@ -199,7 +199,10 @@ The steward's `install` also reads the bundle itself and refuses one whose `prog
 4. **The steward** runs `status` to read each member's agent key, then `grant --agent <key>` for each member who is to be an administrator.
 5. **Then** the link goes out. Two or three administrators on separate devices before it does, as for any network.
 
-The tag's build uses the same key, so its DNA hash equals the dry run's, and the steward's install is already on the right network.
+The tag's build uses the same key, so its DNA hash should equal the dry run's; release checklist step 4 compares them. If they differ, the steward runs `install` again with the tag's `.happ` and `grant` again for each team member: no desktop install can take the seat on a keyed network.
+A grant counts once the member's own app shows them as administrator, not when the steward's `status` does: the steward stays online until each member sees it, since peers need the steward's grant to validate the member's acts.
+
+**Moss is out of scope for this release.** Moss installs the same webhapp once per group, with its own network seed; a seed override keeps the properties, so every Moss group would be keyed to the steward, whom no group contains, and the first-administrator box is hidden on a keyed network. A Moss group would get no administrator. Moss builds stay unkeyed until the group's own progenitor can be bound (#95).
 
 ### Checking a release
 

@@ -65,6 +65,18 @@ jobs:
         env:
           TAG: ${{ inputs.tag || github.ref_name }}
         run: bun scripts/release-readme.ts --version "$TAG"
+      # In seconds, before the heavy suites: a release is keyed (#600), and the
+      # build job would otherwise refuse a missing key only after half an hour.
+      # The key itself, its shape and its checksum, is checked there.
+      - name: Check the progenitor key is set
+        env:
+          PROGENITOR_PUBKEY: ${{ vars.PROGENITOR_PUBKEY }}
+          ALLOW_DEV_MODE: ${{ inputs.allow_dev_mode && 'true' || 'false' }}
+        run: |
+          if [ "$ALLOW_DEV_MODE" != "true" ] && [ -z "$PROGENITOR_PUBKEY" ]; then
+            echo "::error::PROGENITOR_PUBKEY is not set. A release is keyed with the steward key (#600): set the repository variable, or dispatch with allow_dev_mode for a dry run."
+            exit 1
+          fi
 
   # The gate. `inputs.skip_tests` is only settable from the Actions tab, so a
   # tag push always pays for it.
@@ -258,6 +270,17 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           name: release-artefacts
+
+      # A second gate, on what was built rather than on the step that keyed it:
+      # an unkeyed build is never published (#600).
+      - name: Refuse an unkeyed build
+        run: |
+          key=$(jq -r '.network.progenitorPubkey // empty' release-manifest.json)
+          if [ -z "$key" ]; then
+            echo "::error::release-manifest.json names no progenitor key. An unkeyed build is never published (#600)."
+            exit 1
+          fi
+          echo "Keyed for $key"
 
       - name: Create the release
         env:

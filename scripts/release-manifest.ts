@@ -79,7 +79,7 @@ export type ReleaseManifest = {
   network: {
     requestsAndOffersSeed: string;
     hreaSeed: string;
-    /** The key the build is keyed with (`scripts/release-progenitor.ts`), or null for a development build that lets the first member become administrator (#600). */
+    /** The key the build is keyed with (`scripts/release-progenitor.ts`), or null for a development build, where validation accepts a root admin grant from anyone (#600). */
     progenitorPubkey: string | null;
   };
   /** What a desktop install actually runs: the wrapper's seed, not the hApp's. */

@@ -51,12 +51,13 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 
 ### The network's first admin
 
-The release network carries a progenitor key, and only that key can write its first admin grant (#600).
+The release network carries a progenitor key, and only that key can write a root admin grant, for as long as the key exists: guard the steward's keystore like a root credential (#600).
 The desktop app generates a fresh agent key at install, so no desktop install can be the progenitor: the key belongs to a headless steward conductor, run by the team, and the release writes it into the hApp from the repository variable `PROGENITOR_PUBKEY`.
 The steward installs first and creates its profile, which makes it the first administrator; each team member then installs the desktop app, creates a profile, and the steward grants them administrator (`documentation/progenitor.md`).
 With the key in the DNA properties, validation refuses any root admin grant the key did not sign and write, from the app as published and from a modified client alike.
 A joining member's profile is pending, whatever their node has received: on the 22 November rehearsal, a build without a key handed the seat to a joiner whose node had not yet synced, which is what #600 closed.
 A test build with no key gives the seat only to the person who ticks "I am creating this network" when creating their profile.
+Moss is out of scope for this release: Moss installs the same webhapp per group, every group would be keyed to the steward, and none would get an administrator, so Moss builds stay unkeyed.
 Alpha 3's Create Network flow (#95) is to bind the creator's own device key as the progenitor at install, with no steward; the join service and onboarding are to arrive with it.
 
 ### What testers should know

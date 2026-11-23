@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { encode } from '@msgpack/msgpack';
+import { dhtLocationFrom32, encodeHashToBase64 } from '@holochain/client';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import {
@@ -17,7 +18,12 @@ import {
 
 const script = join(import.meta.dir, '..', 'progenitor-steward.ts');
 
-const keyOf = (fill: string) => `uhCAk${fill.repeat(48)}`;
+// Real AgentPubKeys, with the location checksum the zome and the scripts check: a core of one
+// repeated byte, so each test agent is told apart by the letter it was made from.
+const keyOf = (fill: string) => {
+  const core = new Uint8Array(32).fill(fill.charCodeAt(0));
+  return encodeHashToBase64(Uint8Array.from([0x84, 0x20, 0x24, ...core, ...dhtLocationFrom32(core)]));
+};
 const STEWARD = keyOf('S');
 const ALICE = keyOf('A');
 const BOB = keyOf('B');
@@ -121,7 +127,7 @@ describe('the hApp bundle key check', () => {
   });
 
   it('refuses a bundle keyed for someone else', async () => {
-    await expect(checkKeyedFor(bundle(ALICE), STEWARD)).rejects.toThrow(/keyed for uhCAkAAAA.*not for uhCAkSSSS/);
+    await expect(checkKeyedFor(bundle(ALICE), STEWARD)).rejects.toThrow(`keyed for ${ALICE}`);
   });
 });
 

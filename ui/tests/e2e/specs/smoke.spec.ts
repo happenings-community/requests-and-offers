@@ -40,7 +40,7 @@ type SmokeRoute = {
 };
 
 // The accepted primary user is also the network administrator (the first agent
-// in a sandbox auto-registers as admin, see ensureAcceptedUser), so the admin
+// in a sandbox claims the seat, see ensureUser), so the admin
 // surfaces below are reachable with the same identity.
 //
 // Every landmark below is the literal title in that route's +page.svelte, not a

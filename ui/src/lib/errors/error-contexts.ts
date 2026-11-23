@@ -123,6 +123,8 @@ export const USER_CONTEXTS = {
   GET_USER_STATUS: `Failed to ${BASE_CONTEXTS.READ} user status`,
   GET_ACCEPTED_USERS: `Failed to ${BASE_CONTEXTS.READ} accepted users`,
   GET_AGENT_USER: `Failed to ${BASE_CONTEXTS.READ} agent user`,
+  CHECK_FIRST_ADMINISTRATOR: 'Failed to check whether this network can take a first administrator',
+  CLAIM_FIRST_ADMINISTRATOR: 'Failed to become the first administrator',
   GET_NETWORK_PEERS: 'Failed to get network peers',
   EMIT_USER_CREATED: `Failed to ${BASE_CONTEXTS.EMIT} user created event`,
   EMIT_USER_UPDATED: `Failed to ${BASE_CONTEXTS.EMIT} user updated event`,

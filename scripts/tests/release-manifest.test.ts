@@ -8,6 +8,7 @@ import {
   parseWrapperHolochainVersion,
   parseWrapperString,
   parseWrapperSeed,
+  progenitorForRole,
   propertiesForRole,
   seedForRole,
   versionFromTag,
@@ -85,6 +86,25 @@ describe('propertiesForRole', () => {
 
   it('returns nothing for a role with null properties', () => {
     expect(propertiesForRole(happYaml, 'hrea')).toBeUndefined();
+  });
+});
+
+describe('progenitorForRole', () => {
+  const keyed = (key: string) => `roles:
+  - name: requests_and_offers
+    dna:
+      modifiers:
+        properties:
+          progenitor_pubkey: ${key}
+`;
+
+  it('is null for a development build', () => {
+    expect(progenitorForRole(keyed('~'), 'requests_and_offers')).toBeNull();
+    expect(progenitorForRole(readFileSync(join(root, 'workdir', 'happ.yaml'), 'utf8'), 'requests_and_offers')).toBeNull();
+  });
+
+  it('is the key a release build carries', () => {
+    expect(progenitorForRole(keyed('uhCAkabc'), 'requests_and_offers')).toBe('uhCAkabc');
   });
 });
 
@@ -176,6 +196,7 @@ describe('buildManifest', () => {
       network: {
         requestsAndOffersSeed: 'requests_and_offers_alpha',
         hreaSeed: 'hrea_requests_and_offers_alpha',
+        progenitorPubkey: null,
       },
       desktop: {
         networkSeed: 'alpha1-iroh-2026',

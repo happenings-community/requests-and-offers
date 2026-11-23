@@ -29,6 +29,10 @@ on:
         description: Skip the heavy suites (dispatch only, never on a real tag)
         type: boolean
         default: false
+      allow_dev_mode:
+        description: Build without a progenitor key (dispatch only, never for a published release). For dry runs before the steward key exists.
+        type: boolean
+        default: false
 
 concurrency:
   # ref_name, not ref: a dispatch for v1.2.3 and the tag push of v1.2.3 are the
@@ -126,6 +130,23 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # A release is keyed with the steward's progenitor key (#600). Desktop
+      # installs generate their own agent key, so none of them can be the
+      # progenitor, and an unkeyed build lets a joining member become the network
+      # administrator. The key is the repository variable PROGENITOR_PUBKEY, passed
+      # through env like the tag, never interpolated into the script. A tag push
+      # fails here while the variable is empty; only a dispatch can opt out.
+      - name: Key the hApp with the progenitor
+        env:
+          PROGENITOR_PUBKEY: ${{ vars.PROGENITOR_PUBKEY }}
+          ALLOW_DEV_MODE: ${{ inputs.allow_dev_mode && 'true' || 'false' }}
+        run: |
+          if [ "$ALLOW_DEV_MODE" = "true" ]; then
+            bun scripts/release-progenitor.ts --allow-dev-mode
+          else
+            bun scripts/release-progenitor.ts
+          fi
 
       # `bun run package` is build:zomes -> hc app pack -> ui build -> hc web-app
       # pack, and it is the same command a maintainer runs locally. Keeping CI on

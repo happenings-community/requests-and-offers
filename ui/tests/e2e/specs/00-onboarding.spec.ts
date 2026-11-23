@@ -18,9 +18,10 @@ import type { AppWebsocket } from '@holochain/client';
 // helper instead, so it can also run standalone.
 //
 // Flow: connect → create-profile CTA → gated marketplace → create profile
-// via /user/create → pending gate → self-approve from the admin dashboard
-// (the first user auto-registers as network administrator, see
-// users_organizations::create_user) → gate lifts → edit profile via UI.
+// via /user/create, ticking "I am creating this network" → pending gate →
+// self-approve from the admin dashboard (the box makes the first user the
+// network administrator, users_organizations::claim_first_administrator)
+// → gate lifts → edit profile via UI.
 // ============================================================================
 
 test.describe.serial('00 — onboarding: from visitor to accepted member', () => {
@@ -100,10 +101,16 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
     // and request forms — drive it with the keyboard-based helper.
     await selectTimezone(page);
 
+    // On a network with no progenitor key the first administrator is a choice, not a side
+    // effect of the first profile (#600): the box shows while no administrator exists.
+    const claim = page.getByTestId('claim-first-administrator');
+    await expect(claim).toBeVisible({ timeout: 15_000 });
+    await claim.check();
+
     await page.getByRole('button', { name: 'Create Profile' }).click();
 
-    // The first user becomes the network's administrator with their own
-    // membership still pending, so the first-run message replaces the
+    // Ticking the box made the first user the network's administrator, with
+    // their own membership still pending, so the first-run message replaces the
     // standard welcome and its button opens the members page (#358).
     await expect(
       page.getByRole('heading', { name: /You're the first administrator/i })
@@ -158,7 +165,7 @@ test.describe.serial('00 — onboarding: from visitor to accepted member', () =>
   });
 
   test('first agent approves its own profile from the admin dashboard', async ({ page }) => {
-    // The first user auto-registered as network administrator, so the admin
+    // The first user claimed the administrator seat, so the admin
     // dashboard's moderation queue is reachable and lists the pending user.
     await gotoApp(page, '/admin');
 

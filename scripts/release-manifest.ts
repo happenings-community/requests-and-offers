@@ -76,7 +76,12 @@ export type ReleaseManifest = {
   webhapp: { file: string; sha256: string };
   dna: { file: string; hash: string; appliesModifiers: false };
   /** The per-role seeds the hApp bundle ships with, which only a development sandbox runs. Edge nodes run the desktop seed. */
-  network: { requestsAndOffersSeed: string; hreaSeed: string };
+  network: {
+    requestsAndOffersSeed: string;
+    hreaSeed: string;
+    /** The key the build is keyed with (`scripts/release-progenitor.ts`), or null for a development build that lets the first member become administrator (#600). */
+    progenitorPubkey: string | null;
+  };
   /** What a desktop install actually runs: the wrapper's seed, not the hApp's. */
   desktop: {
     networkSeed: string;
@@ -173,6 +178,13 @@ export const propertiesForRole = (happYaml: string, role: string): unknown => {
   return found.dna?.modifiers?.properties ?? undefined;
 };
 
+/** The progenitor key the hApp manifest carries for the app role, or null when it is unset. */
+export const progenitorForRole = (happYaml: string, role: string): string | null => {
+  const key = (propertiesForRole(happYaml, role) as { progenitor_pubkey?: unknown } | undefined)
+    ?.progenitor_pubkey;
+  return typeof key === 'string' && key.length > 0 ? key : null;
+};
+
 /** Rewrite an unpacked `dna.yaml` the way an install would. Properties only when the role sets some. */
 export const withInstalledModifiers = (dnaYaml: string, modifiers: InstalledModifiers): string => {
   const manifest = Bun.YAML.parse(dnaYaml) as { integrity: Record<string, unknown> };
@@ -255,6 +267,7 @@ export const buildManifest = (input: ManifestInputs): ReleaseManifest => {
     network: {
       requestsAndOffersSeed: seedForRole(happYaml, 'requests_and_offers'),
       hreaSeed: seedForRole(happYaml, 'hrea'),
+      progenitorPubkey: progenitorForRole(happYaml, 'requests_and_offers'),
     },
     desktop: {
       networkSeed: desktopSeed,

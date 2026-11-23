@@ -29,6 +29,10 @@ export interface UsersService {
   ) => E.Effect<Record, UserError>;
   readonly getAcceptedUsersLinks: () => E.Effect<Link[], UserError>;
   readonly getAgentUser: (agent: AgentPubKey) => E.Effect<Link[], UserError>;
+  /** True on a network with no progenitor key where no administrator is visible yet. */
+  readonly canClaimFirstAdministrator: () => E.Effect<boolean, UserError>;
+  /** Makes the caller, who must have a profile, the first administrator of a keyless network. */
+  readonly claimFirstAdministrator: () => E.Effect<boolean, UserError>;
 }
 
 export class UsersServiceTag extends Context.Tag('UsersService')<UsersServiceTag, UsersService>() {}
@@ -96,6 +100,22 @@ export const UsersServiceLive: Layer.Layer<UsersServiceTag, never, HolochainClie
       const getAgentUser = (agent: AgentPubKey): E.Effect<Link[], UserError> =>
         wrapZomeCall('users_organizations', 'get_agent_user', agent);
 
+      const canClaimFirstAdministrator = (): E.Effect<boolean, UserError> =>
+        wrapZomeCall(
+          'users_organizations',
+          'can_claim_first_administrator',
+          null,
+          USER_CONTEXTS.CHECK_FIRST_ADMINISTRATOR
+        );
+
+      const claimFirstAdministrator = (): E.Effect<boolean, UserError> =>
+        wrapZomeCall(
+          'users_organizations',
+          'claim_first_administrator',
+          null,
+          USER_CONTEXTS.CLAIM_FIRST_ADMINISTRATOR
+        );
+
       return UsersServiceTag.of({
         createUser,
         getLatestUserRecord,
@@ -103,7 +123,9 @@ export const UsersServiceLive: Layer.Layer<UsersServiceTag, never, HolochainClie
         getUserAgents,
         updateUser,
         getAcceptedUsersLinks,
-        getAgentUser
+        getAgentUser,
+        canClaimFirstAdministrator,
+        claimFirstAdministrator
       });
     })
   );

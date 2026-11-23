@@ -31,7 +31,7 @@
   type Props = {
     mode: 'create' | 'edit';
     user?: UIUser;
-    onSubmit: (input: UserInDHT) => Promise<void>;
+    onSubmit: (input: UserInDHT, options?: { claimFirstAdministrator?: boolean }) => Promise<void>;
   };
 
   const { mode = 'create', user, onSubmit }: Props = $props();
@@ -62,6 +62,33 @@
     component: alertModalComponent,
     meta
   });
+
+  // The first administrator of a network with no progenitor key is a choice made here, never
+  // a side effect of the first profile (#600). The box shows only while this node sees no
+  // administrator on such a network; a node that has not synced yet can see none on a
+  // network that has one, which is why it is unticked by default and says who should tick it.
+  let canClaimFirstAdmin = $state(false);
+  let claimFirstAdmin = $state(false);
+
+  $effect(() => {
+    if (mode !== 'create') return;
+    runEffect(usersStore.canClaimFirstAdministrator())
+      .then((possible) => (canClaimFirstAdmin = possible))
+      .catch(() => (canClaimFirstAdmin = false));
+  });
+
+  // The create page passes the box to the store's createUser, which claims after the profile
+  // exists and says so when the network refused (`firstAdministratorClaimRefused`).
+  const claimOptions = () => ({
+    claimFirstAdministrator: mode === 'create' && canClaimFirstAdmin && claimFirstAdmin
+  });
+
+  const claimRefusedModal = (): ModalSettings =>
+    alertModal({
+      id: 'first-administrator-refused',
+      message: `<p>Your profile was created, but you were not made the first administrator: an administrator already exists on this network, or the network names its own progenitor. An administrator will accept your membership.</p>`,
+      confirmLabel: 'Got it'
+    });
 
   // Form state
   let form: HTMLFormElement | undefined = $state();
@@ -171,11 +198,15 @@
       const { createMockedUsers } = await loadMocks();
       let userData: UserInDHT = (await createMockedUsers())[0];
 
-      await onSubmit(userData);
+      await onSubmit(userData, claimOptions());
       await refreshAfterCreate();
       isLoading = false;
 
-      modalStore.trigger(welcomeModal(formatUserName(userData.name)));
+      modalStore.trigger(
+        usersStore.firstAdministratorClaimRefused
+          ? claimRefusedModal()
+          : welcomeModal(formatUserName(userData.name))
+      );
 
       goto(paths.myProfile());
     } catch (err) {
@@ -209,7 +240,7 @@
       };
       const userInput: UserInDHT = formInputToDHT(formInput);
 
-      await onSubmit(userInput);
+      await onSubmit(userInput, claimOptions());
       if (mode === 'create') await refreshAfterCreate();
 
       // Persist migration banner acknowledgment so it doesn't return on subsequent edits.
@@ -218,7 +249,11 @@
       }
 
       if (mode === 'create') {
-        modalStore.trigger(welcomeModal(formatUserName(userInput.name)));
+        modalStore.trigger(
+          usersStore.firstAdministratorClaimRefused
+            ? claimRefusedModal()
+            : welcomeModal(formatUserName(userInput.name))
+        );
       }
 
       goto(paths.myProfile());
@@ -414,6 +449,25 @@
     Location :
     <input type="text" class="input" name="location" value={user?.location || ''} />
   </label>
+
+  {#if mode === 'create' && canClaimFirstAdmin}
+    <label class="border-surface-400-500-token flex items-start gap-3 rounded-lg border p-4">
+      <input
+        type="checkbox"
+        class="checkbox mt-1"
+        name="claim_first_administrator"
+        bind:checked={claimFirstAdmin}
+        data-testid="claim-first-administrator"
+      />
+      <span class="space-y-1">
+        <span class="block font-semibold">I am creating this network</span>
+        <span class="block text-sm text-surface-600 dark:text-surface-400">
+          Become its first administrator. Tick this only if you are starting a new network: if you
+          were invited to join one, leave it unticked and an administrator will accept you.
+        </span>
+      </span>
+    </label>
+  {/if}
 
   <div class="flex justify-center gap-4">
     <button

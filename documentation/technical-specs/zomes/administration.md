@@ -34,7 +34,7 @@ pub fn is_progenitor(_: ()) -> ExternResult<bool>
 
 ### Administrator Registration
 
-The first administrator is registered automatically when the progenitor calls `create_user` (production mode). In dev mode (no progenitor key configured), the first user to call `create_user` is registered instead. Subsequent administrators are added explicitly via `add_administrator` (which requires an existing administrator or the progenitor to call it).
+The first administrator is registered automatically when the progenitor calls `create_user` (production mode). In dev mode (no progenitor key configured), nobody is registered by `create_user`: the first administrator claims the seat with `users_organizations::claim_first_administrator`, refused once an administrator is visible (#600). Subsequent administrators are added explicitly via `add_administrator` (which requires an existing administrator or the progenitor to call it).
 
 ## Technical Implementation
 
@@ -119,7 +119,7 @@ pub fn is_there_an_administrator(_: ()) -> ExternResult<bool>
 ```
 
 - Whether any agent holds a live network administrator grant, read from the grants
-- `create_user` asks it before offering the first user the root on a network with no progenitor key, so it and `add_administrator` decide "first" from the same source
+- `can_claim_first_administrator` and `claim_first_administrator` ask it on a network with no progenitor key, so they and `add_administrator` decide "first" from the same source
 
 ##### `get_live_administrator_agents`
 

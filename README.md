@@ -175,7 +175,8 @@ The code on `dev` is **0.6.0-alpha.2**: Holochain 0.7 and hREA `happ-0.5.0-beta.
 
 ### Known gaps
 
-Alpha 2 runs without a progenitor key, so the first profile on a new network becomes its admin, and a member running a modified client can still give itself a role.
+Alpha 2's release network carries a progenitor key, held by a steward node, so validation refuses any root administrator grant that key did not sign (#600).
+A test build with no key gives the administrator seat only to the person who ticks "I am creating this network" on their profile, and there a member running a modified client can still give itself a role.
 The CHANGELOG's *Known gaps* and [validation.md](documentation/architecture/validation.md) list every limit and the work that closes it.
 
 ### Next

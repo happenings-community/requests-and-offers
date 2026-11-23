@@ -71,6 +71,12 @@ pub enum UsersError {
 
   #[error("Not the author")]
   NotAuthor,
+
+  #[error("This network has a progenitor key: its first administrator is the progenitor")]
+  ProgenitorKeyConfigured,
+
+  #[error("This network already has an administrator")]
+  AdministratorAlreadyExists,
 }
 
 #[derive(Debug, Error)]

@@ -78,7 +78,7 @@ export async function startConductor(): Promise<void> {
   // every conductor built from the same zomes (the hApp's network seed is
   // fixed) is a peer: a parallel CI job, the previous job for up to five
   // minutes, a developer's own app. A peer that holds `network.administrators`
-  // means the first user here is never made administrator, and a dead peer
+  // means the seat is never open to the first user here, and a dead peer
   // makes every network read wait on the transport (measured on 19 October;
   // the runs are in the description of #372). A closed local port as bootstrap
   // means no peer is ever found. The transport subcommand is required by the

@@ -150,7 +150,7 @@ export const keyRelease = (options: Options): Outcome => {
         code: 0,
         stdout: [],
         stderr: [
-          'WARNING: no progenitor key. This build runs in development mode: the first member to create a profile on a fresh network becomes its administrator (#600).',
+          'WARNING: no progenitor key. This build runs in development mode: nobody is administrator until someone ticks "I am creating this network" on the profile form, and a joiner whose node has not synced can tick it too (#600).',
           'WARNING: never publish this build. It is for a dry run of the release chain only.'
         ]
       };

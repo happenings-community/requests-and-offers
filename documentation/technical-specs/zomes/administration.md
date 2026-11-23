@@ -15,7 +15,7 @@ Key properties:
 - The progenitor pubkey is fixed at DNA install time (in `workdir/happ.yaml` and at test setup via `rolesSettings`).
 - Auto-registration happens inside `create_user` via a cross-zome call to `add_administrator` in the `administration` coordinator.
 - In **production** (progenitor key configured): ONLY the progenitor is auto-registered. Any user who creates a profile before the progenitor receives standard pending status — they are NOT made admin.
-- In **dev mode** (no `progenitor_pubkey` set): the first user to call `create_user` becomes admin automatically as a convenience bootstrap.
+- In **dev mode** (no `progenitor_pubkey` set): `create_user` makes nobody administrator; the first administrator claims the seat with `users_organizations::claim_first_administrator` (the "I am creating this network" box on the profile form), allowed only while no administrator is visible.
 - The progenitor still receives "pending" status like any other user after `create_user`.
 - The progenitor's admin grant can be revoked by another administrator like any other. That removes it from the app's reading of who administers; it does not stop the progenitor key signing a fresh root, which validation accepts. On a keyed network the key is the last word, which is why it is kept offline (`MEMBRANE_MANAGEMENT_OFF_DHT.md`).
 

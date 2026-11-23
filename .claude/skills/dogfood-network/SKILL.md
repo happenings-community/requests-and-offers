@@ -46,6 +46,8 @@ gh workflow run test-installers.yaml \
 The workflow refuses a seed that differs from the branch's `kangaroo.config.ts`, builds all four platforms, and publishes only if all four succeed (about seven minutes).
 Its tag ends in the first twelve hex characters of the webhapp's sha256, so a new webhapp makes a new pre-release: the old one is not updated, it is deleted once the new one is published and checked (Soushi's standing rule, 23 November 2026).
 
+Once it is published: check the six installers and `SHA256SUMS.txt` are there, attach the webhapp to the new pre-release, point its notes' `Webhapp:` line at that copy (with the branch and commit it was built from), check the attached copy's sha256, then delete the hosting release and the previous dogfood pre-release with `--cleanup-tag`.
+
 ## The session
 
 - One person takes the administrator seat first.

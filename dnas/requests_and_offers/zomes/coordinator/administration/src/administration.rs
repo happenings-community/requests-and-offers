@@ -24,8 +24,9 @@ pub fn is_progenitor(_: ()) -> ExternResult<bool> {
 /// Every administrator holds an `admin` grant. The caller's authority
 /// for it is settled by [`authority_for`]: their own admin grant, or, for the first
 /// administrators, the progenitor's signature over the grant, which is open to the
-/// progenitor key and, where no key is configured, to the first user while no agent
-/// holds a live admin grant. Anyone else gets `Err(AdministrationError::Unauthorized)`
+/// progenitor key and, where no key is configured, to any caller while no agent
+/// holds a live admin grant (which the app reaches only through
+/// `users_organizations::claim_first_administrator`, #600). Anyone else gets `Err(AdministrationError::Unauthorized)`
 /// when there is a grant to write; when every key already holds one, nothing is written
 /// and any caller gets `Ok(true)`.
 ///

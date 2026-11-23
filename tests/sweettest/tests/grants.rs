@@ -24,8 +24,9 @@ async fn user_of(conductor: &SweetConductor, cell: &SweetCell) -> ActionHash {
 }
 
 /// Everyone creates a profile; Alice, the first real agent, is the
-/// administrator (the progenitor, or the first user in development mode) and
-/// accepts everyone. Returns each agent's user hash in conductor order.
+/// administrator (the progenitor, or, in development mode, the first user who
+/// claims the seat, #600) and accepts everyone. Returns each agent's user hash
+/// in conductor order.
 async fn everyone_accepted(conductors: &SweetConductorBatch, cells: &[&SweetCell]) -> Vec<ActionHash> {
     for (i, cell) in cells.iter().enumerate() {
         conductors[i]
@@ -35,6 +36,9 @@ async fn everyone_accepted(conductors: &SweetConductorBatch, cells: &[&SweetCell
                 sample_user(format!("Agent {i}")),
             )
             .await;
+        if i == 0 {
+            claim_first_administrator_if_open(&conductors[0], cell).await;
+        }
     }
     await_consistency_s(15, cells.iter().copied()).await.unwrap();
     let mut users = Vec::new();
@@ -2389,7 +2393,7 @@ async fn a_grant_index_link_is_the_granters_record_of_a_real_grant() {
 
     let alices_admin = admin_grant_of(&conductors[0], alice, &alice_key)
         .await
-        .expect("Alice, the first user, administers the network");
+        .expect("Alice, who claimed the seat, administers the network");
     // Mallory's own grants: a root (no key, so it is accepted) and a member
     // grant resting on it.
     let my_root = forge_entry(
@@ -2782,31 +2786,34 @@ async fn an_administrator_revoked_by_revoke_role_can_be_added_again() {
 /// With the roster emptied by a forged tombstone, a new user still registers,
 /// and does not become an administrator.
 ///
-/// No progenitor key, as alpha 2 ships. Alice is the first user and so the
-/// administrator. Mallory tombstones Alice's roster link, which no rule
-/// refuses yet. `create_user` offers the root to the first user, and it used
-/// to decide "first" by the roster: read that way, Bob would be made an
-/// administrator (before the grants were asked anywhere), or `create_user`
-/// would fail for him and everyone after him (once `add_administrator` asked
-/// the grants and `create_user` did not).
+/// No progenitor key. Alice claims the first administrator seat. Mallory
+/// tombstones Alice's roster link, which no rule refuses yet. `create_user`
+/// once offered the root to the first user and decided "first" by the roster:
+/// read that way, Bob would have been made an administrator, or `create_user`
+/// would have failed for him and everyone after him. Since #600 `create_user`
+/// asks nothing on a keyless network, and Bob must still register as a plain
+/// member.
 ///
-/// **To make it go red:** have `create_user` decide from
-/// `get_all_administrators_links` again: Bob's registration fails.
+/// **To make it go red:** have `create_user` register the first user again and
+/// decide "first" from `get_all_administrators_links`: Bob's registration fails.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_new_user_registers_when_the_roster_has_been_emptied() {
     let (conductors, cells, mallory) = setup_agents_and_a_forger(2, false).await;
     let (alice, bob) = (&cells[0], &cells[1]);
 
-    // One at a time: on a network with no key, who is first is the question.
+    // One at a time: Alice takes the seat with the claim, Mallory only registers.
     for (i, cell, name) in [(0usize, alice, "Alice"), (2, &mallory, "Mallory")] {
         conductors[i]
             .call::<_, Record>(&cell.zome("users_organizations"), "create_user", sample_user(name))
             .await;
+        if i == 0 {
+            claim_first_administrator_if_open(&conductors[0], cell).await;
+        }
         await_consistency_s(15, [alice, bob, &mallory]).await.unwrap();
     }
     assert!(
         admin_grant_of(&conductors[0], alice, alice.agent_pubkey()).await.is_some(),
-        "Alice, the first user, administers the network"
+        "Alice, who claimed the seat, administers the network"
     );
 
     let roster: Vec<Link> = conductors[2]

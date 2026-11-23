@@ -73,8 +73,27 @@ pub fn create_user(user: User) -> ExternResult<Record>
   - MyUser link from agent to profile
   - UserAgents link from profile to agent
   - UserStatus link to initial status
-- **Progenitor side-effect**: if the calling agent is the network progenitor AND a `progenitor_pubkey` is configured in DNA properties, they are automatically registered as the first network administrator via a cross-zome call to `add_administrator` in the `administration` coordinator. In dev mode (no progenitor key set), the first user to call `create_user` is registered instead.
+- **Progenitor side-effect**: if the calling agent is the network progenitor AND a `progenitor_pubkey` is configured in DNA properties, they are automatically registered as the first network administrator via a cross-zome call to `add_administrator` in the `administration` coordinator. In dev mode (no progenitor key set), nobody is registered: the first administrator calls `claim_first_administrator` (#600).
 - Returns created profile record
+
+##### `can_claim_first_administrator`
+
+```rust
+pub fn can_claim_first_administrator(_: ()) -> ExternResult<bool>
+```
+
+- True when no progenitor key is configured and no agent holds a live administrator grant, as far as the caller's node can see
+- The profile form shows the "I am creating this network" box only while it is true; a node that has not synced can see true on a network that has an administrator, so the box is unticked by default
+
+##### `claim_first_administrator`
+
+```rust
+pub fn claim_first_administrator(_: ()) -> ExternResult<bool>
+```
+
+- Makes the caller the first administrator of a network with no progenitor key, through `add_administrator` (#600)
+- Refuses with `UsersError::ProgenitorKeyConfigured` on a keyed network, `UsersError::AdministratorAlreadyExists` once an administrator is visible, and `UsersError::UserProfileRequired` before the caller has a profile
+- Closes the accident (a joiner made administrator by a profile), not a modified client writing itself a root grant on a keyless network, which only a progenitor key prevents
 
 ##### `update_user`
 

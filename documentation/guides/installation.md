@@ -495,11 +495,11 @@ bun start
 
 ### Production Network Setup
 
-By default, `workdir/happ.yaml` ships with `progenitor_pubkey: ~` (null), which means the first agent to create a profile becomes the network administrator — convenient for development but unsuitable for production.
+By default, `workdir/happ.yaml` ships with `progenitor_pubkey: ~` (null), which means no profile makes anyone administrator: the first administrator claims the seat by ticking "I am creating this network" on the profile form. That suits development; a release is keyed.
 
 For a production deployment you must set the progenitor's agent public key before building the hApp:
 
-**The Kangaroo desktop app does not set it.** Its install step ([`holochainManager.ts`, `installHappIfNecessary`](https://github.com/happenings-community/requests-and-offers-kangaroo-electron/blob/8bcec07d/src/main/holochainManager.ts#L176-L190), kangaroo-electron #10 at `8bcec07d`) calls `installApp` with a fresh agent key, the app id, the network seed and the hApp path, and no role settings, so the DNA properties stay those of `workdir/happ.yaml`, where `progenitor_pubkey` is `~`. No version of the wrapper has ever written that property. A desktop network therefore runs in development mode: the first agent to create a profile on it becomes the administrator. On desktop the administrator cannot be fixed in advance yet: the key does not exist before the install (see [progenitor.md](../progenitor.md), _Production_). The manual configuration below is for a hApp installed some other way, with a key that already exists.
+**The Kangaroo desktop app does not set it.** Its install step ([`holochainManager.ts`, `installHappIfNecessary`](https://github.com/happenings-community/requests-and-offers-kangaroo-electron/blob/8bcec07d/src/main/holochainManager.ts#L176-L190), kangaroo-electron #10 at `8bcec07d`) calls `installApp` with a fresh agent key, the app id, the network seed and the hApp path, and no role settings, so the DNA properties stay those of `workdir/happ.yaml`, where `progenitor_pubkey` is `~`. No version of the wrapper has ever written that property. A desktop install therefore cannot be the progenitor, because its key does not exist before the install. A release is keyed instead with the key of a headless steward conductor, written into `workdir/happ.yaml` at release time (see [progenitor.md](../progenitor.md), _Release builds: the steward key_). A desktop build made without a key runs in development mode, where nobody is administrator until someone claims the seat. The manual configuration below is for a hApp installed some other way, with a key that already exists.
 
 **Manual configuration**:
 

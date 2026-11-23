@@ -75,7 +75,7 @@ ps aux | grep lair-keystore
 ```bash
 # Check whether progenitor_pubkey is configured in your happ.yaml
 grep "progenitor_pubkey" workdir/happ.yaml
-# null (~) means dev mode — first user becomes admin
+# null (~) means dev mode: nobody becomes admin until someone ticks "I am creating this network" on the profile form
 # a base64 key means production mode — only that key becomes admin
 ```
 

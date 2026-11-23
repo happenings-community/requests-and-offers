@@ -168,9 +168,9 @@ pub async fn setup_three_agents_with_alice_as_progenitor() -> (
 
 /// Build a `SweetDnaFile` with no progenitor pubkey (dev mode).
 ///
-/// The resulting DNA has `progenitor_pubkey: null` in its properties, which
-/// triggers the dev-mode bootstrap path in `create_user` and `add_administrator`:
-/// the first user to call `create_user` is automatically registered as admin.
+/// The resulting DNA has `progenitor_pubkey: null` in its properties: the
+/// development mode, where nobody becomes administrator by creating a profile
+/// and the first administrator claims the seat (`claim_first_administrator`, #600).
 async fn build_dna_no_progenitor() -> DnaFile {
     let props = DnaPropertiesNoProgenitor {
         progenitor_pubkey: None,
@@ -196,9 +196,9 @@ async fn build_dna_no_progenitor() -> DnaFile {
 /// Spin up two conductors with no progenitor key configured in DNA properties.
 ///
 /// Use this for tests that exercise the dev-mode bootstrap path: when
-/// `progenitor_pubkey` is `null`, the first user to call `create_user` is
-/// automatically registered as network administrator. Neither Alice nor Bob
-/// is designated as progenitor.
+/// `progenitor_pubkey` is `null`, nobody is administrator until a user with a
+/// profile calls `claim_first_administrator`. Neither Alice nor Bob is
+/// designated as progenitor.
 ///
 /// Returns `(conductors, cell_alice, cell_bob)`.
 pub async fn setup_two_agents_no_progenitor_configured() -> (
@@ -577,4 +577,19 @@ pub async fn setup_two_agents_with_users_probe() -> (SweetConductorBatch, SweetC
     let (alice,) = alice_app.into_tuple();
     let (bob,) = bob_app.into_tuple();
     (conductors, alice, bob)
+}
+
+/// On a network with no progenitor key, makes `cell`'s agent, who has a profile,
+/// the first administrator when the seat is open (`claim_first_administrator`,
+/// #600). Does nothing on a keyed network, where the progenitor holds the seat
+/// from its profile.
+pub async fn claim_first_administrator_if_open(conductor: &SweetConductor, cell: &SweetCell) {
+    let open: bool = conductor
+        .call(&cell.zome("users_organizations"), "can_claim_first_administrator", ())
+        .await;
+    if open {
+        let _: bool = conductor
+            .call(&cell.zome("users_organizations"), "claim_first_administrator", ())
+            .await;
+    }
 }

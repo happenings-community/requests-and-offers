@@ -244,13 +244,18 @@ export async function ensureUser(
     ...DEFAULT_USER,
     ...overrides
   })) as HolochainRecord;
+  // The sandbox has no progenitor key, and a profile no longer makes anyone administrator
+  // (#600): the journey's one agent takes the seat the way the form's box does.
+  if (await callZome(client, 'users_organizations', 'can_claim_first_administrator', null)) {
+    await callZome(client, 'users_organizations', 'claim_first_administrator', null);
+  }
   return record.signed_action.hashed.hash;
 }
 
 /**
  * Guarantees the agent's profile exists AND is in "accepted" status.
- * The first user in the sandbox auto-registers as network administrator
- * (users_organizations::create_user), so it can accept its own profile.
+ * ensureUser makes the sandbox's first user the network administrator
+ * (users_organizations::claim_first_administrator), so it can accept its own profile.
  * ProfileGuard gates offer/request creation on accepted status.
  */
 export async function ensureAcceptedUser(

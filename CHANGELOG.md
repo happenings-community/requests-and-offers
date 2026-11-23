@@ -25,9 +25,21 @@ The enforcement limits are listed under Known gaps in 0.6.0-alpha.2 below.
 - **hREA, upstream, tracked for alpha 3**: updating a Commitment leaves the `all_commitments` index on its first revision; the app reads each Commitment's latest revision itself until it is fixed.
 - **hREA, upstream, tracked for alpha 3**: there is no way to find a Proposal by an external reference, so the app finds a listing's Proposals by the hash line in their note.
 
+### Bug Fixes
+
+- **Administration**: a profile no longer makes anyone network administrator on a network with no progenitor key; the first administrator ticks "I am creating this network" on the profile form, which calls the new `claim_first_administrator` (refused once an administrator is visible, on a keyed network, or without a profile), and `can_claim_first_administrator` decides whether the box shows (#600). Two `UsersError` variants are added, which changes every integrity zome's wasm and so the DNA hash; the keyed release moves the network anyway
+
 ### CI and Testing
 
 - **Release**: A tag is refused unless the README's `release-ready` marker names its version, checked before the heavy suites, and the script tests fail while the marker and `package.json` disagree
+- **Release**: A release is built with the steward's progenitor key, so no joining member can become network administrator on a desktop build (#600). `scripts/release-progenitor.ts` writes the repository variable `PROGENITOR_PUBKEY` into the `requests_and_offers` role of `workdir/happ.yaml` before the hApp is packed, and a tag push fails there when the variable is empty or not an AgentPubKey. A dispatch gets an `allow_dev_mode` input for dry runs before the key exists, never for a published release
+- **Release**: `release-manifest.json` records the key under `network.progenitorPubkey`, `null` for a build without one
+- **Release**: `scripts/progenitor-steward.ts` is the operator tool for the headless steward conductor: `keygen`, `install` (refuses a hApp not keyed for the agent), `grant` (the steward's profile, then administrator for each agent) and `status`
+
+### Documentation
+
+- **Progenitor**: `documentation/progenitor.md` describes the keyed release: who holds the key, the repository variable, the commands that start the headless conductor and the steward's, and the order from the steward's install to the link going out
+- **Release**: The release checklist sets `PROGENITOR_PUBKEY` before the tag and adds a per-release check that a second person joining on a fresh device is pending, with administration closed to them
 
 ## [0.6.0-alpha.2] - 2026-11-23
 
@@ -39,13 +51,14 @@ Alpha 2 moves to Holochain 0.7 and changes the DNA, so it starts on a new, empty
 
 ### The network's first admin
 
-The network creator holds the first admin seat.
-Alpha 2 runs without a progenitor key, in development mode: the desktop app generates a fresh agent key at install and passes no progenitor key to `installApp`, so the first profile created on the new network becomes its admin.
-The creator takes that seat from the release dry run, before the tag, and then appoints the team as further administrators on separate devices.
-This protects the seat against members running the app as published, once the creator's grant has reached them: the check is a DHT read, not a lock.
-A member running a modified client can still write themselves a root grant, because without a key validation has nothing to check it against.
-That is the trade we made for an invited network of testers.
-Alpha 3's Create Network flow (#95) is to bind the creator's key as the progenitor at install, and from then on only that key will be able to write the first admin grant; the join service and onboarding are to arrive with it.
+The release network carries a progenitor key, and only that key can write a root admin grant, for as long as the key exists: guard the steward's keystore like a root credential (#600).
+The desktop app generates a fresh agent key at install, so no desktop install can be the progenitor: the key belongs to a headless steward conductor, run by the team, and the release writes it into the hApp from the repository variable `PROGENITOR_PUBKEY`.
+The steward installs first and creates its profile, which makes it the first administrator; each team member then installs the desktop app, creates a profile, and the steward grants them administrator (`documentation/progenitor.md`).
+With the key in the DNA properties, validation refuses any root admin grant the key did not sign and write, from the app as published and from a modified client alike.
+A joining member's profile is pending, whatever their node has received: on the 22 November rehearsal, a build without a key handed the seat to a joiner whose node had not yet synced, which is what #600 closed.
+A test build with no key gives the seat only to the person who ticks "I am creating this network" when creating their profile.
+Moss is out of scope for this release: Moss installs the same webhapp per group, every group would be keyed to the steward, and none would get an administrator, so Moss builds stay unkeyed.
+Alpha 3's Create Network flow (#95) is to bind the creator's own device key as the progenitor at install, with no steward; the join service and onboarding are to arrive with it.
 
 ### What testers should know
 
@@ -59,7 +72,7 @@ Alpha 3's Create Network flow (#95) is to bind the creator's key as the progenit
 What alpha 2 does not yet enforce, most of it reachable only by a member running a modified client.
 `documentation/architecture/validation.md` lists each one with the rest of the known limits, and the work that closes it.
 
-- **Roles**: without a progenitor key, a modified client can write itself a root grant, and so give itself any role.
+- **Roles**: on a test build without a progenitor key, a modified client can still write itself a root grant, and so give itself any role; the release network is keyed and refuses it (#600).
 - **Listings and the catalogue**: the latest version of a listing, a service type or a medium of exchange is read from a link nothing validates, so a modified client can make another member's listing show text of its own (#400, #234).
 - **Statuses**: a member's current status is read from a link that validation checks only for its shape, so a modified client can make every reader that holds its link show another status as a member's current one.
 - **Acceptance**: a modified client can remove a member from the accepted list.

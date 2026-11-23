@@ -70,9 +70,9 @@
 
 - **Progenitor Pattern**:
   - The progenitor is the agent whose public key is embedded in DNA properties (`progenitor_pubkey`) at network creation time — not simply the first agent to register
-  - The progenitor's pubkey is set in `workdir/happ.yaml` before the hApp is built; the Kangaroo (Electron) app installs the hApp with those properties and does not set it. With it unset (`~`), the network runs in development mode and the first agent to create a profile becomes admin
+  - The progenitor's pubkey is set in `workdir/happ.yaml` before the hApp is built; the Kangaroo (Electron) app installs the hApp with those properties and does not set it. With it unset (`~`), the network runs in development mode: nobody becomes admin by creating a profile, and the first administrator claims the seat by ticking "I am creating this network" (`claim_first_administrator`, #600). A release is keyed with the steward's key at release time (`PROGENITOR_PUBKEY`, see progenitor.md)
   - Upon user profile creation, the progenitor is automatically registered as the first network administrator (see #5)
-  - The progenitor is a regular revocable administrator — no permanent super-admin power
+  - The progenitor's administrator grant can be removed like any other, but its key can always sign a new root admin grant: on a keyed network the key is the network's root (see progenitor.md, Key Properties)
   - Establishes initial administrative control
   - Other agents join the network by installing the same DNA instance (identified by its hash); they receive no admin role automatically
   - See also: #95 (Network Creation & Joining UX)

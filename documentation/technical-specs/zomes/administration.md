@@ -15,7 +15,7 @@ Key properties:
 - The progenitor pubkey is fixed at DNA install time (in `workdir/happ.yaml` and at test setup via `rolesSettings`).
 - Auto-registration happens inside `create_user` via a cross-zome call to `add_administrator` in the `administration` coordinator.
 - In **production** (progenitor key configured): ONLY the progenitor is auto-registered. Any user who creates a profile before the progenitor receives standard pending status — they are NOT made admin.
-- In **dev mode** (no `progenitor_pubkey` set): the first user to call `create_user` becomes admin automatically as a convenience bootstrap.
+- In **dev mode** (no `progenitor_pubkey` set): `create_user` makes nobody administrator; the first administrator claims the seat with `users_organizations::claim_first_administrator` (the "I am creating this network" box on the profile form), allowed only while no administrator is visible.
 - The progenitor still receives "pending" status like any other user after `create_user`.
 - The progenitor's admin grant can be revoked by another administrator like any other. That removes it from the app's reading of who administers; it does not stop the progenitor key signing a fresh root, which validation accepts. On a keyed network the key is the last word, which is why it is kept offline (`MEMBRANE_MANAGEMENT_OFF_DHT.md`).
 
@@ -34,7 +34,7 @@ pub fn is_progenitor(_: ()) -> ExternResult<bool>
 
 ### Administrator Registration
 
-The first administrator is registered automatically when the progenitor calls `create_user` (production mode). In dev mode (no progenitor key configured), the first user to call `create_user` is registered instead. Subsequent administrators are added explicitly via `add_administrator` (which requires an existing administrator or the progenitor to call it).
+The first administrator is registered automatically when the progenitor calls `create_user` (production mode). In dev mode (no progenitor key configured), nobody is registered by `create_user`: the first administrator claims the seat with `users_organizations::claim_first_administrator`, refused once an administrator is visible (#600). Subsequent administrators are added explicitly via `add_administrator` (which requires an existing administrator or the progenitor to call it).
 
 ## Technical Implementation
 
@@ -119,7 +119,7 @@ pub fn is_there_an_administrator(_: ()) -> ExternResult<bool>
 ```
 
 - Whether any agent holds a live network administrator grant, read from the grants
-- `create_user` asks it before offering the first user the root on a network with no progenitor key, so it and `add_administrator` decide "first" from the same source
+- `can_claim_first_administrator` and `claim_first_administrator` ask it on a network with no progenitor key, so they and `add_administrator` decide "first" from the same source
 
 ##### `get_live_administrator_agents`
 

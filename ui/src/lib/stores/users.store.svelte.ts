@@ -73,11 +73,24 @@ export type UsersStore = {
   readonly error: string | null;
   readonly cache: EntityCacheService<UIUser>;
 
-  createUser: (input: UserInDHT) => E.Effect<UIUser, UserError>;
+  /**
+   * Creates the agent's profile. With `claimFirstAdministrator`, then claims the first
+   * administrator seat of a network with no progenitor key (#600); a refused claim leaves the
+   * profile in place and sets `firstAdministratorClaimRefused`.
+   */
+  createUser: (
+    input: UserInDHT,
+    options?: { claimFirstAdministrator?: boolean }
+  ) => E.Effect<UIUser, UserError>;
+  /** True when the last `createUser` asked for the seat and the network refused it. */
+  readonly firstAdministratorClaimRefused: boolean;
   getLatestUser: (originalActionHash: ActionHash) => E.Effect<UIUser | null, UserError>;
   getUserByActionHash: (actionHash: ActionHash) => E.Effect<UIUser | null, UserError>;
   setCurrentUser: (user: UIUser) => E.Effect<void, UserError>;
   refreshCurrentUser: () => E.Effect<UIUser | null, UserError>;
+  /** True on a network with no progenitor key where no administrator is visible yet. */
+  canClaimFirstAdministrator: () => E.Effect<boolean, UserError>;
+
   updateCurrentUser: (input: UserInDHT) => E.Effect<UIUser | null, UserError>;
   getAcceptedUsers: () => E.Effect<UIUser[], UserError>;
   getUserStatusLink: (userHash: ActionHash) => E.Effect<Link | null, UserError>;
@@ -200,7 +213,32 @@ export const createUsersStore = (): E.Effect<
 
     // ===== CORE CRUD OPERATIONS =====
 
-    const createUser = (input: UserInDHT): E.Effect<UIUser, UserError> =>
+    let firstAdministratorClaimRefused = $state(false);
+
+    // A refused claim is said, never thrown: the profile it follows exists either way.
+    const claimSeatIfAsked = (
+      user: UIUser,
+      options?: { claimFirstAdministrator?: boolean }
+    ): E.Effect<UIUser, never> => {
+      firstAdministratorClaimRefused = false;
+      if (!options?.claimFirstAdministrator) return E.succeed(user);
+      return pipe(
+        usersService.claimFirstAdministrator(),
+        E.map(() => user),
+        E.catchAll((error) =>
+          E.sync(() => {
+            console.warn('Claiming the first administrator seat failed:', error);
+            firstAdministratorClaimRefused = true;
+            return user;
+          })
+        )
+      );
+    };
+
+    const createUser = (
+      input: UserInDHT,
+      options?: { claimFirstAdministrator?: boolean }
+    ): E.Effect<UIUser, UserError> =>
       withLoadingState(() =>
         pipe(
           usersService.createUser(input),
@@ -217,7 +255,8 @@ export const createUsersStore = (): E.Effect<
 
             throw new Error('Failed to create UI user');
           }),
-          E.catchAll((error) => E.fail(UserError.fromError(error, USER_CONTEXTS.CREATE_USER)))
+          E.catchAll((error) => E.fail(UserError.fromError(error, USER_CONTEXTS.CREATE_USER))),
+          E.flatMap((user) => claimSeatIfAsked(user, options))
         )
       )(setters);
 
@@ -599,6 +638,11 @@ export const createUsersStore = (): E.Effect<
         catch: (error) => UserError.fromError(error, USER_CONTEXTS.GET_NETWORK_PEERS)
       });
 
+    // ===== FIRST ADMINISTRATOR (#600) =====
+
+    const canClaimFirstAdministrator = (): E.Effect<boolean, UserError> =>
+      usersService.canClaimFirstAdministrator();
+
     // ===== STORE INTERFACE =====
 
     return {
@@ -617,12 +661,16 @@ export const createUsersStore = (): E.Effect<
       get cache() {
         return cache;
       },
+      get firstAdministratorClaimRefused() {
+        return firstAdministratorClaimRefused;
+      },
 
       createUser,
       getLatestUser,
       getUserByActionHash,
       setCurrentUser,
       refreshCurrentUser,
+      canClaimFirstAdministrator,
       updateCurrentUser,
       getAcceptedUsers,
       getUserStatusLink,

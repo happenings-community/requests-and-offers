@@ -52,37 +52,72 @@ pub fn create_user(input: User) -> ExternResult<Record> {
     (),
   )?;
 
-  // Auto-registration as network administrator:
-  // - Progenitor (key configured in DNA properties): always registers immediately.
-  // - Dev mode (no progenitor_pubkey set): first user becomes admin as a convenience
-  //   bootstrap. This MUST NOT trigger in production where the key is set, to prevent
-  //   any first user from hijacking the admin seat before the progenitor connects.
-  let is_prog = check_if_progenitor()?;
-  let progenitor_configured = DnaProperties::get_progenitor_pubkey()?.is_some();
-
-  let should_auto_register = if progenitor_configured {
-    is_prog
-  } else {
-    // Asked of the grants, as `add_administrator` asks: the roster is an index anyone can
-    // tombstone, and if the two disagreed this call would fail for every new user.
-    let an_administrator_exists: bool =
-      external_local_call("is_there_an_administrator", "administration", ())?;
-    !an_administrator_exists
-  };
-
-  if should_auto_register {
-    let _: bool = external_local_call(
-      "add_administrator",
-      "administration",
-      EntityActionHashAgents {
-        entity: "network".to_string(),
-        entity_original_action_hash: OriginalActionHash(user_hash.clone()),
-        agent_pubkeys: vec![agent_info()?.agent_initial_pubkey],
-      },
-    )?;
+  // Auto-registration as network administrator happens for the progenitor only, on a
+  // network whose DNA properties name a progenitor key. On a network with no key nobody
+  // becomes administrator by creating a profile: the first administrator is a deliberate
+  // act, `claim_first_administrator`. Before #600 the first user of a keyless network was
+  // registered here, and "first" was a read of the DHT, not a lock: a joiner whose node had
+  // not yet received the existing administrator's grant (a first start with the relay
+  // timing out, on the 22 November rehearsal) saw none and took the seat.
+  if check_if_progenitor()? {
+    register_as_network_administrator(user_hash.clone())?;
   }
 
   Ok(record)
+}
+
+fn register_as_network_administrator(user_hash: ActionHash) -> ExternResult<bool> {
+  external_local_call(
+    "add_administrator",
+    "administration",
+    EntityActionHashAgents {
+      entity: "network".to_string(),
+      entity_original_action_hash: OriginalActionHash(user_hash),
+      agent_pubkeys: vec![agent_info()?.agent_initial_pubkey],
+    },
+  )
+}
+
+/// Whether the caller could become this network's first administrator now: no progenitor
+/// key is configured, and no agent holds a live administrator grant as far as the caller's
+/// node can see. The profile form asks it to decide whether to offer the
+/// first-administrator box. It reads the network, so a node that has not synced yet can
+/// answer true on a network that has an administrator: that is why the box is a choice the
+/// person makes, never a default.
+#[hdk_extern]
+pub fn can_claim_first_administrator(_: ()) -> ExternResult<bool> {
+  if DnaProperties::get_progenitor_pubkey()?.is_some() {
+    return Ok(false);
+  }
+  // Asked of the grants, as `add_administrator` asks: the roster is an index anyone can
+  // tombstone, and if the two disagreed the claim would fail after the box was offered.
+  let an_administrator_exists: bool =
+    external_local_call("is_there_an_administrator", "administration", ())?;
+  Ok(!an_administrator_exists)
+}
+
+/// Makes the caller the first administrator of a network with no progenitor key, on their
+/// explicit request (the first-administrator box on the profile form). Refuses on a keyed
+/// network, where the progenitor alone holds the root, when an administrator is already
+/// visible, and when the caller has no profile yet. It closes the accident of #600, a
+/// joiner made administrator by a profile; it does not close a modified client writing
+/// itself a root grant on a keyless network, which only a progenitor key does.
+#[hdk_extern]
+pub fn claim_first_administrator(_: ()) -> ExternResult<bool> {
+  if DnaProperties::get_progenitor_pubkey()?.is_some() {
+    return Err(UsersError::ProgenitorKeyConfigured.into());
+  }
+  let user_links = get_agent_user(agent_info()?.agent_initial_pubkey)?;
+  let user_hash = user_links
+    .first()
+    .and_then(|link| link.target.clone().into_action_hash())
+    .ok_or(UsersError::UserProfileRequired)?;
+  let an_administrator_exists: bool =
+    external_local_call("is_there_an_administrator", "administration", ())?;
+  if an_administrator_exists {
+    return Err(UsersError::AdministratorAlreadyExists.into());
+  }
+  register_as_network_administrator(user_hash)
 }
 
 #[hdk_extern]

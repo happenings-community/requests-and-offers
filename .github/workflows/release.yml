@@ -29,6 +29,10 @@ on:
         description: Skip the heavy suites (dispatch only, never on a real tag)
         type: boolean
         default: false
+      allow_dev_mode:
+        description: Allow a build with no progenitor key while PROGENITOR_PUBKEY is empty (dispatch only, never for a published release). With the variable set, the build is keyed anyway.
+        type: boolean
+        default: false
 
 concurrency:
   # ref_name, not ref: a dispatch for v1.2.3 and the tag push of v1.2.3 are the
@@ -61,6 +65,18 @@ jobs:
         env:
           TAG: ${{ inputs.tag || github.ref_name }}
         run: bun scripts/release-readme.ts --version "$TAG"
+      # In seconds, before the heavy suites: a release is keyed (#600), and the
+      # build job would otherwise refuse a missing key only after half an hour.
+      # The key itself, its shape and its checksum, is checked there.
+      - name: Check the progenitor key is set
+        env:
+          PROGENITOR_PUBKEY: ${{ vars.PROGENITOR_PUBKEY }}
+          ALLOW_DEV_MODE: ${{ inputs.allow_dev_mode && 'true' || 'false' }}
+        run: |
+          if [ "$ALLOW_DEV_MODE" != "true" ] && [ -z "$PROGENITOR_PUBKEY" ]; then
+            echo "::error::PROGENITOR_PUBKEY is not set. A release is keyed with the steward key (#600): set the repository variable, or dispatch with allow_dev_mode for a dry run."
+            exit 1
+          fi
 
   # The gate. `inputs.skip_tests` is only settable from the Actions tab, so a
   # tag push always pays for it.
@@ -126,6 +142,23 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # A release is keyed with the steward's progenitor key (#600). Desktop
+      # installs generate their own agent key, so none of them can be the
+      # progenitor, and an unkeyed build lets a joining member become the network
+      # administrator. The key is the repository variable PROGENITOR_PUBKEY, passed
+      # through env like the tag, never interpolated into the script. A tag push
+      # fails here while the variable is empty; only a dispatch can opt out.
+      - name: Key the hApp with the progenitor
+        env:
+          PROGENITOR_PUBKEY: ${{ vars.PROGENITOR_PUBKEY }}
+          ALLOW_DEV_MODE: ${{ inputs.allow_dev_mode && 'true' || 'false' }}
+        run: |
+          if [ "$ALLOW_DEV_MODE" = "true" ]; then
+            bun scripts/release-progenitor.ts --allow-dev-mode
+          else
+            bun scripts/release-progenitor.ts
+          fi
 
       # `bun run package` is build:zomes -> hc app pack -> ui build -> hc web-app
       # pack, and it is the same command a maintainer runs locally. Keeping CI on
@@ -237,6 +270,17 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           name: release-artefacts
+
+      # A second gate, on what was built rather than on the step that keyed it:
+      # an unkeyed build is never published (#600).
+      - name: Refuse an unkeyed build
+        run: |
+          key=$(jq -r '.network.progenitorPubkey // empty' release-manifest.json)
+          if [ -z "$key" ]; then
+            echo "::error::release-manifest.json names no progenitor key. An unkeyed build is never published (#600)."
+            exit 1
+          fi
+          echo "Keyed for $key"
 
       - name: Create the release
         env:

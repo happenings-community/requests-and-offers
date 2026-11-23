@@ -188,8 +188,9 @@ pub fn require(ability: Ability, scope: Option<ActionHash>) -> ExternResult<Acti
 /// What a new grant by the caller rests on: the caller's own grant that may
 /// give this role, or, for the first administrators, the progenitor's signature
 /// over the grant's body. The root is open to the progenitor key, and, where
-/// no key is configured, to the first user while no agent holds a live admin grant:
-/// the bootstrap `add_administrator` has always had.
+/// no key is configured, to any caller while no agent holds a live admin grant:
+/// the bootstrap `add_administrator` has always had, which the app reaches only
+/// through `claim_first_administrator` since #600.
 pub fn authority_for(role: Role, scope: &Option<ActionHash>, holder: &AgentPubKey) -> ExternResult<Authority> {
   let me = my_pubkey()?;
   if let Some(grant) = can_local(&me, &Ability::Grant(role), scope)? {

@@ -1,13 +1,14 @@
 //! Progenitor pattern tests (Issue #5).
 //! Translated from `administration/progenitor.test.ts`.
 //!
-//! The progenitor is auto-registered as network administrator when they call
-//! create_user. This happens in the users_organizations coordinator init callback.
+//! With a progenitor key, the progenitor is registered as network
+//! administrator when they call create_user. With no key, nobody is: the
+//! first administrator claims the seat with `claim_first_administrator` (#600).
 //!
 //! Coverage:
 //! - Happy path: auto-registration, non-progenitor exclusion, revocation
 //! - `is_progenitor()` extern (UI-facing)
-//! - Dev mode bootstrap (no progenitor key configured)
+//! - Dev mode bootstrap (no progenitor key configured): the deliberate claim
 //! - Authorization rejections (Unauthorized, LastAdmin)
 //! - Idempotency of `add_administrator`
 
@@ -208,59 +209,114 @@ async fn is_progenitor_returns_false_for_non_progenitor_agent() {
 // Group 2: Dev mode bootstrap (no progenitor key configured)
 // ============================================================================
 
+async fn is_admin(conductor: &SweetConductor, cell: &SweetCell, who: &SweetCell) -> bool {
+    conductor
+        .call(
+            &cell.zome("administration"),
+            "check_if_agent_is_administrator",
+            serde_json::json!({ "entity": ENTITY_NETWORK, "agent_pubkey": who.agent_pubkey() }),
+        )
+        .await
+}
+
+async fn can_claim(conductor: &SweetConductor, cell: &SweetCell) -> bool {
+    conductor
+        .call(&cell.zome("users_organizations"), "can_claim_first_administrator", ())
+        .await
+}
+
+/// The refusal text of a `claim_first_administrator` call that must fail.
+async fn claim_refused(conductor: &SweetConductor, cell: &SweetCell) -> String {
+    let result = conductor
+        .call_fallible::<_, bool>(&cell.zome("users_organizations"), "claim_first_administrator", ())
+        .await;
+    format!("{:?}", result.expect_err("the claim must be refused"))
+}
+
+/// #600: on a network with no key, a profile makes nobody administrator, even
+/// when no administrator exists yet. Before, `create_user` gave the seat to any
+/// user whose node saw no administrator grant, which a joiner whose node had
+/// not synced did on the 22 November rehearsal.
+///
+/// **To make it go red:** register the caller in `create_user` again when
+/// `is_there_an_administrator` answers false.
 #[tokio::test(flavor = "multi_thread")]
-async fn dev_mode_bootstrap_first_user_admin_second_user_not() {
-    // Single test for the full dev-mode bootstrap scenario to avoid conductor
-    // teardown interference between separate tests that each create a fresh batch.
+async fn dev_mode_a_profile_never_makes_an_administrator() {
     let (conductors, alice, bob) = setup_two_agents_no_progenitor_configured().await;
 
-    // Alice is first — auto-registered as admin.
     conductors[0]
         .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
-
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
+    assert!(!is_admin(&conductors[0], &alice, &alice).await, "a profile alone makes nobody administrator");
     let admin_links: Vec<Link> = conductors[0]
         .call(&alice.zome("administration"), "get_all_administrators_links", ENTITY_NETWORK)
         .await;
-    assert_eq!(admin_links.len(), 1, "First user should be auto-registered as admin in dev mode");
+    assert!(admin_links.is_empty(), "no administrator until someone claims the seat");
+    assert!(can_claim(&conductors[0], &alice).await, "the seat stays open to a deliberate claim");
+}
 
-    let alice_is_admin: bool = conductors[0]
-        .call(
-            &alice.zome("administration"),
-            "check_if_agent_is_administrator",
-            serde_json::json!({
-                "entity": ENTITY_NETWORK,
-                "agent_pubkey": alice.agent_pubkey()
-            }),
-        )
+/// #600: the first administrator of a keyless network is the user who claims
+/// the seat; once an administrator is visible the seat is closed, to the box
+/// (`can_claim_first_administrator`) and to the call alike, and the next user
+/// registers as a plain member.
+#[tokio::test(flavor = "multi_thread")]
+async fn dev_mode_the_first_administrator_claims_the_seat() {
+    let (conductors, alice, bob) = setup_two_agents_no_progenitor_configured().await;
+
+    conductors[0]
+        .call::<_, Record>(&alice.zome("users_organizations"), "create_user", sample_user("Alice"))
         .await;
-    assert!(alice_is_admin, "Alice should be admin after first create_user in dev mode");
+    let claimed: bool = conductors[0]
+        .call(&alice.zome("users_organizations"), "claim_first_administrator", ())
+        .await;
+    assert!(claimed, "Alice takes the open seat");
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    assert!(is_admin(&conductors[0], &alice, &alice).await, "Alice administers the network");
 
-    // Bob creates profile second — should NOT be auto-registered.
     conductors[1]
         .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
-
     await_consistency_s(15, [&alice, &bob]).await.unwrap();
 
-    let admin_links_after_bob: Vec<Link> = conductors[1]
-        .call(&bob.zome("administration"), "get_all_administrators_links", ENTITY_NETWORK)
-        .await;
-    assert_eq!(admin_links_after_bob.len(), 1, "Only Alice should be admin; Bob should not auto-register");
+    assert!(!is_admin(&conductors[1], &bob, &bob).await, "Bob registers as a plain member");
+    assert!(!can_claim(&conductors[1], &bob).await, "the box is not offered once an administrator is visible");
+    let refusal = claim_refused(&conductors[1], &bob).await;
+    assert!(
+        refusal.contains("This network already has an administrator"),
+        "the claim names why it is refused: {refusal}"
+    );
+    assert!(!is_admin(&conductors[1], &bob, &bob).await, "the refused claim leaves Bob a member");
+}
 
-    let bob_is_admin: bool = conductors[1]
-        .call(
-            &bob.zome("administration"),
-            "check_if_agent_is_administrator",
-            serde_json::json!({
-                "entity": ENTITY_NETWORK,
-                "agent_pubkey": bob.agent_pubkey()
-            }),
-        )
+/// A claim needs a profile: the administrator seat hangs from the user entry.
+#[tokio::test(flavor = "multi_thread")]
+async fn dev_mode_a_claim_without_a_profile_is_refused() {
+    let (conductors, alice, _bob) = setup_two_agents_no_progenitor_configured().await;
+
+    let refusal = claim_refused(&conductors[0], &alice).await;
+    assert!(refusal.contains("User profile required"), "the claim asks for a profile first: {refusal}");
+}
+
+/// On a keyed network the progenitor holds the seat from its profile, and
+/// nobody else can claim it, whatever their node sees.
+#[tokio::test(flavor = "multi_thread")]
+async fn with_a_progenitor_key_the_seat_cannot_be_claimed() {
+    let (conductors, alice, bob) = setup_two_agents_with_alice_as_progenitor().await;
+
+    // Bob registers before the progenitor, so his node sees no administrator.
+    conductors[1]
+        .call::<_, Record>(&bob.zome("users_organizations"), "create_user", sample_user("Bob"))
         .await;
-    assert!(!bob_is_admin, "Bob should not be admin in dev mode after admin already exists");
+    assert!(!can_claim(&conductors[1], &bob).await, "no box on a keyed network");
+    let refusal = claim_refused(&conductors[1], &bob).await;
+    assert!(
+        refusal.contains("This network has a progenitor key"),
+        "the claim names the key: {refusal}"
+    );
+    await_consistency_s(15, [&alice, &bob]).await.unwrap();
+    assert!(!is_admin(&conductors[1], &bob, &bob).await, "Bob stays a member");
 }
 
 // ============================================================================

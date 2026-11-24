@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import { encode } from '@msgpack/msgpack';
 import { dhtLocationFrom32, encodeHashToBase64 } from '@holochain/client';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import {
@@ -9,11 +11,13 @@ import {
   type LinkLike,
   bundleProgenitorKey,
   checkKeyedFor,
+  checkPicture,
   ensureStewardProfile,
   grantAgent,
   listMembers,
   parseCommand,
-  stewardUser
+  stewardUser,
+  updateStewardProfile
 } from '../progenitor-steward.ts';
 
 const script = join(import.meta.dir, '..', 'progenitor-steward.ts');
@@ -97,6 +101,37 @@ describe('parseCommand', () => {
   it('refuses an unknown flag', () => {
     expect(parseCommand(['status', '--bogus']).ok).toBe(false);
   });
+
+  it('reads update-profile with only the fields given, and refuses it with none', () => {
+    expect(parseCommand(['update-profile', '--name', 'Network keyholder', '--picture', 'k.png'])).toEqual({
+      ok: true,
+      command: {
+        kind: 'update-profile',
+        dryRun: false,
+        adminPort: 4444,
+        installedAppId: 'requests_and_offers',
+        appPort: undefined,
+        changes: { name: 'Network keyholder', picture: 'k.png' }
+      }
+    });
+    expect(parseCommand(['update-profile', '--bio', ''])).toMatchObject({ ok: true, command: { changes: { bio: '' } } });
+    expect(parseCommand(['update-profile'])).toEqual({
+      ok: false,
+      message: 'update-profile needs at least one of --name, --bio, --email, --picture'
+    });
+    expect(parseCommand(['update-profile', '--name', '  '])).toEqual({ ok: false, message: '--name must not be empty' });
+    expect(parseCommand(['update-profile', '--name', ' Keyholder '])).toMatchObject({ command: { changes: { name: 'Keyholder' } } });
+    expect(parseCommand(['update-profile', '--email', 'nobody'])).toEqual({ ok: false, message: '--email "nobody" is not an email address' });
+  });
+
+  it('refuses a flag that belongs to another command, rather than ignoring it', () => {
+    expect(parseCommand(['grant', '--picture', 'k.png'])).toEqual({ ok: false, message: '--picture does not apply to grant' });
+    expect(parseCommand(['grant', '--bio', 'x'])).toEqual({ ok: false, message: '--bio does not apply to grant' });
+    expect(parseCommand(['update-profile', '--name', 'K', '--agent', ALICE])).toEqual({ ok: false, message: '--agent does not apply to update-profile' });
+    expect(parseCommand(['status', '--name', 'K'])).toEqual({ ok: false, message: '--name does not apply to status' });
+    expect(parseCommand(['keygen', '--happ', 'r.happ'])).toEqual({ ok: false, message: '--happ does not apply to keygen' });
+    expect(parseCommand(['install', '--happ', 'r.happ', '--agent-key', STEWARD, '--network-seed', 's', '--app-id', 'x']).ok).toBe(true);
+  });
 });
 
 const bundle = (progenitor: unknown) =>
@@ -138,6 +173,9 @@ const world = (options: { progenitor?: boolean; profiles?: string[]; admins?: st
   const profiles = new Set(options.profiles ?? []);
   const calls: { zome: string; fn: string; payload: unknown }[] = [];
   const userHash = (agent: string) => new TextEncoder().encode(`user-of-${agent}`);
+  let latestUser: Record<string, unknown> = stewardUser({ name: 'Steward', email: 'steward@example.org' });
+  let latestHash = userHash(STEWARD);
+  let revisions = 0;
 
   const call: Call = async (zome, fn, payload) => {
     calls.push({ zome, fn, payload });
@@ -155,6 +193,16 @@ const world = (options: { progenitor?: boolean; profiles?: string[]; admins?: st
       case 'administration/add_administrator':
         for (const k of (payload as { agent_pubkeys: Uint8Array[] }).agent_pubkeys) admins.add(key(k));
         return true;
+      case 'users_organizations/get_latest_user_record':
+      case 'users_organizations/get_latest_user': {
+        // Asked by the steward's original profile hash, as the zome expects; anything else finds nothing.
+        if (key(payload as Uint8Array) !== key(userHash(STEWARD))) throw new Error(`${fn} asked for ${key(payload as Uint8Array)}`);
+        return fn === 'get_latest_user' ? { ...latestUser } : { signed_action: { hashed: { hash: latestHash } } };
+      }
+      case 'users_organizations/update_user':
+        latestUser = (payload as { updated_user: Record<string, unknown> }).updated_user;
+        latestHash = new TextEncoder().encode(`revision-${++revisions}`);
+        return {};
       default:
         throw new Error(`unexpected call ${zome}/${fn}`);
     }
@@ -197,6 +245,53 @@ describe('the steward profile', () => {
     const w = world({ progenitor: false });
     await expect(ensureStewardProfile(w.deps, { name: 'S', email: 'a@b.co' })).rejects.toThrow(/not the progenitor/);
     expect(w.calls.some((c) => c.fn === 'create_user')).toBe(false);
+  });
+});
+
+const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
+
+describe('updating the steward profile', () => {
+  it('accepts the image formats the zome decodes, and refuses anything else or too large', () => {
+    expect(checkPicture(PNG)).toBe('PNG');
+    expect(checkPicture(Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]))).toBe('JPEG');
+    expect(checkPicture(new TextEncoder().encode('GIF89a'))).toBe('GIF');
+    expect(checkPicture(new TextEncoder().encode('RIFF\0\0\0\0WEBPVP8 '))).toBe('WebP');
+    expect(() => checkPicture(new TextEncoder().encode('not an image'))).toThrow(/not a PNG/);
+    const big = new Uint8Array(600 * 1024);
+    big.set(PNG);
+    expect(() => checkPicture(big)).toThrow(/600 KiB; the limit is 512 KiB/);
+  });
+
+  it('changes only the fields given, sets the nickname with the name, and updates from the latest revision', async () => {
+    const w = world({ profiles: [STEWARD], admins: [STEWARD] });
+    const first = await updateStewardProfile(w.deps, { name: 'Network keyholder', picture: PNG });
+    // Every field the change leaves alone is written back as it was: user_type, time_zone,
+    // location and phone included, or the zome refuses the update or the data is lost.
+    expect(first).toEqual({
+      ...stewardUser({ name: 'Steward', email: 'steward@example.org' }),
+      name: 'Network keyholder',
+      nickname: 'Network keyholder',
+      picture: PNG
+    });
+    const update = w.calls.find((c) => c.fn === 'update_user')?.payload as Record<string, Uint8Array>;
+    expect(new TextDecoder().decode(update.original_action_hash)).toBe(`user-of-${STEWARD}`);
+    expect(new TextDecoder().decode(update.previous_action_hash)).toBe(`user-of-${STEWARD}`);
+
+    const second = await updateStewardProfile(w.deps, { bio: 'Automated. Not a member.' });
+    expect(second).toMatchObject({ name: 'Network keyholder', picture: PNG, bio: 'Automated. Not a member.' });
+    const updates = w.calls.filter((c) => c.fn === 'update_user').map((c) => c.payload as Record<string, Uint8Array>);
+    expect(new TextDecoder().decode(updates[1].original_action_hash)).toBe(`user-of-${STEWARD}`);
+    expect(new TextDecoder().decode(updates[1].previous_action_hash)).toBe('revision-1');
+  });
+
+  it('refuses before it writes anything when the agent is not the progenitor, or has no profile yet', async () => {
+    const notProgenitor = world({ progenitor: false, profiles: [STEWARD] });
+    await expect(updateStewardProfile(notProgenitor.deps, { name: 'X' })).rejects.toThrow(/not the progenitor/);
+    expect(notProgenitor.calls.some((c) => c.fn === 'update_user')).toBe(false);
+
+    const noProfile = world();
+    await expect(updateStewardProfile(noProfile.deps, { name: 'X' })).rejects.toThrow(/run `grant` first/);
+    expect(noProfile.calls.some((c) => c.fn === 'update_user')).toBe(false);
   });
 });
 
@@ -280,6 +375,30 @@ describe('the command line', () => {
     expect(out).toContain('dry run: grant');
     expect(out).toContain('administration/add_administrator');
     expect(out).toContain(ALICE);
+  });
+
+  it('parses an update-profile as a dry run and names what it would change', () => {
+    const result = spawn(['update-profile', '--name', 'Network keyholder', '--bio', 'Automated.', '--dry-run']);
+    expect(result.exitCode).toBe(0);
+    const out = result.stdout.toString();
+    expect(out).toContain('dry run: update-profile');
+    expect(out).toContain('users_organizations/update_user, changing name, bio');
+  });
+
+  it('checks the picture in a dry run too, so a bad file shows before the real run', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'steward-picture-'));
+    const good = join(dir, 'k.png');
+    const bad = join(dir, 'k.txt');
+    writeFileSync(good, PNG);
+    writeFileSync(bad, 'not an image');
+    const ok = spawn(['update-profile', '--picture', good, '--dry-run']);
+    expect(ok.exitCode).toBe(0);
+    expect(ok.stdout.toString()).toContain('picture: PNG, accepted');
+    const refused = spawn(['update-profile', '--picture', bad, '--dry-run']);
+    expect(refused.exitCode).toBe(1);
+    expect(refused.stderr.toString()).toContain('not a PNG');
+    expect(spawn(['update-profile', '--picture', join(dir, 'missing.png'), '--dry-run']).exitCode).toBe(1);
+    rmSync(dir, { recursive: true, force: true });
   });
 
   it('exits 2 on arguments it cannot parse', () => {

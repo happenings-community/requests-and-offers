@@ -179,6 +179,7 @@ They run on the conductor's machine, from the repository, after `bun install` (`
 | `bun scripts/progenitor-steward.ts grant` | Creates the steward's profile if it has none: as the progenitor it is registered as the first administrator. |
 | `bun scripts/progenitor-steward.ts grant --agent <key> [--agent <key> ...]` | The same, then makes each agent an administrator. Waits up to `--wait` seconds for the agent's profile to reach the steward. |
 | `bun scripts/progenitor-steward.ts status [--agent <key> ...]` | App state, whether this agent is the progenitor, and every profile the steward sees with its agent keys and administrator state. |
+| `bun scripts/progenitor-steward.ts update-profile [--name <name>] [--bio <text>] [--email <email>] [--picture <file>]` | Changes the steward's own profile, which members see in the member list and, with its name and email, under Contact the administrators; fields not given keep their value, and the name sets the nickname too. The picture is a PNG, JPEG, GIF or WebP of at most 512 KiB, checked before anything connects. Only after `grant` has created the profile. |
 
 `--dry-run` on any of them prints what it would do and connects to nothing.
 The seed to pass to `install` is `desktop.networkSeed` in the release's `release-manifest.json`: the same one the wrapper passes at install.

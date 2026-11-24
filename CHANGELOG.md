@@ -25,22 +25,6 @@ The enforcement limits are listed under Known gaps in 0.6.0-alpha.2 below.
 - **hREA, upstream, tracked for alpha 3**: updating a Commitment leaves the `all_commitments` index on its first revision; the app reads each Commitment's latest revision itself until it is fixed.
 - **hREA, upstream, tracked for alpha 3**: there is no way to find a Proposal by an external reference, so the app finds a listing's Proposals by the hash line in their note.
 
-### Bug Fixes
-
-- **Administration**: a profile no longer makes anyone network administrator on a network with no progenitor key; the first administrator ticks "I am creating this network" on the profile form, which calls the new `claim_first_administrator` (refused once an administrator is visible, on a keyed network, or without a profile), and `can_claim_first_administrator` decides whether the box shows (#600). Two `UsersError` variants are added, which changes every integrity zome's wasm and so the DNA hash; the keyed release moves the network anyway
-
-### CI and Testing
-
-- **Release**: A tag is refused unless the README's `release-ready` marker names its version, checked before the heavy suites, and the script tests fail while the marker and `package.json` disagree
-- **Release**: A release is built with the steward's progenitor key, so no joining member can become network administrator on a desktop build (#600). `scripts/release-progenitor.ts` writes the repository variable `PROGENITOR_PUBKEY` into the `requests_and_offers` role of `workdir/happ.yaml` before the hApp is packed, and a tag push fails there when the variable is empty or not an AgentPubKey. A dispatch gets an `allow_dev_mode` input for dry runs before the key exists, never for a published release
-- **Release**: `release-manifest.json` records the key under `network.progenitorPubkey`, `null` for a build without one
-- **Release**: `scripts/progenitor-steward.ts` is the operator tool for the headless steward conductor: `keygen`, `install` (refuses a hApp not keyed for the agent), `grant` (the steward's profile, then administrator for each agent) and `status`
-
-### Documentation
-
-- **Progenitor**: `documentation/progenitor.md` describes the keyed release: who holds the key, the repository variable, the commands that start the headless conductor and the steward's, and the order from the steward's install to the link going out
-- **Release**: The release checklist sets `PROGENITOR_PUBKEY` before the tag and adds a per-release check that a second person joining on a fresh device is pending, with administration closed to them
-
 ## [0.6.0-alpha.2] - 2026-11-23
 
 ### 🚀 Exchange on hREA and Platform 0.7
@@ -129,13 +113,14 @@ What alpha 2 does not yet enforce, most of it reachable only by a member running
 - **Build**: `Cargo.lock` moves the crates behind the Holochain 0.7 advisories to patched releases, and holds `quinn-proto` back until Holochain itself moves (`710f5560`, #557, part of #363)
 - **Build**: `rustls-webpki` moves to 0.103.13 in `Cargo.lock` (`6a4f9c49`, #537)
 - **Users**: Validation decides who may write `UserAgents` and `MyUser` links: only a User's author links agents to it, only to their own key, and `MyUser` runs from the author's key to the author's User (`11bcf7a4`, #473)
-- **Validation**: Every role-gated write outside the administration zome carries the grant it rests on, and the network refuses an act by anyone never given the role. Requests, offers, interests and agreements need the author's member grant, and an organisation is updated by its creator, a coordinator of it, or an administrator. Alpha 2 is built without a progenitor key (see *The network's first admin*), so validation accepts a root grant from any author and a modified client can still grant itself a role; the key arrives with alpha 3 (#95) (`c3db8659`, #378)
-- **Messaging**: A message carries its author's member grant, and validation refuses one that does not. Alpha 2 is built without a progenitor key, so a modified client can write itself a root grant and so a member grant (`a677c286`, #412); validation refuses a ciphertext over 3,840 bytes, inside the 3,959 a recipient's keystore can open (`20c05eee`, #488)
+- **Validation**: Every role-gated write outside the administration zome carries the grant it rests on, and the network refuses an act by anyone never given the role. Requests, offers, interests and agreements need the author's member grant, and an organisation is updated by its creator, a coordinator of it, or an administrator. The release network is keyed to the steward (see *The network's first admin*), so only the progenitor's key can write a root grant there; on a test build without a key, validation accepts a root grant from any author and a modified client can still grant itself a role (`c3db8659`, #378)
+- **Messaging**: A message carries its author's member grant, and validation refuses one that does not. On a test build without a progenitor key, a modified client can write itself a root grant and so a member grant; the keyed release network refuses it (`a677c286`, #412); validation refuses a ciphertext over 3,840 bytes, inside the 3,959 a recipient's keystore can open (`20c05eee`, #488)
 - **Messaging**: A message to a role goes to the agents its live grants name, so a revoked administrator, an emptied roster or a roster link written by a modified client no longer changes who receives it (`c1784a45`, #520, closes #518)
 - **Administration**: A temporary suspension's end is a timestamp that validation checks is after its writing; it was text nothing checked, and a malformed one made every later read of that status fail. This changes the Status entry format, so it needs a network reset (`e8b51aac`, #528)
 
 ### Bug Fixes
 
+- **Administration**: a profile no longer makes anyone network administrator on a network with no progenitor key; the first administrator ticks "I am creating this network" on the profile form, which calls the new `claim_first_administrator` (refused once an administrator is visible, on a keyed network, or without a profile), and `can_claim_first_administrator` decides whether the box shows (#600). Two `UsersError` variants are added, which changes every integrity zome's wasm and so the DNA hash; the keyed release moves the network anyway
 - **hREA**: An accepted exchange whose mirror never landed is mirrored again the next time the member who accepted it reads their exchanges, once a session, and never twice at once; a cancel that comes while its mirror is being written waits for it, then closes its Commitments. Both Commitments are checked before the Agreement is written, so a malformed one fails with a reason in words instead of hREA's bytes, and a failed mirror is logged with hREA's own reason (`3ad995ef`, #556, takes over #532)
 - **hREA**: The admin audit page marks each Commitment finished or open, read from its latest revision; hREA's list returns the first, so a finished one showed as open (`a96af548`, #562)
 - **hREA**: The admin's economic-flow graph fits its panel and zooms and pans like a whiteboard (buttons, Ctrl or Cmd with the wheel, a drag, the arrow keys), instead of a sideways scroll that cut off its left column; each node opens in the inspector on focus or a tap, not only on hover (`f6dba8b6`, #566)
@@ -205,14 +190,16 @@ What alpha 2 does not yet enforce, most of it reachable only by a member running
 
 ### Documentation
 
+- **Progenitor**: `documentation/progenitor.md` describes the keyed release: who holds the key, the repository variable, the commands that start the headless conductor and the steward's, and the order from the steward's install to the link going out
+- **Release**: The release checklist sets `PROGENITOR_PUBKEY` before the tag and adds a per-release check that a second person joining on a fresh device is pending, with administration closed to them
 - **Versioning**: The rule before 1.0, minor for breaking DNA changes and patch for the rest, with breaking changes batched (`documentation/guides/versioning.md`), and the alpha 2 network reset notice (`be951c66`, #385)
 - **Architecture**: What validation enforces, and the known limits (`7333eedd`, #401)
 - **Contributing**: The review rules are written down (`d852be25`, #293, closes #225)
 - **Release**: The announcement is gated on a launched packaged build (`162ca5e4`, #271); a discussion form for release feedback (`d110f10b`, #294); the Homebrew cask is installed by full name for tap trust (`14666074`, #267); production checks: never on a Friday, the built app run before the tag, two peers checked before announcing (`f71f5aa4`, #447, part of #276)
 - **Zome errors**: Zome errors come from `utils/src/errors.rs`, written down as a rule in `CLAUDE.md` (`23825ddc`, #472)
-- **Installation**: A desktop network built without a progenitor key runs in development mode and its first profile becomes admin (`8ad45332`, #445)
+- **Installation**: A desktop network built without a progenitor key runs in development mode (`8ad45332`, #445); since #601 its first administrator ticks the first-administrator box rather than becoming admin with a first profile, and the release itself is keyed
 - **Development**: The inspector's adapter contract, packaging options and a Nondominium trial (`15d069e8`, #446); the guides follow what `bun start` and `bun start:web` now launch, and the ports they take (`ff26c178`, #449)
-- **Installation**: A desktop release runs in development mode: what that protects, what it does not, and the first-admin practice (`ca31467f`, #466)
+- **Installation**: What development mode protects, what it does not, and the first-admin practice (`ca31467f`, #466); the release is now built keyed to the steward instead (#601)
 - **Status**: The status page matches the alpha 2 tree (`725fe638`, #489, part of #415)
 - **README**: The roadmap names what shipped, what is in progress and what comes later (`e65039c4`, #501)
 - **Messaging**: The notes from the stack reviews, and that a block holds on this device only (`bd2b0d60`, #519)
@@ -224,6 +211,10 @@ What alpha 2 does not yet enforce, most of it reachable only by a member running
 
 ### CI and Testing
 
+- **Release**: A tag is refused unless the README's `release-ready` marker names its version, checked before the heavy suites, and the script tests fail while the marker and `package.json` disagree
+- **Release**: A release is built with the steward's progenitor key, so no joining member can become network administrator on a desktop build (#600). `scripts/release-progenitor.ts` writes the repository variable `PROGENITOR_PUBKEY` into the `requests_and_offers` role of `workdir/happ.yaml` before the hApp is packed, and a tag push fails there when the variable is empty or not an AgentPubKey. A dispatch gets an `allow_dev_mode` input for dry runs before the key exists, never for a published release
+- **Release**: `release-manifest.json` records the key under `network.progenitorPubkey`, `null` for a build without one
+- **Release**: `scripts/progenitor-steward.ts` is the operator tool for the headless steward conductor: `keygen`, `install` (refuses a hApp not keyed for the agent), `grant` (the steward's profile, then administrator for each agent) and `status`
 - **CI**: The fast checks run on every pull request and the heavy suites on demand (`bcd17fa4`, #262); the zome crates' own unit tests run (`6f798a2c`, #272); runners are pinned to ubuntu-24.04 with actions on Node 24 (`a201e5d2`, #282); `impl-issue-status` points at the In Review column (`feaa65e7`, #313)
 - **Release**: A tag-triggered release chain with a gated build (`120ea83b`, #277)
 - **Sweettest**: The scripts are fixed and `link_canonicalisation` runs in CI (`c9967fd4`, #298, closes #297)

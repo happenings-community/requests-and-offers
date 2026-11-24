@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { MY_MESSAGES, myActivityItems, myMenuItems, myProfileItems } from '$lib/navigation/my-menu';
 
 describe('the member’s own menus (#344)', () => {
-  it('lists exchanges then listings, as the nav bar does, with no separate requests or offers', () => {
-    expect(myActivityItems(true).map((i) => i.label)).toEqual(['My Exchanges', 'My Listings']);
+  it('lists listings then exchanges, as the nav bar does, with no separate requests or offers', () => {
+    expect(myActivityItems(true).map((i) => i.label)).toEqual(['My Listings', 'My Exchanges']);
     expect(myActivityItems(true).some((i) => i.href.includes('filter=my'))).toBe(false);
   });
 
@@ -17,30 +17,30 @@ describe('the member’s own menus (#344)', () => {
 
   it('adds My Messages to My Activity where this network has messaging (R121)', () => {
     expect(myActivityItems(true, true).map((i) => [i.label, i.href])).toEqual([
-      ['My Exchanges', '/exchanges'],
       ['My Listings', '/my-listings'],
+      ['My Exchanges', '/exchanges'],
       ['My Messages', '/messages']
     ]);
     expect(MY_MESSAGES.href).toBe('/messages');
     expect(myActivityItems(true, false).map((i) => i.label)).toEqual([
-      'My Exchanges',
-      'My Listings'
+      'My Listings',
+      'My Exchanges'
     ]);
   });
 
   it('gives the home page all three, profile first', () => {
     expect(myMenuItems(true, true).map((i) => i.label)).toEqual([
       'My Profile',
-      'My Exchanges',
-      'My Listings'
+      'My Listings',
+      'My Exchanges'
     ]);
   });
 
   it('gives the home page My Messages too where there is messaging, so the two lists agree', () => {
     expect(myMenuItems(true, true, true).map((i) => i.label)).toEqual([
       'My Profile',
-      'My Exchanges',
       'My Listings',
+      'My Exchanges',
       'My Messages'
     ]);
   });

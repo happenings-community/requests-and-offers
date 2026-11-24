@@ -88,9 +88,11 @@
   const isCurrent = (href: string) =>
     page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);
 
-  // **My Exchanges and My Listings are links on the bar, and Messages an envelope**
+  // **My Listings and My Exchanges are links on the bar, and Messages an envelope**
   // (Sam, 16 November): they are among the most visited screens, and a dropdown named
   // for the member hid them. The menu under the member's picture is their profile.
+  // My Listings comes first (Anita, 24 November); the drawer and the home page's cards
+  // follow the same order (`my-menu.ts`).
   //
   // **The member's own screens are for accepted members** (#349 review, Sam 17 November):
   // My Exchanges, My Listings and Messages all sit behind the Members only wall, so a
@@ -272,6 +274,15 @@
     <div class="flex items-center gap-1 text-white xl:gap-3">
       {#if accepted}
         <a
+          href={paths.myListings()}
+          class="group relative inline-flex items-center gap-1.5 whitespace-nowrap rounded px-2 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 aria-[current=page]:bg-white/15"
+          aria-current={isCurrent(paths.myListings()) ? 'page' : undefined}
+        >
+          <NavIcon name="listings" />
+          <span class="sr-only xl:not-sr-only">My Listings</span>
+          <NavTip text="My Listings" class="xl:hidden" />
+        </a>
+        <a
           href={paths.exchanges()}
           class="group relative inline-flex items-center gap-1.5 whitespace-nowrap rounded px-2 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 aria-[current=page]:bg-white/15"
           aria-current={isCurrent(paths.exchanges()) ? 'page' : undefined}
@@ -288,15 +299,6 @@
               ></span
             >
           {/if}
-        </a>
-        <a
-          href={paths.myListings()}
-          class="group relative inline-flex items-center gap-1.5 whitespace-nowrap rounded px-2 py-2 transition-colors hover:text-secondary-300 focus:outline-none focus:ring-2 focus:ring-secondary-300 aria-[current=page]:bg-white/15"
-          aria-current={isCurrent(paths.myListings()) ? 'page' : undefined}
-        >
-          <NavIcon name="listings" />
-          <span class="sr-only xl:not-sr-only">My Listings</span>
-          <NavTip text="My Listings" class="xl:hidden" />
         </a>
       {/if}
 

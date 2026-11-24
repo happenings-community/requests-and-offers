@@ -25,6 +25,10 @@ The enforcement limits are listed under Known gaps in 0.6.0-alpha.2 below.
 - **hREA, upstream, tracked for alpha 3**: updating a Commitment leaves the `all_commitments` index on its first revision; the app reads each Commitment's latest revision itself until it is fixed.
 - **hREA, upstream, tracked for alpha 3**: there is no way to find a Proposal by an external reference, so the app finds a listing's Proposals by the hash line in their note.
 
+### Changed
+
+- **Navigation**: My Listings now comes before My Exchanges, on the bar, in the menu drawer and among the home page's cards.
+
 ## [0.6.0-alpha.2] - 2026-11-23
 
 ### 🚀 Exchange on hREA and Platform 0.7

@@ -53,16 +53,16 @@ export function myActivityItems(accepted: boolean, withMessages = false): MyMenu
   if (!accepted) return [];
   return [
     {
-      href: paths.exchanges(),
-      label: 'My Exchanges',
-      icon: '🤝',
-      description: 'Agreements you are part of'
-    },
-    {
       href: paths.myListings(),
       label: 'My Listings',
       icon: '📋',
       description: 'Manage your requests and offers'
+    },
+    {
+      href: paths.exchanges(),
+      label: 'My Exchanges',
+      icon: '🤝',
+      description: 'Agreements you are part of'
     },
     ...(withMessages ? [MY_MESSAGES] : [])
   ];

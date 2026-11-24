@@ -4,7 +4,7 @@ import NavBar from '$lib/components/shared/NavBar.svelte';
 import { visit } from '../../../mocks/app-state';
 
 /**
- * The nav bar's own screens (Sam, 16 November): My Exchanges and My Listings are links on
+ * The nav bar's own screens (Sam, 16 November): My Listings and My Exchanges are links on
  * the bar, and Messages is an envelope beside the status and the member's picture.
  *
  * With messaging, a proposal arriving is counted once, as an unopened conversation on the
@@ -142,6 +142,15 @@ describe('the nav bar', () => {
     }
     expect(screen.queryByRole('button', { name: /my activity/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /resources/i })).toBeNull();
+  });
+
+  it('puts My Listings before My Exchanges, as the drawer and the home page do', () => {
+    render(NavBar);
+
+    const listings = screen.getByRole('link', { name: 'My Listings' });
+    expect(
+      listings.compareDocumentPosition(exchangesLink()) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   /**

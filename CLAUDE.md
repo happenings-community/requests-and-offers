@@ -51,7 +51,8 @@ Three rules worth holding when touching the pipeline. Change any `package.json` 
 
 ## Architecture Overview
 
-**Holochain hApp** with **SvelteKit frontend** using a **7-layer Effect-TS architecture**. Peer-to-peer bulletin board for requests and offers.
+**Holochain hApp** with **SvelteKit frontend** using a **7-layer Effect-TS architecture**. Peer-to-peer mutual aid app for requests and offers.
+R&O is a mutual aid app, and the term "bulletin board" is retired (Soushi, 25 November 2026): do not use it in code, docs, commits or PRs.
 
 ### 7-Layer Pattern
 1. **Service** - Effect-native services with `Context.Tag` dependency injection

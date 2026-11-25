@@ -27,7 +27,7 @@
   "applets": [
     {
       "name": "requests_and_offers",
-      "subtitle": "Peer-to-peer bulletin board",
+      "subtitle": "Peer-to-peer mutual aid app",
       "description": "Post requests and offers",
       "icon": {
         "type": "filesystem",

@@ -6,10 +6,11 @@ import { join } from 'node:path';
  * **The architecture ratchet: each count is pinned, and may only go down.**
  *
  * The frontend refactoring plan (`documentation/architecture/frontend-refactoring/`) states
- * eight invariants. Four of them can be counted today, and none holds yet. This file counts
+ * nine invariants. Five of them can be counted today, and one of those holds. This file counts
  * each and pins it to the count at the commit named beside the ceilings, so the build is
  * green now and red the moment a count moves: a new store-to-store import, a new `runEffect`
- * call in a component, a new component subscription, a new store that exposes `loading`.
+ * call in a component, a new component subscription, a new store that exposes `loading`, a
+ * new zome call that hands the raw client a payload which is not plain data.
  *
  * **It is an equality, in both directions.** A rise fails, naming what to remove. A fall
  * fails too, naming the new ceiling, so the slack a conversion leaves behind cannot be spent
@@ -44,7 +45,15 @@ const CEILINGS = {
   /** INV3, subscriptions: `storeEventBus.on` sites in production components and routes. */
   componentSubscriptions: 10,
   /** INV6: store files that expose `loading` in any form, a getter or a field. */
-  storesExposingLoading: 11
+  storesExposingLoading: 11,
+  /**
+   * INV9: calls to a raw Holochain client (`.callZome({ ... })`) in `ui/src`. Three in
+   * `HolochainClientService`, one in the client `hrea.service` hands the hREA adapter.
+   * A new one is a new way out of the page, and has to pass the check below as well.
+   */
+  rawClientZomeCalls: 4,
+  /** INV9, the rule itself: raw-client calls whose payload is neither `null` nor `toZomePayload(...)`. Holds. */
+  rawClientCallsWithoutPlainPayload: 0
 } as const;
 
 /** Run from `ui/`, like the seam tests: paths are relative to it. */
@@ -149,6 +158,31 @@ const RUN_EFFECT = /\brunEffect\s*(?:<[^()]*>)?\s*\(/;
 /** `storeEventBus.on`, or the optional-chained `storeEventBus?.on`. */
 const BUS_ON = /\bstoreEventBus\s*\??\.\s*on\b/;
 
+/**
+ * Each raw-client zome call in `source`: the text from `.callZome({` to the end of its object.
+ * The service's own `callZome(zome, fn, payload)` takes positional arguments, so it never
+ * matches; only a request object handed straight to `@holochain/client` does.
+ */
+function rawZomeCalls(source: string): string[] {
+  const code = stripComments(source);
+  const calls: string[] = [];
+  const start = /\.callZome\s*\(\s*\{/g;
+  for (let match = start.exec(code); match; match = start.exec(code)) {
+    let depth = 0;
+    let end = match.index + match[0].length - 1;
+    for (; end < code.length; end++) {
+      if (code[end] === '{') depth++;
+      else if (code[end] === '}' && --depth === 0) break;
+    }
+    calls.push(code.slice(match.index, end + 1));
+  }
+  return calls;
+}
+
+/** A raw-client call whose payload leaves the page as plain data: `null`, or through `toZomePayload`. */
+const sendsPlainPayload = (call: string): boolean =>
+  /\bpayload\s*:\s*(?:null\b|toZomePayload\s*\()/.test(call);
+
 const STORE_IMPORT = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"][^'"]*\.store\.svelte(?:\.ts)?['"]/;
 
 /** A store that exposes `loading`: the interface field, the getter, or the rune it reads. */
@@ -247,6 +281,17 @@ describe('architecture ratchet: each count is pinned, and may only go down', () 
       'storeEventBus.on subscriptions in components and routes',
       total(productionComponentFiles, (source) => countLines(source, BUS_ON)),
       CEILINGS.componentSubscriptions
+    );
+  });
+
+  it('INV9: every payload handed to the raw client is plain data', () => {
+    // git grep -n 'callZome({' -- ui/src
+    const calls = filesUnder(SRC, /\.(svelte|ts)$/).flatMap((file) => rawZomeCalls(read(file)));
+    pinned('Raw-client zome calls', calls.length, CEILINGS.rawClientZomeCalls);
+    pinned(
+      'Raw-client zome calls whose payload is not null or toZomePayload(...)',
+      calls.filter((call) => !sendsPlainPayload(call)).length,
+      CEILINGS.rawClientCallsWithoutPlainPayload
     );
   });
 
@@ -360,6 +405,28 @@ describe('the counters see every form', () => {
     ['a space before the dot', 'storeEventBus .on("a", f)']
   ])('storeEventBus.on is counted as %s', (_form, source) => {
     expect(countLines(source, BUS_ON)).toBe(1);
+  });
+
+  it.each([
+    ['a null payload', "client.callZome({ zome_name: 'misc', fn_name: 'f', payload: null })", true],
+    ['a plain payload', 'client.callZome({ fn_name: f, payload: toZomePayload(payload) })', true],
+    [
+      'a spread request',
+      'c.callZome({ ...request, payload: toZomePayload(request.payload) }, t)',
+      true
+    ],
+    ['a shorthand payload', 'client.callZome({ zome_name: z, fn_name: f, payload })', false],
+    ['a bare payload', 'client.callZome({ zome_name: z, payload: input.timeframe })', false]
+  ])('INV9 reads %s', (_form, source, plain) => {
+    const calls = rawZomeCalls(source);
+    expect(calls).toHaveLength(1);
+    expect(sendsPlainPayload(calls[0])).toBe(plain);
+  });
+
+  it('INV9 does not count the service call, which takes positional arguments', () => {
+    expect(rawZomeCalls("holochainClient.callZome('requests', 'get_request', hash)")).toHaveLength(
+      0
+    );
   });
 
   it('emit is not a subscription', () => {

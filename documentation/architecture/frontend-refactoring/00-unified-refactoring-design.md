@@ -78,6 +78,7 @@ Each invariant below is written so that a machine, not a memory, decides whether
 6. No store exposes `loading: boolean`.
 7. Every effect started from a component is a fiber, and is interrupted on teardown.
 8. Local mutations and conductor signals reach stores through the same event vocabulary.
+9. State that crosses an effect boundary (a zome call, Electron IPC, storage, `postMessage`) is immutable plain data produced from the Model, never a reactive proxy.
 
 ### How each one is enforced
 
@@ -91,8 +92,9 @@ Each invariant below is written so that a machine, not a memory, decides whether
 | 6 | Ratchet test over stores that expose `loading` in any form (`git grep -lE 'loading: boolean\|get loading\(\|let loading\b' -- ui/src/lib/stores`): 11 store files today, 10 of them as the literal `loading: boolean` | `bun run test:unit`, in CI |
 | 7 | A test that mounts, starts a task, unmounts, and asserts the fiber exit is `Interrupted` | `bun test:unit` |
 | 8 | A two-agent e2e assertion that a remote change reaches the UI through the bus | `bun test:e2e` |
+| 9 | For zome calls, which are the boundary every write crosses: `toZomePayload` (`ui/src/lib/utils/zome-payload.ts`) at the one place each raw-client call is made, unit tests that send a `$state` proxy and assert `structuredClone` succeeds on what the client receives, and a ratchet entry that every raw-client `callZome({ ... })` sends `null` or `toZomePayload(...)` (holds: 4 calls, 0 without). Storage and `postMessage` carry strings today and have no check yet | `bun run test:unit`, in CI |
 
-Five of the eight are lint or grep, which means they cost close to nothing to run, and they go into CI on the first day as ratchets. They are written to fail loudly and early rather than to be comprehensive: an invariant that needs interpretation is not an invariant.
+Five of the nine are lint or grep, which means they cost close to nothing to run, and they go into CI on the first day as ratchets. They are written to fail loudly and early rather than to be comprehensive: an invariant that needs interpretation is not an invariant.
 
 ### The check job: a ratchet test, not a script
 
@@ -108,6 +110,21 @@ A fall fails too and names the ceiling to lower, so the slack a conversion leave
 Each conversion pull request lowers its ceiling in the same commit, and an invariant that reaches zero becomes an equality.
 Invariant 2 counts `runEffect` as well as `run*`: leaving it out would make the invariant pass on a technicality while 225 Promise-returning calls remain in components, which is the gap #134 came from.
 This departs from the "never before" rule this section used to state, whose reason was a red build; a ratchet is never red.
+
+### Invariant 9, and the bug that wrote it
+
+On the desktop app, creating a proposal failed with "Failed to write up the agreement: An object could not be cloned" (#621).
+The propose page passed `delivery_timeframe: timeframe`, a `$derived` read of two `$state` values, so the payload held a Svelte proxy.
+The desktop wrapper signs zome calls in the Electron main process: the request crosses `ipcRenderer.invoke`, which structured-clones it, and the structured clone refuses a `Proxy`.
+The web build and the e2e suite sign inside the page through msgpack, which reads a proxy like any object, so no test saw it.
+`useCounterProposal` had already met the same failure and snapshotted by hand (#341); the edit forms carried the latent case.
+
+A rule every call site has to remember is the kind this section exists to retire.
+So the rule is stated at the boundary rather than at the call sites: state is reactive inside the page and plain data at its edges.
+In the target design the Model is what a pure `reduce` returns ([06](06-pure-state-modules.md)), held in `$state.raw`, and a command that leaves the page carries a value produced from it, never the rune that holds it.
+Until every domain is there, `HolochainClientService.callZome`, which every zome call passes, and the client `hrea.service` hands the hREA GraphQL adapter, both run the payload through `toZomePayload`, so a proxy cannot leave the page whichever call site produced it.
+It copies arrays and objects (a proxy reads as either, and a class instance is copied to its own fields, which reaches a proxy nested in one where `$state.snapshot` would not), keeps binary hashes and dates as they are, and fixes the payload at call time, so a later edit to the state cannot reach a call in flight.
+A new boundary (a worker, a `postMessage` to the Moss host, structured data written to storage) gets the same treatment when it is built: one function at the edge, a test that sends a proxy through it.
 
 ## What deliberately does not change
 

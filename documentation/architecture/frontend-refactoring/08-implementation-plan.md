@@ -9,7 +9,7 @@ Counts in this plan are those of `f5c799ad` (20 November 2026); [README](README.
 Requests and Offers gets roughly ten hours a week, from one person. Estimates below are in **weeks of that allocation**, not in ideal engineering weeks, and they include review and rework. The whole programme is about **13 weeks**, which is close to three months. That number is the most important line in this document, because it means the programme must be valuable in pieces or it should not start.
 
 It is valuable in pieces.
-Phases 0 and 1 together are 4.7 weeks (2.1 for Phase 0 and 2.6 for Phase 1, the rows below) and deliver five of the eight invariants: 1, 2, 3, 4 and 7, the five the Phase 1 stopping point lists and the gates check.
+Phases 0 and 1 together are 4.7 weeks (2.1 for Phase 0 and 2.6 for Phase 1, the rows below) and deliver five of the nine invariants: 1, 2, 3, 4 and 7, the five the Phase 1 stopping point lists and the gates check.
 Earlier revisions said 4.5 weeks and six invariants, which disagreed with this document's own headings (4.7 weeks) and stopping point (five invariants).
 Phase 0 is larger than its 2.1 weeks once `runEffect` is counted (D2): its sweep covers 73 `.svelte` files, not 14, and the estimate has not been re-cut.
 Everything after that is optional in the sense that stopping there leaves a coherent codebase rather than a half-migration.
@@ -122,7 +122,7 @@ PR 0.4's scope also covers #134's bug class: `UserDetailsModal.svelte:34` still 
 - An import-order test: importing `administration` then `users`, and the reverse, produces identical behaviour.
 - Manual two-agent check: accepting a user still creates the hREA agent.
 
-**Stopping point.** Invariants 1, 2, 3, 4 and 7 hold: five of the eight. If the programme stops here it has paid for itself.
+**Stopping point.** Invariants 1, 2, 3, 4 and 7 hold: five of the nine, with 9 already holding for zome calls. If the programme stops here it has paid for itself.
 
 ## Phase 2. Representation
 
@@ -257,6 +257,6 @@ Phase 4's runtime step is removed, and Phase 3 was halved once the audit found t
 
 Every PR title above is written to be pasted as an issue title. If these are filed, the natural shape is one GitHub issue per phase as a tracking issue, with the PR rows as its checklist, rather than 30 separate issues. That keeps the board readable at ten hours a week.
 
-The eight invariants in the [unified design](00-unified-refactoring-design.md) are the acceptance criteria for the programme as a whole, and the ratchet test introduced in PR 0.5, `ui/tests/unit/seam/invariants.test.ts`, is where they live. Five of the eight are lint or grep, so they cost almost nothing to run. Its ceilings fall in the pull request that earns each drop.
+The nine invariants in the [unified design](00-unified-refactoring-design.md) are the acceptance criteria for the programme as a whole, and the ratchet test introduced in PR 0.5, `ui/tests/unit/seam/invariants.test.ts`, is where they live. Five of the nine are lint or grep, so they cost almost nothing to run. Its ceilings fall in the pull request that earns each drop.
 
-That fall is the honest progress metric for this programme. Not weeks elapsed, not documents written: how many of the eight rules a machine now enforces without anyone remembering to.
+That fall is the honest progress metric for this programme. Not weeks elapsed, not documents written: how many of the nine rules a machine now enforces without anyone remembering to.

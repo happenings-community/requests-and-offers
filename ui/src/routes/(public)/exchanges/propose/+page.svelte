@@ -30,6 +30,7 @@
   import ReachPerson from '$lib/components/exchanges/ReachPerson.svelte';
   import ErrorState from '$lib/components/shared/ErrorState.svelte';
   import BackButton from '$lib/components/shared/BackButton.svelte';
+  import MarkdownRenderer from '$lib/components/shared/MarkdownRenderer.svelte';
   import { proposeUnavailable, type ProposeProblem } from '$lib/utils/propose-unavailable';
   import { useConnectionGuard } from '$lib/composables/connection/useConnectionGuard';
   import {
@@ -340,20 +341,25 @@
     if (!canSubmit) return;
     busy = true;
     try {
+      // A plain copy: `timeframe` and `reciprocal` read the listing and the chosen
+      // timeframe, both `$state`, and on desktop a proxy cannot be cloned into the zome
+      // call (#621). The client snapshots every payload too; this keeps the page honest.
       const exchange = await runEffect(
-        exchangesStore.createAgreement({
-          listing: params.listing!,
-          listing_type: params.listingType!,
-          interest: params.interest!,
-          primary,
-          reciprocal,
-          medium,
-          // Empty, deliberately. This field held the old page's free-text agreement;
-          // nothing types terms any more. Agreements already made with text in it keep
-          // displaying it, because reading it is unchanged.
-          terms: '',
-          delivery_timeframe: timeframe
-        })
+        exchangesStore.createAgreement(
+          $state.snapshot({
+            listing: params.listing!,
+            listing_type: params.listingType!,
+            interest: params.interest!,
+            primary,
+            reciprocal,
+            medium,
+            // Empty, deliberately. This field held the old page's free-text agreement;
+            // nothing types terms any more. Agreements already made with text in it keep
+            // displaying it, because reading it is unchanged.
+            terms: '',
+            delivery_timeframe: timeframe
+          })
+        )
       );
       toastStore.trigger({ message: 'Proposal sent', background: 'variant-filled-success' });
       // Back to the conversation it was negotiated in, where the card now sits. A fresh
@@ -413,9 +419,10 @@
         {loadedType?.toLowerCase()}
       </p>
       <p class="font-semibold">{listing.title}</p>
-      {#if listing.description}<p class="line-clamp-3 text-sm text-surface-500">
-          {listing.description}
-        </p>{/if}
+      {#if listing.description}<MarkdownRenderer
+          content={listing.description}
+          class="line-clamp-3 text-sm text-surface-500"
+        />{/if}
       <p class="text-sm">
         {#if termsLoad === 'loading'}
           <span class="text-surface-500">{S.form.termsLoading}</span>

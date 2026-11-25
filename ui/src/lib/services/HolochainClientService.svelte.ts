@@ -15,6 +15,7 @@ import { HOLOCHAIN_CLIENT_CONTEXTS } from '$lib/errors/error-contexts';
 import { Context, Layer } from 'effect';
 import weaveStore from '$lib/stores/weave.store.svelte';
 import { resolveDevConnectionParams, tabStorage } from '$lib/utils/dev-connection-params';
+import { toZomePayload } from '$lib/utils/zome-payload';
 
 const cellKey = ([dna, agent]: CellId): string => `${dna.join(',')}|${agent.join(',')}`;
 
@@ -571,7 +572,7 @@ function createHolochainClientService(): HolochainClientService {
         cap_secret: capSecret,
         zome_name: zomeName,
         fn_name: fnName,
-        payload,
+        payload: toZomePayload(payload),
         role_name: roleName
       });
     } catch (error) {

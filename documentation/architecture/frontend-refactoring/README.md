@@ -41,7 +41,7 @@ The question is re-decided at PR 3.1, when the signal subscription is built and 
 
 ## Where to start reading
 
-[00-unified-refactoring-design.md](00-unified-refactoring-design.md) states the single thesis the seven share, the target architecture, the eight invariants, and what deliberately does not change.
+[00-unified-refactoring-design.md](00-unified-refactoring-design.md) states the single thesis the seven share, the target architecture, the nine invariants, and what deliberately does not change.
 [08-implementation-plan.md](08-implementation-plan.md) sequences the work into five phases with gates and pull-request titles, and maps the phases onto the alpha releases.
 The numbered documents are the detail behind each landing point.
 
@@ -51,17 +51,18 @@ Phase 0 (7, then 1's task runner), Phase 1 (2, then 3), Phase 2 (4a per domain, 
 4b is deferred rather than scheduled.
 
 This inverts the original note's ordering in one place: the development message log moves from last and opportunistic to first, because it costs half a week, carries no production risk, and instruments every phase after it.
-Roughly 13 weeks in total at ten hours a week, of which the first 4.7 deliver five of the eight invariants (1, 2, 3, 4 and 7, the five that [08](08-implementation-plan.md)'s Phase 1 stopping point lists and its gates check).
+Roughly 13 weeks in total at ten hours a week, of which the first 4.7 deliver five of the nine invariants (1, 2, 3, 4 and 7, the five that [08](08-implementation-plan.md)'s Phase 1 stopping point lists and its gates check).
 Earlier revisions said "six of the eight" and "4.5 weeks"; both disagreed with the plan's own headings (4.7 weeks) and its stopping point (five invariants).
 Counting `runEffect` in invariant 2 makes Phase 0 larger than its 2.1 weeks, by an estimate not yet re-cut (see [08](08-implementation-plan.md) § Calibration).
 
 ## The claim, in one line
 
 The step up is not in abstraction level.
-It is that eight architectural rules become checkable by lint, grep or a test, so the architecture stops depending on whoever remembers it.
+It is that nine architectural rules become checkable by lint, grep or a test, so the architecture stops depending on whoever remembers it.
 The checks arrive as a test, `ui/tests/unit/seam/invariants.test.ts`, which is a ratchet: each count is pinned to its ceiling and may only go down, and the ceiling falls with each converted file, in the same pull request.
 It replaces the `ui/scripts/check-invariants.sh` that earlier revisions planned, because CI's lint step is non-blocking and its unit step blocks merges.
-How many of the eight a machine enforces is the honest progress metric for the programme.
+How many of the nine a machine enforces is the honest progress metric for the programme.
+Invariant 9, plain data across effect boundaries, was added on 25 November 2026 after a desktop-only bug (#621), and holds for zome calls from the day it was written.
 
 ## Decisions of 20 November 2026
 

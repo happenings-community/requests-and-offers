@@ -346,8 +346,8 @@
         time_estimate_hours: estimate,
         links: [...links],
         // #380: no inputs for these yet (part 2), so an edit keeps the request's own.
-        timeframe: request?.timeframe ?? null,
-        amount: request?.amount ?? null,
+        timeframe: $state.snapshot(request?.timeframe) ?? null,
+        amount: $state.snapshot(request?.amount) ?? null,
         service_type_hash: serviceTypeHashes[0],
         medium_of_exchange_hashes: [...selectedMediumOfExchange],
         status: ListingStatus.Active

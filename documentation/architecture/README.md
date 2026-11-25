@@ -59,7 +59,7 @@ The project integrates the hREA (Holochain Resource-Event-Agent) framework for V
 
 A set of design documents proposing how the frontend should evolve, derived from a comparison with the Foldkit framework and grounded in a verified audit of the current code. Nothing in it is implemented.
 
-The programme moves the frontend along three axes: **execution** (where Effects run and who can cancel them), **coordination** (where cross-domain reactions live), and **representation** (what a domain's state can legally be). It is designed to be valuable in pieces: the first two phases deliver six of its eight invariants in about 4.5 weeks.
+The programme moves the frontend along three axes: **execution** (where Effects run and who can cancel them), **coordination** (where cross-domain reactions live), and **representation** (what a domain's state can legally be). It is designed to be valuable in pieces: the first two phases deliver five of its nine invariants in about 4.7 weeks, and a ninth, plain data across effect boundaries, already holds for zome calls.
 
 Start with the [unified design](frontend-refactoring/00-unified-refactoring-design.md), then the [implementation plan](frontend-refactoring/08-implementation-plan.md). See [frontend-refactoring/README.md](frontend-refactoring/README.md) for the full index.
 

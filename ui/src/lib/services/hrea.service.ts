@@ -6,7 +6,14 @@ import { HREA_CONTEXTS } from '$lib/errors/error-contexts';
 import { ApolloClient, InMemoryCache } from '@apollo/client/core';
 import { SchemaLink } from '@apollo/client/link/schema';
 import { createHolochainSchema } from '@valueflows/vf-graphql-holochain';
-import { decodeHashFromBase64, encodeHashToBase64, type Record as HolochainRecord } from '@holochain/client';
+import {
+  decodeHashFromBase64,
+  encodeHashToBase64,
+  type CallZomeRequest,
+  type RoleNameCallZomeRequest,
+  type Record as HolochainRecord
+} from '@holochain/client';
+import { toZomePayload } from '$lib/utils/zome-payload';
 import { decode } from '@msgpack/msgpack';
 import type {
   Agent,
@@ -382,8 +389,14 @@ export const HreaServiceLive: Layer.Layer<HreaServiceTag, never, HolochainClient
         if (!hcClient) {
           throw new Error('Holochain client is not available after connection');
         }
+        // The adapter only ever calls `callZome` on the client it is given, so it gets
+        // one whose payloads leave the page as plain data, like every other zome call (#621).
+        const plainPayloadClient = {
+          callZome: (request: CallZomeRequest | RoleNameCallZomeRequest, timeout?: number) =>
+            hcClient.callZome({ ...request, payload: toZomePayload(request.payload) }, timeout)
+        };
         const schema = createHolochainSchema({
-          appWebSocket: hcClient,
+          appWebSocket: plainPayloadClient,
           roleName: 'hrea' // must match the role name in happ.yaml
         });
         return new ApolloClient({

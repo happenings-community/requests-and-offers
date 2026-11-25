@@ -11,6 +11,7 @@ import {
 } from '@/lib/services/hrea.service';
 import { HolochainClientServiceTag } from '$lib/services/HolochainClientService.svelte';
 import { ApolloClient } from '@apollo/client/core';
+import { createHolochainSchema } from '@valueflows/vf-graphql-holochain';
 import type {
   Agent,
   ResourceSpecification,
@@ -183,6 +184,30 @@ describe('HreaService', () => {
       await expect(call((s) => s.initialize())).rejects.toThrow(
         'Holochain client is not available after connection'
       );
+    });
+
+    // The adapter signs through the client it is given; on desktop that request crosses
+    // Electron IPC, which cannot clone a proxy (#621). It must get plain data.
+    it('hands the hREA adapter a client whose payloads are plain data', async () => {
+      const callZome = vi.fn(async () => null);
+      (mockHolochainClient as { client: unknown }).client = { callZome };
+      await call((s) => s.initialize());
+
+      const { appWebSocket } = vi.mocked(createHolochainSchema).mock.calls[0][0] as {
+        appWebSocket: { callZome: (request: unknown, timeout?: number) => Promise<unknown> };
+      };
+      const proxied = new Proxy({ note: 'five loaves', quantity: new Proxy({ value: 5 }, {}) }, {});
+      expect(() => structuredClone(proxied)).toThrow();
+
+      await appWebSocket.callZome(
+        { role_name: 'hrea', zome_name: 'intent', fn_name: 'create_intent', payload: proxied },
+        999999
+      );
+
+      const [request, timeout] = callZome.mock.calls[0] as unknown as [{ payload: unknown }, number];
+      expect(() => structuredClone(request)).not.toThrow();
+      expect(request.payload).toEqual({ note: 'five loaves', quantity: { value: 5 } });
+      expect(timeout).toBe(999999);
     });
   });
 

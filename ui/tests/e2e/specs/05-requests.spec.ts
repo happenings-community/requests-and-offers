@@ -66,7 +66,7 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
       .getByPlaceholder('Describe your request in detail (Markdown supported)')
       .fill('Must never be saved: the links chip holds unadded text.');
     await page.getByPlaceholder('Search and select service types...').fill('E2E Service Type');
-    await page.locator('label:has-text("E2E Service Type") input[type="checkbox"]').first().check();
+    await page.locator('label:has-text("E2E Service Type") input[type="radio"]').first().check();
     await expect(page.locator('.chip', { hasText: 'E2E Service Type' }).first()).toBeVisible({
       timeout: 5_000
     });
@@ -99,7 +99,7 @@ test.describe.serial('05 — requests: full lifecycle through the UI', () => {
     // Filter-first to dodge ServiceTypeSelector's unkeyed re-render race
     // (see 04-offers.spec.ts) and verify the selection chip.
     await page.getByPlaceholder('Search and select service types...').fill('E2E Service Type');
-    await page.locator('label:has-text("E2E Service Type") input[type="checkbox"]').first().check();
+    await page.locator('label:has-text("E2E Service Type") input[type="radio"]').first().check();
     await expect(page.locator('.chip', { hasText: 'E2E Service Type' }).first()).toBeVisible({
       timeout: 5_000
     });

@@ -405,8 +405,10 @@
             )}
             <label class="label flex cursor-pointer items-start gap-3">
               <input
-                type="checkbox"
-                class="checkbox"
+                type={single ? 'radio' : 'checkbox'}
+                class={single ? 'radio' : 'checkbox'}
+                name={single ? `${id ?? name ?? 'service-type'}-choice` : undefined}
+                value={serviceType.original_action_hash?.toString()}
                 {disabled}
                 checked={isSelected}
                 onchange={(e) => handleCheckboxChange(e, serviceType)}
@@ -436,7 +438,11 @@
     {#if !disabled && !loading && !error && serviceTypes.length > 0}
       <div class="mt-3 text-sm text-surface-500">
         <div class="mb-1">
-          🔧 <strong>Service Types:</strong> Check boxes to select the services you offer or need
+          {#if single}
+            🔧 <strong>Service Type:</strong> Pick the one service this listing is about
+          {:else}
+            🔧 <strong>Service Types:</strong> Check boxes to select the services you offer or need
+          {/if}
         </div>
         <div class="text-xs text-surface-400">
           Use search, technical filter, and sorting options to find specific service types more

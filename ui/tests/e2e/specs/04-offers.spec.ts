@@ -71,7 +71,7 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
       .getByPlaceholder('Describe your offer in detail (Markdown supported)')
       .fill('Must never be saved: the links chip holds unadded text.');
     await page.getByPlaceholder('Search and select service types...').fill('E2E Service Type');
-    await page.locator('label:has-text("E2E Service Type") input[type="checkbox"]').first().check();
+    await page.locator('label:has-text("E2E Service Type") input[type="radio"]').first().check();
     await expect(page.locator('.chip', { hasText: 'E2E Service Type' }).first()).toBeVisible({
       timeout: 5_000
     });
@@ -102,13 +102,13 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
 
     const search = page.getByPlaceholder('Search and select service types...');
     await search.fill('E2E Service Type');
-    await page.locator('label:has-text("E2E Service Type") input[type="checkbox"]').first().check();
+    await page.locator('label:has-text("E2E Service Type") input[type="radio"]').first().check();
     await expect(page.locator('.chip', { hasText: 'E2E Service Type' }).first()).toBeVisible({
       timeout: 5_000
     });
 
     await search.fill('E2E Second Type');
-    await page.locator('label:has-text("E2E Second Type") input[type="checkbox"]').first().check();
+    await page.locator('label:has-text("E2E Second Type") input[type="radio"]').first().check();
     await expect(page.locator('.chip', { hasText: 'E2E Second Type' }).first()).toBeVisible({
       timeout: 5_000
     });
@@ -123,11 +123,11 @@ test.describe.serial('04 — offers: full lifecycle through the UI', () => {
       .getByPlaceholder('Describe your offer in detail (Markdown supported)')
       .fill('Created by the offers e2e journey.');
     // ServiceTypeSelector renders an UNKEYED {#each} over a list that
-    // re-sorts after async loads — clicking a checkbox can race the
+    // re-sorts after async loads — clicking a radio can race the
     // re-render and toggle a different item. Filter down to a single option
     // first, then verify the selection chip shows the intended name.
     await page.getByPlaceholder('Search and select service types...').fill('E2E Service Type');
-    await page.locator('label:has-text("E2E Service Type") input[type="checkbox"]').first().check();
+    await page.locator('label:has-text("E2E Service Type") input[type="radio"]').first().check();
     await expect(page.locator('.chip', { hasText: 'E2E Service Type' }).first()).toBeVisible({
       timeout: 5_000
     });

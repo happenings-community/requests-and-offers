@@ -9,7 +9,7 @@
 [![License: CAL-1.0](https://img.shields.io/badge/license-CAL--1.0-green)](LICENSE.md)
 [![Holochain](https://img.shields.io/badge/Holochain-0.7.0-1D9BF0)](https://www.holochain.org/)
 [![hREA](https://img.shields.io/badge/hREA-happ--0.5.0--beta.1-orange)](https://github.com/h-REA/hREA/releases/tag/happ-0.5.0-beta.1)
-[![Valueflows](https://img.shields.io/badge/Valueflows-vf--graphql%200.9.1--alpha.6-orange)](https://www.valueflo.ws/)
+[![Valueflows](https://img.shields.io/badge/Valueflows-1.0-orange)](https://www.valueflo.ws/)
 [![SvelteKit](https://img.shields.io/badge/UI-SvelteKit%202%20%2B%20Svelte%205-FF3E00)](https://svelte.dev/)
 [![Effect](https://img.shields.io/badge/Effect--TS-3-black)](https://effect.website/)
 [![Ask DeepWiki](https://img.shields.io/badge/DeepWiki-Ask-blue)](https://deepwiki.com/happenings-community/requests-and-offers)

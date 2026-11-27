@@ -123,3 +123,35 @@ describe('a production build records nothing and exposes nothing', () => {
     expect(lines.filter((line) => line.includes('__roEventLog'))).toHaveLength(1);
   });
 });
+
+describe('status events go through the log, not the console', () => {
+  const user = { name: 'Ada' } as never;
+
+  it('logs a status event with the source that emitted it', () => {
+    storeEventBus.emit('user:status:updated', { user }, 'updateUserStatus');
+    storeEventBus.emit('organization:status:updated', { organization: { name: 'Org' } as never });
+
+    const [first, second] = eventLog.entries();
+    expect(first.event).toBe('user:status:updated');
+    expect(first.source).toBe('updateUserStatus');
+    expect(second.event).toBe('organization:status:updated');
+    expect(second.source).toBeUndefined();
+  });
+
+  it('carries the source into the export', () => {
+    storeEventBus.emit('user:status:updated', { user }, 'updateUserStatus');
+    const [entry] = JSON.parse(eventLog.export()) as Array<{ source?: string }>;
+    expect(entry.source).toBe('updateUserStatus');
+  });
+
+  it('prints nothing to the console, which the old emitStatusUpdate did', () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    storeEventBus.emit('user:status:updated', { user }, 'updateUserStatus');
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('no longer has emitStatusUpdate', () => {
+    expect('emitStatusUpdate' in storeEventBus).toBe(false);
+  });
+});

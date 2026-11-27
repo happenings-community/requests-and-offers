@@ -468,7 +468,7 @@ const calculateDuration = (
 const createEventEmitters = () => {
   const emitUserStatusUpdated = (user: UIUser, source: string = 'administration-store'): void => {
     try {
-      storeEventBus.emitStatusUpdate('user:status:updated', { user }, source);
+      storeEventBus.emit('user:status:updated', { user }, source);
       userEventEmitters.emitStatusChanged?.(user);
     } catch (error) {
       console.error('Failed to emit user:status:updated event:', error);
@@ -488,7 +488,7 @@ const createEventEmitters = () => {
     source: string = 'administration-store'
   ): void => {
     try {
-      storeEventBus.emitStatusUpdate('organization:status:updated', { organization }, source);
+      storeEventBus.emit('organization:status:updated', { organization }, source);
       organizationEventEmitters.emitStatusChanged?.(organization);
     } catch (error) {
       console.error('Failed to emit organization:status:updated event:', error);

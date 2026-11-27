@@ -490,6 +490,8 @@ export function buildThreads(input: {
       thread.messages.filter((m) => !m.mine && toMillis(m.at) > readUpTo).length +
       unreadCards(thread.exchanges, input.me, readUpTo);
 
+    // **Anything new brings an archived conversation back** (a message, a card, a part
+    // marked done). The original note:
     // **A new message brings an archived conversation back** (Sam, 4 October). Archiving
     // is "I am done with this for now", not "never show me this person again", and the
     // alternative is a message that arrives into a folder nobody opens. It returns to All
@@ -505,6 +507,7 @@ export function buildThreads(input: {
         0,
         ...thread.messages.map((m) => toMillis(m.at)),
         ...thread.exchanges.map((e) => e.created_at ?? 0),
+        ...thread.exchanges.flatMap((e) => milestonesOf(e).map((m) => m.at)),
         ...thread.interests.map((i) => i.created_at ?? 0)
       ]
     );
@@ -550,8 +553,26 @@ export function readableUpTo(thread: UIThread, me: ActionHash): number {
     if (iWroteIt && exchange.response) {
       newest = Math.max(newest, exchange.response.created_at ?? 0);
     }
+    // Their part marked done is counted, so the mark has to reach it too.
+    const done = theirDoneAt(exchange, me);
+    if (done !== undefined) newest = Math.max(newest, done);
   }
   return newest;
+}
+
+/**
+ * When the other person marked their part done, if they have: news for me, as their
+ * proposal or answer is. My own mark is not. A cancellation is not counted either: the
+ * interface keeps no author for it (the exchanges store drops the record's header), so
+ * the cancelling member's own copy would read as unopened too. It still shows as a line.
+ */
+function theirDoneAt(exchange: UIExchange, me: ActionHash): number | undefined {
+  const theirs = sameHash(exchange.agreement.provider, me)
+    ? exchange.receiver_done
+    : sameHash(exchange.agreement.receiver, me)
+      ? exchange.provider_done
+      : undefined;
+  return theirs ? (theirs.created_at ?? 0) : undefined;
 }
 
 function unreadCards(exchanges: UIExchange[], me: ActionHash, readUpTo: number): number {
@@ -565,6 +586,8 @@ function unreadCards(exchanges: UIExchange[], me: ActionHash, readUpTo: number):
     if (iWroteIt && exchange.response && (exchange.response.created_at ?? 0) > readUpTo) {
       count += 1;
     }
+    const theirs = theirDoneAt(exchange, me);
+    if (theirs !== undefined && theirs > readUpTo) count += 1;
   }
   return count;
 }
@@ -686,7 +709,36 @@ function hasListingType(thread: UIThread, type: ListingType): boolean {
 export type TimelineItem =
   | { kind: 'message'; at: number; message: ThreadMessage }
   | { kind: 'interest'; at: number; interest: UIInterest }
-  | { kind: 'exchange'; at: number; exchange: UIExchange };
+  | { kind: 'exchange'; at: number; exchange: UIExchange }
+  | { kind: 'milestone'; at: number; exchange: UIExchange; milestone: Milestone };
+
+/**
+ * What happened to an agreement after it was reached, as a line in the conversation:
+ * a side marked done, both sides done, or the agreement cancelled. The exchange page
+ * shows these too; the conversation is where the two people arrange the exchange, so it
+ * is where they look for them (Sam, 20 November).
+ */
+export type Milestone = 'providerDone' | 'receiverDone' | 'bothDone' | 'cancelled';
+
+/**
+ * An agreement's milestones, each at the time it happened. Only for an exchange that
+ * reads as an agreement: a proposal never accepted has nothing done or cancelled.
+ */
+export function milestonesOf(exchange: UIExchange): { at: number; milestone: Milestone }[] {
+  if (!showsAsAgreement(exchange)) return [];
+  const out: { at: number; milestone: Milestone }[] = [];
+  const provider = exchange.provider_done?.created_at;
+  const receiver = exchange.receiver_done?.created_at;
+  if (provider !== undefined) out.push({ at: provider, milestone: 'providerDone' });
+  if (receiver !== undefined) out.push({ at: receiver, milestone: 'receiverDone' });
+  if (provider !== undefined && receiver !== undefined) {
+    out.push({ at: Math.max(provider, receiver), milestone: 'bothDone' });
+  }
+  if (exchange.cancellation) {
+    out.push({ at: exchange.cancellation.created_at ?? 0, milestone: 'cancelled' });
+  }
+  return out;
+}
 
 /**
  * The listings these two people may propose from, split by whose they are.
@@ -824,11 +876,35 @@ export function buildTimeline(thread: UIThread): TimelineItem[] {
       kind: 'exchange' as const,
       at: exchange.created_at ?? 0,
       exchange
-    }))
+    })),
+    // What happened to an agreement afterwards goes where it happened, so a part marked
+    // done reads as news in the conversation rather than only on the exchange page.
+    ...thread.exchanges.flatMap((exchange) =>
+      milestonesOf(exchange).map(({ at, milestone }) => ({
+        kind: 'milestone' as const,
+        at,
+        exchange,
+        milestone
+      }))
+    )
   ];
 
-  const rank = { interest: 0, exchange: 1, message: 2 };
-  return items.sort((a, b) => a.at - b.at || rank[a.kind] - rank[b.kind]);
+  // Both done comes after the second part marked done, which has the same time.
+  const rank = { interest: 0, exchange: 1, message: 2, milestone: 3 };
+  const order: Record<Milestone, number> = {
+    providerDone: 0,
+    receiverDone: 0,
+    bothDone: 1,
+    cancelled: 2
+  };
+  return items.sort(
+    (a, b) =>
+      a.at - b.at ||
+      rank[a.kind] - rank[b.kind] ||
+      (a.kind === 'milestone' && b.kind === 'milestone'
+        ? order[a.milestone] - order[b.milestone]
+        : 0)
+  );
 }
 
 /**

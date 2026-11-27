@@ -77,6 +77,7 @@ What alpha 2 does not yet enforce, most of it reachable only by a member running
 
 ### Features
 
+- **Messaging**: A conversation shows what happens to an agreement after it is reached, where it happened: each part marked done, both done, and a cancellation, each with a way into the exchange; the other member marking their part done counts as unopened
 - **hREA**: Listings, exchanges and their completion are mirrored into hREA end to end (`30a7b7b6`, #255); the `exchanges` zome stays as the validated record under that mirror, and no alpha 1 exchange is migrated, because alpha 2 starts on a new network (`a83fda1b`, #402, closes #250)
 - **Requests and Offers**: A listing names exactly one service type, and needs an approved service type before it can be published. Several services in one exchange belong on the agreement, as separate commitments. Not yet enforced in validation; tracked in #257 (`4992fb30`, #256)
 - **Exchanges**: Either party may mark their part done first (`de9f2410`, #259)

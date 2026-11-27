@@ -22,7 +22,9 @@ Not time travel. Just the log.
 
 ```ts
 // ui/src/lib/stores/event-log.ts
-import { dev } from '$app/environment'; // SvelteKit 3 renames this module `$app/env`, so the log lands after that upgrade
+// `import.meta.env.DEV` is read where it is needed, not imported: Vite replaces it with a
+// literal, so a production build drops the recording, and SvelteKit 3's rename of
+// `$app/environment` to `$app/env` does not touch the log.
 import type { StoreEvents } from './storeEvents';
 
 export type LogEntry = {
@@ -41,7 +43,7 @@ class EventLog {
   private seq = 0;
 
   record(event: keyof StoreEvents, payload: unknown, origin: LogEntry['origin'], slice?: unknown) {
-    if (!dev) return;
+    if (!import.meta.env.DEV) return;
     const entry = { seq: this.seq++, at: Date.now(), event, payload, origin, slice };
     this.buffer.push(entry);
     if (this.buffer.length > CAPACITY) this.buffer.shift();
@@ -68,7 +70,7 @@ emit<K extends keyof StoreEvents>(event: K, payload: StoreEvents[K]): void {
 Exposed for the browser console, which is where it will actually be used:
 
 ```ts
-if (dev && typeof window !== 'undefined') {
+if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as any).__roEventLog = eventLog;
 }
 ```

@@ -1,6 +1,7 @@
 import type { UIRequest, UIOffer, UIServiceType, UIUser, UIOrganization, UIExchange } from '$lib/types/ui';
 import type { UIMediumOfExchange } from '$lib/schemas/mediums-of-exchange.schemas';
 import type { ActionHash } from '@holochain/client';
+import { eventLog } from './event-log';
 
 /**
  * Defines the map of events used for communication between stores.
@@ -100,6 +101,8 @@ class StoreEventBus {
    * Emit an event to all subscribers
    */
   emit<K extends keyof StoreEvents>(event: K, payload: StoreEvents[K]): void {
+    // Dev builds only: the log records and a production build drops the call's work.
+    eventLog.record(event, payload, 'local');
     const eventHandlers = this.handlers.get(event);
     if (eventHandlers) {
       eventHandlers.forEach((handler) => {

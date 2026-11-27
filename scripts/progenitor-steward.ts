@@ -13,6 +13,7 @@
  *   install   install the release .happ under that key and the release network seed
  *   grant     create the steward's profile if it has none, then make agents administrators
  *   status    what this conductor is, and who holds administrator
+ *   update-profile  change the steward's own name, bio, email or picture
  *
  * Run it on the machine that runs the conductor: `install` hands the conductor a
  * file path. Needs `bun install` first (@holochain/client and @msgpack/msgpack
@@ -48,11 +49,18 @@ export type Command =
       profile: Profile;
       waitSeconds: number;
     } & Connection)
-  | ({ kind: 'status'; dryRun: boolean; agents: string[] } & Connection);
+  | ({ kind: 'status'; dryRun: boolean; agents: string[] } & Connection)
+  | ({ kind: 'update-profile'; dryRun: boolean; changes: ProfileChanges } & Connection);
 
 export type Profile = { name: string; email: string };
 
+/** What `update-profile` changes; a field left out keeps its current value. `picture` is a file path. */
+export type ProfileChanges = { name?: string; bio?: string; email?: string; picture?: string };
+
 export type Parsed = { ok: true; command: Command } | { ok: false; message: string };
+
+/** The largest picture `update-profile` sends. The zome only checks it decodes as an image. */
+export const MAX_PICTURE_KIB = 512;
 
 export const USAGE = `usage: bun scripts/progenitor-steward.ts <command> [options]
 
@@ -64,6 +72,11 @@ commands
   grant [--agent <key> ...]      as the progenitor: create the steward profile if there is none,
                                  then make each agent an administrator (no --agent: profile only)
   status [--agent <key> ...]     app state, progenitor check, and every member with their agent key
+  update-profile [--name <name>] [--bio <text>] [--email <email>] [--picture <file>]
+                                 as the progenitor: change the steward's own profile (at least one),
+                                 which members see in the member list and as an administrator contact;
+                                 the name sets the nickname too, the picture is a PNG, JPEG, GIF or WebP
+                                 of at most ${MAX_PICTURE_KIB} KiB
 
 options for every command
   --admin-port <port>   the conductor's admin websocket on 127.0.0.1 (default 4444, env HC_ADMIN_PORT)
@@ -88,7 +101,7 @@ export const parseCommand = (argv: string[], env: Record<string, string | undefi
   if (name === undefined || name === '-h' || name === '--help' || name === 'help') {
     return { ok: true, command: { kind: 'help' } };
   }
-  if (!['keygen', 'install', 'grant', 'status'].includes(name)) {
+  if (!['keygen', 'install', 'grant', 'status', 'update-profile'].includes(name)) {
     return { ok: false, message: `unknown command ${JSON.stringify(name)}` };
   }
 
@@ -108,6 +121,8 @@ export const parseCommand = (argv: string[], env: Record<string, string | undefi
         agent: { type: 'string', multiple: true },
         name: { type: 'string' },
         email: { type: 'string' },
+        bio: { type: 'string' },
+        picture: { type: 'string' },
         wait: { type: 'string' }
       },
       strict: true
@@ -116,6 +131,19 @@ export const parseCommand = (argv: string[], env: Record<string, string | undefi
     return { ok: false, message: (error as Error).message };
   }
   if (values.help) return { ok: true, command: { kind: 'help' } };
+
+  // One option table serves every command, so a flag that belongs to another command is refused
+  // here rather than silently ignored: `grant --picture` must not look as if it set a picture.
+  const common = ['admin-port', 'app-id', 'app-port', 'dry-run', 'help'];
+  const allowed: Record<string, string[]> = {
+    keygen: [],
+    install: ['happ', 'agent-key', 'network-seed'],
+    grant: ['agent', 'name', 'email', 'wait'],
+    status: ['agent'],
+    'update-profile': ['name', 'bio', 'email', 'picture']
+  };
+  const stray = Object.keys(values).find((flag) => !common.includes(flag) && !allowed[name].includes(flag));
+  if (stray !== undefined) return { ok: false, message: `--${stray} does not apply to ${name}` };
 
   const adminPort = port((values['admin-port'] as string | undefined) ?? env.HC_ADMIN_PORT ?? '4444', '--admin-port');
   if (typeof adminPort === 'string') return { ok: false, message: adminPort };
@@ -166,6 +194,23 @@ export const parseCommand = (argv: string[], env: Record<string, string | undefi
           waitSeconds: wait
         }
       };
+    }
+    case 'update-profile': {
+      const changes: ProfileChanges = {};
+      for (const field of ['name', 'bio', 'email', 'picture'] as const) {
+        const raw = values[field] as string | undefined;
+        if (raw === undefined) continue;
+        const value = field === 'bio' ? raw : raw.trim();
+        if (field !== 'bio' && value === '') return { ok: false, message: `--${field} must not be empty` };
+        changes[field] = value;
+      }
+      if (changes.email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(changes.email)) {
+        return { ok: false, message: `--email ${JSON.stringify(changes.email)} is not an email address` };
+      }
+      if (Object.keys(changes).length === 0) {
+        return { ok: false, message: 'update-profile needs at least one of --name, --bio, --email, --picture' };
+      }
+      return { ok: true, command: { kind: 'update-profile', dryRun, adminPort, installedAppId, appPort, changes } };
     }
     default:
       return { ok: true, command: { kind: 'status', dryRun, adminPort, installedAppId, appPort, agents: [...new Set(agents)] } };
@@ -311,6 +356,68 @@ export const grantAgent = async (deps: GrantDeps, agent: string, waitSeconds: nu
     : { agent, result: 'refused', detail: 'add_administrator returned but the agent holds no administrator grant' };
 };
 
+/** The image formats a profile picture may be, by their first bytes. */
+const PICTURE_SIGNATURES: { format: string; matches: (b: Uint8Array) => boolean }[] = [
+  { format: 'PNG', matches: (b) => [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((x, i) => b[i] === x) },
+  { format: 'JPEG', matches: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
+  { format: 'GIF', matches: (b) => String.fromCharCode(...b.slice(0, 4)) === 'GIF8' },
+  { format: 'WebP', matches: (b) => String.fromCharCode(...b.slice(0, 4)) === 'RIFF' && String.fromCharCode(...b.slice(8, 12)) === 'WEBP' }
+];
+
+/** Refuses a picture the zome would refuse, or one too large to send, before anything connects. */
+export const checkPicture = (bytes: Uint8Array): string => {
+  const found = PICTURE_SIGNATURES.find((s) => s.matches(bytes));
+  if (!found) throw new Error('the picture is not a PNG, JPEG, GIF or WebP file');
+  if (bytes.byteLength > MAX_PICTURE_KIB * 1024) {
+    throw new Error(`the picture is ${Math.ceil(bytes.byteLength / 1024)} KiB; the limit is ${MAX_PICTURE_KIB} KiB`);
+  }
+  return found.format;
+};
+
+type RecordLike = { signed_action: { hashed: { hash: Uint8Array } } };
+
+/**
+ * Changes the steward's own profile: fields not in `changes` keep their current value, and a new
+ * name sets the nickname too. Only the progenitor's conductor may run it, and only once `grant`
+ * has created the profile. Returns the User written.
+ */
+export const updateStewardProfile = async (
+  deps: GrantDeps,
+  changes: Omit<ProfileChanges, 'picture'> & { picture?: Uint8Array }
+): Promise<Record<string, unknown>> => {
+  const { call, me, log } = deps;
+  if ((await call('administration', 'is_progenitor', null)) !== true) {
+    throw new Error("this conductor's agent is not the progenitor: update-profile changes the steward's own profile only.");
+  }
+  const links = (await call('users_organizations', 'get_agent_user', me)) as LinkLike[];
+  if (links.length === 0) throw new Error('the steward has no profile yet: run `grant` first, which creates it.');
+  const original = links[0].target;
+  const latest = (await call('users_organizations', 'get_latest_user_record', original)) as RecordLike | null;
+  if (!latest) throw new Error("the steward's profile record was not found on this conductor.");
+  const current = (await call('users_organizations', 'get_latest_user', original)) as Record<string, unknown>;
+
+  const updated: Record<string, unknown> = {
+    ...current,
+    ...(changes.name !== undefined ? { name: changes.name, nickname: changes.name } : {}),
+    ...(changes.bio !== undefined ? { bio: changes.bio } : {}),
+    ...(changes.email !== undefined ? { email: changes.email } : {}),
+    ...(changes.picture !== undefined ? { picture: changes.picture } : {})
+  };
+  await call('users_organizations', 'update_user', {
+    original_action_hash: original,
+    previous_action_hash: latest.signed_action.hashed.hash,
+    updated_user: updated
+  });
+  const done = [
+    changes.name !== undefined ? `name "${changes.name}"` : '',
+    changes.bio !== undefined ? 'bio' : '',
+    changes.email !== undefined ? `email ${changes.email}` : '',
+    changes.picture !== undefined ? `picture (${changes.picture.byteLength} bytes)` : ''
+  ].filter(Boolean);
+  log(`updated the steward profile: ${done.join(', ')}`);
+  return updated;
+};
+
 // ---------------------------------------------------------------------------
 // Conductor I/O
 // ---------------------------------------------------------------------------
@@ -406,6 +513,13 @@ const plan = (command: Command): string[] => {
           `users_organizations/get_agent_user(${a}), waiting up to ${command.waitSeconds}s`,
           `administration/add_administrator({ entity: "network", entity_original_action_hash: <that user>, agent_pubkeys: [${a}] })`
         ])
+      ];
+    case 'update-profile':
+      return [
+        ...(command.changes.picture ? [`read ${resolve(command.changes.picture)} (checked above)`] : []),
+        'administration/is_progenitor',
+        'users_organizations/get_agent_user(steward) -> get_latest_user_record, get_latest_user',
+        `users_organizations/update_user, changing ${Object.keys(command.changes).join(', ')}`
       ];
     case 'status':
       return ['admin.listApps()', 'administration/is_progenitor', 'users_organizations/get_agent_user(steward)', 'administration/get_all_administrators_links("network")'];
@@ -505,6 +619,21 @@ const status = async (command: Extract<Command, { kind: 'status' }>) => {
   }
 };
 
+const updateProfile = async (command: Extract<Command, { kind: 'update-profile' }>) => {
+  const { picture: path, ...rest } = command.changes;
+  let picture: Uint8Array | undefined;
+  if (path !== undefined) {
+    picture = new Uint8Array(readFileSync(resolve(path)));
+    checkPicture(picture);
+  }
+  const { admin, appWs, deps } = await connectApp(command);
+  try {
+    await updateStewardProfile(deps, { ...rest, ...(picture ? { picture } : {}) });
+  } finally {
+    await close(appWs, admin);
+  }
+};
+
 export const run = async (argv: string[], env: Record<string, string | undefined>): Promise<number> => {
   const parsed = parseCommand(argv, env);
   if (!parsed.ok) {
@@ -518,6 +647,15 @@ export const run = async (argv: string[], env: Record<string, string | undefined
     return 0;
   }
   if (command.dryRun) {
+    if (command.kind === 'update-profile' && command.changes.picture !== undefined) {
+      try {
+        const format = checkPicture(new Uint8Array(readFileSync(resolve(command.changes.picture))));
+        console.log(`picture: ${format}, accepted`);
+      } catch (error) {
+        console.error((error as Error).message);
+        return 1;
+      }
+    }
     console.log(`dry run: ${command.kind}`);
     for (const step of plan(command)) console.log(`  ${step}`);
     return 0;
@@ -526,6 +664,7 @@ export const run = async (argv: string[], env: Record<string, string | undefined
     if (command.kind === 'keygen') await keygen(command);
     else if (command.kind === 'install') await install(command);
     else if (command.kind === 'grant') await grant(command);
+    else if (command.kind === 'update-profile') await updateProfile(command);
     else await status(command);
   } catch (error) {
     console.error((error as Error).message);

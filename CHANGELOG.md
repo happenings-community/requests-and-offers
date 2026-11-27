@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Release**: `scripts/progenitor-steward.ts update-profile` changes the steward's own name, bio, email or picture. The steward's profile shows in the member list and, with its name and email, under Contact the administrators, and `grant` could only set it once, as "Steward" with a placeholder email and no picture (`documentation/progenitor.md`).
+
 ### Known issues
 
 <!-- An item leaves this list when the PR that fixes it merges. -->

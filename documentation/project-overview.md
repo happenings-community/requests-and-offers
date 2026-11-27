@@ -3,7 +3,7 @@
 ## Introduction
 
 The **Requests and Offers** project is a Holochain application (hApp) designed for the hAppenings.community. It
-facilitates connections within the Holochain ecosystem by providing a simplified bulletin board where users can:
+facilitates connections within the Holochain ecosystem as a peer-to-peer mutual aid app where members can:
 
 - **Post Requests** for services, skills, or resources they need
 - **Create Offers** to provide services, skills, or resources they can share

@@ -160,13 +160,13 @@ See [Architecture Overview](documentation/architecture.md) for detailed system d
 
 ## 🗺️ Where the Project Stands
 
-The bulletin board MVP is done, and the 0.6.0 alphas build the exchange process on top of it.
+The simplified MVP is done, and the 0.6.0 alphas build the exchange process on top of it.
 The code on `dev` is **0.6.0-alpha.2**: Holochain 0.7 and hREA `happ-0.5.0-beta.1`, on a new, empty network, because the DNA changed and alpha 1 data does not carry over ([notice to testers](documentation/releases/v0.6.0-alpha.2-network-reset.md)).
 [CHANGELOG.md](CHANGELOG.md) records each change as it lands, and [status.md](documentation/status.md) holds the measured counts.
 
 ### Shipped
 
-- **Bulletin Board**: Requests and offers, each with one approved service type, a typed timeframe, and an optional estimate in hours and amount
+- **Listings**: Requests and offers, each with one approved service type, a typed timeframe, and an optional estimate in hours and amount
 - **Members and Organizations**: Profiles, organizations, and an administration that reviews applications with reasons
 - **Roles as grants**: Administrator and member roles are `RoleGrant` entries the network validates
 - **Search & Browse**: Find requests and offers by title or description, and browse them by service type
